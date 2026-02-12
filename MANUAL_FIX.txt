@@ -1,0 +1,65 @@
+Criado arquivo fix-xss.js com script automatizado.
+
+PARA CORRIGIR MANUALMENTE (copiar e colar em main.js):
+
+1. Procure por "// Processar blocos de código com syntax highlight" (linha ~1328)
+
+2. SUBSTITUA TUDO DE:
+```javascript
+        // Processar blocos de código com syntax highlight
+        formatted = formatted.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+```
+
+ATÉ:
+```javascript
+        });
+
+        // Processar inline code
+```
+
+PELA CÓDIGO NOVO (em code-formatter-new.txt)
+
+3. Procure por "// Aplicar syntax highlight APENAS em blocos de código legítimos" (linha ~1308)
+
+SUBSTITUA O setTimeout() INTEIRO PELO NOVO (em code-typewriter-new.txt)
+
+4. No constructor(), após `this.init();` adicione:
+```javascript
+        // Setup delegated event listeners para copy/download
+        document.addEventListener('click', (e) => {
+            const copyBtn = e.target.closest('.copy-btn');
+            if (copyBtn) {
+                const codeId = copyBtn.dataset.codeId;
+                const codeEl = document.getElementById(codeId);
+                if (codeEl) {
+                    navigator.clipboard.writeText(codeEl.textContent).then(() => {
+                        const original = copyBtn.innerHTML;
+                        copyBtn.innerHTML = '<span class="material-icons-outlined text-sm">check</span> Copiado!';
+                        setTimeout(() => { copyBtn.innerHTML = original; }, 2000);
+                    });
+                }
+            }
+            
+            const dlBtn = e.target.closest('.download-btn');
+            if (dlBtn) {
+                const codeId = dlBtn.dataset.codeId;
+                const lang = dlBtn.dataset.lang;
+                const codeEl = document.getElementById(codeId);
+                if (codeEl) {
+                    const blob = new Blob([codeEl.textContent], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'arquivo.' + lang;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                }
+            }
+        });
+```
+
+RESULTADO:
+✅ Nenhum mais aviso XSS do Chrome
+✅ Código renderizado como plaintext
+✅ Highlight feito seguro depois do DOM estar pronto
+✅ Copy/Download funcionam

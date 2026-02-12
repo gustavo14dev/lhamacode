@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Lhama Code 1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#E26543", // The orange accent color for the button
+                        "background-light": "#FFF3EC", // Light peach background
+                        "background-dark": "#1F1A18", // Dark mode background
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#2D2624",
+                        "text-main-light": "#3D1A16", // Dark brown text
+                        "text-main-dark": "#F2EBE9", // Light text for dark mode
+                        "sidebar-light": "#F9F4F2",
+                        "sidebar-dark": "#26201E",
+                    },
+                    fontFamily: {
+                        display: ["'Plus Jakarta Sans'", "sans-serif"],
+                        sans: ["'Plus Jakarta Sans'", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        'xl': '1rem',
+                        '2xl': '1.5rem',
+                        '3xl': '2rem',
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'input': '0 10px 40px -10px rgba(61, 26, 22, 0.08)',
+                    }
+                },
+            },
+        };
+    </script>
+<style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }.custom-bg {
+            background: linear-gradient(135deg, #FFF3EC 0%, #FFF0EB 50%, #FFEBE5 100%);
+        }
+        .dark .custom-bg {
+            background: linear-gradient(135deg, #1F1A18 0%, #26201E 50%, #2D2624 100%);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease;
+        }
+        .animate-scaleIn {
+            animation: scaleIn 0.3s ease;
+        }
+        .animate-slideIn {
+            animation: slideIn 0.3s ease;
+        }
+        .animate-spin-slow {
+            animation: spin-slow 2s linear infinite;
+        }
+        .pause-button {
+            width: 2.5rem;
+            height: 2.5rem;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            border-radius: 9999px;
+            box-shadow: 0 8px 24px -8px rgba(255, 107, 107, 0.4);
+            transition: all 0.2s ease;
+        }
+        .pause-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 32px -8px rgba(255, 107, 107, 0.6);
+        }
+        .pause-button:active {
+            transform: scale(0.95);
+        }
+        /* Esconder scrollbar mas permitir scroll */
+        #debugModalContent {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        #debugModalContent::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="custom-bg min-h-screen text-text-main-light dark:text-text-main-dark transition-colors duration-300">
+<nav class="fixed left-4 top-4 bottom-4 w-72 bg-sidebar-light/95 dark:bg-sidebar-dark/95 backdrop-blur-md rounded-[2rem] flex flex-col py-6 px-4 shadow-soft z-50 border border-white/50 dark:border-white/10 transition-colors duration-300">
+<div class="mb-8 px-2 flex items-center gap-3">
+    <span class="material-symbols-outlined text-3xl bg-gradient-to-tr from-orange-400 via-pink-500 to-purple-500 bg-clip-text text-transparent">cyclone</span>
+    <div class="flex items-center gap-3">
+        <span class="text-xl font-bold tracking-tight text-text-main-light dark:text-text-main-dark">Lhama Code 1</span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary text-white tracking-wider">BETA 1</span>
+    </div>
+</div>
+<button class="flex items-center gap-3 w-full p-3 mb-6 rounded-xl bg-surface-light dark:bg-white/5 border border-gray-100 dark:border-white/5 shadow-sm hover:shadow-md transition-all group text-left" id="newChatBtn">
+<span class="material-icons-outlined text-primary group-hover:scale-110 transition-transform">add_circle</span>
+<span class="font-semibold text-gray-700 dark:text-gray-200">Novo Chat</span>
+</button>
+<div class="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-4 px-1">
+<div>
+<h3 class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 pl-2">Suas Conversas</h3>
+<div class="flex flex-col gap-1.5" id="chatHistoryList">
+<div class="text-xs text-gray-400 dark:text-gray-500 px-3 py-6 text-center">Nenhuma conversa recente</div>
+</div>
+</div>
+</div>
+</nav>
+<main class="ml-80 min-h-screen flex flex-col relative" id="mainContainer">
+
+<!-- API Status Banner: exibido quando as ENV das APIs não estão configuradas ou /api/status falha -->
+<div id="apiStatusBanner" class="fixed right-6 top-20 z-50 hidden bg-yellow-50 dark:bg-yellow-900 text-yellow-900 dark:text-yellow-100 border border-yellow-200 dark:border-yellow-700 rounded-lg px-4 py-2 shadow-sm max-w-md"></div>
+
+<div class="flex-1 flex flex-col justify-center items-center px-4 md:px-12 pb-40" id="welcomeScreen">
+<div class="max-w-6xl text-center mb-12 flex flex-col items-center transition-opacity duration-500" id="titleSection">
+<span class="material-symbols-outlined text-5xl bg-gradient-to-tr from-orange-400 via-pink-500 to-purple-500 bg-clip-text text-transparent mb-6">cyclone</span>
+<h1 class="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-text-main-light dark:text-text-main-dark leading-[1.1]">
+            Lhama Code 1
+        </h1>
+</div>
+</div>
+
+<div class="flex-1 overflow-y-auto px-4 md:px-12 pt-8 pb-52" id="chatArea">
+<div class="max-w-4xl mx-auto w-full" id="messagesContainer"></div>
+</div>
+
+<div class="fixed bottom-0 left-80 right-0 bg-gradient-to-t from-background-light dark:from-background-dark via-background-light dark:via-background-dark to-transparent pt-4 pb-6 px-4 md:px-12 z-50" id="inputWrapper">
+<div class="max-w-4xl mx-auto w-full">
+<div class="bg-surface-light dark:bg-surface-dark rounded-[2rem] p-4 shadow-input border border-white/60 dark:border-white/5 transition-all duration-300">
+<!-- Container para mostrar arquivos anexados (posicionado acima da caixa de texto) -->
+<div id="attachedFilesContainer" class="mb-3 w-full hidden"></div>
+
+<textarea class="w-full bg-transparent border-none text-gray-600 dark:text-gray-300 text-lg placeholder-gray-400 dark:placeholder-gray-500 focus:ring-0 resize-none h-12 py-2 px-2" placeholder="Como posso ajudar com seu código hoje?" id="userInput"></textarea>
+<div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-2 px-2 pb-1">
+<div class="flex items-center gap-3 w-full sm:w-auto overflow-x-auto no-scrollbar">
+<button id="attachFileBtn" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300 transition-colors" title="Anexar arquivo">
+<span class="material-icons-outlined text-base">attach_file</span>
+</button>
+<input type="file" id="fileInput" class="hidden" multiple />
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-all duration-200 whitespace-nowrap" id="debugModeButton" title="Ativar modo depuração para analisar erros">
+<span class="material-icons-outlined text-base">bug_report</span>
+                        Modo Depuração
+                    </button>
+<div class="relative" id="modelSelectorContainer">
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" id="modelButton">
+<span class="material-icons-outlined text-base">psychology</span>
+<span id="modelButtonText">Raciocínio</span>
+<span class="material-icons-outlined text-sm">expand_more</span>
+</button>
+</div>
+</div>
+<div class="flex items-center gap-2 ml-auto">
+<button class="p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 text-gray-500 dark:text-gray-400 transition-colors" title="Transcrição de áudio">
+<span class="material-icons-outlined">mic</span>
+</button>
+<button class="w-10 h-10 rounded-full bg-primary hover:bg-primary/90 flex items-center justify-center text-white shadow-lg shadow-orange-500/30 transition-all transform hover:scale-105 active:scale-95" id="sendButton">
+<span class="material-icons-outlined text-xl">arrow_upward</span>
+</button>
+</div>
+
+</div>
+</div>
+</div>
+
+<!-- Botão de scroll para baixo -->
+<button class="absolute bottom-24 right-6 w-12 h-12 rounded-full bg-primary hover:bg-primary/90 text-white shadow-lg shadow-orange-500/30 transition-all transform hover:scale-110 active:scale-95 opacity-0 pointer-events-none animate-fadeIn" id="scrollToBottomBtn" title="Voltar para mensagem mais recente">
+<span class="material-icons-outlined text-xl">arrow_downward</span>
+</button>
+</div>
+</div>
+</main>
+
+<!-- DEBUG MODAL - Card separado FORA da conversa -->
+<div id="debugModal" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn pointer-events-none" onclick="if(event.target === this) { this.classList.add('hidden'); this.classList.add('pointer-events-none'); }">
+    <div class="bg-white dark:bg-gray-950 rounded-xl border border-gray-200 dark:border-gray-800 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-scaleIn pointer-events-auto">
+        <!-- Header -->
+        <div class="sticky top-0 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="material-icons-outlined text-orange-600 dark:text-orange-400">bug_report</span>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Modo Depuração - Análise de Erro</h2>
+            </div>
+            <button onclick="document.getElementById('debugModal').classList.add('hidden')" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                <span class="material-icons-outlined text-gray-500 dark:text-gray-400">close</span>
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div id="debugModalContent" class="p-6">
+            <!-- Conteúdo dinâmico será inserido aqui -->
+        </div>
+    </div>
+</div>
+
+<script type="module" src="./main.js"></script>
+
+</body></html>
