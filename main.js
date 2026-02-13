@@ -693,6 +693,9 @@ class UI {
         const processingId = 'msg_' + Date.now();
         this.addAssistantMessage('Gerando conteúdo...');
         
+        // Aguardar um pouco para o DOM ser atualizado
+        await this.sleep(100);
+        
         // Atualizar mensagem para mostrar processamento LaTeX
         this.updateProcessingMessage(processingId, 'Gerando conteúdo...');
         
@@ -957,7 +960,17 @@ ${latexCode}
     }
 
     updateProcessingMessage(messageId, text) {
-        const messageElement = document.getElementById(`responseText_${messageId}`);
+        // Tentar encontrar o elemento várias vezes com diferentes abordagens
+        let messageElement = document.getElementById(`responseText_${messageId}`);
+        
+        // Se não encontrar, tentar encontrar o último elemento de mensagem
+        if (!messageElement) {
+            const allMessages = document.querySelectorAll('[id^="responseText_"]');
+            if (allMessages.length > 0) {
+                messageElement = allMessages[allMessages.length - 1];
+            }
+        }
+        
         if (messageElement) {
             messageElement.innerHTML = `
                 <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
@@ -969,12 +982,28 @@ ${latexCode}
                     <span class="text-sm font-medium">${text}</span>
                 </div>
             `;
+            console.log('✅ Mensagem de processamento atualizada:', text);
+        } else {
+            console.warn('❌ Elemento de mensagem não encontrado para atualizar:', messageId);
         }
     }
 
     displayCompiledContent(messageId, compiledData, type, originalMessage) {
-        const messageElement = document.getElementById(`responseText_${messageId}`);
-        if (!messageElement) return;
+        // Tentar encontrar o elemento várias vezes com diferentes abordagens
+        let messageElement = document.getElementById(`responseText_${messageId}`);
+        
+        // Se não encontrar, tentar encontrar o último elemento de mensagem
+        if (!messageElement) {
+            const allMessages = document.querySelectorAll('[id^="responseText_"]');
+            if (allMessages.length > 0) {
+                messageElement = allMessages[allMessages.length - 1];
+            }
+        }
+        
+        if (!messageElement) {
+            console.error('❌ Elemento de mensagem não encontrado para displayCompiledContent:', messageId);
+            return;
+        }
 
         const typeName = this.getCreateTypeName();
         
@@ -1009,6 +1038,7 @@ ${latexCode}
             </div>
         `;
 
+        console.log('✅ Conteúdo compilado exibido para:', typeName);
         this.scrollToBottom();
     }
 
