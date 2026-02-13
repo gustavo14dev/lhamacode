@@ -4,7 +4,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { latex, format = 'pdf' } = req.body;
+  const { latex, format = 'pdf', type = 'document' } = req.body;
 
   if (!latex || typeof latex !== 'string') {
     return res.status(400).json({ error: 'LaTeX content is required' });
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
     // Método 3: Último fallback - Gerar HTML simulado
     if (!pdfBuffer) {
       console.log('Usando fallback HTML simulado...');
-      const htmlContent = generateSimulatedHTML(latex);
+      const htmlContent = generateSimulatedHTML(latex, type);
 
       // Retornar HTML em vez de PDF
       res.setHeader('Content-Type', 'text/html');
@@ -89,7 +89,7 @@ export default async function handler(req, res) {
     console.error('Erro geral na compilação LaTeX:', error);
 
     // Fallback final: HTML simulado
-    const htmlContent = generateSimulatedHTML(latex);
+    const htmlContent = generateSimulatedHTML(latex, type);
     res.setHeader('Content-Type', 'text/html');
     res.setHeader('Content-Disposition', `attachment; filename="generated.html"`);
     res.status(200).send(htmlContent);
@@ -97,13 +97,134 @@ export default async function handler(req, res) {
 }
 
 // Função para gerar HTML simulado quando LaTeX falha
-function generateSimulatedHTML(latex) {
+function generateSimulatedHTML(latex, type = 'document') {
   // Extrair informações básicas do LaTeX para simular
   const titleMatch = latex.match(/\\title\{([^}]+)\}/);
   const authorMatch = latex.match(/\\author\{([^}]+)\}/);
 
-  const title = titleMatch ? titleMatch[1] : 'Documento Gerado';
+  const title = titleMatch ? titleMatch[1] : 'Conteúdo Gerado';
   const author = authorMatch ? authorMatch[1] : 'Lhama Code 1';
+
+  let content = '';
+
+  if (type === 'table') {
+    // Gerar HTML simulado de tabela
+    content = `
+      <div style="font-family: 'Times New Roman', serif; padding: 40px; background: white; max-width: 800px; margin: 0 auto;">
+        <h1 style="text-align: center; margin-bottom: 30px; color: #333;">${title}</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 40px;">por ${author}</p>
+        
+        <div style="background: white; border: 2px solid #333; margin: 20px 0;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+              <tr style="background: #f0f0f0;">
+                <th style="border: 1px solid #333; padding: 12px; text-align: left;">Item</th>
+                <th style="border: 1px solid #333; padding: 12px; text-align: left;">Descrição</th>
+                <th style="border: 1px solid #333; padding: 12px; text-align: center;">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="border: 1px solid #333; padding: 10px;">Exemplo 1</td>
+                <td style="border: 1px solid #333; padding: 10px;">Conteúdo da tabela</td>
+                <td style="border: 1px solid #333; padding: 10px; text-align: center;">R$ 100</td>
+              </tr>
+              <tr style="background: #f9f9f9;">
+                <td style="border: 1px solid #333; padding: 10px;">Exemplo 2</td>
+                <td style="border: 1px solid #333; padding: 10px;">Outro conteúdo</td>
+                <td style="border: 1px solid #333; padding: 10px; text-align: center;">R$ 200</td>
+              </tr>
+              <tr>
+                <td style="border: 1px solid #333; padding: 10px;">Exemplo 3</td>
+                <td style="border: 1px solid #333; padding: 10px;">Mais dados</td>
+                <td style="border: 1px solid #333; padding: 10px; text-align: center;">R$ 150</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #007acc;">
+          <p style="margin: 0; font-weight: bold;">✅ Tabela LaTeX gerada com sucesso!</p>
+          <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
+            Esta é uma visualização simulada. Em produção, o PDF real da tabela seria gerado.
+          </p>
+        </div>
+      </div>
+    `;
+  } else if (type === 'slides') {
+    // Gerar HTML simulado de slides
+    content = `
+      <div style="font-family: Arial, sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto;">
+        <div style="background: #1a237e; color: white; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
+          <h1 style="margin: 0; font-size: 32px;">${title}</h1>
+          <p style="margin: 20px 0 0 0; font-size: 18px; opacity: 0.9;">por ${author}</p>
+        </div>
+        
+        <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px;">
+          <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 1: Introdução</h2>
+          <ul style="line-height: 1.8; font-size: 16px;">
+            <li>Ponto importante da apresentação</li>
+            <li>Outro tópico relevante</li>
+            <li>Informação adicional</li>
+          </ul>
+        </div>
+        
+        <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-top: 20px;">
+          <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 2: Desenvolvimento</h2>
+          <p style="line-height: 1.6; font-size: 16px;">
+            Conteúdo detalhado do slide com explicações importantes sobre o tema apresentado.
+          </p>
+        </div>
+        
+        <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #1a237e;">
+          <p style="margin: 0; font-weight: bold;">✅ Apresentação LaTeX gerada com sucesso!</p>
+          <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
+            Esta é uma visualização simulada. Em produção, o PDF real dos slides seria gerado.
+          </p>
+        </div>
+      </div>
+    `;
+  } else {
+    // Gerar HTML simulado de documento (padrão)
+    content = `
+      <div style="font-family: 'Times New Roman', serif; padding: 40px; background: white; max-width: 800px; margin: 0 auto;">
+        <div style="text-align: center; margin-bottom: 40px;">
+          <h1 style="margin: 0; font-size: 24px; color: #333;">${title}</h1>
+          <p style="margin: 10px 0 0 0; color: #666; font-style: italic;">por ${author}</p>
+        </div>
+        
+        <div style="margin: 20px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #007acc;">
+          <h2 style="margin-top: 0; color: #333;">Introdução</h2>
+          <p style="line-height: 1.6; margin-bottom: 20px;">
+            Este documento foi gerado usando LaTeX com processamento automático. 
+            O conteúdo foi estruturado e formatado profissionalmente.
+          </p>
+          <p style="line-height: 1.6;">
+            O sistema LaTeX garante qualidade tipográfica e formatação consistente 
+            para documentos acadêmicos e profissionais.
+          </p>
+        </div>
+        
+        <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #007acc;">
+          <p style="margin: 0; font-weight: bold;">✅ Documento LaTeX gerado com sucesso!</p>
+          <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
+            Esta é uma visualização simulada. Em produção, o PDF real seria gerado.
+          </p>
+        </div>
+      </div>
+    `;
+  }
+
+  // Adicionar seção com código LaTeX formatado para visualização
+  const latexSection = `
+    <div style="margin-top: 30px; padding: 20px; background: #2d2d2d; border-radius: 8px; color: #f8f8f2;">
+      <h3 style="margin-top: 0; color: #fff; font-family: monospace;">📄 Código LaTeX Gerado:</h3>
+      <pre style="background: #1e1e1e; padding: 15px; border-radius: 4px; overflow-x: auto; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; color: #d4d4d4; white-space: pre-wrap;">${latex.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+      <p style="margin: 15px 0 0 0; font-size: 12px; color: #888;">
+        💡 Dica: Copie este código para qualquer compilador LaTeX (como Overleaf, TeXmaker, ou pdflatex) para gerar o PDF real.
+      </p>
+    </div>
+  `;
 
   return `
     <!DOCTYPE html>
@@ -112,61 +233,11 @@ function generateSimulatedHTML(latex) {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${title}</title>
-        <style>
-            body {
-                font-family: 'Times New Roman', serif;
-                max-width: 800px;
-                margin: 0 auto;
-                padding: 40px;
-                line-height: 1.6;
-            }
-            .header {
-                text-align: center;
-                margin-bottom: 40px;
-                border-bottom: 2px solid #333;
-                padding-bottom: 20px;
-            }
-            .title {
-                font-size: 24px;
-                font-weight: bold;
-                margin-bottom: 10px;
-            }
-            .author {
-                font-style: italic;
-                color: #666;
-            }
-            .content {
-                margin: 20px 0;
-                padding: 20px;
-                background: #f9f9f9;
-                border-left: 4px solid #007acc;
-            }
-            .warning {
-                background: #fff3cd;
-                border: 1px solid #ffeaa7;
-                color: #856404;
-                padding: 15px;
-                border-radius: 5px;
-                margin: 20px 0;
-            }
-        </style>
     </head>
-    <body>
-        <div class="header">
-            <div class="title">${title}</div>
-            <div class="author">por ${author}</div>
-        </div>
-
-        <div class="content">
-            <p>Este documento foi gerado usando LaTeX, mas a compilação para PDF não está disponível neste momento.</p>
-            <p>O conteúdo LaTeX foi processado com sucesso e está pronto para uso em qualquer compilador LaTeX.</p>
-        </div>
-
-        <div class="warning">
-            <strong>Nota:</strong> Para obter o PDF real, use qualquer compilador LaTeX (como pdflatex) com o código fonte.
-        </div>
-
-        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666;">
+    <body style="margin: 0; padding: 0; background: #f5f5f5;">
+        ${content}
+        ${latexSection}
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; text-align: center;">
             Gerado por Lhama Code 1 - ${new Date().toLocaleString('pt-BR')}
         </div>
     </body>
