@@ -784,34 +784,33 @@ ${latexCode}
     }
 
     async compileLatexToPDF(latexCode) {
-        // Usar serviço online para compilar LaTeX
-        // NOTA: Em produção, você pode usar LaTeX.js ou serviço próprio
+        // Usar serviço de compilação LaTeX próprio
         try {
-            const response = await fetch('https://latex2image-api.vercel.app/compile', {
+            const response = await fetch('/api/latex-compile', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     latex: latexCode,
-                    format: 'pdf',
-                    engine: 'pdflatex'
+                    format: 'pdf'
                 })
             });
 
             if (!response.ok) {
-                throw new Error('Falha na compilação LaTeX');
+                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                throw new Error(errorData.error || `Compilation failed: ${response.status}`);
             }
 
-            const data = await response.blob();
+            const pdfBlob = await response.blob();
             return {
-                blob: data,
-                url: URL.createObjectURL(data),
-                filename: `generated_${Date.now()}.pdf`
+                blob: pdfBlob,
+                url: URL.createObjectURL(pdfBlob),
+                filename: `generated_${Date.now()}.pdf`,
+                isSimulated: false
             };
         } catch (error) {
-            // Fallback: criar visualização simulada
-            console.warn('Serviço LaTeX indisponível, criando visualização simulada');
+            console.warn('Serviço LaTeX próprio indisponível, usando fallback simulado:', error.message);
             return this.createSimulatedContent(latexCode);
         }
     }
