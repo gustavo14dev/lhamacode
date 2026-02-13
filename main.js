@@ -737,7 +737,14 @@ REGRAS IMPORTANTES:
 - NÃO INCLUIA marcadores como \`\`\`latex ou \`\`\`
 - Para slides: use \\documentclass{beamer}
 - Para documentos: use \\documentclass{article}
-- Para tabelas: use \\documentclass{article} com tabular environment`
+- Para tabelas: use \\documentclass{article} com tabular environment
+
+CONTEÚDO ESPECÍFICO:
+- Se o usuário pedir "tabela de preços", gere uma tabela real com produtos e preços
+- Se o usuário pedir "apresentação sobre X", gere slides com conteúdo sobre X
+- Se o usuário pedir "documento sobre X", gere texto real sobre X
+- NÃO use placeholders genéricos como "Exemplo 1", "Conteúdo da tabela"
+- GERE CONTEÚDO REAL E ESPECÍFICO BASEADO NO QUE O USUÁRIO PEDIU`
         };
 
         const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [systemPrompt, { role: 'user', content: message }]);
@@ -752,6 +759,7 @@ REGRAS IMPORTANTES:
         if (!latexCode.includes('\\documentclass')) {
             if (type === 'slides') {
                 latexCode = `\\documentclass{beamer}
+\\usetheme{Madrid}
 \\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
 \\usepackage{amsmath}
@@ -949,18 +957,9 @@ ${latexCode}
             `;
         }
 
-        // Adicionar seção com código LaTeX formatado para visualização
-        const latexSection = `
-            <div style="margin-top: 30px; padding: 20px; background: #2d2d2d; border-radius: 8px; color: #f8f8f2;">
-                <h3 style="margin-top: 0; color: #fff; font-family: monospace;">📄 Código LaTeX Gerado:</h3>
-                <pre style="background: #1e1e1e; padding: 15px; border-radius: 4px; overflow-x: auto; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; color: #d4d4d4; white-space: pre-wrap;">${this.escapeHtml(latexCode)}</pre>
-                <p style="margin: 15px 0 0 0; font-size: 12px; color: #888;">
-                    💡 Dica: Copie este código para qualquer compilador LaTeX (como Overleaf, TeXmaker, ou pdflatex) para gerar o PDF real.
-                </p>
-            </div>
-        `;
-
-        const fullContent = content + latexSection;
+        // SEM SEÇÃO DE CÓDIGO LATEX - O USUÁRIO NÃO DEVE VER O CÓDIGO!
+        
+        const fullContent = content;
         
         const blob = new Blob([fullContent], { type: 'text/html' });
         return {

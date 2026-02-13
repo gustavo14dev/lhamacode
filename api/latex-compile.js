@@ -215,16 +215,7 @@ function generateSimulatedHTML(latex, type = 'document') {
     `;
   }
 
-  // Adicionar seção com código LaTeX formatado para visualização
-  const latexSection = `
-    <div style="margin-top: 30px; padding: 20px; background: #2d2d2d; border-radius: 8px; color: #f8f8f2;">
-      <h3 style="margin-top: 0; color: #fff; font-family: monospace;">📄 Código LaTeX Gerado:</h3>
-      <pre style="background: #1e1e1e; padding: 15px; border-radius: 4px; overflow-x: auto; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; color: #d4d4d4; white-space: pre-wrap;">${latex.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
-      <p style="margin: 15px 0 0 0; font-size: 12px; color: #888;">
-        💡 Dica: Copie este código para qualquer compilador LaTeX (como Overleaf, TeXmaker, ou pdflatex) para gerar o PDF real.
-      </p>
-    </div>
-  `;
+  // SEM SEÇÃO DE CÓDIGO LATEX - O USUÁRIO NÃO DEVE VER O CÓDIGO!
 
   return `
     <!DOCTYPE html>
@@ -236,7 +227,6 @@ function generateSimulatedHTML(latex, type = 'document') {
     </head>
     <body style="margin: 0; padding: 0; background: #f5f5f5;">
         ${content}
-        ${latexSection}
         <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; text-align: center;">
             Gerado por Lhama Code 1 - ${new Date().toLocaleString('pt-BR')}
         </div>
