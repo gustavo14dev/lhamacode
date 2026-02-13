@@ -37,6 +37,9 @@ class UI {
             modelButton: document.getElementById('modelButton'),
             modelDropdown: document.getElementById('modelDropdown'),
             modelButtonText: document.getElementById('modelButtonText'),
+            createButton: document.getElementById('createButton'),
+            createDropdown: document.getElementById('createDropdown'),
+            createButtonText: document.getElementById('createButtonText'),
             scrollToBottomBtn: document.getElementById('scrollToBottomBtn')
         };
 
@@ -45,7 +48,10 @@ class UI {
             console.log('✅ Elementos carregados:', {
                 modelButton: !!this.elements.modelButton,
                 modelDropdown: !!this.elements.modelDropdown,
-                modelButtonText: !!this.elements.modelButtonText
+                modelButtonText: !!this.elements.modelButtonText,
+                createButton: !!this.elements.createButton,
+                createDropdown: !!this.elements.createDropdown,
+                createButtonText: !!this.elements.createButtonText
             });
         }
 
@@ -303,15 +309,35 @@ class UI {
             console.error('❌ Botão de modelo não encontrado!');
         }
         
+        // Configurar botão de criar com verificação
+        const createBtn = document.getElementById('createButton');
+        if (createBtn) {
+            createBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (DEBUG) console.log('🖱️ Botão criar clicado!');
+                this.toggleCreateDropdown();
+            });
+        } else if (DEBUG) {
+            console.error('❌ Botão de criar não encontrado!');
+        }
+        
         document.addEventListener('click', (e) => {
             const floatingDropdown = document.getElementById('floatingModelDropdown');
+            const floatingCreateDropdown = document.getElementById('floatingCreateDropdown');
             const modelBtn = document.getElementById('modelButton');
+            const createBtn = document.getElementById('createButton');
+            
             if (floatingDropdown && !floatingDropdown.contains(e.target) && !modelBtn.contains(e.target)) {
                 floatingDropdown.classList.add('hidden');
+            }
+            
+            if (floatingCreateDropdown && !floatingCreateDropdown.contains(e.target) && !createBtn.contains(e.target)) {
+                floatingCreateDropdown.classList.add('hidden');
             }
         });
 
         this.setupModelSelector();
+        this.setupCreateSelector();
         
         this.elements.userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -526,6 +552,128 @@ class UI {
                 btn.classList.add('hover:bg-gray-50', 'dark:hover:bg-white/5');
             }
         });
+    }
+
+    createFloatingCreateDropdown() {
+        // Remover dropdown anterior se existir
+        const existing = document.getElementById('floatingCreateDropdown');
+        if (existing) existing.remove();
+
+        const dropdownHTML = `
+            <div id="floatingCreateDropdown" class="hidden fixed bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[200]" style="min-width: 180px;">
+                <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2 first:rounded-t-lg" data-create="slides">
+                    <span class="material-icons-outlined text-base text-green-400">slideshow</span>
+                    Apresentação
+                </button>
+                <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2" data-create="document">
+                    <span class="material-icons-outlined text-base text-blue-400">description</span>
+                    Documento
+                </button>
+                <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2 last:rounded-b-lg" data-create="table">
+                    <span class="material-icons-outlined text-base text-purple-400">table_chart</span>
+                    Tabela
+                </button>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', dropdownHTML);
+        
+        // Setup dos botões do dropdown
+        const buttons = document.querySelectorAll('#floatingCreateDropdown button[data-create]');
+        buttons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!btn.disabled) {
+                    const createType = btn.dataset.create;
+                    this.setCreateType(createType);
+                    document.getElementById('floatingCreateDropdown').classList.add('hidden');
+                }
+            });
+        });
+    }
+
+    toggleCreateDropdown() {
+        const dropdown = document.getElementById('floatingCreateDropdown');
+        const createBtn = document.getElementById('createButton');
+        
+        if (!dropdown || !createBtn) {
+            console.error('❌ Elementos do criar não encontrados!');
+            return;
+        }
+
+        if (dropdown.classList.contains('hidden')) {
+            // Mostrar dropdown
+            dropdown.classList.remove('hidden');
+            
+            // Posicionar acima do botão
+            const rect = createBtn.getBoundingClientRect();
+            const dropdownHeight = dropdown.offsetHeight;
+            const topPosition = rect.top - dropdownHeight - 8;
+            
+            dropdown.style.top = topPosition + 'px';
+            dropdown.style.left = rect.left + 'px';
+            
+            console.log('✅ Dropdown Criar aberto em:', { top: topPosition, left: rect.left });
+        } else {
+            // Fechar dropdown
+            dropdown.classList.add('hidden');
+            console.log('✅ Dropdown Criar fechado');
+        }
+    }
+
+    setupCreateSelector() {
+        // Criar dropdown flutuante
+        this.createFloatingCreateDropdown();
+    }
+
+    setCreateType(createType) {
+        this.currentCreateType = createType;
+        const createNames = {
+            'slides': 'Apresentação',
+            'document': 'Documento',
+            'table': 'Tabela'
+        };
+        
+        const createIcons = {
+            'slides': 'slideshow',
+            'document': 'description',
+            'table': 'table_chart'
+        };
+        
+        const createColors = {
+            'slides': 'text-green-400',
+            'document': 'text-blue-400',
+            'table': 'text-purple-400'
+        };
+
+        // Atualizar botão principal
+        const createBtn = document.getElementById('createButton');
+        if (createBtn) {
+            const icon = createBtn.querySelector('.material-icons-outlined:first-child');
+            const text = document.getElementById('createButtonText');
+            
+            if (icon) {
+                icon.textContent = createIcons[createType];
+                icon.className = `material-icons-outlined text-base ${createColors[createType]}`;
+            }
+            if (text) {
+                text.textContent = createNames[createType];
+            }
+        }
+        
+        // Atualizar indicador visual do dropdown
+        const buttons = document.querySelectorAll('#floatingCreateDropdown button[data-create]');
+        buttons.forEach(btn => {
+            if (btn.dataset.create === createType) {
+                btn.classList.add('bg-primary/20', 'dark:bg-primary/20');
+                btn.classList.remove('hover:bg-gray-50', 'dark:hover:bg-white/5');
+            } else {
+                btn.classList.remove('bg-primary/20', 'dark:bg-primary/20');
+                btn.classList.add('hover:bg-gray-50', 'dark:hover:bg-white/5');
+            }
+        });
+
+        console.log('✅ Tipo de criação selecionado:', createType);
     }
 
     async handleSend() {
