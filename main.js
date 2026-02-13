@@ -701,16 +701,21 @@ class UI {
         
         try {
             // Gerar código LaTeX internamente (NUNCA MOSTRAR PARA O USUÁRIO)
+            console.log('🚀 Iniciando geração LaTeX para:', this.currentCreateType, '-', message);
             const latexCode = await this.generateLatexContent(message, this.currentCreateType);
+            console.log('✅ LaTeX gerado, iniciando compilação...');
             
             // Compilar LaTeX para PDF (usando serviço online)
             const compiledData = await this.compileLatexToPDF(latexCode);
+            console.log('✅ Compilação concluída, exibindo resultado...');
             
             // Mostrar resultado visual para o usuário
             this.displayCompiledContent(processingId, compiledData, this.currentCreateType, message);
+            console.log('✅ Processo concluído com sucesso!');
             
         } catch (error) {
-            console.error('Erro ao gerar conteúdo:', error);
+            console.error('❌ Erro ao gerar conteúdo:', error);
+            console.error('❌ Stack trace:', error.stack);
             this.updateProcessingMessage(processingId, `❌ Erro ao gerar ${this.getCreateTypeName()}: ${error.message}`);
         }
         
@@ -788,7 +793,9 @@ ${latexCode}
 
     async compileLatexToPDF(latexCode) {
         // Usar serviço de compilação LaTeX próprio
+        console.log('🔧 Iniciando compilação LaTeX...');
         try {
+            console.log('📡 Enviando requisição para /api/latex-compile...');
             const response = await fetch('/api/latex-compile', {
                 method: 'POST',
                 headers: {
@@ -801,12 +808,16 @@ ${latexCode}
                 })
             });
 
+            console.log('📡 Resposta recebida:', response.status, response.statusText);
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                console.error('❌ Erro na resposta:', errorData);
                 throw new Error(errorData.error || `Compilation failed: ${response.status}`);
             }
 
             const pdfBlob = await response.blob();
+            console.log('✅ PDF blob criado com sucesso');
             return {
                 blob: pdfBlob,
                 url: URL.createObjectURL(pdfBlob),
@@ -814,7 +825,8 @@ ${latexCode}
                 isSimulated: false
             };
         } catch (error) {
-            console.warn('Serviço LaTeX próprio indisponível, usando fallback simulado:', error.message);
+            console.warn('⚠️ Serviço LaTeX próprio indisponível, usando fallback simulado:', error.message);
+            console.log('🔄 Criando conteúdo simulado...');
             return this.createSimulatedContent(latexCode, this.currentCreateType);
         }
     }
@@ -989,23 +1001,29 @@ ${latexCode}
     }
 
     displayCompiledContent(messageId, compiledData, type, originalMessage) {
+        console.log('🎨 Iniciando displayCompiledContent para:', type, 'com ID:', messageId);
+        
         // Tentar encontrar o elemento várias vezes com diferentes abordagens
         let messageElement = document.getElementById(`responseText_${messageId}`);
         
         // Se não encontrar, tentar encontrar o último elemento de mensagem
         if (!messageElement) {
+            console.log('🔍 Elemento não encontrado pelo ID, buscando último elemento...');
             const allMessages = document.querySelectorAll('[id^="responseText_"]');
             if (allMessages.length > 0) {
                 messageElement = allMessages[allMessages.length - 1];
+                console.log('✅ Último elemento encontrado:', messageElement.id);
             }
         }
         
         if (!messageElement) {
             console.error('❌ Elemento de mensagem não encontrado para displayCompiledContent:', messageId);
+            console.error('❌ Elementos disponíveis:', document.querySelectorAll('[id^="responseText_"]').length);
             return;
         }
 
         const typeName = this.getCreateTypeName();
+        console.log('📝 Exibindo conteúdo para:', typeName, 'URL:', compiledData.url);
         
         messageElement.innerHTML = `
             <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-4 border border-gray-200 dark:border-gray-700">
