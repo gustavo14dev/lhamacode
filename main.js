@@ -687,11 +687,11 @@ class UI {
         }
 
         // Adicionar mensagem do usuário ao chat
-        this.addMessage('user', message);
+        this.addUserMessage(message);
         
         // Mostrar mensagem de processamento
-        const processingId = Date.now().toString();
-        this.addMessage('assistant', '', processingId);
+        const processingId = 'msg_' + Date.now();
+        this.addAssistantMessage('Gerando conteúdo...');
         
         // Atualizar mensagem para mostrar processamento LaTeX
         this.updateProcessingMessage(processingId, 'Gerando conteúdo...');
@@ -840,34 +840,28 @@ ${latexCode}
     }
 
     updateProcessingMessage(messageId, text) {
-        const messageElement = document.getElementById(`msg-${messageId}`);
+        const messageElement = document.getElementById(`responseText_${messageId}`);
         if (messageElement) {
-            const contentDiv = messageElement.querySelector('.message-content');
-            if (contentDiv) {
-                contentDiv.innerHTML = `
-                    <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                        <div class="flex gap-1">
-                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0s"></div>
-                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
-                        </div>
-                        <span class="text-sm font-medium">${text}</span>
+            messageElement.innerHTML = `
+                <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                    <div class="flex gap-1">
+                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
                     </div>
-                `;
-            }
+                    <span class="text-sm font-medium">${text}</span>
+                </div>
+            `;
         }
     }
 
     displayCompiledContent(messageId, compiledData, type, originalMessage) {
-        const messageElement = document.getElementById(`msg-${messageId}`);
+        const messageElement = document.getElementById(`responseText_${messageId}`);
         if (!messageElement) return;
-
-        const contentDiv = messageElement.querySelector('.message-content');
-        if (!contentDiv) return;
 
         const typeName = this.getCreateTypeName();
         
-        contentDiv.innerHTML = `
+        messageElement.innerHTML = `
             <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                 <div class="flex items-center gap-2 mb-3">
                     <span class="material-icons-outlined text-${type === 'slides' ? 'green' : type === 'document' ? 'blue' : 'purple'}-400">
