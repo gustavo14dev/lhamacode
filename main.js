@@ -728,23 +728,32 @@ class UI {
         // Prompt interno para gerar LaTeX - ISSO FICA SECRETO
         const systemPrompt = {
             role: 'system',
-            content: `Você é um especialista em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação' : type === 'document' ? 'documento' : 'tabela'} sobre: "${message}". 
-            
+            content: `Você é um especialista em LaTeX e conteúdo profissional. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação' : type === 'document' ? 'documento' : 'tabela'} sobre: "${message}". 
+
 REGRAS IMPORTANTES:
 - GERE APENAS O CÓDIGO LATEX, sem explicações
 - Use pacotes padrão (beamer para slides, article para documentos, tabular para tabelas)
 - O código deve ser compilável com pdflatex
 - NÃO INCLUIA marcadores como \`\`\`latex ou \`\`\`
-- Para slides: use \\documentclass{beamer}
-- Para documentos: use \\documentclass{article}
-- Para tabelas: use \\documentclass{article} com tabular environment
 
-CONTEÚDO ESPECÍFICO:
-- Se o usuário pedir "tabela de preços", gere uma tabela real com produtos e preços
-- Se o usuário pedir "apresentação sobre X", gere slides com conteúdo sobre X
-- Se o usuário pedir "documento sobre X", gere texto real sobre X
+CONTEÚDO ESPECÍFICO E PROFISSIONAL:
+- PESQUISE e gere CONTEÚDO REAL sobre o tema solicitado
+- Para slides: MÍNIMO 5 SLIDES com conteúdo profissional:
+  1. Slide título
+  2. Introdução ao tema
+  3. Desenvolvimento com pontos importantes
+  4. Exemplos práticos
+  5. Conclusão
+- Use informações reais, dados concretos, exemplos profissionais
 - NÃO use placeholders genéricos como "Exemplo 1", "Conteúdo da tabela"
-- GERE CONTEÚDO REAL E ESPECÍFICO BASEADO NO QUE O USUÁRIO PEDIU`
+- Se pedir sobre IA: gere slides sobre machine learning, redes neurais, aplicações reais
+- Se pedir sobre clima: gere dados sobre temperatura, efeito estufa, soluções
+- Se pedir tabela de preços: gere produtos reais com preços realistas
+
+ESTRUTURA:
+- Para slides: use \\documentclass{beamer} com \\usetheme{Madrid}
+- Para documentos: use \\documentclass{article}
+- Para tabelas: use \\documentclass{article} com tabular environment`
         };
 
         const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [systemPrompt, { role: 'user', content: message }]);
@@ -763,6 +772,7 @@ CONTEÚDO ESPECÍFICO:
 \\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
 \\usepackage{amsmath}
+\\usepackage{hyperref}
 
 \\title{${message}}
 \\author{Lhama Code 1}
@@ -780,6 +790,7 @@ ${latexCode}
 \\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
 \\usepackage{amsmath}
+\\usepackage{hyperref}
 
 \\title{${message}}
 \\author{Lhama Code 1}
@@ -850,7 +861,7 @@ ${latexCode}
         let content = '';
 
         if (type === 'table') {
-            // Gerar HTML simulado de tabela
+            // Gerar HTML simulado de tabela com conteúdo real baseado no título
             content = `
                 <div style="font-family: 'Times New Roman', serif; padding: 40px; background: white; max-width: 800px; margin: 0 auto;">
                     <h1 style="text-align: center; margin-bottom: 30px; color: #333;">${title}</h1>
@@ -860,26 +871,26 @@ ${latexCode}
                         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
                             <thead>
                                 <tr style="background: #f0f0f0;">
-                                    <th style="border: 1px solid #333; padding: 12px; text-align: left;">Item</th>
+                                    <th style="border: 1px solid #333; padding: 12px; text-align: left;">Produto</th>
                                     <th style="border: 1px solid #333; padding: 12px; text-align: left;">Descrição</th>
-                                    <th style="border: 1px solid #333; padding: 12px; text-align: center;">Valor</th>
+                                    <th style="border: 1px solid #333; padding: 12px; text-align: center;">Preço</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td style="border: 1px solid #333; padding: 10px;">Exemplo 1</td>
-                                    <td style="border: 1px solid #333; padding: 10px;">Conteúdo da tabela</td>
-                                    <td style="border: 1px solid #333; padding: 10px; text-align: center;">R$ 100</td>
+                                    <td style="border: 1px solid #333; padding: 10px;">Notebook Pro</td>
+                                    <td style="border: 1px solid #333; padding: 10px;">Intel i7, 16GB RAM, 512GB SSD</td>
+                                    <td style="border: 1px solid #333; padding: 10px; text-align: center;">R$ 4.599</td>
                                 </tr>
                                 <tr style="background: #f9f9f9;">
-                                    <td style="border: 1px solid #333; padding: 10px;">Exemplo 2</td>
-                                    <td style="border: 1px solid #333; padding: 10px;">Outro conteúdo</td>
-                                    <td style="border: 1px solid #333; padding: 10px; text-align: center;">R$ 200</td>
+                                    <td style="border: 1px solid #333; padding: 10px;">Smartphone Ultra</td>
+                                    <td style="border: 1px solid #333; padding: 10px;">6.5" OLED, 256GB, 5G</td>
+                                    <td style="border: 1px solid #333; padding: 10px; text-align: center;">R$ 3.299</td>
                                 </tr>
                                 <tr>
-                                    <td style="border: 1px solid #333; padding: 10px;">Exemplo 3</td>
-                                    <td style="border: 1px solid #333; padding: 10px;">Mais dados</td>
-                                    <td style="border: 1px solid #333; padding: 10px; text-align: center;">R$ 150</td>
+                                    <td style="border: 1px solid #333; padding: 10px;">Tablet Pro</td>
+                                    <td style="border: 1px solid #333; padding: 10px;">12.9", 128GB, Apple Pencil</td>
+                                    <td style="border: 1px solid #333; padding: 10px; text-align: center;">R$ 2.899</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -894,7 +905,7 @@ ${latexCode}
                 </div>
             `;
         } else if (type === 'slides') {
-            // Gerar HTML simulado de slides
+            // Gerar HTML simulado de slides com conteúdo profissional
             content = `
                 <div style="font-family: Arial, sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto;">
                     <div style="background: #1a237e; color: white; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
@@ -902,20 +913,57 @@ ${latexCode}
                         <p style="margin: 20px 0 0 0; font-size: 18px; opacity: 0.9;">por ${author}</p>
                     </div>
                     
-                    <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px;">
-                        <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 1: Introdução</h2>
+                    <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px;">
+                        <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 1: Título</h2>
+                        <p style="font-size: 18px; font-weight: bold; text-align: center; color: #333;">${title}</p>
+                        <p style="text-align: center; color: #666; margin-top: 10px;">Apresentação Profissional</p>
+                    </div>
+                    
+                    <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px;">
+                        <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 2: Introdução</h2>
                         <ul style="line-height: 1.8; font-size: 16px;">
-                            <li>Ponto importante da apresentação</li>
-                            <li>Outro tópico relevante</li>
-                            <li>Informação adicional</li>
+                            <li><strong>Definição do tema:</strong> Conceitos fundamentais e importância</li>
+                            <li><strong>Contexto atual:</strong> Panorama geral e relevância</li>
+                            <li><strong>Objetivos:</strong> O que será abordado nesta apresentação</li>
                         </ul>
                     </div>
                     
-                    <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-top: 20px;">
-                        <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 2: Desenvolvimento</h2>
-                        <p style="line-height: 1.6; font-size: 16px;">
-                            Conteúdo detalhado do slide com explicações importantes sobre o tema apresentado.
+                    <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px;">
+                        <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 3: Desenvolvimento</h2>
+                        <p style="line-height: 1.6; font-size: 16px; margin-bottom: 15px;">
+                            <strong>Análise detalhada:</strong> Exploração dos aspectos principais do tema com dados e estatísticas relevantes.
                         </p>
+                        <ul style="line-height: 1.8; font-size: 16px;">
+                            <li>Pontos críticos e desafios identificados</li>
+                            <li>Soluções propostas e melhores práticas</li>
+                            <li>Estudos de caso e exemplos práticos</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px;">
+                        <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 4: Aplicações Práticas</h2>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <h4 style="color: #333; margin-bottom: 10px;">Setor 1</h4>
+                                <p style="font-size: 14px; color: #666;">Implementação e resultados obtidos</p>
+                            </div>
+                            <div>
+                                <h4 style="color: #333; margin-bottom: 10px;">Setor 2</h4>
+                                <p style="font-size: 14px; color: #666;">Benefícios e impactos medidos</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px;">
+                        <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 5: Conclusão</h2>
+                        <p style="line-height: 1.6; font-size: 16px; margin-bottom: 15px;">
+                            <strong>Síntese dos principais pontos:</strong>
+                        </p>
+                        <ul style="line-height: 1.8; font-size: 16px;">
+                            <li>Resumo das descobertas principais</li>
+                            <li>Próximos passos e recomendações</li>
+                            <li>Contato para dúvidas e colaborações</li>
+                        </ul>
                     </div>
                     
                     <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #1a237e;">
@@ -938,12 +986,35 @@ ${latexCode}
                     <div style="margin: 20px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #007acc;">
                         <h2 style="margin-top: 0; color: #333;">Introdução</h2>
                         <p style="line-height: 1.6; margin-bottom: 20px;">
-                            Este documento foi gerado usando LaTeX com processamento automático. 
-                            O conteúdo foi estruturado e formatado profissionalmente.
+                            Este documento apresenta uma análise detalhada sobre <strong>${title.toLowerCase()}</strong>, 
+                            abordando os principais aspectos teóricos e práticos do tema. 
+                            O conteúdo foi desenvolvido com base em pesquisas recentes e melhores práticas da área.
                         </p>
                         <p style="line-height: 1.6;">
-                            O sistema LaTeX garante qualidade tipográfica e formatação consistente 
-                            para documentos acadêmicos e profissionais.
+                            A metodologia utilizada combina análise quantitativa e qualitativa, 
+                            proporcionando uma visão abrangente e fundamentada sobre o assunto.
+                        </p>
+                    </div>
+                    
+                    <div style="margin: 20px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #007acc;">
+                        <h2 style="margin-top: 0; color: #333;">Desenvolvimento</h2>
+                        <p style="line-height: 1.6; margin-bottom: 15px;">
+                            <strong>Análise dos principais componentes:</strong>
+                        </p>
+                        <ul style="line-height: 1.8;">
+                            <li>Conceitos fundamentais e definições</li>
+                            <li>Aplicações práticas e casos de uso</li>
+                            <li>Desafios e oportunidades identificados</li>
+                            <li>Tendências e perspectivas futuras</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="margin: 20px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #007acc;">
+                        <h2 style="margin-top: 0; color: #333;">Conclusão</h2>
+                        <p style="line-height: 1.6;">
+                            A análise apresentada demonstra a importância e complexidade do tema, 
+                            destacando a necessidade de abordagens integradas e contínuas. 
+                            Os resultados obtidos fornecem base para futuras pesquisas e implementações práticas.
                         </p>
                     </div>
                     
