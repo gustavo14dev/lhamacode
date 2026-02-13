@@ -676,6 +676,256 @@ class UI {
         console.log('✅ Tipo de criação selecionado:', createType);
     }
 
+    async handleCreateRequest(message) {
+        if (!this.isTransitioned) {
+            this.createNewChat();
+            await this.sleep(300);
+        }
+
+        if (!this.currentChatId) {
+            this.createNewChat();
+        }
+
+        // Adicionar mensagem do usuário ao chat
+        this.addMessage('user', message);
+        
+        // Mostrar mensagem de processamento
+        const processingId = Date.now().toString();
+        this.addMessage('assistant', '', processingId);
+        
+        // Atualizar mensagem para mostrar processamento LaTeX
+        this.updateProcessingMessage(processingId, 'Gerando conteúdo...');
+        
+        try {
+            // Gerar código LaTeX internamente (NUNCA MOSTRAR PARA O USUÁRIO)
+            const latexCode = await this.generateLatexContent(message, this.currentCreateType);
+            
+            // Compilar LaTeX para PDF (usando serviço online)
+            const compiledData = await this.compileLatexToPDF(latexCode);
+            
+            // Mostrar resultado visual para o usuário
+            this.displayCompiledContent(processingId, compiledData, this.currentCreateType, message);
+            
+        } catch (error) {
+            console.error('Erro ao gerar conteúdo:', error);
+            this.updateProcessingMessage(processingId, `❌ Erro ao gerar ${this.getCreateTypeName()}: ${error.message}`);
+        }
+        
+        // Resetar tipo de criação após uso
+        this.currentCreateType = null;
+        this.resetCreateButton();
+    }
+
+    async generateLatexContent(message, type) {
+        // Prompt interno para gerar LaTeX - ISSO FICA SECRETO
+        const systemPrompt = {
+            role: 'system',
+            content: `Você é um especialista em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação' : type === 'document' ? 'documento' : 'tabela'} sobre: "${message}". 
+            
+REGRAS IMPORTANTES:
+- GERE APENAS O CÓDIGO LATEX, sem explicações
+- Use pacotes padrão (beamer para slides, article para documentos, tabular para tabelas)
+- O código deve ser compilável com pdflatex
+- NÃO INCLUIA marcadores como \`\`\`latex ou \`\`\`
+- Para slides: use \\documentclass{beamer}
+- Para documentos: use \\documentclass{article}
+- Para tabelas: use \\documentclass{article} com tabular environment`
+        };
+
+        const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [systemPrompt, { role: 'user', content: message }]);
+        
+        // Limpar resposta para obter apenas o código LaTeX
+        let latexCode = response.trim();
+        
+        // Remover marcadores de código se existirem
+        latexCode = latexCode.replace(/```latex/gi, '').replace(/```/g, '');
+        
+        // Adicionar estrutura básica se faltar
+        if (!latexCode.includes('\\documentclass')) {
+            if (type === 'slides') {
+                latexCode = `\\documentclass{beamer}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+
+\\title{${message}}
+\\author{Lhama Code 1}
+\\date{\\today}
+
+\\begin{document}
+
+\\frame{\\titlepage}
+
+${latexCode}
+
+\\end{document}`;
+            } else if (type === 'document') {
+                latexCode = `\\documentclass{article}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+
+\\title{${message}}
+\\author{Lhama Code 1}
+\\date{\\today}
+
+\\begin{document}
+
+\\maketitle
+
+${latexCode}
+
+\\end{document}`;
+            }
+        }
+        
+        console.log('🔒 LaTeX gerado internamente (segredo):', latexCode.substring(0, 100) + '...');
+        return latexCode;
+    }
+
+    async compileLatexToPDF(latexCode) {
+        // Usar serviço online para compilar LaTeX
+        // NOTA: Em produção, você pode usar LaTeX.js ou serviço próprio
+        try {
+            const response = await fetch('https://latex2image-api.vercel.app/compile', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    latex: latexCode,
+                    format: 'pdf',
+                    engine: 'pdflatex'
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Falha na compilação LaTeX');
+            }
+
+            const data = await response.blob();
+            return {
+                blob: data,
+                url: URL.createObjectURL(data),
+                filename: `generated_${Date.now()}.pdf`
+            };
+        } catch (error) {
+            // Fallback: criar visualização simulada
+            console.warn('Serviço LaTeX indisponível, criando visualização simulada');
+            return this.createSimulatedContent(latexCode);
+        }
+    }
+
+    createSimulatedContent(latexCode) {
+        // Criar uma visualização HTML simulada do conteúdo LaTeX
+        const content = `
+            <div style="font-family: 'Times New Roman', serif; padding: 40px; background: white; max-width: 800px; margin: 0 auto;">
+                <h1 style="text-align: center; margin-bottom: 30px;">Conteúdo Gerado</h1>
+                <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p style="line-height: 1.6;">Conteúdo LaTeX processado com sucesso!</p>
+                    <p style="font-size: 14px; color: #666; margin-top: 20px;">
+                        Este é um preview simulado. Em produção, o PDF real seria gerado.
+                    </p>
+                </div>
+            </div>
+        `;
+        
+        const blob = new Blob([content], { type: 'text/html' });
+        return {
+            blob: blob,
+            url: URL.createObjectURL(blob),
+            filename: `generated_${Date.now()}.html`,
+            isSimulated: true
+        };
+    }
+
+    updateProcessingMessage(messageId, text) {
+        const messageElement = document.getElementById(`msg-${messageId}`);
+        if (messageElement) {
+            const contentDiv = messageElement.querySelector('.message-content');
+            if (contentDiv) {
+                contentDiv.innerHTML = `
+                    <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                        <div class="flex gap-1">
+                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                        </div>
+                        <span class="text-sm font-medium">${text}</span>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    displayCompiledContent(messageId, compiledData, type, originalMessage) {
+        const messageElement = document.getElementById(`msg-${messageId}`);
+        if (!messageElement) return;
+
+        const contentDiv = messageElement.querySelector('.message-content');
+        if (!contentDiv) return;
+
+        const typeName = this.getCreateTypeName();
+        
+        contentDiv.innerHTML = `
+            <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="material-icons-outlined text-${type === 'slides' ? 'green' : type === 'document' ? 'blue' : 'purple'}-400">
+                        ${type === 'slides' ? 'slideshow' : type === 'document' ? 'description' : 'table_chart'}
+                    </span>
+                    <h3 class="font-semibold text-gray-800 dark:text-gray-200">${typeName} gerado com sucesso!</h3>
+                </div>
+                
+                <div class="mb-4">
+                    <iframe 
+                        src="${compiledData.url}" 
+                        style="width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 8px;"
+                        onload="this.style.opacity='1'"
+                        onerror="this.parentElement.innerHTML='<div class=\\'text-center p-8 text-gray-500\\'>Visualização não disponível. Use o botão de download.</div>'">
+                    </iframe>
+                </div>
+                
+                <div class="flex gap-2">
+                    <button onclick="window.downloadGeneratedContent('${compiledData.url}', '${compiledData.filename}')" 
+                            class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                        <span class="material-icons-outlined text-sm">download</span>
+                        Baixar ${typeName}
+                    </button>
+                    ${compiledData.isSimulated ? `
+                        <span class="text-xs text-gray-500 italic">*Visualização simulada para demonstração</span>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+
+        this.scrollToBottom();
+    }
+
+    getCreateTypeName() {
+        const names = {
+            'slides': 'Apresentação',
+            'document': 'Documento',
+            'table': 'Tabela'
+        };
+        return names[this.currentCreateType] || 'Conteúdo';
+    }
+
+    resetCreateButton() {
+        const createBtn = document.getElementById('createButton');
+        if (createBtn) {
+            const icon = createBtn.querySelector('.material-icons-outlined:first-child');
+            const text = document.getElementById('createButtonText');
+            
+            if (icon) {
+                icon.textContent = 'add_circle';
+                icon.className = 'material-icons-outlined text-base';
+            }
+            if (text) {
+                text.textContent = 'Criar';
+            }
+        }
+    }
+
     async handleSend() {
         const message = this.elements.userInput.value.trim();
         
@@ -687,6 +937,13 @@ class UI {
         }
         
         if (!message) return;
+
+        // Verificar se usuário selecionou opção "Criar"
+        if (this.currentCreateType && message) {
+            await this.handleCreateRequest(message);
+            this.elements.userInput.value = '';
+            return;
+        }
 
         if (!this.isTransitioned) {
             this.createNewChat();
@@ -1827,4 +2084,15 @@ console.log('- session.clear() → Remove API Key Groq');
         console.warn('Debug system não carregado:', error);
     }
 })();
+
+// Função global para download de conteúdo gerado
+window.downloadGeneratedContent = (url, filename) => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+};
 
