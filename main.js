@@ -689,9 +689,8 @@ class UI {
         // Adicionar mensagem do usuário ao chat
         this.addUserMessage(message);
         
-        // Mostrar mensagem de processamento
-        const processingId = 'msg_' + Date.now();
-        this.addAssistantMessage('Gerando conteúdo...');
+        // Mostrar mensagem de processamento E OBTER O ID CORRETO
+        const processingId = this.addAssistantMessage('Gerando conteúdo...');
         
         // Aguardar um pouco para o DOM ser atualizado
         await this.sleep(100);
@@ -1173,35 +1172,16 @@ ${latexCode}
     displayCompiledContent(messageId, compiledData, type, originalMessage) {
         console.log('🎨 Iniciando displayCompiledContent para:', type, 'com ID:', messageId);
         
-        // O PROBLEMA: O ID está errado! Precisa usar o ID correto que foi criado
-        // Vamos encontrar o elemento correto pelo último ID disponível
-        const allMessages = document.querySelectorAll('[id^="responseText_"]');
-        console.log('🔍 Total de elementos encontrados:', allMessages.length);
-        
-        let messageElement = null;
-        
-        // Tentar encontrar pelo ID correto primeiro
-        messageElement = document.getElementById(`responseText_${messageId}`);
-        
-        // Se não encontrar, usar o último elemento (que é o correto)
-        if (!messageElement && allMessages.length > 0) {
-            messageElement = allMessages[allMessages.length - 1];
-            console.log('✅ Usando último elemento encontrado:', messageElement.id);
-        }
+        // Encontrar o elemento usando o ID correto
+        let messageElement = document.getElementById(`responseText_${messageId}`);
         
         if (!messageElement) {
             console.error('❌ Elemento de mensagem não encontrado para displayCompiledContent:', messageId);
-            console.error('❌ Elementos disponíveis:', allMessages.length);
-            // Listar todos os IDs disponíveis para debug
-            allMessages.forEach((el, index) => {
-                console.error(`❌ Elemento ${index}:`, el.id);
-            });
             return;
         }
 
         const typeName = this.getCreateTypeName();
         console.log('📝 Exibindo conteúdo para:', typeName, 'URL:', compiledData.url);
-        console.log('📝 Elemento alvo:', messageElement.id);
         
         // FORÇAR ATUALIZAÇÃO COM VISIBILIDADE
         messageElement.style.display = 'block';
@@ -1239,7 +1219,6 @@ ${latexCode}
         `;
 
         console.log('✅ Conteúdo compilado exibido para:', typeName);
-        console.log('✅ HTML atualizado no elemento:', messageElement.id);
         this.scrollToBottom();
     }
 
@@ -1667,30 +1646,33 @@ ${latexCode}
                             inner.appendChild(fileCard);
                         });
                         attachWrap.appendChild(inner);
-                        responseDiv.parentNode.insertBefore(attachWrap, responseDiv);
+                        messageDiv.insertBefore(attachWrap, responseDiv);
                     }
                 }
-            } catch(e) {
-                // Falha silenciosa ao renderizar attachments
+            } catch (attachErr) {
+                console.warn('Erro ao renderizar attachments:', attachErr);
             }
 
-            // Não aplicar hljs para evitar warnings de XSS - o highlight já foi aplicado em formatResponse()
-            // Scroll após render
-            this.scrollToBottom();
-            // Iniciar scroll contínuo curto para cobrir animações/updates
-            try { this.startContinuousScroll(30, 3000); } catch(e) {}
-            try {
-                const obs = new MutationObserver(() => {
-                    // Scroll a cada mudança de conteúdo
-                    this.scrollToBottom();
-                });
-                obs.observe(responseDiv, { childList: true, subtree: true, characterData: true });
-                // Desconectar após 3s para cobrir animações/typewriter mais longas
-                setTimeout(() => obs.disconnect(), 3000);
-            } catch (e) {
-                // Observers podem falhar em ambientes restritos — fallback silencioso
+            // Adicionar indicador de thinking se houver
+            if (thinking && thinking.trim()) {
+                const thinkingDiv = document.createElement('div');
+                thinkingDiv.className = 'mt-2 text-xs text-gray-500 dark:text-gray-400 italic border-t border-gray-200 dark:border-gray-600 pt-2';
+                thinkingDiv.textContent = thinking;
+                responseDiv.appendChild(thinkingDiv);
             }
         }
+
+        // Salvar mensagem no storage
+        const chat = this.chats.find(c => c.id === this.currentChatId);
+        if (chat) {
+            const msgObj = { role: 'assistant', content: text };
+            if (thinking) msgObj.thinking = thinking;
+            chat.messages.push(msgObj);
+            this.saveCurrentChat();
+        }
+
+        // RETORNAR O ID PARA USO FUTURO
+        return uniqueId;
     }
 
     createAssistantMessageContainer() {
