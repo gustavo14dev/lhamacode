@@ -741,13 +741,15 @@ REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
 
 CONTEÚDO ESPECÍFICO E DE ALTA QUALIDADE:
 - PESQUISE E GERE CONTEÚDO ESPECIALIZADO sobre o tema
-- Para slides: MÍNIMO 8 SLIDES (ideal 13) com conteúdo denso e útil
-- Estrutura OBRIGATÓRIA para slides: título → introdução → desenvolvimento (3-5 slides) → aplicações → conclusão → agradecimento
+- Para slides: MÍNIMO 8 SLIDES (ideal 15-30) com conteúdo denso e útil
+- Estrutura FLEXÍVEL para slides: título → introdução → desenvolvimento (3-8 slides) → aplicações → conclusão → agradecimento
+- ATENÇÃO: Se o usuário pedir algo específico como "3 slides" ou "apresentação curta", RESPEITE e gere exatamente o solicitado
 - Para tabelas: dados reais, específicos e técnicos sobre o tema
 - Para documentos: texto acadêmico com introdução, desenvolvimento (3-4 seções) e conclusão
 - NUNCA use placeholders genéricos como "Exemplo 1", "Conteúdo da tabela"
 - INCLUA dados técnicos, estatísticas, exemplos reais, citações
 - SEJA ESPECÍFICO E DENSO - o usuário quer APRENDER de verdade
+- ADAPTE-SE AO PEDIDO DO USUÁRIO - se pedir curto, faça curto; se pedir completo, faça completo
 
 EXEMPLOS DE CONTEÚDO DE QUALIDADE:
 - Para "LLM": arquitetura, parâmetros, aplicações reais, modelos específicos (GPT-4, Claude, Llama)

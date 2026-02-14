@@ -265,13 +265,12 @@ function generateSimulatedHTML(latex, type = 'document') {
         
         // Estrutura inteligente baseada na posição
         if (index === 0) {
-          // Slide 1: TÍTULO
+          // Slide 1: TÍTULO (CAPA)
           frameTitle = title;
           frameContent = `
             <div style="text-align: center;">
-              <h1 style="font-size: 2.5em; margin-bottom: 30px; color: #2D2624; font-weight: 700;">${title}</h1>
-              <p style="font-size: 1.3em; color: #6B5D54; margin-bottom: 40px;">${author}</p>
-              <div style="font-size: 1em; color: #8B7468; background: #F9F4F2; padding: 12px 24px; border-radius: 0.5rem; display: inline-block;">
+              <h1 style="font-size: 2.8em; margin-bottom: 25px; color: #2D2624; font-weight: 700;">${title}</h1>
+              <div style="font-size: 1em; color: #8B7468; background: #F9F4F2; padding: 10px 20px; border-radius: 0.5rem; display: inline-block;">
                 ${new Date().toLocaleDateString('pt-BR')}
               </div>
             </div>
@@ -284,10 +283,12 @@ function generateSimulatedHTML(latex, type = 'document') {
               <h3 style="color: #2D2624; margin-bottom: 20px;">O que será apresentado:</h3>
               <ul style="margin: 0; padding-left: 25px;">
                 <li style="margin-bottom: 12px;"><strong>Introdução</strong> - Contexto e objetivos</li>
-                <li style="margin-bottom: 12px;"><strong>Desenvolvimento</strong> - Análise detalhada</li>
-                <li style="margin-bottom: 12px;"><strong>Resultados</strong> - Principais descobertas</li>
-                <li style="margin-bottom: 12px;"><strong>Conclusão</strong> - Síntese e reflexões</li>
-                <li style="margin-bottom: 0;"><strong>Próximos Passos</strong> - Recomendações</li>
+                <li style="margin-bottom: 12px;"><strong>Conceitos Fundamentais</strong> - Definições e princípios</li>
+                <li style="margin-bottom: 12px;"><strong>Aplicações Práticas</strong> - Exemplos e casos de uso</li>
+                <li style="margin-bottom: 12px;"><strong>Exemplos Concretos</strong> - Implementações reais</li>
+                <li style="margin-bottom: 12px;"><strong>Vantagens e Desafios</strong> - Análise comparativa</li>
+                <li style="margin-bottom: 12px;"><strong>Impacto e Futuro</strong> - Tendências e evolução</li>
+                <li style="margin-bottom: 0;"><strong>Conclusão</strong> - Síntese e reflexões</li>
               </ul>
             </div>
           `;
@@ -312,7 +313,6 @@ function generateSimulatedHTML(latex, type = 'document') {
               <h2 style="font-size: 2.2em; margin-bottom: 30px; color: #2D2624;">Obrigado pela Atenção!</h2>
               <p style="font-size: 1.2em; color: #6B5D54; margin-bottom: 40px;">Perguntas?</p>
               <div style="font-size: 1em; color: #8B7468;">
-                <strong>${author}</strong><br>
                 ${new Date().toLocaleDateString('pt-BR')}
               </div>
             </div>
