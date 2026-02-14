@@ -369,7 +369,7 @@ function generateSimulatedHTML(latex, type = 'document') {
         <div style="font-family: 'Times New Roman', serif; padding: 50px; background: white; max-width: 800px; margin: 0 auto; line-height: 1.6;">
           <!-- Cabeçalho estilo LaTeX -->
           <div style="text-align: center; margin-bottom: 50px;">
-            <h1 style="margin: 0; font-size: 2.5em; color: #333; font-weight: normal;">${title}</h1>
+            <h1 style="margin: 0; font-size: 2em; color: #333; font-weight: normal;">${title}</h1>
             <p style="margin: 20px 0 0 0; color: #666; font-size: 1.2em;">${author}</p>
             <p style="margin: 10px 0 0 0; color: #888; font-size: 1em;">${new Date().toLocaleDateString('pt-BR')}</p>
           </div>
@@ -377,11 +377,6 @@ function generateSimulatedHTML(latex, type = 'document') {
           ${abstractHTML}
           
           ${documentHTML}
-          
-          <!-- Rodapé estilo LaTeX -->
-          <div style="margin-top: 60px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 0.9em; color: #666;">
-            <p>Documento gerado por Lhama Code 1 - ${new Date().toLocaleString('pt-BR')}</p>
-          </div>
         </div>
       `;
     } else {
