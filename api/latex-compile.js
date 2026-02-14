@@ -113,15 +113,22 @@ function generateSimulatedHTML(latex, type = 'document') {
     if (tableMatch) {
       // Converter tabela LaTeX para HTML real
       const tableLatex = tableMatch[0];
-      const rows = tableLatex.match(/([^&\\\\]+)(?:&|\\\\)/g) || [];
       
+      // Extrair linhas da tabela
+      const lines = tableLatex.split('\\\\').filter(line => line.trim());
       let tableHTML = '<table style="width: 100%; border-collapse: collapse; font-size: 14px;">';
-      rows.forEach((row, index) => {
-        const cleanRow = row.replace(/&|\\\\/g, '').trim();
-        if (cleanRow) {
-          const isHeader = index < 3; // Primeiras linhas provavelmente são header
-          tableHTML += `<tr style="${isHeader ? 'background: #f0f0f0;' : ''}">`;
-          tableHTML += `<td style="border: 1px solid #333; padding: 12px; text-align: left; font-weight: ${isHeader ? 'bold' : 'normal'}">${cleanRow}</td>`;
+      
+      lines.forEach((line, index) => {
+        const cleanLine = line.replace(/\\begin\{tabular\}[^\}]*\{/g, '').replace(/\\end\{tabular\}/g, '').trim();
+        if (cleanLine) {
+          // Separar colunas por &
+          const cells = cleanLine.split('&').map(cell => cell.trim());
+          const isHeader = index === 0; // Primeira linha é header
+          
+          tableHTML += '<tr style="' + (isHeader ? 'background: #f0f0f0;' : '') + '">';
+          cells.forEach(cell => {
+            tableHTML += `<td style="border: 1px solid #333; padding: 12px; text-align: left; font-weight: ${isHeader ? 'bold' : 'normal'}">${cell}</td>`;
+          });
           tableHTML += '</tr>';
         }
       });
@@ -159,30 +166,44 @@ function generateSimulatedHTML(latex, type = 'document') {
         const frameTitle = frameTitleMatch ? frameTitleMatch[1] : `Slide ${index + 1}`;
         
         // Extrair conteúdo do frame
-        const frameContent = frame
+        let frameContent = frame
           .replace(/\\begin\{frame\}/g, '')
           .replace(/\\end\{frame\}/g, '')
-          .replace(/\\frametitle\{[^}]+\}/g, '')
+          .replace(/\\frametitle\{([^}]+)\}/g, '')
           .replace(/\\begin\{itemize\}/g, '<ul style="line-height: 1.8; font-size: 16px;">')
           .replace(/\\end\{itemize\}/g, '</ul>')
           .replace(/\\item\s*/g, '<li>')
           .replace(/\\\\/g, '</li><li>')
-          .replace(/\}/g, '')
+          .replace(/\\vspace-?[\d.]+cm/g, '<br><br>')
+          .replace(/\\begincenter/g, '<div style="text-align: center;">')
+          .replace(/\\endcenter/g, '</div>')
+          .replace(/\\includegraphics\[width=[^\]]+\]\{[^}]+\}/g, '<em>[Imagem]</em>')
+          .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
+          .replace(/\\Large/g, '<span style="font-size: 1.5em;">')
+          .replace(/\\large/g, '<span style="font-size: 1.2em;">')
+          .replace(/\}/g, '</span>')
           .replace(/\{/g, '')
           .trim();
         
-        // Limpar tags vazias
-        const cleanContent = frameContent
+        // Limpar tags vazias e organizar
+        let cleanContent = frameContent
           .replace(/<li><\/li>/g, '')
           .replace(/<li>$/g, '')
           .replace(/^<\/li>/g, '')
           .replace(/<\/li><li>/g, '</li><li>')
-          .replace(/<\/li>$/, '</li>');
+          .replace(/<\/li>$/, '</li>')
+          .replace(/<span><\/span>/g, '')
+          .replace(/<\/span><span>/g, ' ');
         
         // Se não tiver <li>, envolver o conteúdo em <p>
-        const finalContent = cleanContent.includes('<li>') ? 
+        let finalContent = cleanContent.includes('<li>') ? 
           `<ul>${cleanContent}</ul>` : 
           `<p style="line-height: 1.6; font-size: 16px;">${cleanContent}</p>`;
+        
+        // Limpar tags span soltas
+        finalContent = finalContent
+          .replace(/<span>([^<]*)<\/span>/g, '$1')
+          .replace(/<span style="[^"]*">([^<]*)<\/span>/g, '$1');
         
         slidesHTML += `
           <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px;">
@@ -223,9 +244,25 @@ function generateSimulatedHTML(latex, type = 'document') {
         const sectionTitleMatch = section.match(/\\section\{([^}]+)\}/);
         const sectionTitle = sectionTitleMatch ? sectionTitleMatch[1] : 'Seção';
         
-        const sectionContent = section
+        let sectionContent = section
           .replace(/\\section\{[^}]+\}/g, '')
+          .replace(/\\vspace-?[\d.]+cm/g, '<br><br>')
+          .replace(/\\begincenter/g, '<div style="text-align: center;">')
+          .replace(/\\endcenter/g, '</div>')
+          .replace(/\\includegraphics\[width=[^\]]+\]\{[^}]+\}/g, '<em>[Imagem]</em>')
+          .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
+          .replace(/\\Large/g, '<span style="font-size: 1.5em;">')
+          .replace(/\\large/g, '<span style="font-size: 1.2em;">')
+          .replace(/\}/g, '</span>')
+          .replace(/\{/g, '')
           .trim();
+        
+        // Limpar tags span soltas
+        sectionContent = sectionContent
+          .replace(/<span><\/span>/g, '')
+          .replace(/<\/span><span>/g, ' ')
+          .replace(/<span>([^<]*)<\/span>/g, '$1')
+          .replace(/<span style="[^"]*">([^<]*)<\/span>/g, '$1');
         
         documentHTML += `
           <div style="margin: 20px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #007acc;">

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste de Extração LaTeX</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Teste de Extração de Conteúdo LaTeX</h1>
+    
+    <div class="test">
+        <h3>LaTeX Original:</h3>
+        <pre>\frametitle{Introdução à Inteligência Artificial}
+\vspace-0.5cm \begincenter \includegraphics[width=0.8\textwidth]IA.png \endcenter
+
+O que é Inteligência Artificial?
+\vspace-0.5cm
+É um campo da ciência que busca criar sistemas capazes de realizar tarefas que normalmente exigem inteligência humana.
+\textbf{IA Simbólica:} usa símbolos e regras para realizar tarefas.
+\Large{Texto grande}</pre>
+    </div>
+    
+    <div class="test">
+        <h3>Resultado Esperado (HTML limpo):</h3>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const testLatex = '\\frametitle{Introdução à Inteligência Artificial}\\vspace-0.5cm \\begincenter \\includegraphics[width=0.8\\textwidth]IA.png \\endcenter O que é Inteligência Artificial?\\vspace-0.5cm É um campo da ciência que busca criar sistemas capazes de realizar tarefas que normalmente exigem inteligência humana. \\textbf{IA Simbólica:} usa símbolos e regras para realizar tarefas. \\Large{Texto grande}';
+        
+        let result = testLatex
+          .replace(/\\\\frametitle\\\\{([^}]+)\\\\}/g, '')
+          .replace(/\\\\vspace-?[\\\\d.]+cm/g, '<br><br>')
+          .replace(/\\\\begincenter/g, '<div style="text-align: center;">')
+          .replace(/\\\\endcenter/g, '</div>')
+          .replace(/\\\\includegraphics\\\\[width=[^\\\\]]+\\\\]\\\\{[^}]+\\\\}/g, '<em>[Imagem]</em>')
+          .replace(/\\\\textbf\\\\{([^}]+)\\\\}/g, '<strong>$1</strong>')
+          .replace(/\\\\Large/g, '<span style="font-size: 1.5em;">')
+          .replace(/\\\\large/g, '<span style="font-size: 1.2em;">')
+          .replace(/\\\\}/g, '</span>')
+          .replace(/\\\\{/g, '')
+          .trim();
+        
+        // Limpar tags span soltas
+        result = result
+          .replace(/<span><\\/span>/g, '')
+          .replace(/<\\/span><span>/g, ' ')
+          .replace(/<span>([^<]*)<\\/span>/g, '$1')
+          .replace(/<span style="[^"]*">([^<]*)<\\/span>/g, '$1');
+        
+        document.getElementById('result').innerHTML = result;
+    </script>
+</body>
+</html>
