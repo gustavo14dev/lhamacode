@@ -290,57 +290,97 @@ function generateSimulatedHTML(latex, type = 'document') {
       content = `...conteúdo genérico...`;
     }
   } else {
-    // Extrair DOCUMENTO REAL do LaTeX
+    // Extrair DOCUMENTO REAL do LaTeX - ESTILO CLÁSSICO
     const sectionMatches = latex.match(/\\section\{([^}]+)\}.*?(?=\\section\{|\\end\{document\})/gs);
     if (sectionMatches && sectionMatches.length > 0) {
       let documentHTML = '';
       
+      // Adicionar título e autor
+      const titleMatch = latex.match(/\\title\{([^}]+)\}/);
+      const authorMatch = latex.match(/\\author\{([^}]+)\}/);
+      const title = titleMatch ? titleMatch[1] : 'Conteúdo Gerado';
+      const author = authorMatch ? authorMatch[1] : 'Lhama Code 1';
+      
+      // Extrair abstract se existir
+      const abstractMatch = latex.match(/\\begin\{abstract\}(.*?)\\end\{abstract\}/s);
+      let abstractHTML = '';
+      if (abstractMatch) {
+        const abstractContent = abstractMatch[1]
+          .replace(/\\[a-zA-Z]+\{[^}]*\}/g, '')
+          .replace(/\$[^$]*\$/g, '')
+          .trim();
+        abstractHTML = `
+          <div style="margin: 30px 0; padding: 20px; background: #f9f9f9; border-left: 3px solid #333; font-style: italic;">
+            <strong>Resumo:</strong> ${abstractContent}
+          </div>
+        `;
+      }
+      
+      // Processar seções
       sectionMatches.forEach(section => {
         const sectionTitleMatch = section.match(/\\section\{([^}]+)\}/);
         const sectionTitle = sectionTitleMatch ? sectionTitleMatch[1] : 'Seção';
         
-        let sectionContent = section
-          .replace(/\\section\{[^}]+\}/g, '')
-          .replace(/\\vspace-?[\d.]+cm/g, '<br><br>')
-          .replace(/\\begincenter/g, '<div style="text-align: center;">')
-          .replace(/\\endcenter/g, '</div>')
-          .replace(/\\includegraphics\[width=[^\]]+\]\{[^}]+\}/g, '<em>[Imagem]</em>')
-          .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
-          .replace(/\\Large/g, '<span style="font-size: 1.5em;">')
-          .replace(/\\large/g, '<span style="font-size: 1.2em;">')
-          .replace(/\}/g, '</span>')
-          .replace(/\{/g, '')
-          .trim();
+        // Extrair subsections se existirem
+        const subsectionMatches = section.match(/\\subsection\{([^}]+)\}(.*?)(?=\\subsection\{|\\section\{|$)/gs);
+        let sectionContent = '';
         
-        // Limpar tags span soltas
-        sectionContent = sectionContent
-          .replace(/<span><\/span>/g, '')
-          .replace(/<\/span><span>/g, ' ')
-          .replace(/<span>([^<]*)<\/span>/g, '$1')
-          .replace(/<span style="[^"]*">([^<]*)<\/span>/g, '$1');
+        if (subsectionMatches && subsectionMatches.length > 0) {
+          subsectionMatches.forEach(subsection => {
+            const subsectionTitleMatch = subsection.match(/\\subsection\{([^}]+)\}/);
+            const subsectionTitle = subsectionTitleMatch ? subsectionTitleMatch[1] : 'Subseção';
+            const subsectionContent = subsection
+              .replace(/\\subsection\{[^}]+\}/g, '')
+              .replace(/\\[a-zA-Z]+\{[^}]*\}/g, '')
+              .replace(/\$[^$]*\$/g, '')
+              .replace(/\\begin\{theorem\}(.*?)\\end\{theorem\}/gs, '<div style="margin: 15px 0; padding: 15px; border: 1px solid #ddd; background: #f9f9f9;"><strong>Teorema:</strong> $1</div>')
+              .replace(/\\begin\{proof\}(.*?)\\end\{proof\}/gs, '<div style="margin: 15px 0; padding: 15px; border-left: 3px solid #333; background: #f5f5f5;"><strong>Prova:</strong> $1</div>')
+              .replace(/\\begin\{equation\}(.*?)\\end\{equation\}/gs, '<div style="text-align: center; margin: 20px 0; font-size: 1.2em; padding: 10px; background: #f0f0f0;">$1</div>')
+              .trim();
+            
+            sectionContent += `
+              <h3 style="color: #555; margin: 25px 0 15px 0; font-size: 1.2em;">${subsectionTitle}</h3>
+              <div style="line-height: 1.8; margin-bottom: 20px; text-align: justify;">${subsectionContent}</div>
+            `;
+          });
+        } else {
+          // Se não tem subsections, processar conteúdo normal
+          let normalContent = section
+            .replace(/\\section\{[^}]+\}/g, '')
+            .replace(/\\[a-zA-Z]+\{[^}]*\}/g, '')
+            .replace(/\$[^$]*\$/g, '')
+            .replace(/\\begin\{theorem\}(.*?)\\end\{theorem\}/gs, '<div style="margin: 15px 0; padding: 15px; border: 1px solid #ddd; background: #f9f9f9;"><strong>Teorema:</strong> $1</div>')
+            .replace(/\\begin\{proof\}(.*?)\\end\{proof\}/gs, '<div style="margin: 15px 0; padding: 15px; border-left: 3px solid #333; background: #f5f5f5;"><strong>Prova:</strong> $1</div>')
+            .replace(/\\begin\{equation\}(.*?)\\end\{equation\}/gs, '<div style="text-align: center; margin: 20px 0; font-size: 1.2em; padding: 10px; background: #f0f0f0;">$1</div>')
+            .trim();
+          
+          sectionContent = `<div style="line-height: 1.8; margin-bottom: 20px; text-align: justify;">${normalContent}</div>`;
+        }
         
         documentHTML += `
-          <div style="margin: 20px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #007acc;">
-            <h2 style="margin-top: 0; color: #333;">${sectionTitle}</h2>
-            <div style="line-height: 1.6; font-size: 16px;">${sectionContent}</div>
+          <div style="margin: 30px 0;">
+            <h2 style="color: #333; margin-bottom: 20px; font-size: 1.5em; border-bottom: 2px solid #333; padding-bottom: 10px;">${sectionTitle}</h2>
+            ${sectionContent}
           </div>
         `;
       });
       
       content = `
-        <div style="font-family: 'Times New Roman', serif; padding: 40px; background: white; max-width: 800px; margin: 0 auto;">
-          <div style="text-align: center; margin-bottom: 40px;">
-            <h1 style="margin: 0; font-size: 24px; color: #333;">${title}</h1>
-            <p style="margin: 10px 0 0 0; color: #666; font-style: italic;">por ${author}</p>
+        <div style="font-family: 'Times New Roman', serif; padding: 50px; background: white; max-width: 800px; margin: 0 auto; line-height: 1.6;">
+          <!-- Cabeçalho estilo LaTeX -->
+          <div style="text-align: center; margin-bottom: 50px;">
+            <h1 style="margin: 0; font-size: 2.5em; color: #333; font-weight: normal;">${title}</h1>
+            <p style="margin: 20px 0 0 0; color: #666; font-size: 1.2em;">${author}</p>
+            <p style="margin: 10px 0 0 0; color: #888; font-size: 1em;">${new Date().toLocaleDateString('pt-BR')}</p>
           </div>
+          
+          ${abstractHTML}
           
           ${documentHTML}
           
-          <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #007acc;">
-            <p style="margin: 0; font-weight: bold;">✅ Documento LaTeX gerado com sucesso!</p>
-            <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
-              Conteúdo real extraído do código LaTeX gerado pela IA.
-            </p>
+          <!-- Rodapé estilo LaTeX -->
+          <div style="margin-top: 60px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 0.9em; color: #666;">
+            <p>Documento gerado por Lhama Code 1 - ${new Date().toLocaleString('pt-BR')}</p>
           </div>
         </div>
       `;
