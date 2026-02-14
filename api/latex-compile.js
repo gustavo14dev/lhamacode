@@ -273,29 +273,29 @@ function generateSimulatedHTML(latex, type = 'document') {
         });
       });
       
-      // Criar apresentação com navegação - DESIGN SIMPLES E LIMPO
+      // Criar apresentação com navegação - APRESENTAÇÃO CLÁSSICA + BOTÕES LHAMACODE
       content = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #ffffff; min-height: 100vh; display: flex; flex-direction: column; margin: 0; padding: 0;">
-          <!-- Área do Slide (16:9) -->
+        <div style="font-family: 'Plus Jakarta Sans', sans-serif; background: #1F1A18; min-height: 100vh; display: flex; flex-direction: column; margin: 0; padding: 0;">
+          <!-- Área do Slide (16:9) - CLÁSSICO BRANCO -->
           <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
-            <div id="slideContainer" style="width: 100%; max-width: 1200px; aspect-ratio: 16/9; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; overflow: hidden;">
-              <!-- Slide 1 (Capa) -->
-              <div class="slide" style="width: 100%; height: 100%; padding: 60px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white;">
+            <div id="slideContainer" style="width: 100%; max-width: 1200px; aspect-ratio: 16/9; background: white; border-radius: 0.5rem; box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden;">
+              <!-- Slide 1 (Capa) - CLÁSSICO -->
+              <div class="slide" style="width: 100%; height: 100%; padding: 60px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; background: white; color: #3D1A16;">
                 <div style="text-align: center;">
-                  <h1 style="margin: 0; font-size: 2.5em; font-weight: 600; margin-bottom: 20px;">${title}</h1>
-                  <p style="margin: 0 0 30px 0; font-size: 1.2em; opacity: 0.9;">${author}</p>
-                  <div style="font-size: 1em; opacity: 0.8; background: rgba(255,255,255,0.1); padding: 12px 20px; border-radius: 6px; display: inline-block;">
+                  <h1 style="margin: 0; font-size: 2.5em; font-weight: 600; margin-bottom: 20px; color: #3D1A16;">${title}</h1>
+                  <p style="margin: 0 0 30px 0; font-size: 1.2em; color: #6B5D54;">${author}</p>
+                  <div style="font-size: 1em; color: #8B7468; background: #FFF3EC; padding: 12px 20px; border-radius: 0.5rem; display: inline-block;">
                     Apresentação Gerada por IA
                   </div>
                 </div>
               </div>
               
-              <!-- Slides de Conteúdo -->
+              <!-- Slides de Conteúdo - CLÁSSICO -->
               ${slidesData.map((slide, index) => `
                 <div class="slide" style="width: 100%; height: 100%; padding: 50px; box-sizing: border-box; display: none; flex-direction: column; justify-content: center; background: white;">
-                  <h2 style="color: #1f2937; margin-bottom: 30px; font-size: 2em; font-weight: 600; text-align: center;">${slide.title}</h2>
+                  <h2 style="color: #3D1A16; margin-bottom: 30px; font-size: 2em; font-weight: 600; text-align: center;">${slide.title}</h2>
                   <div style="flex: 1; display: flex; align-items: center;">
-                    <div style="width: 100%; font-size: 1.1em; line-height: 1.6; color: #374151;">
+                    <div style="width: 100%; font-size: 1.1em; line-height: 1.6; color: #6B5D54;">
                       ${slide.content}
                     </div>
                   </div>
@@ -304,21 +304,26 @@ function generateSimulatedHTML(latex, type = 'document') {
             </div>
           </div>
           
-          <!-- Navegação SIMPLES -->
-          <div style="background: #f9fafb; padding: 16px; border-top: 1px solid #e5e7eb; display: flex; justify-content: center; align-items: center; gap: 20px;">
-            <button onclick="previousSlide()" style="background: white; color: #6b7280; border: 1px solid #d1d5db; padding: 8px 16px; font-size: 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
-              ← Anterior
+          <!-- Navegação - ESTILO LHAMACODE -->
+          <div style="background: #26201E; padding: 16px; border-top: 1px solid #3D1A16; display: flex; justify-content: center; align-items: center; gap: 20px;">
+            <button onclick="previousSlide()" style="background: #2D2624; color: #F2EBE9; border: 1px solid #3D1A16; padding: 10px 20px; font-size: 14px; font-weight: 500; border-radius: 0.5rem; cursor: pointer; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; display: flex; align-items: center; gap: 8px;">
+              <span class="material-symbols-outlined" style="font-size: 18px;">chevron_left</span>
+              Anterior
             </button>
             
-            <div style="color: #6b7280; font-size: 14px; font-weight: 500;">
+            <div style="color: #F2EBE9; font-size: 14px; font-weight: 500; padding: 8px 16px; background: #2D2624; border-radius: 0.5rem; border: 1px solid #3D1A16;">
               <span id="slideNumber">1</span> / <span id="totalSlides">${slidesData.length + 1}</span>
             </div>
             
-            <button onclick="nextSlide()" style="background: #3b82f6; color: white; border: 1px solid #3b82f6; padding: 8px 16px; font-size: 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
-              Próximo →
+            <button onclick="nextSlide()" style="background: #E26543; color: white; border: 1px solid #E26543; padding: 10px 20px; font-size: 14px; font-weight: 500; border-radius: 0.5rem; cursor: pointer; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; display: flex; align-items: center; gap: 8px;">
+              Próximo
+              <span class="material-symbols-outlined" style="font-size: 18px;">chevron_right</span>
             </button>
           </div>
         </div>
+        
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
         
         <script>
           let currentSlide = 0;
