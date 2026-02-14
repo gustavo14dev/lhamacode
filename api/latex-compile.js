@@ -273,18 +273,18 @@ function generateSimulatedHTML(latex, type = 'document') {
         });
       });
       
-      // Criar apresentação com navegação
+      // Criar apresentação com navegação - DESIGN MODERNO IGUAL AO RESTO DA IA
       content = `
-        <div style="font-family: Arial, sans-serif; background: #000; height: 100vh; display: flex; flex-direction: column; margin: 0; padding: 0;">
-          <!-- Área do Slide (16:9) -->
+        <div style="font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; margin: 0; padding: 20px; box-sizing: border-box;">
+          <!-- Área do Slide (16:9 perfeito) -->
           <div style="flex: 1; display: flex; align-items: center; justify-content: center; position: relative;">
-            <div id="slideContainer" style="width: 100%; max-width: 1200px; aspect-ratio: 16/9; background: white; margin: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); overflow: hidden;">
+            <div id="slideContainer" style="width: 100%; max-width: min(1200px, calc(100vh - 140px)); aspect-ratio: 16/9; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden; border: 1px solid #e2e8f0;">
               <!-- Slide 1 (Capa) -->
-              <div class="slide" style="width: 100%; height: 100%; padding: 60px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;">
+              <div class="slide" style="width: 100%; height: 100%; padding: 60px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                 <div style="text-align: center;">
-                  <h1 style="font-size: 3.5em; margin-bottom: 40px; color: #1a237e;">${title}</h1>
-                  <p style="font-size: 1.8em; color: #666; margin-bottom: 60px;">${author}</p>
-                  <div style="font-size: 1.4em; color: #888;">
+                  <h1 style="margin: 0; font-size: 3em; font-weight: 700; margin-bottom: 30px; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">${title}</h1>
+                  <p style="margin: 0 0 40px 0; font-size: 1.4em; opacity: 0.9; font-weight: 500;">${author}</p>
+                  <div style="font-size: 1.1em; opacity: 0.8; background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 8px; display: inline-block;">
                     Apresentação Gerada por IA
                   </div>
                 </div>
@@ -292,10 +292,10 @@ function generateSimulatedHTML(latex, type = 'document') {
               
               <!-- Slides de Conteúdo -->
               ${slidesData.map((slide, index) => `
-                <div class="slide" style="width: 100%; height: 100%; padding: 60px; box-sizing: border-box; display: none; flex-direction: column; justify-content: center;">
-                  <h2 style="color: #1a237e; margin-bottom: 40px; font-size: 2.5em; text-align: center;">${slide.title}</h2>
+                <div class="slide" style="width: 100%; height: 100%; padding: 50px; box-sizing: border-box; display: none; flex-direction: column; justify-content: center; background: white;">
+                  <h2 style="color: #1e293b; margin-bottom: 40px; font-size: 2.2em; font-weight: 700; text-align: center; line-height: 1.2;">${slide.title}</h2>
                   <div style="flex: 1; display: flex; align-items: center;">
-                    <div style="width: 100%; font-size: 1.3em; line-height: 1.8;">
+                    <div style="width: 100%; font-size: 1.2em; line-height: 1.7; color: #475569;">
                       ${slide.content}
                     </div>
                   </div>
@@ -304,18 +304,24 @@ function generateSimulatedHTML(latex, type = 'document') {
             </div>
           </div>
           
-          <!-- Navegação -->
-          <div style="background: #1a237e; padding: 20px; display: flex; justify-content: center; align-items: center; gap: 40px;">
-            <button onclick="previousSlide()" style="background: white; color: #1a237e; border: none; padding: 15px 25px; font-size: 1.5em; border-radius: 50%; cursor: pointer; transition: all 0.3s; font-weight: bold;">
-              ◀
+          <!-- Navegação - DESIGN MODERNO IGUAL AO RESTO DA IA -->
+          <div style="background: white; border-radius: 12px; padding: 20px; margin-top: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; display: flex; justify-content: center; align-items: center; gap: 30px;">
+            <button onclick="previousSlide()" style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 12px 20px; font-size: 14px; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+              Anterior
             </button>
             
-            <div style="color: white; font-size: 1.2em;">
+            <div style="color: #64748b; font-size: 14px; font-weight: 500; padding: 8px 16px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
               <span id="slideNumber">1</span> / <span id="totalSlides">${slidesData.length + 1}</span>
             </div>
             
-            <button onclick="nextSlide()" style="background: white; color: #1a237e; border: none; padding: 15px 25px; font-size: 1.5em; border-radius: 50%; cursor: pointer; transition: all 0.3s; font-weight: bold;">
-              ▶
+            <button onclick="nextSlide()" style="background: #3b82f6; color: white; border: none; padding: 12px 20px; font-size: 14px; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+              Próximo
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
             </button>
           </div>
         </div>
@@ -330,6 +336,9 @@ function generateSimulatedHTML(latex, type = 'document') {
             slides[index].style.display = 'flex';
             document.getElementById('slideNumber').textContent = index + 1;
             currentSlide = index;
+            
+            // Atualizar estado dos botões
+            updateButtonStates();
           }
           
           function nextSlide() {
@@ -341,6 +350,27 @@ function generateSimulatedHTML(latex, type = 'document') {
           function previousSlide() {
             if (currentSlide > 0) {
               showSlide(currentSlide - 1);
+            }
+          }
+          
+          function updateButtonStates() {
+            const prevBtn = document.querySelector('button[onclick="previousSlide()"]');
+            const nextBtn = document.querySelector('button[onclick="nextSlide()"]');
+            
+            if (currentSlide === 0) {
+              prevBtn.style.opacity = '0.5';
+              prevBtn.style.cursor = 'not-allowed';
+            } else {
+              prevBtn.style.opacity = '1';
+              prevBtn.style.cursor = 'pointer';
+            }
+            
+            if (currentSlide === totalSlides - 1) {
+              nextBtn.style.opacity = '0.5';
+              nextBtn.style.cursor = 'not-allowed';
+            } else {
+              nextBtn.style.opacity = '1';
+              nextBtn.style.cursor = 'pointer';
             }
           }
           
