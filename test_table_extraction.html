@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste de Extração de Tabela LaTeX</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        table { border-collapse: collapse; width: 100%; }
+        td { border: 1px solid #333; padding: 12px; }
+        th { background: #f0f0f0; border: 1px solid #333; padding: 12px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Teste de Extração de Tabela LaTeX</h1>
+    
+    <div class="test">
+        <h3>LaTeX Original:</h3>
+        <pre>\begin{tabular}{|c|c|}
+\hline
+$5 \times$ & $5 \times n$ \\
+\hline
+$1$ & $5$ \\
+\hline
+$2$ & $10$ \\
+\hline
+$3$ & $15$ \\
+\hline
+$4$ & $20$ \\
+\hline
+$5$ & $25$ \\
+\hline
+$6$ & $30$ \\
+\hline
+$7$ & $35$ \\
+\hline
+$8$ & $40$ \\
+\hline
+$9$ & $45$ \\
+\hline
+$10$ & $50$ \\
+\hline
+\end{tabular}</pre>
+    </div>
+    
+    <div class="test">
+        <h3>Resultado Esperado (HTML limpo):</h3>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const testLatex = '\\\\begin{tabular}{|c|c|}\\\\hline $5 \\\\times$ & $5 \\\\times n$ \\\\\\\\hline $1$ & $5$ \\\\\\\\hline $2$ & $10$ \\\\\\\\hline $3$ & $15$ \\\\\\\\hline $4$ & $20$ \\\\\\\\hline $5$ & $25$ \\\\\\\\hline $6$ & $30$ \\\\\\\\hline $7$ & $35$ \\\\\\\\hline $8$ & $40$ \\\\\\\\hline $9$ & $45$ \\\\\\\\hline $10$ & $50$ \\\\\\\\hline \\\\end{tabular}';
+        
+        // Extrair o conteúdo da tabela
+        const tableContentMatch = testLatex.match(/\\\\begin\\{tabular\\}\\{.*?\\}(.*?)\\\\end\\{tabular\\}/s);
+        let tableHTML = '<table>';
+
+        if (tableContentMatch && tableContentMatch[1]) {
+            const rawTableContent = tableContentMatch[1];
+            // Dividir em linhas, ignorando as linhas vazias e \\hline
+            const lines = rawTableContent.split('\\\\\\\\').map(line => line.trim()).filter(line => line && line !== '\\\\hline');
+
+            lines.forEach((line, index) => {
+                // Remover \\hline que podem estar no início ou fim da linha
+                const cleanLine = line.replace(/^\\\\hline\\s*|\\s*\\\\hline$/g, '');
+                if (cleanLine) {
+                    // Separar colunas por &
+                    const cells = cleanLine.split('&').map(cell => {
+                        // Limpar completamente cada célula
+                        return cell.trim()
+                            .replace(/\\$|\\\\times/g, '') // Remover $ e \\times
+                            .replace(/\\\\[a-zA-Z]+\\{[^}]*\\}/g, '') // Remover outros comandos LaTeX
+                            .replace(/[^a-zA-Z0-9\\s\\.\\,\\-\\/\\%\\(\\)]/g, ''); // Manter apenas caracteres básicos
+                    });
+                    const isHeader = index === 0; // Primeira linha é o cabeçalho
+                    
+                    tableHTML += '<tr>';
+                    cells.forEach(cell => {
+                        tableHTML += `<td style="border: 1px solid #333; padding: 12px; text-align: left; font-weight: ${isHeader ? 'bold' : 'normal'}">${cell}</td>`;
+                    });
+                    tableHTML += '</tr>';
+                }
+            });
+        }
+        tableHTML += '</table>';
+        
+        document.getElementById('result').innerHTML = tableHTML;
+    </script>
+</body>
+</html>

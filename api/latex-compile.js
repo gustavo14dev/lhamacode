@@ -114,24 +114,37 @@ function generateSimulatedHTML(latex, type = 'document') {
       // Converter tabela LaTeX para HTML real
       const tableLatex = tableMatch[0];
       
-      // Extrair linhas da tabela
-      const lines = tableLatex.split('\\\\').filter(line => line.trim());
+      // Extrair o conteúdo da tabela (entre \begin{tabular} e \end{tabular})
+      const tableContentMatch = tableLatex.match(/\\begin\{tabular\}\{.*?\}(.*?)\\end\{tabular\}/s);
       let tableHTML = '<table style="width: 100%; border-collapse: collapse; font-size: 14px;">';
-      
-      lines.forEach((line, index) => {
-        const cleanLine = line.replace(/\\begin\{tabular\}[^\}]*\{/g, '').replace(/\\end\{tabular\}/g, '').trim();
-        if (cleanLine) {
-          // Separar colunas por &
-          const cells = cleanLine.split('&').map(cell => cell.trim());
-          const isHeader = index === 0; // Primeira linha é header
-          
-          tableHTML += '<tr style="' + (isHeader ? 'background: #f0f0f0;' : '') + '">';
-          cells.forEach(cell => {
-            tableHTML += `<td style="border: 1px solid #333; padding: 12px; text-align: left; font-weight: ${isHeader ? 'bold' : 'normal'}">${cell}</td>`;
-          });
-          tableHTML += '</tr>';
-        }
-      });
+
+      if (tableContentMatch && tableContentMatch[1]) {
+        const rawTableContent = tableContentMatch[1];
+        // Dividir em linhas, ignorando as linhas vazias e \hline
+        const lines = rawTableContent.split('\\\\').map(line => line.trim()).filter(line => line && line !== '\\hline');
+
+        lines.forEach((line, index) => {
+          // Remover \hline que podem estar no início ou fim da linha
+          const cleanLine = line.replace(/^\\hline\s*|\s*\\hline$/g, '');
+          if (cleanLine) {
+            // Separar colunas por &
+            const cells = cleanLine.split('&').map(cell => {
+              // Limpar completamente cada célula
+              return cell.trim()
+                .replace(/\$|\\times/g, '') // Remover $ e \times
+                .replace(/\\[a-zA-Z]+\{[^}]*\}/g, '') // Remover outros comandos LaTeX
+                .replace(/[^a-zA-Z0-9\s\.\,\-\/\%\(\)]/g, ''); // Manter apenas caracteres básicos
+            });
+            const isHeader = index === 0; // Primeira linha é o cabeçalho
+            
+            tableHTML += '<tr style="' + (isHeader ? 'background: #f0f0f0;' : '') + '">';
+            cells.forEach(cell => {
+              tableHTML += `<td style="border: 1px solid #333; padding: 12px; text-align: left; font-weight: ${isHeader ? 'bold' : 'normal'}">${cell}</td>`;
+            });
+            tableHTML += '</tr>';
+          }
+        });
+      }
       tableHTML += '</table>';
       
       content = `
