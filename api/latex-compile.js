@@ -213,24 +213,50 @@ function generateSimulatedHTML(latex, type = 'document') {
         const frameTitleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
         const frameTitle = frameTitleMatch ? frameTitleMatch[1] : `Slide ${index + 1}`;
         
-        // Extrair conteúdo do frame
+        // Extrair conteúdo do frame - LIMPEZA COMPLETA DO LATEX
         let frameContent = frame
           .replace(/\\begin\{frame\}/g, '')
           .replace(/\\end\{frame\}/g, '')
           .replace(/\\frametitle\{([^}]+)\}/g, '')
-          .replace(/\\begin\{itemize\}/g, '<ul style="line-height: 1.8; font-size: 1.2em;">')
+          .replace(/\\begin\{itemize\}/g, '<ul style="margin: 0; padding-left: 20px;">')
           .replace(/\\end\{itemize\}/g, '</ul>')
-          .replace(/\\item\s*/g, '<li>')
-          .replace(/\\\\/g, '</li><li>')
-          .replace(/\\vspace-?[\d.]+cm/g, '<br><br>')
+          .replace(/\\begin\{enumerate\}/g, '<ol style="margin: 0; padding-left: 20px;">')
+          .replace(/\\end\{enumerate\}/g, '</ol>')
+          .replace(/\\item\s*/g, '<li style="margin-bottom: 8px;">')
+          .replace(/\\\\/g, '</li><li style="margin-bottom: 8px;">')
+          .replace(/\\vspace-?[\d.]+cm/g, '<br>')
           .replace(/\\begincenter/g, '<div style="text-align: center;">')
           .replace(/\\endcenter/g, '</div>')
-          .replace(/\\includegraphics\[width=[^\]]+\]\{[^}]+\}/g, '<em>[Imagem]</em>')
+          .replace(/\\includegraphics\[width=[^\]]+\]\{[^}]+\}/g, '<div style="text-align: center; margin: 20px 0; padding: 20px; border: 2px dashed #ddd; border-radius: 8px;">📷 Imagem</div>')
           .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
-          .replace(/\\Large/g, '<span style="font-size: 1.5em;">')
-          .replace(/\\large/g, '<span style="font-size: 1.2em;">')
+          .replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>')
+          .replace(/\\Large/g, '')
+          .replace(/\\large/g, '')
           .replace(/\\titlepage/g, '')
-          .replace(/\}/g, '</span>')
+          .replace(/\\begin\{block\}\{([^}]+)\}/g, '<div style="background: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 10px 0; border-radius: 4px;"><strong>$1</strong><br>')
+          .replace(/\\end\{block\}/g, '</div>')
+          .replace(/\\begin\{exampleblock\}\{([^}]+)\}/g, '<div style="background: #d4edda; border-left: 4px solid #28a745; padding: 15px; margin: 10px 0; border-radius: 4px;"><strong>$1</strong><br>')
+          .replace(/\\end\{exampleblock\}/g, '</div>')
+          .replace(/\\begin\{quote\}/g, '<blockquote style="border-left: 4px solid #ddd; margin: 20px 0; padding-left: 20px; font-style: italic;">')
+          .replace(/\\end\{quote\}/g, '</blockquote>')
+          .replace(/\\raggedleft/g, '<div style="text-align: right;">')
+          .replace(/\\begin\{columns\}/g, '<div style="display: flex; gap: 20px;">')
+          .replace(/\\end\{columns\}/g, '</div>')
+          .replace(/\\begin\{column\}\{([^}]+)\}/g, '<div style="flex: 1;">')
+          .replace(/\\end\{column\}/g, '</div>')
+          .replace(/\\begin\{table\}/g, '<div style="margin: 20px 0;">')
+          .replace(/\\end\{table\}/g, '</div>')
+          .replace(/\\begin\{tabular\}\{[^}]*\}/g, '<table style="width: 100%; border-collapse: collapse;">')
+          .replace(/\\end\{tabular\}/g, '</table>')
+          .replace(/\\\\/g, '</li><li style="margin-bottom: 8px;">')
+          .replace(/\\hline/g, '')
+          .replace(/\\toprule/g, '')
+          .replace(/\\midrule/g, '')
+          .replace(/\\bottomrule/g, '')
+          .replace(/&/g, '</td><td style="padding: 8px; border: 1px solid #ddd;">')
+          .replace(/\\textwidth/g, '100%')
+          .replace(/\\today/g, new Date().toLocaleDateString('pt-BR'))
+          .replace(/\}/g, '')
           .replace(/\{/g, '')
           .trim();
         
@@ -294,12 +320,12 @@ function generateSimulatedHTML(latex, type = 'document') {
                 </div>
               </div>
               
-              <!-- Slides de Conteúdo - AJUSTE ELABORADO -->
+              <!-- Slides de Conteúdo - FONTES PEQUENAS -->
               ${slidesData.map((slide, index) => `
-                <div class="slide" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: none; flex-direction: column; background: white; padding: 50px; box-sizing: border-box;">
-                  <h2 style="color: #2D2624; margin-bottom: 30px; font-size: clamp(1.1em, 3vw, 1.5em); font-weight: 600; line-height: 1.3; text-align: center;">${slide.title}</h2>
-                  <div style="flex: 1; display: flex; align-items: center; justify-content: center; font-size: clamp(0.85em, 2.2vw, 1em); line-height: 1.5; color: #4A4039; text-align: center;">
-                    <div style="max-width: 90%; word-wrap: break-word;">
+                <div class="slide" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: none; flex-direction: column; background: white; padding: 40px; box-sizing: border-box;">
+                  <h2 style="color: #2D2624; margin-bottom: 25px; font-size: clamp(0.9em, 2.5vw, 1.2em); font-weight: 600; line-height: 1.3; text-align: center;">${slide.title}</h2>
+                  <div style="flex: 1; display: flex; align-items: center; justify-content: center; font-size: clamp(0.7em, 1.8vw, 0.85em); line-height: 1.4; color: #4A4039; text-align: center;">
+                    <div style="max-width: 95%; word-wrap: break-word;">
                       ${slide.content}
                     </div>
                   </div>
