@@ -730,11 +730,12 @@ class UI {
             role: 'system',
             content: `Você é um especialista em LaTeX e conteúdo profissional. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação' : type === 'document' ? 'documento' : 'tabela'} sobre: "${message}". 
             
-REGRAS IMPORTANTES:
-- GERE APENAS O CÓDIGO LATEX, sem explicações
+REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
+- GERE APENAS O CÓDIGO LATEX PURO, NADA MAIS
+- NÃO inclua explicações, introduções ou textos fora do código
+- NÃO inclua marcadores como \`\`\`latex ou \`\`\`
 - Use pacotes padrão (beamer para slides, article para documentos, tabular para tabelas)
 - O código deve ser compilável com pdflatex
-- NÃO INCLUIA marcadores como \`\`\`latex ou \`\`\`
 - Para slides: use \\documentclass{beamer}
 - Para documentos: use \\documentclass{article}
 - Para tabelas: use \\documentclass{article} com tabular environment
@@ -764,7 +765,9 @@ ESTRUTURA PARA DOCUMENTOS:
 
 ESTRUTURA PARA TABELAS:
 1. Título
-2. Tabela com dados reais e específicos sobre o tema`
+2. Tabela com dados reais e específicos sobre o tema
+
+IMPORTANTE: RETORNE APENAS O CÓDIGO LATEX, SEM NENHUM TEXTO ADICIONAL!`
         };
 
         const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [systemPrompt, { role: 'user', content: message }]);
@@ -774,6 +777,18 @@ ESTRUTURA PARA TABELAS:
         
         // Remover marcadores de código se existirem
         latexCode = latexCode.replace(/```latex/gi, '').replace(/```/g, '');
+        
+        // Remover textos introdutórios antes do código LaTeX
+        const latexStart = latexCode.indexOf('\\documentclass');
+        if (latexStart > 0) {
+            latexCode = latexCode.substring(latexStart);
+        }
+        
+        // Remover textos explicativos após o código LaTeX
+        const latexEnd = latexCode.lastIndexOf('\\end{document}');
+        if (latexEnd > -1 && latexEnd < latexCode.length - 20) {
+            latexCode = latexCode.substring(0, latexEnd + 15);
+        }
         
         // Adicionar estrutura básica se faltar
         if (!latexCode.includes('\\documentclass')) {
@@ -815,7 +830,8 @@ ${latexCode}
             }
         }
         
-        console.log('🔒 LaTeX gerado internamente (segredo):', latexCode.substring(0, 100) + '...');
+        console.log('🔒 LaTeX gerado internamente (segredo):', latexCode.substring(0, 200) + '...');
+        console.log('🔍 Código LaTeX completo:', latexCode);
         return latexCode;
     }
 
@@ -870,12 +886,25 @@ ${latexCode}
         let content = '';
 
         if (type === 'table') {
-            // Gerar HTML simulado de tabela com conteúdo específico baseado no título
-            content = `
-                <div style="font-family: 'Times New Roman', serif; padding: 40px; background: white; max-width: 800px; margin: 0 auto;">
-                    <h1 style="text-align: center; margin-bottom: 30px; color: #333;">${title}</h1>
-                    <p style="text-align: center; color: #666; margin-bottom: 40px;">por ${author}</p>
-                    
+            // Tentar extrair tabela real do código LaTeX
+            const tableMatch = latexCode.match(/\\begin\{tabular\}.*?\\end\{tabular\}/s);
+            let tableContent = '';
+            
+            if (tableMatch) {
+                // Usar a tabela real do LaTeX
+                tableContent = `
+                    <div style="background: white; border: 2px solid #333; margin: 20px 0;">
+                        <div style="padding: 20px; background: #f9f9f9; border-bottom: 1px solid #ddd;">
+                            <p style="margin: 0; font-style: italic; color: #666;">Tabela extraída do código LaTeX gerado pela IA:</p>
+                        </div>
+                        <div style="padding: 20px; font-family: 'Courier New', monospace; font-size: 12px; background: white;">
+                            <pre style="margin: 0; white-space: pre-wrap;">${this.escapeHtml(tableMatch[0])}</pre>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Fallback para tabela genérica se não encontrar
+                tableContent = `
                     <div style="background: white; border: 2px solid #333; margin: 20px 0;">
                         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
                             <thead>
@@ -904,6 +933,15 @@ ${latexCode}
                             </tbody>
                         </table>
                     </div>
+                `;
+            }
+            
+            content = `
+                <div style="font-family: 'Times New Roman', serif; padding: 40px; background: white; max-width: 800px; margin: 0 auto;">
+                    <h1 style="text-align: center; margin-bottom: 30px; color: #333;">${title}</h1>
+                    <p style="text-align: center; color: #666; margin-bottom: 40px;">por ${author}</p>
+                    
+                    ${tableContent}
                     
                     <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #007acc;">
                         <p style="margin: 0; font-weight: bold;">✅ Tabela LaTeX gerada com sucesso!</p>
@@ -914,14 +952,29 @@ ${latexCode}
                 </div>
             `;
         } else if (type === 'slides') {
-            // Gerar HTML simulado de slides com conteúdo específico baseado no título
-            content = `
-                <div style="font-family: Arial, sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto;">
-                    <div style="background: #1a237e; color: white; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
-                        <h1 style="margin: 0; font-size: 32px;">${title}</h1>
-                        <p style="margin: 20px 0 0 0; font-size: 18px; opacity: 0.9;">por ${author}</p>
-                    </div>
+            // Tentar extrair slides reais do código LaTeX
+            const frameMatches = latexCode.match(/\\begin\{frame\}.*?\\end\{frame\}/gs);
+            let slidesContent = '';
+            
+            if (frameMatches && frameMatches.length > 0) {
+                // Usar os slides reais do LaTeX
+                slidesContent = frameMatches.map((frame, index) => {
+                    const frameTitle = frame.match(/\\frametitle\{([^}]+)\}/);
+                    const title = frameTitle ? frameTitle[1] : `Slide ${index + 1}`;
+                    const cleanFrame = frame.replace(/\\begin\{frame\}/g, '').replace(/\\end\{frame\}/g, '').replace(/\\frametitle\{[^}]+\}/g, '').trim();
                     
+                    return `
+                        <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px;">
+                            <h2 style="color: #1a237e; margin-bottom: 20px;">${title}</h2>
+                            <div style="font-family: 'Courier New', monospace; font-size: 12px; background: #f9f9f9; padding: 15px; border-radius: 4px;">
+                                <pre style="margin: 0; white-space: pre-wrap;">${this.escapeHtml(cleanFrame)}</pre>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                // Fallback para slides genéricos se não encontrar
+                slidesContent = `
                     <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px;">
                         <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 1: Introdução</h2>
                         <p style="line-height: 1.6; font-size: 16px; margin-bottom: 15px;">
@@ -970,39 +1023,11 @@ ${latexCode}
                         </div>
                     </div>
                     
-                    <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px;">
-                        <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 4: Desafios e Oportunidades</h2>
-                        <div style="display: flex; gap: 30px;">
-                            <div style="flex: 1;">
-                                <h4 style="color: #d32f2f; margin-bottom: 10px;">⚠️ Desafios</h4>
-                                <ul style="font-size: 14px; line-height: 1.6;">
-                                    <li>Viés algorítmico</li>
-                                    <li>Privacidade de dados</li>
-                                    <li>Transparência decisória</li>
-                                    <li>Regulamentação</li>
-                                </ul>
-                            </div>
-                            <div style="flex: 1;">
-                                <h4 style="color: #388e3c; margin-bottom: 10px;">🚀 Oportunidades</h4>
-                                <ul style="font-size: 14px; line-height: 1.6;">
-                                    <li>Inovação acelerada</li>
-                                    <li>Efficiência operacional</li>
-                                    <li>Novos modelos de negócio</li>
-                                    <li>Resolução de problemas complexos</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    
                     <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px;">
-                        <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 5: Conclusão</h2>
+                        <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 4: Conclusão</h2>
                         <p style="line-height: 1.6; font-size: 16px; margin-bottom: 15px;">
                             <strong>${title}</strong> está transformando radicalmente todos os setores da sociedade, 
                             criando novas possibilidades e redefinindo o que é possível.
-                        </p>
-                        <p style="line-height: 1.6; font-size: 16px; margin-bottom: 15px;">
-                            <strong>O futuro:</strong> Integração crescente em nossas vidas, 
-                            colaboração humano-máquina, e avanços exponenciais.
                         </p>
                         <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-top: 20px;">
                             <p style="margin: 0; font-style: italic; color: #1565c0;">
@@ -1010,6 +1035,17 @@ ${latexCode}
                             </p>
                         </div>
                     </div>
+                `;
+            }
+            
+            content = `
+                <div style="font-family: Arial, sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto;">
+                    <div style="background: #1a237e; color: white; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
+                        <h1 style="margin: 0; font-size: 32px;">${title}</h1>
+                        <p style="margin: 20px 0 0 0; font-size: 18px; opacity: 0.9;">por ${author}</p>
+                    </div>
+                    
+                    ${slidesContent}
                     
                     <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #1a237e;">
                         <p style="margin: 0; font-weight: bold;">✅ Apresentação LaTeX gerada com sucesso!</p>
@@ -1020,14 +1056,29 @@ ${latexCode}
                 </div>
             `;
         } else {
-            // Gerar HTML simulado de documento (padrão)
-            content = `
-                <div style="font-family: 'Times New Roman', serif; padding: 40px; background: white; max-width: 800px; margin: 0 auto;">
-                    <div style="text-align: center; margin-bottom: 40px;">
-                        <h1 style="margin: 0; font-size: 24px; color: #333;">${title}</h1>
-                        <p style="margin: 10px 0 0 0; color: #666; font-style: italic;">por ${author}</p>
-                    </div>
+            // Para documentos, tentar extrair seções reais
+            const sectionMatches = latexCode.match(/\\section\{([^}]+)\}.*?(?=\\section\{|\\end\{document\})/gs);
+            let documentContent = '';
+            
+            if (sectionMatches && sectionMatches.length > 0) {
+                // Usar as seções reais do LaTeX
+                documentContent = sectionMatches.map(section => {
+                    const sectionTitle = section.match(/\\section\{([^}]+)\}/);
+                    const title = sectionTitle ? sectionTitle[1] : 'Seção';
+                    const cleanSection = section.replace(/\\section\{[^}]+\}/g, '').trim();
                     
+                    return `
+                        <div style="margin: 20px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #007acc;">
+                            <h2 style="margin-top: 0; color: #333;">${title}</h2>
+                            <div style="font-family: 'Courier New', monospace; font-size: 12px; background: white; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                                <pre style="margin: 0; white-space: pre-wrap;">${this.escapeHtml(cleanSection)}</pre>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                // Fallback para documento genérico
+                documentContent = `
                     <div style="margin: 20px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #007acc;">
                         <h2 style="margin-top: 0; color: #333;">Introdução</h2>
                         <p style="line-height: 1.6; margin-bottom: 20px;">
@@ -1055,6 +1106,17 @@ ${latexCode}
                             e criação de novas oportunidades profissionais.
                         </p>
                     </div>
+                `;
+            }
+            
+            content = `
+                <div style="font-family: 'Times New Roman', serif; padding: 40px; background: white; max-width: 800px; margin: 0 auto;">
+                    <div style="text-align: center; margin-bottom: 40px;">
+                        <h1 style="margin: 0; font-size: 24px; color: #333;">${title}</h1>
+                        <p style="margin: 10px 0 0 0; color: #666; font-style: italic;">por ${author}</p>
+                    </div>
+                    
+                    ${documentContent}
                     
                     <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #007acc;">
                         <p style="margin: 0; font-weight: bold;">✅ Documento LaTeX gerado com sucesso!</p>
