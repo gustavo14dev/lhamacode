@@ -273,33 +273,33 @@ function generateSimulatedHTML(latex, type = 'document') {
         });
       });
       
-      // Criar apresentação com navegação - DESIGN METROPOLIS BEAMER
+      // Criar apresentação com navegação - DESIGN METROPOLIS BEAMER OTIMIZADO
       content = `
         <div style="font-family: 'Plus Jakarta Sans', sans-serif; background: #1F1A18; min-height: 100vh; display: flex; flex-direction: column; margin: 0; padding: 0;">
-          <!-- Área do Slide (16:9) - METROPOLIS BEAMER -->
-          <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
-            <div id="slideContainer" style="width: 100%; max-width: 1200px; aspect-ratio: 16/9; background: white; border-radius: 0.5rem; box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden; position: relative;">
+          <!-- Área do Slide (16:9) - AJUSTE PERFEITO -->
+          <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box;">
+            <div id="slideContainer" style="width: 100%; max-width: 100%; height: calc(100vh - 120px); max-height: calc(100vh - 120px); background: white; border-radius: 0.5rem; box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden; position: relative;">
               
               <!-- Barra de Progresso (Metropolis) -->
               <div style="position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #E26543; z-index: 10;"></div>
               
-              <!-- Slide 1 (Capa) - METROPOLIS -->
-              <div class="slide" style="width: 100%; height: 100%; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; background: white; color: #2D2624;">
-                <div style="text-align: center; max-width: 80%; margin: 0 auto;">
-                  <h1 style="margin: 0; font-size: 1.8em; font-weight: 600; margin-bottom: 16px; color: #2D2624; line-height: 1.2;">${title}</h1>
-                  <p style="margin: 0 0 24px 0; font-size: 1.1em; color: #6B5D54; font-weight: 400;">${author}</p>
-                  <div style="font-size: 0.9em; color: #8B7468; background: #F9F4F2; padding: 8px 16px; border-radius: 0.25rem; display: inline-block; font-weight: 500;">
+              <!-- Slide 1 (Capa) - METROPOLIS COMPACTO -->
+              <div class="slide" style="width: 100%; height: 100%; padding: 30px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; background: white; color: #2D2624;">
+                <div style="text-align: center; max-width: 70%; margin: 0 auto;">
+                  <h1 style="margin: 0; font-size: 1.6em; font-weight: 600; margin-bottom: 12px; color: #2D2624; line-height: 1.2;">${title}</h1>
+                  <p style="margin: 0 0 20px 0; font-size: 1em; color: #6B5D54; font-weight: 400;">${author}</p>
+                  <div style="font-size: 0.85em; color: #8B7468; background: #F9F4F2; padding: 6px 12px; border-radius: 0.25rem; display: inline-block; font-weight: 500;">
                     Apresentação Gerada por IA
                   </div>
                 </div>
               </div>
               
-              <!-- Slides de Conteúdo - METROPOLIS -->
+              <!-- Slides de Conteúdo - METROPOLIS OTIMIZADO -->
               ${slidesData.map((slide, index) => `
-                <div class="slide" style="width: 100%; height: 100%; padding: 40px 50px; box-sizing: border-box; display: none; flex-direction: column; background: white;">
-                  <h2 style="color: #2D2624; margin-bottom: 24px; font-size: 1.4em; font-weight: 600; line-height: 1.3;">${slide.title}</h2>
-                  <div style="flex: 1; display: flex; align-items: flex-start; font-size: 0.95em; line-height: 1.5; color: #4A4039;">
-                    <div style="width: 100%;">
+                <div class="slide" style="width: 100%; height: 100%; padding: 25px 35px; box-sizing: border-box; display: none; flex-direction: column; background: white; overflow: hidden;">
+                  <h2 style="color: #2D2624; margin-bottom: 20px; font-size: 1.3em; font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${slide.title}</h2>
+                  <div style="flex: 1; display: flex; align-items: flex-start; font-size: 0.9em; line-height: 1.4; color: #4A4039; overflow-y: auto; overflow-x: hidden;">
+                    <div style="width: 100%; word-wrap: break-word;">
                       ${slide.content}
                     </div>
                   </div>
@@ -309,19 +309,19 @@ function generateSimulatedHTML(latex, type = 'document') {
           </div>
           
           <!-- Navegação - ESTILO LHAMACODE -->
-          <div style="background: #26201E; padding: 16px; border-top: 1px solid #3D1A16; display: flex; justify-content: center; align-items: center; gap: 20px;">
-            <button onclick="previousSlide()" style="background: #2D2624; color: #F2EBE9; border: 1px solid #3D1A16; padding: 10px 20px; font-size: 14px; font-weight: 500; border-radius: 0.5rem; cursor: pointer; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; display: flex; align-items: center; gap: 8px;">
-              <span class="material-symbols-outlined" style="font-size: 18px;">chevron_left</span>
+          <div style="background: #26201E; padding: 12px; border-top: 1px solid #3D1A16; display: flex; justify-content: center; align-items: center; gap: 20px; flex-shrink: 0;">
+            <button onclick="previousSlide()" style="background: #2D2624; color: #F2EBE9; border: 1px solid #3D1A16; padding: 8px 16px; font-size: 13px; font-weight: 500; border-radius: 0.5rem; cursor: pointer; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; display: flex; align-items: center; gap: 6px;">
+              <span class="material-symbols-outlined" style="font-size: 16px;">chevron_left</span>
               Anterior
             </button>
             
-            <div style="color: #F2EBE9; font-size: 14px; font-weight: 500; padding: 8px 16px; background: #2D2624; border-radius: 0.5rem; border: 1px solid #3D1A16;">
+            <div style="color: #F2EBE9; font-size: 13px; font-weight: 500; padding: 6px 12px; background: #2D2624; border-radius: 0.5rem; border: 1px solid #3D1A16;">
               <span id="slideNumber">1</span> / <span id="totalSlides">${slidesData.length + 1}</span>
             </div>
             
-            <button onclick="nextSlide()" style="background: #E26543; color: white; border: 1px solid #E26543; padding: 10px 20px; font-size: 14px; font-weight: 500; border-radius: 0.5rem; cursor: pointer; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; display: flex; align-items: center; gap: 8px;">
+            <button onclick="nextSlide()" style="background: #E26543; color: white; border: 1px solid #E26543; padding: 8px 16px; font-size: 13px; font-weight: 500; border-radius: 0.5rem; cursor: pointer; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; display: flex; align-items: center; gap: 6px;">
               Próximo
-              <span class="material-symbols-outlined" style="font-size: 18px;">chevron_right</span>
+              <span class="material-symbols-outlined" style="font-size: 16px;">chevron_right</span>
             </button>
           </div>
         </div>
