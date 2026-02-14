@@ -197,11 +197,18 @@ function generateSimulatedHTML(latex, type = 'document') {
       content = `...conteúdo genérico...`;
     }
   } else if (type === 'slides') {
-    // Extrair SLIDES REAIS do LaTeX
+    // Extrair SLIDES REAIS do LaTeX - FORMATO APRESENTAÇÃO REAL
     const frameMatches = latex.match(/\\begin\{frame\}.*?\\end\{frame\}/gs);
     if (frameMatches && frameMatches.length > 0) {
-      let slidesHTML = '';
+      let slidesData = [];
       
+      // Extrair título e autor
+      const titleMatch = latex.match(/\\title\{([^}]+)\}/);
+      const authorMatch = latex.match(/\\author\{([^}]+)\}/);
+      const title = titleMatch ? titleMatch[1] : 'Conteúdo Gerado';
+      const author = authorMatch ? authorMatch[1] : 'Lhama Code 1';
+      
+      // Processar cada frame
       frameMatches.forEach((frame, index) => {
         const frameTitleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
         const frameTitle = frameTitleMatch ? frameTitleMatch[1] : `Slide ${index + 1}`;
@@ -211,7 +218,7 @@ function generateSimulatedHTML(latex, type = 'document') {
           .replace(/\\begin\{frame\}/g, '')
           .replace(/\\end\{frame\}/g, '')
           .replace(/\\frametitle\{([^}]+)\}/g, '')
-          .replace(/\\begin\{itemize\}/g, '<ul style="line-height: 1.8; font-size: 16px;">')
+          .replace(/\\begin\{itemize\}/g, '<ul style="line-height: 1.8; font-size: 1.2em;">')
           .replace(/\\end\{itemize\}/g, '</ul>')
           .replace(/\\item\s*/g, '<li>')
           .replace(/\\\\/g, '</li><li>')
@@ -222,7 +229,7 @@ function generateSimulatedHTML(latex, type = 'document') {
           .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
           .replace(/\\Large/g, '<span style="font-size: 1.5em;">')
           .replace(/\\large/g, '<span style="font-size: 1.2em;">')
-          .replace(/\\titlepage/g, '') // Remover comando \titlepage
+          .replace(/\\titlepage/g, '')
           .replace(/\}/g, '</span>')
           .replace(/\{/g, '')
           .trim();
@@ -230,10 +237,10 @@ function generateSimulatedHTML(latex, type = 'document') {
         // Se for o primeiro frame e estiver vazio, criar capa
         if (index === 0 && (!frameContent || frameContent.length < 10)) {
           frameContent = `
-            <div style="text-align: center; padding: 60px 20px;">
-              <h1 style="font-size: 3em; margin-bottom: 30px; color: #1a237e;">${title}</h1>
-              <p style="font-size: 1.5em; color: #666; margin-bottom: 40px;">por ${author}</p>
-              <div style="font-size: 1.2em; color: #888;">
+            <div style="text-align: center; padding: 80px 20px;">
+              <h1 style="font-size: 3.5em; margin-bottom: 40px; color: #1a237e;">${title}</h1>
+              <p style="font-size: 1.8em; color: #666; margin-bottom: 60px;">${author}</p>
+              <div style="font-size: 1.4em; color: #888;">
                 Apresentação Gerada por IA
               </div>
             </div>
@@ -250,40 +257,102 @@ function generateSimulatedHTML(latex, type = 'document') {
           .replace(/<span><\/span>/g, '')
           .replace(/<\/span><span>/g, ' ');
         
-        // Se não tiver <li>, envolver o conteúdo em <p>
+        // Se não tiver <li>, envolver o conteúdo em <div>
         let finalContent = cleanContent.includes('<li>') ? 
-          `<ul>${cleanContent}</ul>` : 
-          `<div style="line-height: 1.6; font-size: 16px;">${cleanContent}</div>`;
+          `<div style="line-height: 1.8; font-size: 1.2em;">${cleanContent}</div>` : 
+          `<div style="line-height: 1.8; font-size: 1.2em;">${cleanContent}</div>`;
         
         // Limpar tags span soltas
         finalContent = finalContent
           .replace(/<span>([^<]*)<\/span>/g, '$1')
           .replace(/<span style="[^"]*">([^<]*)<\/span>/g, '$1');
         
-        slidesHTML += `
-          <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px;">
-            <h2 style="color: #1a237e; margin-bottom: 20px;">${frameTitle}</h2>
-            <div style="line-height: 1.6; font-size: 16px;">${finalContent}</div>
-          </div>
-        `;
+        slidesData.push({
+          title: frameTitle,
+          content: finalContent
+        });
       });
       
+      // Criar apresentação com navegação
       content = `
-        <div style="font-family: Arial, sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto;">
-          <div style="background: #1a237e; color: white; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
-            <h1 style="margin: 0; font-size: 32px;">${title}</h1>
-            <p style="margin: 20px 0 0 0; font-size: 18px; opacity: 0.9;">por ${author}</p>
+        <div style="font-family: Arial, sans-serif; background: #000; height: 100vh; display: flex; flex-direction: column; margin: 0; padding: 0;">
+          <!-- Área do Slide (16:9) -->
+          <div style="flex: 1; display: flex; align-items: center; justify-content: center; position: relative;">
+            <div id="slideContainer" style="width: 100%; max-width: 1200px; aspect-ratio: 16/9; background: white; margin: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); overflow: hidden;">
+              <!-- Slide 1 (Capa) -->
+              <div class="slide" style="width: 100%; height: 100%; padding: 60px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;">
+                <div style="text-align: center;">
+                  <h1 style="font-size: 3.5em; margin-bottom: 40px; color: #1a237e;">${title}</h1>
+                  <p style="font-size: 1.8em; color: #666; margin-bottom: 60px;">${author}</p>
+                  <div style="font-size: 1.4em; color: #888;">
+                    Apresentação Gerada por IA
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Slides de Conteúdo -->
+              ${slidesData.map((slide, index) => `
+                <div class="slide" style="width: 100%; height: 100%; padding: 60px; box-sizing: border-box; display: none; flex-direction: column; justify-content: center;">
+                  <h2 style="color: #1a237e; margin-bottom: 40px; font-size: 2.5em; text-align: center;">${slide.title}</h2>
+                  <div style="flex: 1; display: flex; align-items: center;">
+                    <div style="width: 100%; font-size: 1.3em; line-height: 1.8;">
+                      ${slide.content}
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
           </div>
           
-          ${slidesHTML}
-          
-          <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #1a237e;">
-            <p style="margin: 0; font-weight: bold;">✅ Apresentação LaTeX gerada com sucesso!</p>
-            <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
-              Conteúdo real extraído do código LaTeX gerado pela IA.
-            </p>
+          <!-- Navegação -->
+          <div style="background: #1a237e; padding: 20px; display: flex; justify-content: center; align-items: center; gap: 40px;">
+            <button onclick="previousSlide()" style="background: white; color: #1a237e; border: none; padding: 15px 25px; font-size: 1.5em; border-radius: 50%; cursor: pointer; transition: all 0.3s; font-weight: bold;">
+              ◀
+            </button>
+            
+            <div style="color: white; font-size: 1.2em;">
+              <span id="slideNumber">1</span> / <span id="totalSlides">${slidesData.length + 1}</span>
+            </div>
+            
+            <button onclick="nextSlide()" style="background: white; color: #1a237e; border: none; padding: 15px 25px; font-size: 1.5em; border-radius: 50%; cursor: pointer; transition: all 0.3s; font-weight: bold;">
+              ▶
+            </button>
           </div>
         </div>
+        
+        <script>
+          let currentSlide = 0;
+          const slides = document.querySelectorAll('.slide');
+          const totalSlides = slides.length;
+          
+          function showSlide(index) {
+            slides.forEach(slide => slide.style.display = 'none');
+            slides[index].style.display = 'flex';
+            document.getElementById('slideNumber').textContent = index + 1;
+            currentSlide = index;
+          }
+          
+          function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+              showSlide(currentSlide + 1);
+            }
+          }
+          
+          function previousSlide() {
+            if (currentSlide > 0) {
+              showSlide(currentSlide - 1);
+            }
+          }
+          
+          // Teclado
+          document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') nextSlide();
+            if (e.key === 'ArrowLeft') previousSlide();
+          });
+          
+          // Iniciar
+          showSlide(0);
+        </script>
       `;
     } else {
       // Fallback genérico se não encontrar slides
