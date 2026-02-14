@@ -116,7 +116,7 @@ function generateSimulatedHTML(latex, type = 'document') {
       
       // Extrair o conteúdo da tabela (entre \begin{tabular} e \end{tabular})
       const tableContentMatch = tableLatex.match(/\\begin\{tabular\}\{.*?\}(.*?)\\end\{tabular\}/s);
-      let tableHTML = '<table style="width: 100%; border-collapse: collapse; font-size: 14px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">';
+      let tableHTML = '<table style="width: auto; border-collapse: collapse; font-size: 14px; margin: 20px auto; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 100%; overflow-x: auto;">';
 
       if (tableContentMatch && tableContentMatch[1]) {
         const rawTableContent = tableContentMatch[1];
@@ -131,6 +131,8 @@ function generateSimulatedHTML(latex, type = 'document') {
             const cells = cleanLine.split('&').map((cell, cellIndex) => {
               // Limpar completamente cada célula
               let cleanedCell = cell.trim()
+                .replace(/&amp;/g, '') // Remover &amp; (HTML entity)
+                .replace(/&/g, '') // Remover & restante
                 .replace(/\$|\\times/g, '') // Remover $ e \times
                 .replace(/\\[a-zA-Z]+\{[^}]*\}/g, '') // Remover outros comandos LaTeX
                 .replace(/[^a-zA-Z0-9\s\.\,\-\/\%\(\)]/g, '') // Manter apenas caracteres básicos
@@ -165,7 +167,7 @@ function generateSimulatedHTML(latex, type = 'document') {
           <h1 style="text-align: center; margin-bottom: 30px; color: #333;">${title}</h1>
           <p style="text-align: center; color: #666; margin-bottom: 40px;">por ${author}</p>
           
-          <div style="background: white; border: 2px solid #333; margin: 20px 0;">
+          <div style="background: white; border: 2px solid #333; margin: 20px 0; overflow-x: auto; max-width: 100%;">
             ${tableHTML}
           </div>
           
@@ -207,9 +209,23 @@ function generateSimulatedHTML(latex, type = 'document') {
           .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
           .replace(/\\Large/g, '<span style="font-size: 1.5em;">')
           .replace(/\\large/g, '<span style="font-size: 1.2em;">')
+          .replace(/\\titlepage/g, '') // Remover comando \titlepage
           .replace(/\}/g, '</span>')
           .replace(/\{/g, '')
           .trim();
+        
+        // Se for o primeiro frame e estiver vazio, criar capa
+        if (index === 0 && (!frameContent || frameContent.length < 10)) {
+          frameContent = `
+            <div style="text-align: center; padding: 60px 20px;">
+              <h1 style="font-size: 3em; margin-bottom: 30px; color: #1a237e;">${title}</h1>
+              <p style="font-size: 1.5em; color: #666; margin-bottom: 40px;">por ${author}</p>
+              <div style="font-size: 1.2em; color: #888;">
+                Apresentação Gerada por IA
+              </div>
+            </div>
+          `;
+        }
         
         // Limpar tags vazias e organizar
         let cleanContent = frameContent
@@ -224,7 +240,7 @@ function generateSimulatedHTML(latex, type = 'document') {
         // Se não tiver <li>, envolver o conteúdo em <p>
         let finalContent = cleanContent.includes('<li>') ? 
           `<ul>${cleanContent}</ul>` : 
-          `<p style="line-height: 1.6; font-size: 16px;">${cleanContent}</p>`;
+          `<div style="line-height: 1.6; font-size: 16px;">${cleanContent}</div>`;
         
         // Limpar tags span soltas
         finalContent = finalContent
