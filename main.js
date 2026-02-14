@@ -727,7 +727,7 @@ class UI {
         // Prompt interno para gerar LaTeX - ISSO FICA SECRETO
         const systemPrompt = {
             role: 'system',
-            content: `Você é um especialista em LaTeX e conteúdo profissional. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação' : type === 'document' ? 'documento' : 'tabela'} sobre: "${message}". 
+            content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional' : type === 'document' ? 'documento acadêmico' : 'tabela técnica'} sobre: "${message}". 
             
 REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
 - GERE APENAS O CÓDIGO LATEX PURO, NADA MAIS
@@ -735,38 +735,27 @@ REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
 - NÃO inclua marcadores como \`\`\`latex ou \`\`\`
 - Use pacotes padrão (beamer para slides, article para documentos, tabular para tabelas)
 - O código deve ser compilável com pdflatex
-- Para slides: use \\documentclass{beamer}
+- Para slides: use \\documentclass[10pt,aspectratio=169]{beamer}
 - Para documentos: use \\documentclass{article}
 - Para tabelas: use \\documentclass{article} com tabular environment
 
-CONTEÚDO ESPECÍFICO E PROFISSIONAL:
-- Pesquise e gere CONTEÚDO REAL sobre o tema solicitado
-- Para slides: MÍNIMO 5 SLIDES com conteúdo profissional
-- Para apresentações: slide título, introdução, desenvolvimento (2-3 slides), conclusão
-- Para tabelas: dados reais e específicos sobre o tema
-- Para documentos: texto profissional com introdução, desenvolvimento e conclusão
+CONTEÚDO ESPECÍFICO E DE ALTA QUALIDADE:
+- PESQUISE E GERE CONTEÚDO ESPECIALIZADO sobre o tema
+- Para slides: MÍNIMO 8 SLIDES (ideal 13) com conteúdo denso e útil
+- Estrutura OBRIGATÓRIA para slides: título → introdução → desenvolvimento (3-5 slides) → aplicações → conclusão → agradecimento
+- Para tabelas: dados reais, específicos e técnicos sobre o tema
+- Para documentos: texto acadêmico com introdução, desenvolvimento (3-4 seções) e conclusão
 - NUNCA use placeholders genéricos como "Exemplo 1", "Conteúdo da tabela"
-- GERE CONTEÚDO COMO SE FOSSE UM ESPECIALISTA NO ASSUNTO
-- USE SEUS CONHECIMENTOS PARA CRIAR CONTEÚDO VALIOSO E ESPECÍFICO
+- INCLUA dados técnicos, estatísticas, exemplos reais, citações
+- SEJA ESPECÍFICO E DENSO - o usuário quer APRENDER de verdade
 
-ESTRUTURA PARA SLIDES (MÍNIMO 5 SLIDES):
-1. Slide título
-2. Slide introdução/conceito
-3. Slide desenvolvimento/características
-4. Slide aplicações/exemplos
-5. Slide conclusão
+EXEMPLOS DE CONTEÚDO DE QUALIDADE:
+- Para "LLM": arquitetura, parâmetros, aplicações reais, modelos específicos (GPT-4, Claude, Llama)
+- Para "machine learning": algoritmos específicos, métricas, casos de uso reais
+- Para "blockchain": protocolos específicos, casos de uso, métricas técnicas
 
-ESTRUTURA PARA DOCUMENTOS:
-1. Título e autor
-2. Introdução
-3. Desenvolvimento (2-3 seções)
-4. Conclusão
-
-ESTRUTURA PARA TABELAS:
-1. Título
-2. Tabela com dados reais e específicos sobre o tema
-
-IMPORTANTE: RETORNE APENAS O CÓDIGO LATEX, SEM NENHUM TEXTO ADICIONAL!`
+IMPORTANTE: O usuário quer CONTEÚDO REAL para APRENDER, não superficial. 
+RETORNE APENAS O CÓDIGO LATEX, SEM NENHUM TEXTO ADICIONAL!`
         };
 
         const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [systemPrompt, { role: 'user', content: message }]);
