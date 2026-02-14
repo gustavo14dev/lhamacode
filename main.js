@@ -760,6 +760,28 @@ IMPORTANTE - TIPO DE CONTEÚDO NOS SLIDES:
 - Inclua exemplos práticos, dados específicos, números reais
 - Cada slide deve ser uma aula completa sobre o tópico
 
+ESTRUTURA OBRIGATÓRIA PARA TODAS APRESENTAÇÕES:
+- Slide 1: Título (capa)
+- Slide 2: O que é [TEMA] - TEXTO CORRIDO EXPLICATIVO COMPLETO
+- Slide 3: Como funciona [TEMA] - TEXTO CORRIDO EXPLICATIVO COMPLETO
+- Slide 4+: Desenvolvimento detalhado com mais texto corrido
+- Penúltimo: Resumo
+- Último: Agradecimento
+
+OBRIGATÓRIO - SLIDE "O QUE É":
+- Deve ter 3-4 parágrafos corridos explicando o conceito
+- Definição clara e detalhada
+- Contexto histórico se aplicável
+- Importância e relevância do tema
+- NÃO use bullets neste slide - apenas texto corrido
+- Seja didático e completo
+
+EXEMPLO DE SLIDE "O QUE É LLM":
+3 parágrafos corridos explicando:
+- O que são Large Language Models
+- Como surgiram e evoluíram
+- Por que são importantes hoje
+
 EXEMPLO DE SLIDE DE QUALIDADE:
 - Título: "Arquitetura Transformer"
 - Conteúdo: 2-3 parágrafos explicando o que é, como funciona, importância
