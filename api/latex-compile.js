@@ -273,29 +273,33 @@ function generateSimulatedHTML(latex, type = 'document') {
         });
       });
       
-      // Criar apresentação com navegação - APRESENTAÇÃO CLÁSSICA + BOTÕES LHAMACODE
+      // Criar apresentação com navegação - DESIGN METROPOLIS BEAMER
       content = `
         <div style="font-family: 'Plus Jakarta Sans', sans-serif; background: #1F1A18; min-height: 100vh; display: flex; flex-direction: column; margin: 0; padding: 0;">
-          <!-- Área do Slide (16:9) - CLÁSSICO BRANCO -->
+          <!-- Área do Slide (16:9) - METROPOLIS BEAMER -->
           <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
-            <div id="slideContainer" style="width: 100%; max-width: 1200px; aspect-ratio: 16/9; background: white; border-radius: 0.5rem; box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden;">
-              <!-- Slide 1 (Capa) - CLÁSSICO -->
-              <div class="slide" style="width: 100%; height: 100%; padding: 60px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; background: white; color: #3D1A16;">
-                <div style="text-align: center;">
-                  <h1 style="margin: 0; font-size: 2.5em; font-weight: 600; margin-bottom: 20px; color: #3D1A16;">${title}</h1>
-                  <p style="margin: 0 0 30px 0; font-size: 1.2em; color: #6B5D54;">${author}</p>
-                  <div style="font-size: 1em; color: #8B7468; background: #FFF3EC; padding: 12px 20px; border-radius: 0.5rem; display: inline-block;">
+            <div id="slideContainer" style="width: 100%; max-width: 1200px; aspect-ratio: 16/9; background: white; border-radius: 0.5rem; box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden; position: relative;">
+              
+              <!-- Barra de Progresso (Metropolis) -->
+              <div style="position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #E26543; z-index: 10;"></div>
+              
+              <!-- Slide 1 (Capa) - METROPOLIS -->
+              <div class="slide" style="width: 100%; height: 100%; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; background: white; color: #2D2624;">
+                <div style="text-align: center; max-width: 80%; margin: 0 auto;">
+                  <h1 style="margin: 0; font-size: 1.8em; font-weight: 600; margin-bottom: 16px; color: #2D2624; line-height: 1.2;">${title}</h1>
+                  <p style="margin: 0 0 24px 0; font-size: 1.1em; color: #6B5D54; font-weight: 400;">${author}</p>
+                  <div style="font-size: 0.9em; color: #8B7468; background: #F9F4F2; padding: 8px 16px; border-radius: 0.25rem; display: inline-block; font-weight: 500;">
                     Apresentação Gerada por IA
                   </div>
                 </div>
               </div>
               
-              <!-- Slides de Conteúdo - CLÁSSICO -->
+              <!-- Slides de Conteúdo - METROPOLIS -->
               ${slidesData.map((slide, index) => `
-                <div class="slide" style="width: 100%; height: 100%; padding: 50px; box-sizing: border-box; display: none; flex-direction: column; justify-content: center; background: white;">
-                  <h2 style="color: #3D1A16; margin-bottom: 30px; font-size: 2em; font-weight: 600; text-align: center;">${slide.title}</h2>
-                  <div style="flex: 1; display: flex; align-items: center;">
-                    <div style="width: 100%; font-size: 1.1em; line-height: 1.6; color: #6B5D54;">
+                <div class="slide" style="width: 100%; height: 100%; padding: 40px 50px; box-sizing: border-box; display: none; flex-direction: column; background: white;">
+                  <h2 style="color: #2D2624; margin-bottom: 24px; font-size: 1.4em; font-weight: 600; line-height: 1.3;">${slide.title}</h2>
+                  <div style="flex: 1; display: flex; align-items: flex-start; font-size: 0.95em; line-height: 1.5; color: #4A4039;">
+                    <div style="width: 100%;">
                       ${slide.content}
                     </div>
                   </div>
