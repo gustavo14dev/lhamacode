@@ -1173,27 +1173,39 @@ ${latexCode}
     displayCompiledContent(messageId, compiledData, type, originalMessage) {
         console.log('🎨 Iniciando displayCompiledContent para:', type, 'com ID:', messageId);
         
-        // Tentar encontrar o elemento várias vezes com diferentes abordagens
-        let messageElement = document.getElementById(`responseText_${messageId}`);
+        // O PROBLEMA: O ID está errado! Precisa usar o ID correto que foi criado
+        // Vamos encontrar o elemento correto pelo último ID disponível
+        const allMessages = document.querySelectorAll('[id^="responseText_"]');
+        console.log('🔍 Total de elementos encontrados:', allMessages.length);
         
-        // Se não encontrar, tentar encontrar o último elemento de mensagem
-        if (!messageElement) {
-            console.log('🔍 Elemento não encontrado pelo ID, buscando último elemento...');
-            const allMessages = document.querySelectorAll('[id^="responseText_"]');
-            if (allMessages.length > 0) {
-                messageElement = allMessages[allMessages.length - 1];
-                console.log('✅ Último elemento encontrado:', messageElement.id);
-            }
+        let messageElement = null;
+        
+        // Tentar encontrar pelo ID correto primeiro
+        messageElement = document.getElementById(`responseText_${messageId}`);
+        
+        // Se não encontrar, usar o último elemento (que é o correto)
+        if (!messageElement && allMessages.length > 0) {
+            messageElement = allMessages[allMessages.length - 1];
+            console.log('✅ Usando último elemento encontrado:', messageElement.id);
         }
         
         if (!messageElement) {
             console.error('❌ Elemento de mensagem não encontrado para displayCompiledContent:', messageId);
-            console.error('❌ Elementos disponíveis:', document.querySelectorAll('[id^="responseText_"]').length);
+            console.error('❌ Elementos disponíveis:', allMessages.length);
+            // Listar todos os IDs disponíveis para debug
+            allMessages.forEach((el, index) => {
+                console.error(`❌ Elemento ${index}:`, el.id);
+            });
             return;
         }
 
         const typeName = this.getCreateTypeName();
         console.log('📝 Exibindo conteúdo para:', typeName, 'URL:', compiledData.url);
+        console.log('📝 Elemento alvo:', messageElement.id);
+        
+        // FORÇAR ATUALIZAÇÃO COM VISIBILIDADE
+        messageElement.style.display = 'block';
+        messageElement.style.visibility = 'visible';
         
         messageElement.innerHTML = `
             <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-4 border border-gray-200 dark:border-gray-700">
@@ -1207,9 +1219,9 @@ ${latexCode}
                 <div class="mb-4">
                     <iframe 
                         src="${compiledData.url}" 
-                        style="width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 8px;"
-                        onload="this.style.opacity='1'"
-                        onerror="this.parentElement.innerHTML='<div class=\\'text-center p-8 text-gray-500\\'>Visualização não disponível. Use o botão de download.</div>'">
+                        style="width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 8px; background: white;"
+                        onload="console.log('✅ Iframe carregado com sucesso'); this.style.opacity='1'"
+                        onerror="console.error('❌ Erro ao carregar iframe'); this.parentElement.innerHTML='<div class=\\'text-center p-8 text-red-500\\'>❌ Erro ao carregar visualização. Use o botão de download.</div>'">
                     </iframe>
                 </div>
                 
@@ -1227,6 +1239,7 @@ ${latexCode}
         `;
 
         console.log('✅ Conteúdo compilado exibido para:', typeName);
+        console.log('✅ HTML atualizado no elemento:', messageElement.id);
         this.scrollToBottom();
     }
 
