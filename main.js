@@ -751,6 +751,21 @@ CONTEÚDO ESPECÍFICO E DE ALTA QUALIDADE:
 - SEJA ESPECÍFICO E DENSO - o usuário quer APRENDER de verdade
 - ADAPTE-SE AO PEDIDO DO USUÁRIO - se pedir curto, faça curto; se pedir completo, faça completo
 
+IMPORTANTE - TIPO DE CONTEÚDO NOS SLIDES:
+- NÃO use apenas tópicos/bullets curtos
+- GERE TEXTO CORRIDO EXPLICATIVO em cada slide
+- Cada slide deve ter 2-3 parágrafos explicativos completos
+- Use bullets APENAS para complementar o texto corrido
+- Explique conceitos detalhadamente, como se estivesse ensinando
+- Inclua exemplos práticos, dados específicos, números reais
+- Cada slide deve ser uma aula completa sobre o tópico
+
+EXEMPLO DE SLIDE DE QUALIDADE:
+- Título: "Arquitetura Transformer"
+- Conteúdo: 2-3 parágrafos explicando o que é, como funciona, importância
+- + bullets com pontos-chave para reforçar
+- + dados específicos (ex: "176 bilhões de parâmetros no GPT-3")
+
 EXEMPLOS DE CONTEÚDO DE QUALIDADE:
 - Para "LLM": arquitetura, parâmetros, aplicações reais, modelos específicos (GPT-4, Claude, Llama)
 - Para "machine learning": algoritmos específicos, métricas, casos de uso reais
