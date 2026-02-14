@@ -133,11 +133,24 @@ function generateSimulatedHTML(latex, type = 'document') {
               let cleanedCell = cell.trim()
                 .replace(/&amp;/g, '') // Remover &amp; (HTML entity)
                 .replace(/&/g, '') // Remover & restante
-                .replace(/\$|\\times/g, '') // Remover $ e \times
+                .replace(/\$|\\times|\\cdot/g, '') // Remover $, \times e \cdot
                 .replace(/\\[a-zA-Z]+\{[^}]*\}/g, '') // Remover outros comandos LaTeX
+                .replace(/[=]/g, '') // Remover sinais de igual
                 .replace(/[^a-zA-Z0-9\s\.\,\-\/\%\(\)]/g, '') // Manter apenas caracteres básicos
                 .replace(/\s+/g, ' ') // Reduzir múltiplos espaços para um
                 .trim();
+
+              // Se for a célula de resultado (última coluna), extrair só o número final
+              if (cleanedCell.includes(' ')) {
+                const parts = cleanedCell.split(' ').filter(p => p.trim());
+                if (parts.length > 1) {
+                  // Se tem múltiplos números, pegar o último (resultado)
+                  const lastNumber = parts[parts.length - 1];
+                  if (/^\d+$/.test(lastNumber)) {
+                    cleanedCell = lastNumber;
+                  }
+                }
+              }
 
               // Se for a primeira coluna e contiver 'n' ou 'n/7', limpar ainda mais
               if (cellIndex === 0 && (cleanedCell.includes('n') || cleanedCell.includes('n/7'))) {
