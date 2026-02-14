@@ -263,6 +263,11 @@ function generateSimulatedHTML(latex, type = 'document') {
           .replace(/\{/g, '')
           .trim();
         
+        // LIMITAR CONTEÚDO A 1050 CARACTERES
+        if (frameContent.length > 1050) {
+          frameContent = frameContent.substring(0, 1047) + '...';
+        }
+        
         // Estrutura inteligente baseada na posição
         if (index === 0) {
           // Slide 1: TÍTULO (CAPA) - O slide que você queria!

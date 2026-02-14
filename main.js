@@ -2439,12 +2439,59 @@ console.log('- session.clear() → Remove API Key Groq');
 
 // Função global para download de conteúdo gerado
 window.downloadGeneratedContent = (url, filename) => {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    try {
+        console.log('🔥 Iniciando download:', filename, 'URL:', url);
+        
+        // Criar uma nova requisição fetch para obter o blob
+        fetch(url)
+            .then(response => {
+                console.log('📡 Response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                console.log('✅ Blob obtido, tamanho:', blob.size, 'tipo:', blob.type);
+                
+                // Criar URL temporária para o blob
+                const blobUrl = URL.createObjectURL(blob);
+                
+                // Criar elemento de download
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = filename;
+                a.style.display = 'none';
+                
+                // Adicionar ao DOM, clicar e remover
+                document.body.appendChild(a);
+                a.click();
+                
+                // Limpar
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(blobUrl);
+                    console.log('✅ Download concluído e limpo');
+                }, 100);
+            })
+            .catch(error => {
+                console.error('❌ Erro no download:', error);
+                
+                // Fallback: tentar download direto
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                // Mostrar erro para usuário
+                alert('Erro no download. Tente novamente ou use o botão direito para salvar.');
+            });
+    } catch (error) {
+        console.error('❌ Erro geral no download:', error);
+        alert('Erro no download. Tente novamente.');
+    }
 };
 
