@@ -265,7 +265,18 @@ function generateSimulatedHTML(latex, type = 'document') {
         
         // Estrutura inteligente baseada na posição
         if (index === 0) {
-          // Slide 1: O QUE É [TEMA] (antes era slide 2)
+          // Slide 1: TÍTULO (CAPA) - O slide que você queria!
+          frameTitle = title;
+          frameContent = `
+            <div style="text-align: center;">
+              <h1 style="font-size: 2.8em; margin-bottom: 25px; color: #2D2624; font-weight: 700;">${title}</h1>
+              <div style="font-size: 1em; color: #8B7468; background: #F9F4F2; padding: 10px 20px; border-radius: 0.5rem; display: inline-block;">
+                ${new Date().toLocaleDateString('pt-BR')}
+              </div>
+            </div>
+          `;
+        } else if (index === 1) {
+          // Slide 2: O QUE É [TEMA]
           frameTitle = `O que é ${title}`;
           frameContent = `
             <div style="text-align: left;">
@@ -280,8 +291,8 @@ function generateSimulatedHTML(latex, type = 'document') {
               </p>
             </div>
           `;
-        } else if (index === 1) {
-          // Slide 2: COMO FUNCIONA (antes era slide 3)
+        } else if (index === 2) {
+          // Slide 3: COMO FUNCIONA
           frameTitle = `Como funciona ${title}`;
           frameContent = `
             <div style="text-align: left;">
@@ -296,8 +307,8 @@ function generateSimulatedHTML(latex, type = 'document') {
               </p>
             </div>
           `;
-        } else if (index === 2) {
-          // Slide 3: SUMÁRIO (agora é o 3º slide)
+        } else if (index === 3) {
+          // Slide 4: SUMÁRIO
           frameTitle = 'Sumário';
           frameContent = `
             <div style="text-align: left;">

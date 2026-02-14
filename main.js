@@ -741,7 +741,7 @@ REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
 
 CONTEÚDO ESPECÍFICO E DE ALTA QUALIDADE:
 - PESQUISE E GERE CONTEÚDO ESPECIALIZADO sobre o tema
-- Para slides: MÍNIMO 8 SLIDES (ideal 15-30) com conteúdo denso e útil
+- Para slides: MÍNIMO 8 SLIDES, MÁXIMO 50-80 (ideal 15-30) com conteúdo denso e útil, e que faça sentido
 - Estrutura FLEXÍVEL para slides: título → introdução → desenvolvimento (3-8 slides) → aplicações → conclusão → agradecimento
 - ATENÇÃO: Se o usuário pedir algo específico como "3 slides" ou "apresentação curta", RESPEITE e gere exatamente o solicitado
 - Para tabelas: dados reais, específicos e técnicos sobre o tema
