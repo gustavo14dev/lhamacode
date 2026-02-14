@@ -116,7 +116,7 @@ function generateSimulatedHTML(latex, type = 'document') {
       
       // Extrair o conteúdo da tabela (entre \begin{tabular} e \end{tabular})
       const tableContentMatch = tableLatex.match(/\\begin\{tabular\}\{.*?\}(.*?)\\end\{tabular\}/s);
-      let tableHTML = '<table style="width: 100%; border-collapse: collapse; font-size: 14px;">';
+      let tableHTML = '<table style="width: 100%; border-collapse: collapse; font-size: 14px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">';
 
       if (tableContentMatch && tableContentMatch[1]) {
         const rawTableContent = tableContentMatch[1];
@@ -128,18 +128,31 @@ function generateSimulatedHTML(latex, type = 'document') {
           const cleanLine = line.replace(/^\\hline\s*|\s*\\hline$/g, '');
           if (cleanLine) {
             // Separar colunas por &
-            const cells = cleanLine.split('&').map(cell => {
+            const cells = cleanLine.split('&').map((cell, cellIndex) => {
               // Limpar completamente cada célula
-              return cell.trim()
+              let cleanedCell = cell.trim()
                 .replace(/\$|\\times/g, '') // Remover $ e \times
                 .replace(/\\[a-zA-Z]+\{[^}]*\}/g, '') // Remover outros comandos LaTeX
-                .replace(/[^a-zA-Z0-9\s\.\,\-\/\%\(\)]/g, ''); // Manter apenas caracteres básicos
+                .replace(/[^a-zA-Z0-9\s\.\,\-\/\%\(\)]/g, '') // Manter apenas caracteres básicos
+                .replace(/\s+/g, ' ') // Reduzir múltiplos espaços para um
+                .trim();
+
+              // Se for a primeira coluna e contiver 'n' ou 'n/7', limpar ainda mais
+              if (cellIndex === 0 && (cleanedCell.includes('n') || cleanedCell.includes('n/7'))) {
+                cleanedCell = cleanedCell.replace(/n\/?7?/g, '').trim();
+                
+                // Se ficou vazio, colocar o número da linha
+                if (!cleanedCell) {
+                  cleanedCell = (index === 0) ? 'N' : String(index);
+                }
+              }
+              return cleanedCell;
             });
             const isHeader = index === 0; // Primeira linha é o cabeçalho
             
             tableHTML += '<tr style="' + (isHeader ? 'background: #f0f0f0;' : '') + '">';
             cells.forEach(cell => {
-              tableHTML += `<td style="border: 1px solid #333; padding: 12px; text-align: left; font-weight: ${isHeader ? 'bold' : 'normal'}">${cell}</td>`;
+              tableHTML += `<td style="border: 1px solid #ddd; padding: 12px 8px; text-align: center; font-weight: ${isHeader ? 'bold' : 'normal'}; min-width: 50px; background: ${isHeader ? '#f8f9fa' : 'white'};">${cell}</td>`;
             });
             tableHTML += '</tr>';
           }
