@@ -373,11 +373,11 @@ function generateSimulatedHTML(latex, type = 'document') {
                 </div>
               </div>
               
-              <!-- Slides de Conteúdo - FONTES PEQUENAS -->
+              <!-- Slides de Conteúdo - TEXTO ADAPTATIVO -->
               ${slidesData.map((slide, index) => `
                 <div class="slide" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: none; flex-direction: column; background: white; padding: 40px; box-sizing: border-box;">
                   <h2 style="color: #2D2624; margin-bottom: 25px; font-size: clamp(0.9em, 2.5vw, 1.2em); font-weight: 600; line-height: 1.3; text-align: center;">${slide.title}</h2>
-                  <div style="flex: 1; display: flex; align-items: center; justify-content: center; font-size: clamp(0.7em, 1.8vw, 0.85em); line-height: 1.4; color: #4A4039; text-align: center;">
+                  <div style="flex: 1; display: flex; align-items: center; justify-content: center; font-size: ${slide.content.length < 200 ? 'clamp(0.9em, 2.2vw, 1.1em)' : 'clamp(0.7em, 1.8vw, 0.85em)'}; line-height: 1.4; color: #4A4039; text-align: center;">
                     <div style="max-width: 95%; word-wrap: break-word;">
                       ${slide.content}
                     </div>
