@@ -265,30 +265,51 @@ function generateSimulatedHTML(latex, type = 'document') {
         
         // Estrutura inteligente baseada na posição
         if (index === 0) {
-          // Slide 1: TÍTULO (CAPA)
-          frameTitle = title;
+          // Slide 1: O QUE É [TEMA] (antes era slide 2)
+          frameTitle = `O que é ${title}`;
           frameContent = `
-            <div style="text-align: center;">
-              <h1 style="font-size: 2.8em; margin-bottom: 25px; color: #2D2624; font-weight: 700;">${title}</h1>
-              <div style="font-size: 1em; color: #8B7468; background: #F9F4F2; padding: 10px 20px; border-radius: 0.5rem; display: inline-block;">
-                ${new Date().toLocaleDateString('pt-BR')}
-              </div>
+            <div style="text-align: left;">
+              <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
+                Large Language Models (LLMs) são sistemas de inteligência artificial projetados para compreender, processar e gerar linguagem humana de forma natural e contextual. Esses modelos utilizam arquiteturas de redes neurais profundas, principalmente a arquitetura Transformer, que permite processar sequências longas de texto com compreensão semântica e sintática avançada.
+              </p>
+              <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
+                O desenvolvimento dos LLMs representa uma revolução na IA, permitindo que máquinas realizem tarefas linguísticas complexas como tradução automática, resumo de textos, geração de conteúdo e até mesmo raciocínio abstrato. Esses modelos são treinados com enormes quantidades de dados textuais, aprendendo padrões linguísticos e conhecimento factual de forma escalável.
+              </p>
+              <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
+                A importância dos LLMs no cenário atual é fundamental, pois estão transformando radicalmente como interagimos com a tecnologia, automatizando processos antes exclusivamente humanos e criando novas possibilidades para educação, negócios e pesquisa científica. Modelos como GPT-4, Claude e Llama demonstram capacidades que antes eram consideradas exclusivas da inteligência humana.
+              </p>
             </div>
           `;
         } else if (index === 1) {
-          // Slide 2: SUMÁRIO
+          // Slide 2: COMO FUNCIONA (antes era slide 3)
+          frameTitle = `Como funciona ${title}`;
+          frameContent = `
+            <div style="text-align: left;">
+              <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
+                O funcionamento dos Large Language Models baseia-se na arquitetura Transformer, introduzida em 2017, que utiliza mecanismos de atenção para processar relações entre palavras em longas distâncias textuais. Diferente dos modelos anteriores, os Transformers podem considerar o contexto completo de uma frase simultaneamente, permitindo compreensão mais profunda das relações semânticas.
+              </p>
+              <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
+                O processo de treinamento envolve duas fases principais: pré-treinamento em grandes corpus de texto (livros, artigos, websites) e ajuste fino para tarefas específicas. Durante o pré-treinamento, o modelo aprende a prever palavras ausentes em sequências, desenvolvendo representações estatísticas da linguagem e conhecimento factual sobre o mundo.
+              </p>
+              <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
+                Na inferência, os LLMs utilizam processamento autoregressivo, gerando texto palavra por palavra baseado no contexto anterior e nas probabilidades aprendidas durante o treinamento. Técnicas como temperatura, top-k e nucleus sampling permitem controlar a criatividade e coerência das respostas geradas.
+              </p>
+            </div>
+          `;
+        } else if (index === 2) {
+          // Slide 3: SUMÁRIO (agora é o 3º slide)
           frameTitle = 'Sumário';
           frameContent = `
             <div style="text-align: left;">
               <h3 style="color: #2D2624; margin-bottom: 20px;">O que será apresentado:</h3>
-              <ul style="margin: 0; padding-left: 25px;">
-                <li style="margin-bottom: 12px;"><strong>Introdução</strong> - Contexto e objetivos</li>
-                <li style="margin-bottom: 12px;"><strong>Conceitos Fundamentais</strong> - Definições e princípios</li>
-                <li style="margin-bottom: 12px;"><strong>Aplicações Práticas</strong> - Exemplos e casos de uso</li>
-                <li style="margin-bottom: 12px;"><strong>Exemplos Concretos</strong> - Implementações reais</li>
-                <li style="margin-bottom: 12px;"><strong>Vantagens e Desafios</strong> - Análise comparativa</li>
-                <li style="margin-bottom: 12px;"><strong>Impacto e Futuro</strong> - Tendências e evolução</li>
-                <li style="margin-bottom: 0;"><strong>Conclusão</strong> - Síntese e reflexões</li>
+              <ul style="margin: 0; padding-left: 20px;">
+                <li style="margin-bottom: 12px; list-style-position: inside;"><strong>Introdução</strong> - Contexto e objetivos</li>
+                <li style="margin-bottom: 12px; list-style-position: inside;"><strong>Conceitos Fundamentais</strong> - Definições e princípios</li>
+                <li style="margin-bottom: 12px; list-style-position: inside;"><strong>Aplicações Práticas</strong> - Exemplos e casos de uso</li>
+                <li style="margin-bottom: 12px; list-style-position: inside;"><strong>Exemplos Concretos</strong> - Implementações reais</li>
+                <li style="margin-bottom: 12px; list-style-position: inside;"><strong>Vantagens e Desafios</strong> - Análise comparativa</li>
+                <li style="margin-bottom: 12px; list-style-position: inside;"><strong>Impacto e Futuro</strong> - Tendências e evolução</li>
+                <li style="margin-bottom: 0; list-style-position: inside;"><strong>Conclusão</strong> - Síntese e reflexões</li>
               </ul>
             </div>
           `;
@@ -362,22 +383,11 @@ function generateSimulatedHTML(latex, type = 'document') {
               <!-- Barra de Progresso (Metropolis) -->
               <div style="position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #E26543; z-index: 10;"></div>
               
-              <!-- Slide 1 (Capa) - AJUSTE PERFEITO -->
-              <div class="slide" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: white; color: #2D2624; padding: 40px; box-sizing: border-box;">
-                <div style="text-align: center; max-width: 80%;">
-                  <h1 style="margin: 0; font-size: clamp(1.2em, 4vw, 2em); font-weight: 600; margin-bottom: 16px; color: #2D2624; line-height: 1.2;">${title}</h1>
-                  <p style="margin: 0 0 20px 0; font-size: clamp(0.9em, 2.5vw, 1.1em); color: #6B5D54; font-weight: 400;">${author}</p>
-                  <div style="font-size: clamp(0.8em, 2vw, 0.9em); color: #8B7468; background: #F9F4F2; padding: 8px 16px; border-radius: 0.25rem; display: inline-block; font-weight: 500;">
-                    Apresentação Gerada por IA
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Slides de Conteúdo - TEXTO ADAPTATIVO -->
+              <!-- Slides de Conteúdo - TEXTO CORRIDO DENSO -->
               ${slidesData.map((slide, index) => `
-                <div class="slide" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: none; flex-direction: column; background: white; padding: 40px; box-sizing: border-box;">
+                <div class="slide" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: ${index === 0 ? 'flex' : 'none'}; flex-direction: column; background: white; padding: 40px; box-sizing: border-box;">
                   <h2 style="color: #2D2624; margin-bottom: 25px; font-size: clamp(0.9em, 2.5vw, 1.2em); font-weight: 600; line-height: 1.3; text-align: center;">${slide.title}</h2>
-                  <div style="flex: 1; display: flex; align-items: center; justify-content: center; font-size: ${slide.content.length < 200 ? 'clamp(0.9em, 2.2vw, 1.1em)' : 'clamp(0.7em, 1.8vw, 0.85em)'}; line-height: 1.4; color: #4A4039; text-align: center;">
+                  <div style="flex: 1; display: flex; align-items: center; justify-content: center; font-size: ${slide.content.length < 200 ? 'clamp(0.9em, 2.2vw, 1.1em)' : 'clamp(0.7em, 1.8vw, 0.85em)'}; line-height: 1.4; color: #4A4039; text-align: left;">
                     <div style="max-width: 95%; word-wrap: break-word;">
                       ${slide.content}
                     </div>
