@@ -197,7 +197,7 @@ function generateSimulatedHTML(latex, type = 'document') {
       content = `...conteúdo genérico...`;
     }
   } else if (type === 'slides') {
-    // Extrair SLIDES REAIS do LaTeX - FORMATO APRESENTAÇÃO REAL
+    // Estrutura PROFISSIONAL de apresentação
     const frameMatches = latex.match(/\\begin\{frame\}.*?\\end\{frame\}/gs);
     if (frameMatches && frameMatches.length > 0) {
       let slidesData = [];
@@ -208,10 +208,13 @@ function generateSimulatedHTML(latex, type = 'document') {
       const title = titleMatch ? titleMatch[1] : 'Conteúdo Gerado';
       const author = authorMatch ? authorMatch[1] : 'Lhama Code 1';
       
+      // ESTRUTURA PROFISSIONAL DE SLIDES
+      const totalFrames = frameMatches.length;
+      
       // Processar cada frame
       frameMatches.forEach((frame, index) => {
         const frameTitleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
-        const frameTitle = frameTitleMatch ? frameTitleMatch[1] : `Slide ${index + 1}`;
+        let frameTitle = frameTitleMatch ? frameTitleMatch[1] : '';
         
         // Extrair conteúdo do frame - LIMPEZA COMPLETA DO LATEX
         let frameContent = frame
@@ -260,15 +263,65 @@ function generateSimulatedHTML(latex, type = 'document') {
           .replace(/\{/g, '')
           .trim();
         
-        // Se for o primeiro frame e estiver vazio, criar capa
-        if (index === 0 && (!frameContent || frameContent.length < 10)) {
+        // Estrutura inteligente baseada na posição
+        if (index === 0) {
+          // Slide 1: TÍTULO
+          frameTitle = title;
           frameContent = `
-            <div style="text-align: center; padding: 80px 20px;">
-              <h1 style="font-size: 3.5em; margin-bottom: 40px; color: #1a237e;">${title}</h1>
-              <p style="font-size: 1.8em; color: #666; margin-bottom: 60px;">${author}</p>
-              <div style="font-size: 1.4em; color: #888;">
-                Apresentação Gerada por IA
+            <div style="text-align: center;">
+              <h1 style="font-size: 2.5em; margin-bottom: 30px; color: #2D2624; font-weight: 700;">${title}</h1>
+              <p style="font-size: 1.3em; color: #6B5D54; margin-bottom: 40px;">${author}</p>
+              <div style="font-size: 1em; color: #8B7468; background: #F9F4F2; padding: 12px 24px; border-radius: 0.5rem; display: inline-block;">
+                ${new Date().toLocaleDateString('pt-BR')}
               </div>
+            </div>
+          `;
+        } else if (index === 1) {
+          // Slide 2: SUMÁRIO
+          frameTitle = 'Sumário';
+          frameContent = `
+            <div style="text-align: left;">
+              <h3 style="color: #2D2624; margin-bottom: 20px;">O que será apresentado:</h3>
+              <ul style="margin: 0; padding-left: 25px;">
+                <li style="margin-bottom: 12px;"><strong>Introdução</strong> - Contexto e objetivos</li>
+                <li style="margin-bottom: 12px;"><strong>Desenvolvimento</strong> - Análise detalhada</li>
+                <li style="margin-bottom: 12px;"><strong>Resultados</strong> - Principais descobertas</li>
+                <li style="margin-bottom: 12px;"><strong>Conclusão</strong> - Síntese e reflexões</li>
+                <li style="margin-bottom: 0;"><strong>Próximos Passos</strong> - Recomendações</li>
+              </ul>
+            </div>
+          `;
+        } else if (index === totalFrames - 2) {
+          // Penúltimo slide: RESUMO
+          frameTitle = 'Resumo da Apresentação';
+          frameContent = `
+            <div style="text-align: center;">
+              <h3 style="color: #2D2624; margin-bottom: 25px;">Pontos Principais</h3>
+              <div style="background: #f8f9fa; border-left: 4px solid #007bff; padding: 20px; margin: 15px 0; border-radius: 4px; text-align: left;">
+                <strong>✓ Conclusão 1:</strong> Síntese dos principais resultados obtidos<br><br>
+                <strong>✓ Conclusão 2:</strong> Impacto e relevância do tema abordado<br><br>
+                <strong>✓ Conclusão 3:</strong> Aplicações práticas e recomendações
+              </div>
+            </div>
+          `;
+        } else if (index === totalFrames - 1) {
+          // Último slide: AGRADECIMENTO
+          frameTitle = 'Obrigado!';
+          frameContent = `
+            <div style="text-align: center;">
+              <h2 style="font-size: 2.2em; margin-bottom: 30px; color: #2D2624;">Obrigado pela Atenção!</h2>
+              <p style="font-size: 1.2em; color: #6B5D54; margin-bottom: 40px;">Perguntas?</p>
+              <div style="font-size: 1em; color: #8B7468;">
+                <strong>${author}</strong><br>
+                ${new Date().toLocaleDateString('pt-BR')}
+              </div>
+            </div>
+          `;
+        } else if (!frameContent || frameContent.length < 10) {
+          // Slide vazio - conteúdo padrão
+          frameContent = `
+            <div style="text-align: center;">
+              <p style="color: #6B5D54; font-size: 1.1em;">Conteúdo em desenvolvimento...</p>
             </div>
           `;
         }
@@ -283,10 +336,10 @@ function generateSimulatedHTML(latex, type = 'document') {
           .replace(/<span><\/span>/g, '')
           .replace(/<\/span><span>/g, ' ');
         
-        // Se não tiver <li>, envolver o conteúdo em <div>
-        let finalContent = cleanContent.includes('<li>') ? 
-          `<div style="line-height: 1.8; font-size: 1.2em;">${cleanContent}</div>` : 
-          `<div style="line-height: 1.8; font-size: 1.2em;">${cleanContent}</div>`;
+        // Se não tiver <li> ou estrutura, envolver o conteúdo
+        let finalContent = cleanContent.includes('<li>') || cleanContent.includes('<div>') ? 
+          cleanContent : 
+          `<div style="text-align: center;">${cleanContent}</div>`;
         
         // Limpar tags span soltas
         finalContent = finalContent
