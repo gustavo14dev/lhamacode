@@ -498,34 +498,7 @@ function generateSimulatedHTML(latex, type = 'document') {
       // Fallback genérico se não encontrar slides
       content = `...conteúdo genérico...`;
     }
-} else if (type === 'mindmap') {
-    // Visualização simulada para mapas mentais
-    content = `
-      <div style="font-family: 'Plus Jakarta Sans', sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto; min-height: 600px;">
-        <div style="background: #1a237e; color: white; padding: 30px; border-radius: 12px; margin-bottom: 30px; text-align: center;">
-          <h1 style="margin: 0; font-size: 2.5em; font-weight: 700; margin-bottom: 10px;">🧠 Mapa Mental</h1>
-          <p style="margin: 0; font-size: 1.2em; opacity: 0.9;">Gerado por Drekee AI 1</p>
-        </div>
-        
-        <div style="background: white; border: 2px solid #e0e0e0; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="display: inline-block; background: #f8f9fa; padding: 15px 25px; border-radius: 8px; border-left: 4px solid #007bff;">
-              <h3 style="margin: 0; color: #1a237e; font-size: 1.1em;">🧠 Mapa Mental Gerado</h3>
-              <p style="margin: 10px 0 0 0; color: #666; font-size: 0.9em;">LaTeX compilado - use o botão de download</p>
-            </div>
-          </div>
-          
-          <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; font-family: 'Courier New', monospace; font-size: 12px; max-height: 400px; overflow-y: auto;">
-            <pre style="margin: 0; white-space: pre-wrap; color: #333;">${latex.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}</pre>
-          </div>
-        </div>
-        
-        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; text-align: center;">
-          Gerado por Drekee AI 1 - ${new Date().toLocaleString('pt-BR')}
-        </div>
-      </div>
-    `;
-  } else {
+} else {
     // Extrair DOCUMENTO REAL do LaTeX - ESTILO CLÁSSICO
     const sectionMatches = latex.match(/\\section\{([^}]+)\}.*?(?=\\section\{|\\end\{document\})/gs);
     if (sectionMatches && sectionMatches.length > 0) {

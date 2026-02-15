@@ -569,10 +569,6 @@ class UI {
                     <span class="material-icons-outlined text-base text-blue-400">description</span>
                     Documento
                 </button>
-                <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2" data-create="mindmap">
-                    <span class="material-icons-outlined text-base text-purple-400">account_tree</span>
-                    Mapa Mental
-                </button>
                 <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2 last:rounded-b-lg" data-create="table">
                     <span class="material-icons-outlined text-base text-purple-400">table_chart</span>
                     Tabela
@@ -635,22 +631,19 @@ class UI {
         const createNames = {
             'slides': 'Apresentação',
             'document': 'Documento',
-            'table': 'Tabela',
-            'mindmap': 'Mapa Mental'
+            'table': 'Tabela'
         };
         
         const createIcons = {
             'slides': 'slideshow',
             'document': 'description',
-            'table': 'table_chart',
-            'mindmap': 'account_tree'
+            'table': 'table_chart'
         };
         
         const createColors = {
             'slides': 'text-green-400',
             'document': 'text-blue-400',
-            'table': 'text-purple-400',
-            'mindmap': 'text-purple-400'
+            'table': 'text-purple-400'
         };
 
         // Atualizar botão principal
@@ -730,172 +723,20 @@ class UI {
         this.resetCreateButton();
     }
 
-    async generateMindMapContent(message) {
-        // Analisar o pedido para determinar o layout
-        const isHorizontal = message.toLowerCase().includes('horizontal') || 
-                           message.toLowerCase().includes('paisagem');
-        const isVertical = message.toLowerCase().includes('vertical') || 
-                         message.toLowerCase().includes('retrato');
-        
-        // Extrair tema central da mensagem
-        const topicMatch = message.match(/sobre\s+(.+?)(?:\s|$)/i) || message.match(/(.+?)(?:\s|$)/);
-        const centralTopic = topicMatch ? topicMatch[1].trim() : 'Mapa Mental';
-        
-        // Gerar prompt especializado para mapa mental
-        const mindMapPrompt = {
-            role: 'system',
-            content: `Você é um especialista em criar mapas mentais com LaTeX. Gere APENAS o código LaTeX para um mapa mental sobre: "${centralTopic}".
-
-REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
-- GERE APENAS O CÓDIGO LATEX PURO, NADA MAIS
-- Use EXATAMENTE esta estrutura:
-\\documentclass[tikz, border=10pt]{standalone}
-\\usepackage[edges]{forest}
-
-\\begin{document}
-
-\\begin{forest}
-  for tree={
-    ${isHorizontal || (!isVertical && Math.random() > 0.5) ? 
-      'grow=0, draw, rounded corners=3pt, fill=blue!5, font=\\sffamily, edge={-stealth, line width=0.8pt}, child anchor=west, parent anchor=east, l sep=1.5cm, forked edge' : 
-      'draw, rounded corners=5pt, fill=white, font=\\sffamily\\bfseries, edge={blue!50!black, line width=1pt}, align=center, parent anchor=south, child anchor=north, l sep=1cm, s sep=0.5cm, if n children=0{fill=gray!10, font=\\sffamily\\small}'}
-  }
-  [${centralTopic}
-    [Conceito Principal
-      [Subconceito A
-        [Detalhe A1]
-        [Detalhe A2]
-      ]
-      [Subconceito B
-        [Detalhe B1]
-      ]
-    ]
-    [Conceito Secundário
-      [Aplicação 1
-        [Exemplo 1.1]
-      ]
-      [Aplicação 2
-        [Exemplo 2.1]
-      ]
-    ]
-    [Conceito Terciário
-      [Benefício 1]
-      [Benefício 2]
-    ]
-  ]
-\\end{forest}
-
-\\end{document}
-
-IMPORTANTE: 
-- NÃO use \\documentclass{article}
-- NÃO use \\section ou \\subsection
-- NÃO gere texto corrido
-- USE APENAS a estrutura de MAPA MENTAL acima
-- ADAPTE os conceitos para serem RELEVANTES ao tema "${centralTopic}"
-- O resultado deve ser um MAPA MENTAL VISUAL, não um documento`
-        };
-
-        try {
-            console.log('🧠 Gerando mapa mental com IA...');
-            
-            // Chamar API Groq para gerar o mapa mental
-            const response = await fetch('/api/groq-proxy', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    model: 'llama-3.1-8b-instant',
-                    messages: [mindMapPrompt],
-                    max_tokens: 2000,
-                    temperature: 0.7
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            const latexCode = data.choices[0].message.content;
-            
-            // Limpar o código LaTeX
-            let cleanLatex = latexCode
-                .replace(/```latex/g, '')
-                .replace(/```/g, '')
-                .trim();
-            
-            // Verificar se realmente é um mapa mental
-            if (!cleanLatex.includes('\\begin{forest}') || !cleanLatex.includes('\\documentclass[tikz')) {
-                console.warn('⚠️ IA não gerou mapa mental, usando fallback');
-                throw new Error('Não é mapa mental');
-            }
-            
-            console.log('🧠 Mapa Mental LaTeX gerado pela IA:', cleanLatex.substring(0, 200) + '...');
-            return cleanLatex;
-            
-        } catch (error) {
-            console.error('❌ Erro ao gerar mapa mental:', error);
-            
-            // Fallback para mapa mental genérico MAS CORRETO
-            const fallbackLatex = `\\documentclass[tikz, border=10pt]{standalone}
-\\usepackage[edges]{forest}
-
-\\begin{document}
-
-\\begin{forest}
-  for tree={
-    ${isHorizontal || (!isVertical && Math.random() > 0.5) ? 
-      'grow=0, draw, rounded corners=3pt, fill=blue!5, font=\\sffamily, edge={-stealth, line width=0.8pt}, child anchor=west, parent anchor=east, l sep=1.5cm, forked edge' : 
-      'draw, rounded corners=5pt, fill=white, font=\\sffamily\\bfseries, edge={blue!50!black, line width=1pt}, align=center, parent anchor=south, child anchor=north, l sep=1cm, s sep=0.5cm, if n children=0{fill=gray!10, font=\\sffamily\\small}'}
-  }
-  [${centralTopic}
-    [Conceito Principal
-      [Subconceito A
-        [Detalhe A1]
-        [Detalhe A2]
-      ]
-      [Subconceito B
-        [Detalhe B1]
-      ]
-    ]
-    [Conceito Secundário
-      [Aplicação 1
-        [Exemplo 1.1]
-      ]
-      [Aplicação 2
-        [Exemplo 2.1]
-      ]
-    ]
-    [Conceito Terciário
-      [Benefício 1]
-      [Benefício 2]
-    ]
-  ]
-\\end{forest}
-
-\\end{document}`;
-            
-            return fallbackLatex;
-        }
-    }
-
     async generateLatexContent(message, type) {
-        // Verificar se é pedido de mapa mental
-        const isMindMapRequest = message.toLowerCase().includes('mapa mental') || 
-                              message.toLowerCase().includes('mind map') ||
-                              message.toLowerCase().includes('mapamento') ||
-                              type === 'mindmap';
+        // Verificar se é pedido de conteúdo LaTeX
+        const isLatexRequest = message.toLowerCase().includes('apresentação') || 
+                              message.toLowerCase().includes('slides') ||
+                              message.toLowerCase().includes('documento') ||
+                              message.toLowerCase().includes('tabela') ||
+                              message.toLowerCase().includes('criar') ||
+                              type === 'slides' || type === 'document' || type === 'table';
         
-        if (isMindMapRequest) {
-            return this.generateMindMapContent(message);
-        }
-        
-        // Prompt interno para gerar LaTeX - ISSO FICA SECRETO
-        const systemPrompt = {
-            role: 'system',
-            content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional' : type === 'document' ? 'documento acadêmico' : 'tabela técnica'} sobre: "${message}". 
+        if (isLatexRequest) {
+            // Prompt interno para gerar LaTeX - ISSO FICA SECRETO
+            const systemPrompt = {
+                role: 'system',
+                content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional' : type === 'document' ? 'documento acadêmico' : 'tabela técnica'} sobre: "${message}". 
             
 REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
 - GERE APENAS O CÓDIGO LATEX PURO, NADA MAIS
@@ -1422,8 +1263,7 @@ ${latexCode}
         const names = {
             'slides': 'Apresentação',
             'document': 'Documento',
-            'table': 'Tabela',
-            'mindmap': 'Mapa Mental'
+            'table': 'Tabela'
         };
         return names[this.currentCreateType] || 'Conteúdo';
     }
