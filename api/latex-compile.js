@@ -521,7 +521,7 @@ function generateSimulatedHTML(latex, type = 'document') {
           </div>
           
           <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; font-family: 'Courier New', monospace; font-size: 12px; max-height: 400px; overflow-y: auto;">
-            <pre style="margin: 0; white-space: pre-wrap; color: #333;">${this.escapeHtml(latex)}</pre>
+            <pre style="margin: 0; white-space: pre-wrap; color: #333;">${latex.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}</pre>
           </div>
           
           <div style="margin-top: 30px; padding: 20px; background: #e3f2fd; border-left: 4px solid #1976d2; border-radius: 4px;">
