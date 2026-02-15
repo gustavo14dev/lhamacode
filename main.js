@@ -1007,6 +1007,16 @@ ${latexCode}
 
 \\end{document}`;
             }
+        } else if (type === 'slides' && template && design) {
+            // Se já tem documentclass mas tem template, substituir o conteúdo
+            console.log('🎨 Substituindo conteúdo com template:', template);
+            
+            // Extrair apenas os frames do LaTeX gerado (sem estrutura)
+            const frameMatches = latexCode.match(/\\begin\{frame\}[\s\S]*?\\end\{frame\}/g);
+            const framesOnly = frameMatches ? frameMatches.join('\n\n') : latexCode;
+            
+            // Carregar template e inserir os frames
+            latexCode = await this.loadDesignTemplate(template, message, framesOnly);
         }
         
         console.log('🔒 LaTeX gerado internamente (segredo):', latexCode.substring(0, 200) + '...');
@@ -1043,6 +1053,9 @@ ${latexCode}
                 const cleanedAfter = afterContent.replace(/\\begin\{frame\}.*?\\end\{frame\}/gs, '');
                 
                 finalLatex = beforeContent + latexCode + cleanedAfter;
+            } else {
+                // Se não encontrar \begin{document}, apenas substituir o conteúdo
+                finalLatex = templateContent + '\n\n' + latexCode;
             }
             
             console.log('✅ Template carregado com sucesso');
