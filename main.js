@@ -746,7 +746,7 @@ class UI {
         const timestamp = Date.now();
         const selectorId = `designSelector_${timestamp}`;
         
-        messageContainer.element.innerHTML = `
+        messageContainer.container.innerHTML = `
             <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-6 border border-gray-200 dark:border-gray-700">
                 <div class="flex items-center gap-2 mb-4">
                     <span class="material-icons-outlined text-green-400">slideshow</span>
@@ -806,7 +806,7 @@ class UI {
         `;
         
         // Adicionar evento de clique aos designs
-        const designOptions = messageContainer.element.querySelectorAll('.design-option:not([data-design="coming-soon"])');
+        const designOptions = messageContainer.container.querySelectorAll('.design-option:not([data-design="coming-soon"])');
         designOptions.forEach(option => {
             option.addEventListener('click', () => {
                 const design = option.dataset.design;
@@ -818,7 +818,7 @@ class UI {
         // Adicionar ao container de mensagens
         const messagesContainer = document.getElementById('messagesContainer');
         if (messagesContainer) {
-            messagesContainer.appendChild(messageContainer.element);
+            messagesContainer.appendChild(messageContainer.container);
             this.scrollToBottom();
         }
     }
