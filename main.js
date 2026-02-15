@@ -1422,12 +1422,41 @@ ${latexCode}
     displayCompiledContent(messageId, compiledData, type, originalMessage) {
         console.log('🎨 Iniciando displayCompiledContent para:', type, 'com ID:', messageId);
         
-        // Encontrar o elemento usando o ID correto
+        // Encontrar o elemento - tentar diferentes padrões de ID
         let messageElement = document.getElementById(`responseText_${messageId}`);
+        
+        // Se não encontrar, tentar encontrar thinking message
+        if (!messageElement && messageId.startsWith('thinking_')) {
+            const thinkingMessages = document.querySelectorAll('.thinking-message');
+            if (thinkingMessages.length > 0) {
+                // Remover thinking message e criar container para resultado
+                const lastThinking = thinkingMessages[thinkingMessages.length - 1];
+                lastThinking.remove();
+                
+                // Criar novo container para o resultado
+                const newContainer = this.createAssistantMessageContainer();
+                messageElement = document.getElementById(newContainer.responseId);
+                
+                // Adicionar ao DOM
+                const messagesContainer = document.getElementById('messagesContainer');
+                if (messagesContainer) {
+                    messagesContainer.appendChild(newContainer.container);
+                    this.scrollToBottom();
+                }
+            }
+        }
         
         if (!messageElement) {
             console.error('❌ Elemento de mensagem não encontrado para displayCompiledContent:', messageId);
-            return;
+            // Criar novo container como fallback
+            const fallbackContainer = this.createAssistantMessageContainer();
+            messageElement = document.getElementById(fallbackContainer.responseId);
+            
+            const messagesContainer = document.getElementById('messagesContainer');
+            if (messagesContainer) {
+                messagesContainer.appendChild(fallbackContainer.container);
+                this.scrollToBottom();
+            }
         }
 
         const typeName = this.getCreateTypeName();
