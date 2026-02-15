@@ -560,7 +560,7 @@ class UI {
         if (existing) existing.remove();
 
         const dropdownHTML = `
-            <div id="floatingCreateDropdown" class="hidden fixed bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[200]" style="min-width: 200px;">
+            <div id="floatingCreateDropdown" class="hidden fixed bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[200]" style="min-width: 180px;">
                 <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2 first:rounded-t-lg" data-create="slides">
                     <span class="material-icons-outlined text-base text-green-400">slideshow</span>
                     Apresentação
@@ -677,6 +677,15 @@ class UI {
     }
 
     async handleCreateRequest(message) {
+        console.log('🎨 Iniciando criação de:', this.currentCreateType, 'para:', message);
+        
+        // Se for slides, mostrar card de escolha de design primeiro
+        if (this.currentCreateType === 'slides') {
+            this.showSlideDesignSelector(message);
+            return;
+        }
+        
+        // Para outros tipos (document, table), continuar normal
         if (!this.isTransitioned) {
             this.createNewChat();
             await this.sleep(300);
@@ -689,14 +698,7 @@ class UI {
         // Adicionar mensagem do usuário ao chat
         this.addUserMessage(message);
         
-        // Mostrar mensagem de processamento E OBTER O ID CORRETO
-        const processingId = this.addAssistantMessage('Gerando conteúdo...');
-        
-        // Aguardar um pouco para o DOM ser atualizado
-        await this.sleep(100);
-        
-        // Atualizar mensagem para mostrar processamento LaTeX
-        this.updateProcessingMessage(processingId, 'Gerando conteúdo...');
+        const processingId = this.addProcessingMessage(`🔧 Gerando ${this.getCreateTypeName()}...`);
         
         try {
             // Gerar código LaTeX internamente (NUNCA MOSTRAR PARA O USUÁRIO)
@@ -723,20 +725,154 @@ class UI {
         this.resetCreateButton();
     }
 
-    async generateLatexContent(message, type) {
-        // Verificar se é pedido de conteúdo LaTeX
-        const isLatexRequest = message.toLowerCase().includes('apresentação') || 
-                              message.toLowerCase().includes('slides') ||
-                              message.toLowerCase().includes('documento') ||
-                              message.toLowerCase().includes('tabela') ||
-                              message.toLowerCase().includes('criar') ||
-                              type === 'slides' || type === 'document' || type === 'table';
+    async showSlideDesignSelector(message) {
+        console.log('🎨 Mostrando seletor de design para slides:', message);
         
-        if (isLatexRequest) {
-            // Prompt interno para gerar LaTeX - ISSO FICA SECRETO
-            const systemPrompt = {
-                role: 'system',
-                content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional' : type === 'document' ? 'documento acadêmico' : 'tabela técnica'} sobre: "${message}". 
+        // Criar novo chat se necessário
+        if (!this.isTransitioned) {
+            this.createNewChat();
+            await this.sleep(300);
+        }
+
+        if (!this.currentChatId) {
+            this.createNewChat();
+        }
+
+        // Adicionar mensagem do usuário ao chat
+        this.addUserMessage(message);
+        
+        // Criar card de seleção de design
+        const messageContainer = this.createAssistantMessageContainer();
+        const timestamp = Date.now();
+        const selectorId = `designSelector_${timestamp}`;
+        
+        messageContainer.element.innerHTML = `
+            <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="material-icons-outlined text-green-400">slideshow</span>
+                    <h3 class="font-semibold text-gray-800 dark:text-gray-200">Escolha o design da sua apresentação</h3>
+                </div>
+                
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                    Selecione um dos designs abaixo para personalizar sua apresentação sobre "${message}"
+                </p>
+                
+                <!-- Grid de Designs 3x3 (mostrando apenas 4 por enquanto) -->
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <!-- Design 1: Sapientia -->
+                    <div class="design-option cursor-pointer group" data-design="sapientia" data-template="tex/ex1.tex">
+                        <div class="border-2 border-gray-200 dark:border-gray-600 rounded-lg p-3 hover:border-primary transition-all group-hover:shadow-md">
+                            <img src="img/ex1.png" alt="Sapientia" class="w-full h-24 object-cover rounded mb-2">
+                            <h4 class="font-medium text-sm text-gray-800 dark:text-gray-200 text-center">Sapientia</h4>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 text-center mt-1">Clássico Acadêmico</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Design 2: Slate & Gold Executive -->
+                    <div class="design-option cursor-pointer group" data-design="slate-gold" data-template="tex/ex2.tex">
+                        <div class="border-2 border-gray-200 dark:border-gray-600 rounded-lg p-3 hover:border-primary transition-all group-hover:shadow-md">
+                            <img src="img/ex2.png" alt="Slate & Gold Executive" class="w-full h-24 object-cover rounded mb-2">
+                            <h4 class="font-medium text-sm text-gray-800 dark:text-gray-200 text-center">Slate & Gold</h4>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 text-center mt-1">Executivo Premium</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Design 3: Aura Neo-Tech -->
+                    <div class="design-option cursor-pointer group" data-design="aura-neo" data-template="tex/ex3.tex">
+                        <div class="border-2 border-gray-200 dark:border-gray-600 rounded-lg p-3 hover:border-primary transition-all group-hover:shadow-md">
+                            <img src="img/ex3.png" alt="Aura Neo-Tech" class="w-full h-24 object-cover rounded mb-2">
+                            <h4 class="font-medium text-sm text-gray-800 dark:text-gray-200 text-center">Aura Neo-Tech</h4>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 text-center mt-1">Dark Mode Futurista</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Design 4: Placeholder para futuro -->
+                    <div class="design-option cursor-pointer group opacity-50" data-design="coming-soon">
+                        <div class="border-2 border-gray-200 dark:border-gray-600 rounded-lg p-3">
+                            <div class="w-full h-24 bg-gray-200 dark:bg-gray-700 rounded mb-2 flex items-center justify-center">
+                                <span class="material-icons-outlined text-gray-400">more_horiz</span>
+                            </div>
+                            <h4 class="font-medium text-sm text-gray-500 dark:text-gray-400 text-center">Em breve...</h4>
+                            <p class="text-xs text-gray-400 dark:text-gray-500 text-center mt-1">Mais designs</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    <span class="material-icons-outlined text-sm">info</span>
+                    <span>Clique em um design para gerar sua apresentação personalizada</span>
+                </div>
+            </div>
+        `;
+        
+        // Adicionar evento de clique aos designs
+        const designOptions = messageContainer.element.querySelectorAll('.design-option:not([data-design="coming-soon"])');
+        designOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                const design = option.dataset.design;
+                const template = option.dataset.template;
+                this.generateSlidesWithDesign(message, design, template);
+            });
+        });
+        
+        // Adicionar ao container de mensagens
+        const messagesContainer = document.getElementById('messagesContainer');
+        if (messagesContainer) {
+            messagesContainer.appendChild(messageContainer.element);
+            this.scrollToBottom();
+        }
+    }
+
+    async generateSlidesWithDesign(message, design, template) {
+        console.log('🎨 Gerando slides com design:', design, 'template:', template);
+        
+        // Atualizar o card para mostrar que está processando
+        const selectorCard = document.querySelector('.design-option').closest('.bg-surface-light, .dark\\:bg-surface-dark');
+        if (selectorCard) {
+            selectorCard.innerHTML = `
+                <div class="flex items-center gap-3 p-4">
+                    <div class="flex gap-1">
+                        <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                        <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                        <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                    </div>
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Gerando apresentação com design "${design}"...</span>
+                </div>
+            `;
+        }
+        
+        const processingId = this.addProcessingMessage(`🎨 Gerando apresentação com design ${design}...`);
+        
+        try {
+            // Gerar código LaTeX internamente (NUNCA MOSTRAR PARA O USUÁRIO)
+            console.log('🚀 Iniciando geração LaTeX para:', this.currentCreateType, '-', message, 'com design:', design);
+            const latexCode = await this.generateLatexContent(message, this.currentCreateType, design, template);
+            console.log('✅ LaTeX gerado, iniciando compilação...');
+            
+            // Compilar LaTeX para PDF (usando serviço online)
+            const compiledData = await this.compileLatexToPDF(latexCode);
+            console.log('✅ Compilação concluída, exibindo resultado...');
+            
+            // Mostrar resultado visual para o usuário
+            this.displayCompiledContent(processingId, compiledData, this.currentCreateType, message);
+            console.log('✅ Processo concluído com sucesso!');
+            
+        } catch (error) {
+            console.error('❌ Erro ao gerar conteúdo:', error);
+            console.error('❌ Stack trace:', error.stack);
+            this.updateProcessingMessage(processingId, `❌ Erro ao gerar ${this.getCreateTypeName()}: ${error.message}`);
+        }
+        
+        // Resetar tipo de criação após uso
+        this.currentCreateType = null;
+        this.resetCreateButton();
+    }
+
+    async generateLatexContent(message, type, design = null, template = null) {
+        // Prompt interno para gerar LaTeX - ISSO FICA SECRETO
+        const systemPrompt = {
+            role: 'system',
+            content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional' : type === 'document' ? 'documento acadêmico' : 'tabela técnica'} sobre: "${message}". 
             
 REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
 - GERE APENAS O CÓDIGO LATEX PURO, NADA MAIS
@@ -829,7 +965,13 @@ RETORNE APENAS O CÓDIGO LATEX, SEM NENHUM TEXTO ADICIONAL!`
         // Adicionar estrutura básica se faltar
         if (!latexCode.includes('\\documentclass')) {
             if (type === 'slides') {
-                latexCode = `\\documentclass{beamer}
+                // Se tiver template, usar o template base
+                if (template && design) {
+                    // Aqui vamos carregar o template específico do design
+                    latexCode = await this.loadDesignTemplate(template, message, latexCode);
+                } else {
+                    // Template padrão
+                    latexCode = `\\documentclass{beamer}
 \\usetheme{Madrid}
 \\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
@@ -846,6 +988,7 @@ RETORNE APENAS O CÓDIGO LATEX, SEM NENHUM TEXTO ADICIONAL!`
 ${latexCode}
 
 \\end{document}`;
+                }
             } else if (type === 'document') {
                 latexCode = `\\documentclass{article}
 \\usepackage[utf8]{inputenc}
@@ -869,6 +1012,63 @@ ${latexCode}
         console.log('🔒 LaTeX gerado internamente (segredo):', latexCode.substring(0, 200) + '...');
         console.log('🔍 Código LaTeX completo:', latexCode);
         return latexCode;
+    }
+
+    async loadDesignTemplate(template, message, latexCode) {
+        console.log('🎨 Carregando template:', template, 'para:', message);
+        
+        try {
+            // Fazer fetch do arquivo de template
+            const response = await fetch(template);
+            if (!response.ok) {
+                throw new Error(`Template não encontrado: ${template}`);
+            }
+            
+            const templateContent = await response.text();
+            
+            // Substituir placeholders no template
+            let finalLatex = templateContent
+                .replace(/\\title\{[^}]+\}/g, `\\title{${message}}`)
+                .replace(/\\author\{[^}]+\}/g, '\\author{Drekee AI 1}')
+                .replace(/\\date\{[^}]+\}/g, '\\date{\\today}');
+            
+            // Inserir o conteúdo gerado pela IA no lugar apropriado
+            // Procurar por onde inserir o conteúdo (geralmente após \begin{document})
+            const contentInsertPoint = finalLatex.indexOf('\\begin{document}');
+            if (contentInsertPoint > -1) {
+                const beforeContent = finalLatex.substring(0, contentInsertPoint + 16);
+                const afterContent = finalLatex.substring(contentInsertPoint + 16);
+                
+                // Remover frames existentes do template (manter só estrutura)
+                const cleanedAfter = afterContent.replace(/\\begin\{frame\}.*?\\end\{frame\}/gs, '');
+                
+                finalLatex = beforeContent + latexCode + cleanedAfter;
+            }
+            
+            console.log('✅ Template carregado com sucesso');
+            return finalLatex;
+            
+        } catch (error) {
+            console.error('❌ Erro ao carregar template:', error);
+            // Fallback para template padrão
+            return `\\documentclass{beamer}
+\\usetheme{Madrid}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+
+\\title{${message}}
+\\author{Drekee AI 1}
+\\date{\\today}
+
+\\begin{document}
+
+\\frame{\\titlepage}
+
+${latexCode}
+
+\\end{document}`;
+        }
     }
 
     async compileLatexToPDF(latexCode) {

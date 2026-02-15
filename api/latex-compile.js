@@ -45,28 +45,26 @@ export default async function handler(req, res) {
 
     // Método 2: Fallback - Tentar serviço alternativo (se disponível)
     if (!pdfBuffer) {
-      // Verificar se é mapa mental e tentar compilar diretamente
-      if (type === 'mindmap') {
-        console.log('🧠 Tentando compilar mapa mental...');
-        try {
-          const mindMapResponse = await fetch('https://latexonline.cc/compiler', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-              latex: latex,
-              format: 'pdf'
-            })
-          });
+      try {
+        console.log('Tentando serviço alternativo...');
+        const altResponse = await fetch('https://texlive.net/runlatex', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            latex: latex,
+            format: 'pdf'
+          }),
+          signal: AbortSignal.timeout(20000) // 20s timeout
+        });
 
-          if (mindMapResponse.ok) {
-            pdfBuffer = await mindMapResponse.arrayBuffer();
-            console.log('✅ Mapa mental compilado com sucesso!');
-          }
-        } catch (mindMapError) {
-          console.warn('⚠️ Compilação de mapa mental falhou:', mindMapError.message);
+        if (altResponse.ok) {
+          pdfBuffer = await altResponse.arrayBuffer();
+          console.log('✅ Compilação LaTeX bem-sucedida com serviço alternativo');
         }
+      } catch (error2) {
+        console.warn('Serviço alternativo falhou:', error2.message);
       }
     }
 
@@ -498,7 +496,7 @@ function generateSimulatedHTML(latex, type = 'document') {
       // Fallback genérico se não encontrar slides
       content = `...conteúdo genérico...`;
     }
-} else {
+  } else {
     // Extrair DOCUMENTO REAL do LaTeX - ESTILO CLÁSSICO
     const sectionMatches = latex.match(/\\section\{([^}]+)\}.*?(?=\\section\{|\\end\{document\})/gs);
     if (sectionMatches && sectionMatches.length > 0) {
