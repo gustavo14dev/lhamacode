@@ -841,7 +841,7 @@ class UI {
             `;
         }
         
-        const processingId = this.addProcessingMessage(`🎨 Gerando apresentação com design ${design}...`);
+        const processingId = this.showThinkingMessage(`🎨 Gerando apresentação com design ${design}...`);
         
         try {
             // Gerar código LaTeX internamente (NUNCA MOSTRAR PARA O USUÁRIO)
@@ -1670,18 +1670,32 @@ ${latexCode}
         messageDiv.className = 'mb-6 flex justify-start animate-slideIn thinking-message';
         messageDiv.innerHTML = `
             <div class="w-full max-w-[85%] bg-surface-light dark:bg-surface-dark rounded-2xl px-5 py-4 shadow-soft border border-gray-100 dark:border-gray-700">
-                <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                <div class="flex items-center gap-3">
                     <div class="flex gap-1">
-                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0s"></div>
-                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                        <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                        <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                        <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
                     </div>
-                    <span class="text-sm font-medium">${text}</span>
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">${text}</span>
                 </div>
             </div>
         `;
         this.elements.messagesContainer.appendChild(messageDiv);
         this.scrollToBottom();
+        
+        // Retornar ID único para poder atualizar depois
+        return 'thinking_' + Date.now();
+    }
+
+    addProcessingMessage(text) {
+        return this.showThinkingMessage(text);
+    }
+
+    updateProcessingMessage(messageId, text) {
+        const thinkingMsg = this.elements.messagesContainer.querySelector('.thinking-message');
+        if (thinkingMsg) {
+            thinkingMsg.remove();
+        }
     }
 
     removeLastThinkingMessage() {
