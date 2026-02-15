@@ -45,26 +45,28 @@ export default async function handler(req, res) {
 
     // Método 2: Fallback - Tentar serviço alternativo (se disponível)
     if (!pdfBuffer) {
-      try {
-        console.log('Tentando serviço alternativo...');
-        const altResponse = await fetch('https://texlive.net/runlatex', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            latex: latex,
-            format: 'pdf'
-          }),
-          signal: AbortSignal.timeout(20000) // 20s timeout
-        });
+      // Verificar se é mapa mental e tentar compilar diretamente
+      if (type === 'mindmap') {
+        console.log('🧠 Tentando compilar mapa mental...');
+        try {
+          const mindMapResponse = await fetch('https://latexonline.cc/compiler', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+              latex: latex,
+              format: 'pdf'
+            })
+          });
 
-        if (altResponse.ok) {
-          pdfBuffer = await altResponse.arrayBuffer();
-          console.log('✅ Compilação LaTeX bem-sucedida com serviço alternativo');
+          if (mindMapResponse.ok) {
+            pdfBuffer = await mindMapResponse.arrayBuffer();
+            console.log('✅ Mapa mental compilado com sucesso!');
+          }
+        } catch (mindMapError) {
+          console.warn('⚠️ Compilação de mapa mental falhou:', mindMapError.message);
         }
-      } catch (error2) {
-        console.warn('Serviço alternativo falhou:', error2.message);
       }
     }
 
@@ -496,24 +498,30 @@ function generateSimulatedHTML(latex, type = 'document') {
       // Fallback genérico se não encontrar slides
       content = `...conteúdo genérico...`;
     }
-  } else if (type === 'mindmap') {
-    // Processar mapa mental - APENAS O MAPA VISUAL!
-    const isHorizontal = latex.toLowerCase().includes('grow=0') || 
-                       latex.toLowerCase().includes('child anchor=west');
-    
+} else if (type === 'mindmap') {
+    // Visualização simulada para mapas mentais
     content = `
-      <div style="font-family: 'Plus Jakarta Sans', sans-serif; padding: 20px; background: white; max-width: 100%; margin: 0 auto; min-height: 600px; display: flex; align-items: center; justify-content: center;">
-        <div style="width: 100%; max-width: 1200px; height: 600px; background: white; border: 1px solid #e0e0e0; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; position: relative;">
-          <!-- Aqui vai o mapa mental compilado -->
-          <div style="position: absolute; top: 10px; left: 10px; font-size: 12px; color: #666; background: rgba(255,255,255,0.9); padding: 5px 10px; border-radius: 4px; z-index: 10;">
-            🧠 Mapa Mental Gerado por Drekee AI 1
+      <div style="font-family: 'Plus Jakarta Sans', sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto; min-height: 600px;">
+        <div style="background: #1a237e; color: white; padding: 30px; border-radius: 12px; margin-bottom: 30px; text-align: center;">
+          <h1 style="margin: 0; font-size: 2.5em; font-weight: 700; margin-bottom: 10px;">🧠 Mapa Mental</h1>
+          <p style="margin: 0; font-size: 1.2em; opacity: 0.9;">Gerado por Drekee AI 1</p>
+        </div>
+        
+        <div style="background: white; border: 2px solid #e0e0e0; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div style="display: inline-block; background: #f8f9fa; padding: 15px 25px; border-radius: 8px; border-left: 4px solid #007bff;">
+              <h3 style="margin: 0; color: #1a237e; font-size: 1.1em;">🧠 Mapa Mental Gerado</h3>
+              <p style="margin: 10px 0 0 0; color: #666; font-size: 0.9em;">LaTeX compilado - use o botão de download</p>
+            </div>
           </div>
-          <iframe 
-            src="https://latex.codecogs.com/svg.latex?${encodeURIComponent(latex)}" 
-            style="width: 100%; height: 100%; border: none; border-radius: 8px;"
-            onload="this.style.opacity='1'"
-            onerror="this.parentElement.innerHTML='<div style=\\'padding: 40px; text-align: center; color: #666;\\'>🗺️ Mapa Mental carregando...<br><small>Se não carregar, use o botão de download para ver o código LaTeX</small></div>'">
-          </iframe>
+          
+          <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; font-family: 'Courier New', monospace; font-size: 12px; max-height: 400px; overflow-y: auto;">
+            <pre style="margin: 0; white-space: pre-wrap; color: #333;">${latex.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}</pre>
+          </div>
+        </div>
+        
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; text-align: center;">
+          Gerado por Drekee AI 1 - ${new Date().toLocaleString('pt-BR')}
         </div>
       </div>
     `;
