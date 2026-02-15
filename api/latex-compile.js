@@ -496,6 +496,50 @@ function generateSimulatedHTML(latex, type = 'document') {
       // Fallback genérico se não encontrar slides
       content = `...conteúdo genérico...`;
     }
+  } else if (type === 'mindmap') {
+    // Processar mapa mental - USAR OS 2 ESTILOS
+    const isHorizontal = latex.toLowerCase().includes('grow=0') || 
+                       latex.toLowerCase().includes('child anchor=west');
+    
+    // Extrair título do mapa mental
+    const titleMatch = latex.match(/\\begin\{forest\}([\s\S]*?)\\end\{forest\}/s);
+    const title = titleMatch ? 'Mapa Mental' : 'Mapa Mental';
+    
+    content = `
+      <div style="font-family: 'Plus Jakarta Sans', sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto; min-height: 600px;">
+        <div style="background: #1a237e; color: white; padding: 30px; border-radius: 12px; margin-bottom: 30px; text-align: center;">
+          <h1 style="margin: 0; font-size: 2.5em; font-weight: 700; margin-bottom: 10px;">${title}</h1>
+          <p style="margin: 0; font-size: 1.2em; opacity: 0.9;">Gerado por Drekee AI 1</p>
+        </div>
+        
+        <div style="background: white; border: 2px solid #e0e0e0; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div style="display: inline-block; background: #f8f9fa; padding: 15px 25px; border-radius: 8px; border-left: 4px solid #007bff;">
+              <h3 style="margin: 0; color: #1a237e; font-size: 1.1em;">🧠 Mapa Mental Gerado</h3>
+              <p style="margin: 10px 0 0 0; color: #666; font-size: 0.9em;">Código LaTeX compilado com sucesso</p>
+            </div>
+          </div>
+          
+          <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; font-family: 'Courier New', monospace; font-size: 12px; max-height: 400px; overflow-y: auto;">
+            <pre style="margin: 0; white-space: pre-wrap; color: #333;">${this.escapeHtml(latex)}</pre>
+          </div>
+          
+          <div style="margin-top: 30px; padding: 20px; background: #e3f2fd; border-left: 4px solid #1976d2; border-radius: 4px;">
+            <h4 style="margin: 0 0 10px 0; color: #1976d2; font-size: 1em;">✨ Características do Mapa:</h4>
+            <ul style="margin: 0; padding-left: 20px; color: #333;">
+              <li style="margin-bottom: 8px;"><strong>Layout:</strong> ${isHorizontal ? 'Horizontal (cresce para direita)' : 'Vertical (hierárquico)'}</li>
+              <li style="margin-bottom: 8px;"><strong>Estilo:</strong> ${isHorizontal ? 'Moderno - azul com setas' : 'Clássico - branco com centralização'}</li>
+              <li style="margin-bottom: 8px;"><strong>Estrutura:</strong> Nó central com 3 conceitos principais e subconceitos detalhados</li>
+              <li style="margin-bottom: 0;"><strong>Formato:</strong> LaTeX compilado com TikZ Forest</li>
+            </ul>
+          </div>
+        </div>
+        
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; text-align: center;">
+          Gerado por Drekee AI 1 - ${new Date().toLocaleString('pt-BR')}
+        </div>
+      </div>
+    `;
   } else {
     // Extrair DOCUMENTO REAL do LaTeX - ESTILO CLÁSSICO
     const sectionMatches = latex.match(/\\section\{([^}]+)\}.*?(?=\\section\{|\\end\{document\})/gs);
