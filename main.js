@@ -744,16 +744,11 @@ class UI {
         // Gerar prompt especializado para mapa mental
         const mindMapPrompt = {
             role: 'system',
-            content: `Você é um especialista em criar mapas mentais com LaTeX. Gere um código LaTeX completo e compilável para um mapa mental sobre: "${centralTopic}".
+            content: `Você é um especialista em criar mapas mentais com LaTeX. Gere APENAS o código LaTeX para um mapa mental sobre: "${centralTopic}".
 
-REGRAS CRÍTICAS:
+REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
 - GERE APENAS O CÓDIGO LATEX PURO, NADA MAIS
-- Use \\documentclass[tikz, border=10pt]{standalone}
-- Use \\usepackage[edges]{forest}
-- NÃO inclua explicações ou texto fora do código
-- O código deve ser compilável com pdflatex
-
-ESTRUTURA OBRIGATÓRIA:
+- Use EXATAMENTE esta estrutura:
 \\documentclass[tikz, border=10pt]{standalone}
 \\usepackage[edges]{forest}
 
@@ -792,7 +787,13 @@ ESTRUTURA OBRIGATÓRIA:
 
 \\end{document}
 
-IMPORTANTE: Adapte os conceitos e subconceitos para serem RELEVANTES ao tema "${centralTopic}". Use termos específicos e relacionados ao tema.`
+IMPORTANTE: 
+- NÃO use \\documentclass{article}
+- NÃO use \\section ou \\subsection
+- NÃO gere texto corrido
+- USE APENAS a estrutura de MAPA MENTAL acima
+- ADAPTE os conceitos para serem RELEVANTES ao tema "${centralTopic}"
+- O resultado deve ser um MAPA MENTAL VISUAL, não um documento`
         };
 
         try {
@@ -820,10 +821,16 @@ IMPORTANTE: Adapte os conceitos e subconceitos para serem RELEVANTES ao tema "${
             const latexCode = data.choices[0].message.content;
             
             // Limpar o código LaTeX
-            const cleanLatex = latexCode
+            let cleanLatex = latexCode
                 .replace(/```latex/g, '')
                 .replace(/```/g, '')
                 .trim();
+            
+            // Verificar se realmente é um mapa mental
+            if (!cleanLatex.includes('\\begin{forest}') || !cleanLatex.includes('\\documentclass[tikz')) {
+                console.warn('⚠️ IA não gerou mapa mental, usando fallback');
+                throw new Error('Não é mapa mental');
+            }
             
             console.log('🧠 Mapa Mental LaTeX gerado pela IA:', cleanLatex.substring(0, 200) + '...');
             return cleanLatex;
@@ -831,7 +838,7 @@ IMPORTANTE: Adapte os conceitos e subconceitos para serem RELEVANTES ao tema "${
         } catch (error) {
             console.error('❌ Erro ao gerar mapa mental:', error);
             
-            // Fallback para mapa mental genérico
+            // Fallback para mapa mental genérico MAS CORRETO
             const fallbackLatex = `\\documentclass[tikz, border=10pt]{standalone}
 \\usepackage[edges]{forest}
 
