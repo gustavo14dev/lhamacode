@@ -1050,15 +1050,16 @@ ${latexCode}
                 const afterContent = finalLatex.substring(contentInsertPoint + 16);
                 
                 // Remover frames existentes do template (manter só estrutura)
-                const cleanedAfter = afterContent.replace(/\\begin\{frame\}.*?\\end\{frame\}/gs, '');
+                const cleanedAfter = afterContent.replace(/\\begin\{frame\}[\s\S]*?\\end\{frame\}/gs, '');
                 
-                finalLatex = beforeContent + latexCode + cleanedAfter;
+                finalLatex = beforeContent + latexCode + cleanedAfter + '\n\\end{document}';
             } else {
                 // Se não encontrar \begin{document}, apenas substituir o conteúdo
-                finalLatex = templateContent + '\n\n' + latexCode;
+                finalLatex = templateContent + '\n\n' + latexCode + '\n\\end{document}';
             }
             
-            console.log('✅ Template carregado com sucesso');
+            console.log('🎨 Template carregado com sucesso - frames inseridos');
+            console.log('🔍 LaTeX final com template:', finalLatex.substring(0, 300) + '...');
             return finalLatex;
             
         } catch (error) {
