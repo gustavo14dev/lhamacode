@@ -737,29 +737,111 @@ class UI {
         const isVertical = message.toLowerCase().includes('vertical') || 
                          message.toLowerCase().includes('retrato');
         
-        // Escolher o estilo baseado no conteúdo ou preferência
-        let treeStyle = 'grow=0, draw, rounded corners=3pt, fill=blue!5, font=\\sffamily, edge={-stealth, line width=0.8pt}, child anchor=west, parent anchor=east, l sep=1.5cm, forked edge';
-        let fillStyle = 'fill=blue!5';
-        
-        // Se for vertical, usar estilo diferente
-        if (isVertical || (!isHorizontal && Math.random() > 0.5)) {
-            treeStyle = 'draw, rounded corners=5pt, fill=white, font=\\sffamily\\bfseries, edge={blue!50!black, line width=1pt}, align=center, parent anchor=south, child anchor=north, l sep=1cm, s sep=0.5cm, if n children=0{fill=gray!10, font=\\sffamily\\small}';
-            fillStyle = 'fill=white';
-        }
-        
         // Extrair tema central da mensagem
         const topicMatch = message.match(/sobre\s+(.+?)(?:\s|$)/i) || message.match(/(.+?)(?:\s|$)/);
         const centralTopic = topicMatch ? topicMatch[1].trim() : 'Mapa Mental';
         
-        // Gerar conteúdo LaTeX baseado no estilo
-        const latexCode = `\\documentclass[tikz, border=10pt]{standalone}
+        // Gerar prompt especializado para mapa mental
+        const mindMapPrompt = {
+            role: 'system',
+            content: `Você é um especialista em criar mapas mentais com LaTeX. Gere um código LaTeX completo e compilável para um mapa mental sobre: "${centralTopic}".
+
+REGRAS CRÍTICAS:
+- GERE APENAS O CÓDIGO LATEX PURO, NADA MAIS
+- Use \\documentclass[tikz, border=10pt]{standalone}
+- Use \\usepackage[edges]{forest}
+- NÃO inclua explicações ou texto fora do código
+- O código deve ser compilável com pdflatex
+
+ESTRUTURA OBRIGATÓRIA:
+\\documentclass[tikz, border=10pt]{standalone}
 \\usepackage[edges]{forest}
 
 \\begin{document}
 
 \\begin{forest}
   for tree={
-    ${treeStyle}
+    ${isHorizontal || (!isVertical && Math.random() > 0.5) ? 
+      'grow=0, draw, rounded corners=3pt, fill=blue!5, font=\\sffamily, edge={-stealth, line width=0.8pt}, child anchor=west, parent anchor=east, l sep=1.5cm, forked edge' : 
+      'draw, rounded corners=5pt, fill=white, font=\\sffamily\\bfseries, edge={blue!50!black, line width=1pt}, align=center, parent anchor=south, child anchor=north, l sep=1cm, s sep=0.5cm, if n children=0{fill=gray!10, font=\\sffamily\\small}'}
+  }
+  [${centralTopic}
+    [Conceito Principal
+      [Subconceito A
+        [Detalhe A1]
+        [Detalhe A2]
+      ]
+      [Subconceito B
+        [Detalhe B1]
+      ]
+    ]
+    [Conceito Secundário
+      [Aplicação 1
+        [Exemplo 1.1]
+      ]
+      [Aplicação 2
+        [Exemplo 2.1]
+      ]
+    ]
+    [Conceito Terciário
+      [Benefício 1]
+      [Benefício 2]
+    ]
+  ]
+\\end{forest}
+
+\\end{document}
+
+IMPORTANTE: Adapte os conceitos e subconceitos para serem RELEVANTES ao tema "${centralTopic}". Use termos específicos e relacionados ao tema.`
+        };
+
+        try {
+            console.log('🧠 Gerando mapa mental com IA...');
+            
+            // Chamar API Groq para gerar o mapa mental
+            const response = await fetch('/api/groq-proxy', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model: 'llama-3.1-8b-instant',
+                    messages: [mindMapPrompt],
+                    max_tokens: 2000,
+                    temperature: 0.7
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const latexCode = data.choices[0].message.content;
+            
+            // Limpar o código LaTeX
+            const cleanLatex = latexCode
+                .replace(/```latex/g, '')
+                .replace(/```/g, '')
+                .trim();
+            
+            console.log('🧠 Mapa Mental LaTeX gerado pela IA:', cleanLatex.substring(0, 200) + '...');
+            return cleanLatex;
+            
+        } catch (error) {
+            console.error('❌ Erro ao gerar mapa mental:', error);
+            
+            // Fallback para mapa mental genérico
+            const fallbackLatex = `\\documentclass[tikz, border=10pt]{standalone}
+\\usepackage[edges]{forest}
+
+\\begin{document}
+
+\\begin{forest}
+  for tree={
+    ${isHorizontal || (!isVertical && Math.random() > 0.5) ? 
+      'grow=0, draw, rounded corners=3pt, fill=blue!5, font=\\sffamily, edge={-stealth, line width=0.8pt}, child anchor=west, parent anchor=east, l sep=1.5cm, forked edge' : 
+      'draw, rounded corners=5pt, fill=white, font=\\sffamily\\bfseries, edge={blue!50!black, line width=1pt}, align=center, parent anchor=south, child anchor=north, l sep=1cm, s sep=0.5cm, if n children=0{fill=gray!10, font=\\sffamily\\small}'}
   }
   [${centralTopic}
     [Conceito Principal
@@ -787,9 +869,9 @@ class UI {
 \\end{forest}
 
 \\end{document}`;
-        
-        console.log('🧠 Mapa Mental LaTeX gerado:', latexCode.substring(0, 200) + '...');
-        return latexCode;
+            
+            return fallbackLatex;
+        }
     }
 
     async generateLatexContent(message, type) {
