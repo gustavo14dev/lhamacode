@@ -509,7 +509,7 @@ function generateSimulatedHTML(latex, type = 'document') {
             🧠 Mapa Mental Gerado por Drekee AI 1
           </div>
           <iframe 
-            src="https://quicklatex.com/latex3.f/latex.f?cmd=${encodeURIComponent(latex)}" 
+            src="https://latex.codecogs.com/svg.latex?${encodeURIComponent(latex)}" 
             style="width: 100%; height: 100%; border: none; border-radius: 8px;"
             onload="this.style.opacity='1'"
             onerror="this.parentElement.innerHTML='<div style=\\'padding: 40px; text-align: center; color: #666;\\'>🗺️ Mapa Mental carregando...<br><small>Se não carregar, use o botão de download para ver o código LaTeX</small></div>'">
