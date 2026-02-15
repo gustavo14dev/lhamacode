@@ -560,7 +560,7 @@ class UI {
         if (existing) existing.remove();
 
         const dropdownHTML = `
-            <div id="floatingCreateDropdown" class="hidden fixed bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[200]" style="min-width: 180px;">
+            <div id="floatingCreateDropdown" class="hidden fixed bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[200]" style="min-width: 200px;">
                 <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2 first:rounded-t-lg" data-create="slides">
                     <span class="material-icons-outlined text-base text-green-400">slideshow</span>
                     Apresentação
@@ -568,6 +568,10 @@ class UI {
                 <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2" data-create="document">
                     <span class="material-icons-outlined text-base text-blue-400">description</span>
                     Documento
+                </button>
+                <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2" data-create="mindmap">
+                    <span class="material-icons-outlined text-base text-purple-400">account_tree</span>
+                    Mapa Mental
                 </button>
                 <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2 last:rounded-b-lg" data-create="table">
                     <span class="material-icons-outlined text-base text-purple-400">table_chart</span>
@@ -631,19 +635,22 @@ class UI {
         const createNames = {
             'slides': 'Apresentação',
             'document': 'Documento',
-            'table': 'Tabela'
+            'table': 'Tabela',
+            'mindmap': 'Mapa Mental'
         };
         
         const createIcons = {
             'slides': 'slideshow',
             'document': 'description',
-            'table': 'table_chart'
+            'table': 'table_chart',
+            'mindmap': 'account_tree'
         };
         
         const createColors = {
             'slides': 'text-green-400',
             'document': 'text-blue-400',
-            'table': 'text-purple-400'
+            'table': 'text-purple-400',
+            'mindmap': 'text-purple-400'
         };
 
         // Atualizar botão principal
@@ -723,7 +730,79 @@ class UI {
         this.resetCreateButton();
     }
 
+    async generateMindMapContent(message) {
+        // Analisar o pedido para determinar o layout
+        const isHorizontal = message.toLowerCase().includes('horizontal') || 
+                           message.toLowerCase().includes('paisagem');
+        const isVertical = message.toLowerCase().includes('vertical') || 
+                         message.toLowerCase().includes('retrato');
+        
+        // Escolher o estilo baseado no conteúdo ou preferência
+        let treeStyle = 'grow=0, draw, rounded corners=3pt, fill=blue!5, font=\\sffamily, edge={-stealth, line width=0.8pt}, child anchor=west, parent anchor=east, l sep=1.5cm, forked edge';
+        let fillStyle = 'fill=blue!5';
+        
+        // Se for vertical, usar estilo diferente
+        if (isVertical || (!isHorizontal && Math.random() > 0.5)) {
+            treeStyle = 'draw, rounded corners=5pt, fill=white, font=\\sffamily\\bfseries, edge={blue!50!black, line width=1pt}, align=center, parent anchor=south, child anchor=north, l sep=1cm, s sep=0.5cm, if n children=0{fill=gray!10, font=\\sffamily\\small}';
+            fillStyle = 'fill=white';
+        }
+        
+        // Extrair tema central da mensagem
+        const topicMatch = message.match(/sobre\s+(.+?)(?:\s|$)/i) || message.match(/(.+?)(?:\s|$)/);
+        const centralTopic = topicMatch ? topicMatch[1].trim() : 'Mapa Mental';
+        
+        // Gerar conteúdo LaTeX baseado no estilo
+        const latexCode = `\\documentclass[tikz, border=10pt]{standalone}
+\\usepackage[edges]{forest}
+
+\\begin{document}
+
+\\begin{forest}
+  for tree={
+    ${treeStyle}
+  }
+  [${centralTopic}
+    [Conceito Principal
+      [Subconceito A
+        [Detalhe A1]
+        [Detalhe A2]
+      ]
+      [Subconceito B
+        [Detalhe B1]
+      ]
+    ]
+    [Conceito Secundário
+      [Aplicação 1
+        [Exemplo 1.1]
+      ]
+      [Aplicação 2
+        [Exemplo 2.1]
+      ]
+    ]
+    [Conceito Terciário
+      [Benefício 1]
+      [Benefício 2]
+    ]
+  ]
+\\end{forest}
+
+\\end{document}`;
+        
+        console.log('🧠 Mapa Mental LaTeX gerado:', latexCode.substring(0, 200) + '...');
+        return latexCode;
+    }
+
     async generateLatexContent(message, type) {
+        // Verificar se é pedido de mapa mental
+        const isMindMapRequest = message.toLowerCase().includes('mapa mental') || 
+                              message.toLowerCase().includes('mind map') ||
+                              message.toLowerCase().includes('mapamento') ||
+                              type === 'mindmap';
+        
+        if (isMindMapRequest) {
+            return this.generateMindMapContent(message);
+        }
+        
         // Prompt interno para gerar LaTeX - ISSO FICA SECRETO
         const systemPrompt = {
             role: 'system',
@@ -827,7 +906,7 @@ RETORNE APENAS O CÓDIGO LATEX, SEM NENHUM TEXTO ADICIONAL!`
 \\usepackage{amsmath}
 
 \\title{${message}}
-\\author{Lhama Code 1}
+\\author{Drekee AI 1}
 \\date{\\today}
 
 \\begin{document}
@@ -844,7 +923,7 @@ ${latexCode}
 \\usepackage{amsmath}
 
 \\title{${message}}
-\\author{Lhama Code 1}
+\\author{Drekee AI 1}
 \\date{\\today}
 
 \\begin{document}
@@ -908,7 +987,7 @@ ${latexCode}
         const authorMatch = latexCode.match(/\\author\{([^}]+)\}/);
 
         const title = titleMatch ? titleMatch[1] : 'Conteúdo Gerado';
-        const author = authorMatch ? authorMatch[1] : 'Lhama Code 1';
+        const author = authorMatch ? authorMatch[1] : 'Drekee AI 1';
 
         let content = '';
 
@@ -1254,7 +1333,8 @@ ${latexCode}
         const names = {
             'slides': 'Apresentação',
             'document': 'Documento',
-            'table': 'Tabela'
+            'table': 'Tabela',
+            'mindmap': 'Mapa Mental'
         };
         return names[this.currentCreateType] || 'Conteúdo';
     }
@@ -2410,7 +2490,7 @@ window.downloadCode = (codeId, lang) => {
     }
 };
 
-console.log('%c🦙 Lhama Code 1', 'font-size: 24px; font-weight: bold; color: #E26543;');
+console.log('%c🦙 Drekee AI 1', 'font-size: 24px; font-weight: bold; color: #E26543;');
 console.log('%cPara começar:', 'font-size: 14px; font-weight: bold;');
 console.log('1. Configure Groq: session.start("sua_chave_groq")');
 console.log('2. Use o chat normalmente!');
