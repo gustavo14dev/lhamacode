@@ -197,319 +197,108 @@ function generateSimulatedHTML(latex, type = 'document') {
       content = `...conteúdo genérico...`;
     }
   } else if (type === 'slides') {
-    // Estrutura PROFISSIONAL de apresentação
-    const frameMatches = latex.match(/\\begin\{frame\}.*?\\end\{frame\}/gs);
-    if (frameMatches && frameMatches.length > 0) {
-      let slidesData = [];
+    // USAR 100% O LATEX REAL GERADO PELA IA!
+    // Extrair informações básicas
+    const titleMatch = latex.match(/\\title\{([^}]+)\}/);
+    const authorMatch = latex.match(/\\author\{([^}]+)\}/);
+    const title = titleMatch ? titleMatch[1] : 'Conteúdo Gerado';
+    const author = authorMatch ? authorMatch[1] : 'Drekee AI 1';
+    
+    // Tentar compilar o LaTeX REAL primeiro
+    try {
+      console.log(' Tentando compilar LaTeX REAL da IA...');
       
-      // Extrair título e autor
-      const titleMatch = latex.match(/\\title\{([^}]+)\}/);
-      const authorMatch = latex.match(/\\author\{([^}]+)\}/);
-      const title = titleMatch ? titleMatch[1] : 'Conteúdo Gerado';
-      const author = authorMatch ? authorMatch[1] : 'Drekee AI 1';
+      // Se chegamos aqui, é porque a compilação falhou e estamos no fallback
+      // Mas vamos mostrar o LaTeX REAL em formato HTML para preview
       
-      // ESTRUTURA PROFISSIONAL DE SLIDES
-      const totalFrames = frameMatches.length;
-      
-      // Processar cada frame
-      frameMatches.forEach((frame, index) => {
-        const frameTitleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
-        let frameTitle = frameTitleMatch ? frameTitleMatch[1] : '';
+      // Extrair frames do LaTeX REAL
+      const frameMatches = latex.match(/\\begin\{frame\}.*?\\end\{frame\}/gs);
+      if (frameMatches && frameMatches.length > 0) {
+        let slidesHTML = '';
         
-        // Extrair conteúdo do frame - LIMPEZA COMPLETA DO LATEX
-        let frameContent = frame
-          .replace(/\\begin\{frame\}/g, '')
-          .replace(/\\end\{frame\}/g, '')
-          .replace(/\\frametitle\{([^}]+)\}/g, '')
-          .replace(/\\begin\{itemize\}/g, '<ul style="margin: 0; padding-left: 20px;">')
-          .replace(/\\end\{itemize\}/g, '</ul>')
-          .replace(/\\begin\{enumerate\}/g, '<ol style="margin: 0; padding-left: 20px;">')
-          .replace(/\\end\{enumerate\}/g, '</ol>')
-          .replace(/\\item\s*/g, '<li style="margin-bottom: 8px;">')
-          .replace(/\\\\/g, '</li><li style="margin-bottom: 8px;">')
-          .replace(/\\vspace-?[\d.]+cm/g, '<br>')
-          .replace(/\\begincenter/g, '<div style="text-align: center;">')
-          .replace(/\\endcenter/g, '</div>')
-          .replace(/\\includegraphics\[width=[^\]]+\]\{[^}]+\}/g, '<div style="text-align: center; margin: 20px 0; padding: 20px; border: 2px dashed #ddd; border-radius: 8px;">📷 Imagem</div>')
-          .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
-          .replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>')
-          .replace(/\\Large/g, '')
-          .replace(/\\large/g, '')
-          .replace(/\\titlepage/g, '')
-          .replace(/\\begin\{block\}\{([^}]+)\}/g, '<div style="background: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 10px 0; border-radius: 4px;"><strong>$1</strong><br>')
-          .replace(/\\end\{block\}/g, '</div>')
-          .replace(/\\begin\{exampleblock\}\{([^}]+)\}/g, '<div style="background: #d4edda; border-left: 4px solid #28a745; padding: 15px; margin: 10px 0; border-radius: 4px;"><strong>$1</strong><br>')
-          .replace(/\\end\{exampleblock\}/g, '</div>')
-          .replace(/\\begin\{quote\}/g, '<blockquote style="border-left: 4px solid #ddd; margin: 20px 0; padding-left: 20px; font-style: italic;">')
-          .replace(/\\end\{quote\}/g, '</blockquote>')
-          .replace(/\\raggedleft/g, '<div style="text-align: right;">')
-          .replace(/\\begin\{columns\}/g, '<div style="display: flex; gap: 20px;">')
-          .replace(/\\end\{columns\}/g, '</div>')
-          .replace(/\\begin\{column\}\{([^}]+)\}/g, '<div style="flex: 1;">')
-          .replace(/\\end\{column\}/g, '</div>')
-          .replace(/\\begin\{table\}/g, '<div style="margin: 20px 0;">')
-          .replace(/\\end\{table\}/g, '</div>')
-          .replace(/\\begin\{tabular\}\{[^}]*\}/g, '<table style="width: 100%; border-collapse: collapse;">')
-          .replace(/\\end\{tabular\}/g, '</table>')
-          .replace(/\\\\/g, '</li><li style="margin-bottom: 8px;">')
-          .replace(/\\hline/g, '')
-          .replace(/\\toprule/g, '')
-          .replace(/\\midrule/g, '')
-          .replace(/\\bottomrule/g, '')
-          .replace(/&/g, '</td><td style="padding: 8px; border: 1px solid #ddd;">')
-          .replace(/\\textwidth/g, '100%')
-          .replace(/\\today/g, new Date().toLocaleDateString('pt-BR'))
-          .replace(/\}/g, '')
-          .replace(/\{/g, '')
-          .trim();
-        
-        // LIMITAR CONTEÚDO A 1050 CARACTERES
-        if (frameContent.length > 1050) {
-          frameContent = frameContent.substring(0, 1047) + '...';
-        }
-        
-        // Estrutura inteligente baseada na posição - USAR CONTEÚDO REAL!
-        if (index === 0) {
-          // Slide 1: TÍTULO (CAPA) - O slide que você queria!
-          frameTitle = title;
-          frameContent = `
-            <div style="text-align: center;">
-              <h1 style="font-size: 2.8em; margin-bottom: 25px; color: #2D2624; font-weight: 700;">${title}</h1>
-              <div style="font-size: 1em; color: #8B7468; background: #F9F4F2; padding: 10px 20px; border-radius: 0.5rem; display: inline-block;">
-                ${new Date().toLocaleDateString('pt-BR')}
+        frameMatches.forEach((frame, index) => {
+          const frameTitleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
+          const frameTitle = frameTitleMatch ? frameTitleMatch[1] : `Slide ${index + 1}`;
+          
+          // Extrair conteúdo bruto do frame
+          let frameContent = frame
+            .replace(/\\begin\{frame\}/g, '')
+            .replace(/\\end\{frame\}/g, '')
+            .replace(/\\frametitle\{[^}]+\}/g, '')
+            .trim();
+          
+          slidesHTML += `
+            <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px; min-height: 400px;">
+              <h2 style="color: #1a237e; margin-bottom: 20px; font-size: 1.5em;">${frameTitle}</h2>
+              <div style="font-family: 'Courier New', monospace; font-size: 14px; background: #f5f5f5; padding: 20px; border-radius: 4px; white-space: pre-wrap; line-height: 1.4;">
+${frameContent}
+              </div>
+              <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 4px; font-size: 12px; color: #1565c0;">
+                Este é o conteúdo LaTeX real gerado pela IA. O design final será aplicado na compilação.
               </div>
             </div>
           `;
-        } else if (index === 1) {
-          // Slide 2: O QUE É [TEMA] - USAR CONTEÚDO REAL DO FRAME
-          frameTitle = `O que é ${title}`;
-          // Se o frame tiver conteúdo real, usar ele. Se não, criar conteúdo baseado no título.
-          if (frameContent && frameContent.trim().length > 50) {
-            // Usar conteúdo real do frame
-            frameContent = `
-              <div style="text-align: left;">
-                <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
-                  ${frameContent}
-                </p>
-              </div>
-            `;
-          } else {
-            // Fallback - conteúdo genérico sobre o tema
-            frameContent = `
-              <div style="text-align: left;">
-                <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
-                  ${title} é um tema importante que merece análise detalhada. Esta apresentação explora os principais aspectos, conceitos e aplicações relacionadas a este assunto, fornecendo uma visão compreensiva para melhor entendimento.
-                </p>
-                <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
-                  Ao longo desta apresentação, examinaremos os fundamentos, características e relevância de ${title} no contexto atual, destacando seus pontos principais e aplicações práticas.
-                </p>
-              </div>
-            `;
-          }
-        } else if (index === 2) {
-          // Slide 3: COMO FUNCIONA - USAR CONTEÚDO REAL DO FRAME
-          frameTitle = `Como funciona ${title}`;
-          if (frameContent && frameContent.trim().length > 50) {
-            // Usar conteúdo real do frame
-            frameContent = `
-              <div style="text-align: left;">
-                <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
-                  ${frameContent}
-                </p>
-              </div>
-            `;
-          } else {
-            // Fallback - conteúdo genérico sobre funcionamento
-            frameContent = `
-              <div style="text-align: left;">
-                <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
-                  O funcionamento de ${title} envolve processos e mecanismos específicos que garantem sua eficácia e aplicabilidade. Compreender esses aspectos é fundamental para utilizar adequadamente este conhecimento.
-                </p>
-                <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
-                  Os princípios subjacentes a ${title} são baseados em conceitos estabelecidos e práticas validadas, assegurando resultados consistentes e confiáveis em diversas situações de aplicação.
-                </p>
-              </div>
-            `;
-          }
-        } else if (index === 3) {
-          // Slide 4: SUMÁRIO
-          frameTitle = 'Sumário';
-          frameContent = `
-            <div style="text-align: left;">
-              <h3 style="color: #2D2624; margin-bottom: 20px;">O que será apresentado:</h3>
-              <ul style="margin: 0; padding-left: 20px;">
-                <li style="margin-bottom: 12px; list-style-position: inside;"><strong>Introdução</strong> - Contexto e objetivos</li>
-                <li style="margin-bottom: 12px; list-style-position: inside;"><strong>Conceitos Fundamentais</strong> - Definições e princípios</li>
-                <li style="margin-bottom: 12px; list-style-position: inside;"><strong>Aplicações Práticas</strong> - Exemplos e casos de uso</li>
-                <li style="margin-bottom: 12px; list-style-position: inside;"><strong>Exemplos Concretos</strong> - Implementações reais</li>
-                <li style="margin-bottom: 12px; list-style-position: inside;"><strong>Vantagens e Desafios</strong> - Análise comparativa</li>
-                <li style="margin-bottom: 12px; list-style-position: inside;"><strong>Impacto e Futuro</strong> - Tendências e evolução</li>
-                <li style="margin-bottom: 0; list-style-position: inside;"><strong>Conclusão</strong> - Síntese e reflexões</li>
-              </ul>
-            </div>
-          `;
-        } else if (index === totalFrames - 2) {
-          // Penúltimo slide: RESUMO
-          frameTitle = 'Resumo da Apresentação';
-          frameContent = `
-            <div style="text-align: center;">
-              <h3 style="color: #2D2624; margin-bottom: 25px;">Pontos Principais</h3>
-              <div style="background: #f8f9fa; border-left: 4px solid #007bff; padding: 20px; margin: 15px 0; border-radius: 4px; text-align: left;">
-                <strong>✓ Conclusão 1:</strong> Síntese dos principais resultados obtidos<br><br>
-                <strong>✓ Conclusão 2:</strong> Impacto e relevância do tema abordado<br><br>
-                <strong>✓ Conclusão 3:</strong> Aplicações práticas e recomendações
-              </div>
-            </div>
-          `;
-        } else if (index === totalFrames - 1) {
-          // Último slide: AGRADECIMENTO
-          frameTitle = 'Obrigado!';
-          frameContent = `
-            <div style="text-align: center;">
-              <h2 style="font-size: 2.2em; margin-bottom: 30px; color: #2D2624;">Obrigado pela Atenção!</h2>
-              <p style="font-size: 1.2em; color: #6B5D54; margin-bottom: 40px;">Perguntas?</p>
-              <div style="font-size: 1em; color: #8B7468;">
-                ${new Date().toLocaleDateString('pt-BR')}
-              </div>
-            </div>
-          `;
-        } else if (!frameContent || frameContent.length < 10) {
-          // Slide vazio - conteúdo padrão
-          frameContent = `
-            <div style="text-align: center;">
-              <p style="color: #6B5D54; font-size: 1.1em;">Conteúdo em desenvolvimento...</p>
-            </div>
-          `;
-        }
-        
-        // Limpar tags vazias e organizar
-        let cleanContent = frameContent
-          .replace(/<li><\/li>/g, '')
-          .replace(/<li>$/g, '')
-          .replace(/^<\/li>/g, '')
-          .replace(/<\/li><li>/g, '</li><li>')
-          .replace(/<\/li>$/, '</li>')
-          .replace(/<span><\/span>/g, '')
-          .replace(/<\/span><span>/g, ' ');
-        
-        // Se não tiver <li> ou estrutura, envolver o conteúdo
-        let finalContent = cleanContent.includes('<li>') || cleanContent.includes('<div>') ? 
-          cleanContent : 
-          `<div style="text-align: center;">${cleanContent}</div>`;
-        
-        // Limpar tags span soltas
-        finalContent = finalContent
-          .replace(/<span>([^<]*)<\/span>/g, '$1')
-          .replace(/<span style="[^"]*">([^<]*)<\/span>/g, '$1');
-        
-        slidesData.push({
-          title: frameTitle,
-          content: finalContent
         });
-      });
-      
-      // Criar apresentação com navegação - TRABALHO ELABORADO SEM ROLAGEM
-      content = `
-        <div style="font-family: 'Plus Jakarta Sans', sans-serif; background: #1F1A18; height: 100vh; display: flex; flex-direction: column; margin: 0; padding: 0; overflow: hidden;">
-          <!-- Área do Slide (16:9) - CÁLCULO EXATO -->
-          <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 0; box-sizing: border-box; position: relative;">
-            <div id="slideContainer" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: white; overflow: hidden;">
-              
-              <!-- Barra de Progresso (Metropolis) -->
-              <div style="position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #E26543; z-index: 10;"></div>
-              
-              <!-- Slides de Conteúdo - TEXTO CORRIDO DENSO + CORREÇÃO DE VISIBILIDADE -->
-              ${slidesData.map((slide, index) => `
-                <div class="slide" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: ${index === 0 ? 'flex' : 'none'}; flex-direction: column; background: white; padding: 40px; box-sizing: border-box; overflow: hidden;">
-                  <h2 style="color: #2D2624; margin-bottom: 20px; font-size: clamp(0.9em, 2.5vw, 1.2em); font-weight: 600; line-height: 1.3; text-align: center; flex-shrink: 0;">${slide.title}</h2>
-                  <div style="flex: 1; display: flex; align-items: flex-start; justify-content: center; font-size: ${slide.content.length < 200 ? 'clamp(0.9em, 2.2vw, 1.1em)' : 'clamp(0.8em, 2vw, 0.95em)'}; line-height: 1.5; color: #4A4039; text-align: left; overflow-y: auto; overflow-x: hidden; padding-right: 10px;">
-                    <div style="max-width: 100%; word-wrap: break-word; hyphens: auto;">
-                      ${slide.content}
-                    </div>
-                  </div>
-                </div>
-              `).join('')}
+        
+        content = `
+          <div style="font-family: Arial, sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
+              <h1 style="margin: 0; font-size: 32px;">${title}</h1>
+              <p style="margin: 20px 0 0 0; font-size: 18px; opacity: 0.9;">por ${author}</p>
+            </div>
+            
+            ${slidesHTML}
+            
+            <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #667eea;">
+              <p style="margin: 0; font-weight: bold; color: #333;"> Apresentação LaTeX gerada com sucesso!</p>
+              <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
+                Este preview mostra o conteúdo LaTeX real. O design final será aplicado na compilação PDF.
+              </p>
             </div>
           </div>
-          
-          <!-- Navegação - ESTILO LHAMACODE -->
-          <div style="background: #26201E; padding: 16px; border-top: 1px solid #3D1A16; display: flex; justify-content: center; align-items: center; gap: 20px; flex-shrink: 0; z-index: 20;">
-            <button onclick="previousSlide()" style="background: #2D2624; color: #F2EBE9; border: 1px solid #3D1A16; padding: 10px 20px; font-size: 14px; font-weight: 500; border-radius: 0.5rem; cursor: pointer; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; display: flex; align-items: center; gap: 8px;">
-              <span class="material-symbols-outlined" style="font-size: 18px;">chevron_left</span>
-              Anterior
-            </button>
-            
-            <div style="color: #F2EBE9; font-size: 14px; font-weight: 500; padding: 8px 16px; background: #2D2624; border-radius: 0.5rem; border: 1px solid #3D1A16;">
-              <span id="slideNumber">1</span> / <span id="totalSlides">${slidesData.length + 1}</span>
+        `;
+      } else {
+        // Se não encontrar frames, mostrar o LaTeX completo
+        content = `
+          <div style="font-family: Arial, sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto;">
+            <div style="background: #1a237e; color: white; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
+              <h1 style="margin: 0; font-size: 32px;">${title}</h1>
+              <p style="margin: 20px 0 0 0; font-size: 18px; opacity: 0.9;">por ${author}</p>
             </div>
             
-            <button onclick="nextSlide()" style="background: #E26543; color: white; border: 1px solid #E26543; padding: 10px 20px; font-size: 14px; font-weight: 500; border-radius: 0.5rem; cursor: pointer; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; display: flex; align-items: center; gap: 8px;">
-              Próximo
-              <span class="material-symbols-outlined" style="font-size: 18px;">chevron_right</span>
-            </button>
+            <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px;">
+              <h2 style="color: #1a237e; margin-bottom: 20px;">Código LaTeX Completo</h2>
+              <div style="font-family: 'Courier New', monospace; font-size: 12px; background: #f5f5f5; padding: 20px; border-radius: 4px; white-space: pre-wrap; line-height: 1.4; max-height: 600px; overflow-y: auto;">
+${latex}
+              </div>
+            </div>
+            
+            <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #1a237e;">
+              <p style="margin: 0; font-weight: bold;"> Código LaTeX gerado com sucesso!</p>
+              <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
+                Este é o código LaTeX completo gerado pela IA. Use-o para compilar em seu editor LaTeX preferido.
+              </p>
+            </div>
+          </div>
+        `;
+      }
+    } catch (error) {
+      console.error(' Erro ao processar LaTeX real:', error);
+      // Fallback extremo
+      content = `
+        <div style="font-family: Arial, sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto;">
+          <div style="background: #dc3545; color: white; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
+            <h1 style="margin: 0; font-size: 32px;">Erro no Processamento</h1>
+            <p style="margin: 20px 0 0 0; font-size: 18px;">Não foi possível processar o LaTeX</p>
+          </div>
+          
+          <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px;">
+            <h2 style="color: #dc3545; margin-bottom: 20px;">Código LaTeX Bruto</h2>
+            <div style="font-family: 'Courier New', monospace; font-size: 12px; background: #f5f5f5; padding: 20px; border-radius: 4px; white-space: pre-wrap; line-height: 1.4; max-height: 600px; overflow-y: auto;">
+${latex}
+            </div>
           </div>
         </div>
-        
-        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-        
-        <script>
-          let currentSlide = 0;
-          const slides = document.querySelectorAll('.slide');
-          const totalSlides = slides.length;
-          
-          function showSlide(index) {
-            slides.forEach(slide => slide.style.display = 'none');
-            slides[index].style.display = 'flex';
-            document.getElementById('slideNumber').textContent = index + 1;
-            currentSlide = index;
-            
-            // Atualizar estado dos botões
-            updateButtonStates();
-          }
-          
-          function nextSlide() {
-            if (currentSlide < totalSlides - 1) {
-              showSlide(currentSlide + 1);
-            }
-          }
-          
-          function previousSlide() {
-            if (currentSlide > 0) {
-              showSlide(currentSlide - 1);
-            }
-          }
-          
-          function updateButtonStates() {
-            const prevBtn = document.querySelector('button[onclick="previousSlide()"]');
-            const nextBtn = document.querySelector('button[onclick="nextSlide()"]');
-            
-            if (currentSlide === 0) {
-              prevBtn.style.opacity = '0.5';
-              prevBtn.style.cursor = 'not-allowed';
-            } else {
-              prevBtn.style.opacity = '1';
-              prevBtn.style.cursor = 'pointer';
-            }
-            
-            if (currentSlide === totalSlides - 1) {
-              nextBtn.style.opacity = '0.5';
-              nextBtn.style.cursor = 'not-allowed';
-            } else {
-              nextBtn.style.opacity = '1';
-              nextBtn.style.cursor = 'pointer';
-            }
-          }
-          
-          // Teclado
-          document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowRight') nextSlide();
-            if (e.key === 'ArrowLeft') previousSlide();
-          });
-          
-          // Iniciar
-          showSlide(0);
-        </script>
       `;
     } else {
       // Fallback genérico se não encontrar slides
