@@ -895,15 +895,17 @@ CONTEÚDO ESPECÍFICO E DE ALTA QUALIDADE:
 - INCLUA dados técnicos, estatísticas, exemplos reais, citações
 - SEJA ESPECÍFICO E DENSO - o usuário quer APRENDER de verdade
 - ADAPTE-SE AO PEDIDO DO USUÁRIO - se pedir curto, faça curto; se pedir completo, faça completo
+- IMPORTANTE: MANTENHA O CONTEÚDO CONCISO para caber no slide sem rolagem (máximo 3-4 parágrafos por slide)
 
 IMPORTANTE - TIPO DE CONTEÚDO NOS SLIDES:
 - NÃO use apenas tópicos/bullets curtos
 - GERE TEXTO CORRIDO EXPLICATIVO em cada slide
-- Cada slide deve ter 2-3 parágrafos explicativos completos
+- Cada slide deve ter 2-3 parágrafos CURTOS (máximo 4 linhas cada)
 - Use bullets APENAS para complementar o texto corrido
-- Explique conceitos detalhadamente, como se estivesse ensinando
+- Explique conceitos de forma CONCISA e direta
 - Inclua exemplos práticos, dados específicos, números reais
-- Cada slide deve ser uma aula completa sobre o tópico
+- Cada slide deve caber inteiro na tela sem rolagem
+- MANTENHA O FOCO: um conceito principal por slide
 
 ESTRUTURA OBRIGATÓRIA PARA TODAS APRESENTAÇÕES:
 - Slide 1: Título (capa)
