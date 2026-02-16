@@ -211,11 +211,59 @@ function generateSimulatedHTML(latex, type = 'document') {
         const frameTitleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
         const frameTitle = frameTitleMatch ? frameTitleMatch[1] : `Slide ${index + 1}`;
         
-        // Extrair conteúdo bruto do frame
+        // Extrair conteúdo bruto do frame - SEM CONVERSÃO HTML!
         let frameContent = frame
           .replace(/\\begin\{frame\}/g, '')
           .replace(/\\end\{frame\}/g, '')
           .replace(/\\frametitle\{[^}]+\}/g, '')
+          .trim();
+        
+        // Converter APENAS comandos básicos para HTML legível
+        frameContent = frameContent
+          .replace(/\\begin\{itemize\}/g, '<ul style="margin: 0; padding-left: 20px;">')
+          .replace(/\\end\{itemize\}/g, '</ul>')
+          .replace(/\\begin\{enumerate\}/g, '<ol style="margin: 0; padding-left: 20px;">')
+          .replace(/\\end\{enumerate\}/g, '</ol>')
+          .replace(/\\item\s*/g, '<li style="margin-bottom: 8px;">')
+          .replace(/\\\\/g, '</li><li style="margin-bottom: 8px;">')
+          .replace(/\\vspace\{[^}]+\}/g, '<br>')
+          .replace(/\\begincenter/g, '<div style="text-align: center;">')
+          .replace(/\\endcenter/g, '</div>')
+          .replace(/\\includegraphics\[scale=[^\]]+\]\{[^}]+\}/g, '<div style="text-align: center; margin: 20px 0; padding: 20px; border: 2px dashed #ddd; border-radius: 8px;">📷 Imagem</div>')
+          .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
+          .replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>')
+          .replace(/\\begin\{figure\}\[H\]/g, '<div style="text-align: center; margin: 20px 0;">')
+          .replace(/\\end\{figure\}/g, '</div>')
+          .replace(/\\centering/g, '<div style="text-align: center;">')
+          .replace(/\\caption\{([^}]+)\}/g, '<div style="font-size: 12px; color: #666; margin-top: 10px;"><em>$1</em></div>')
+          .replace(/\\Large/g, '<span style="font-size: 1.5em;">')
+          .replace(/\\large/g, '<span style="font-size: 1.2em;">')
+          .replace(/\\titlepage/g, '<div style="text-align: center; font-size: 2em; font-weight: bold; margin: 50px 0;">')
+          .replace(/\\begin\{block\}\{([^}]+)\}/g, '<div style="background: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 10px 0; border-radius: 4px;"><strong>$1</strong><br>')
+          .replace(/\\end\{block\}/g, '</div>')
+          .replace(/\\begin\{exampleblock\}\{([^}]+)\}/g, '<div style="background: #d4edda; border-left: 4px solid #28a745; padding: 15px; margin: 10px 0; border-radius: 4px;"><strong>$1</strong><br>')
+          .replace(/\\end\{exampleblock\}/g, '</div>')
+          .replace(/\\begin\{quote\}/g, '<blockquote style="border-left: 4px solid #ddd; margin: 20px 0; padding-left: 20px; font-style: italic;">')
+          .replace(/\\end\{quote\}/g, '</blockquote>')
+          .replace(/\\raggedleft/g, '<div style="text-align: right;">')
+          .replace(/\\begin\{columns\}/g, '<div style="display: flex; gap: 20px;">')
+          .replace(/\\end\{columns\}/g, '</div>')
+          .replace(/\\begin\{column\}\{([^}]+)\}/g, '<div style="flex: 1;">')
+          .replace(/\\end\{column\}/g, '</div>')
+          .replace(/\\begin\{table\}/g, '<div style="margin: 20px 0;">')
+          .replace(/\\end\{table\}/g, '</div>')
+          .replace(/\\begin\{tabular\}\{[^}]*\}/g, '<table style="width: 100%; border-collapse: collapse;">')
+          .replace(/\\end\{tabular\}/g, '</table>')
+          .replace(/\\\\/g, '</li><li style="margin-bottom: 8px;">')
+          .replace(/\\hline/g, '')
+          .replace(/\\toprule/g, '')
+          .replace(/\\midrule/g, '')
+          .replace(/\\bottomrule/g, '')
+          .replace(/&/g, '</td><td style="padding: 8px; border: 1px solid #ddd;">')
+          .replace(/\\textwidth/g, '100%')
+          .replace(/\\today/g, new Date().toLocaleDateString('pt-BR'))
+          .replace(/\}/g, '')
+          .replace(/\{/g, '')
           .trim();
         
         console.log(` Slide ${index + 1}: ${frameTitle}`);
