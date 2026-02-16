@@ -863,8 +863,61 @@ ${latexCode}
     }
 
     async compileLatexToPDF(latexCode) {
-        // Usar serviço de compilação LaTeX próprio
-        console.log('🔧 Iniciando compilação LaTeX...');
+        // Para APRESENTAÇÕES Beamer, tentar compilação REAL primeiro
+        console.log('🔧 Iniciando compilação LaTeX Beamer...');
+        
+        if (this.currentCreateType === 'slides') {
+            console.log('🎯 Detectado tipo SLIDES - Tentando compilação Beamer REAL...');
+            
+            // Verificar se é código Beamer válido
+            const isBeamer = latexCode.includes('\\documentclass[...]{beamer}') || 
+                           latexCode.includes('\\documentclass{beamer}') ||
+                           latexCode.includes('\\begin{frame}');
+            
+            if (isBeamer) {
+                console.log('✅ Código Beamer detectado, tentando compilação PDF REAL...');
+                
+                try {
+                    console.log('📡 Enviando requisição para /api/latex-compile...');
+                    const response = await fetch('/api/latex-compile', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            latex: latexCode,
+                            format: 'pdf',
+                            type: 'slides'
+                        })
+                    });
+
+                    console.log('📡 Resposta recebida:', response.status, response.statusText);
+
+                    if (response.ok) {
+                        const pdfBuffer = await response.arrayBuffer();
+                        console.log('✅ Compilação Beamer PDF REAL bem-sucedida!');
+                        
+                        // Criar blob PDF
+                        const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
+                        const url = URL.createObjectURL(blob);
+                        
+                        return {
+                            success: true,
+                            url: url,
+                            filename: `apresentacao_${Date.now()}.pdf`,
+                            isSimulated: false,
+                            isPDF: true,
+                            latexCode: latexCode
+                        };
+                    }
+                } catch (error) {
+                    console.warn('❌ Compilação Beamer PDF falhou, usando fallback:', error.message);
+                }
+            }
+        }
+        
+        // Fallback para compilação normal ou se não for Beamer
+        console.log('🔄 Usando compilação fallback...');
         try {
             console.log('📡 Enviando requisição para /api/latex-compile...');
             const response = await fetch('/api/latex-compile', {
@@ -887,228 +940,27 @@ ${latexCode}
                 throw new Error(errorData.error || `Compilation failed: ${response.status}`);
             }
 
-            const pdfBlob = await response.blob();
-            console.log('✅ PDF blob criado com sucesso');
+            const pdfBuffer = await response.arrayBuffer();
+            console.log('✅ Compilação fallback bem-sucedida!');
+            
+            // Criar blob PDF
+            const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            
             return {
-                blob: pdfBlob,
-                url: URL.createObjectURL(pdfBlob),
-                filename: `generated_${Date.now()}.pdf`,
-                isSimulated: false
+                success: true,
+                url: url,
+                filename: `${this.currentCreateType}_${Date.now()}.pdf`,
+                isSimulated: false,
+                isPDF: true,
+                latexCode: latexCode
             };
+            
         } catch (error) {
             console.warn('⚠️ Serviço LaTeX próprio indisponível, usando fallback simulado:', error.message);
-            console.log('🔄 Criando conteúdo simulado...');
-            return this.createSimulatedContent(latexCode, this.currentCreateType);
+            return this.createSimulatedContent(latexCode);
         }
     }
-
-    createSimulatedContent(latexCode, type = 'document') {
-        // Extrair informações básicas do LaTeX para simular
-        const titleMatch = latexCode.match(/\\title\{([^}]+)\}/);
-        const authorMatch = latexCode.match(/\\author\{([^}]+)\}/);
-
-        const title = titleMatch ? titleMatch[1] : 'Conteúdo Gerado';
-        const author = authorMatch ? authorMatch[1] : 'Drekee AI 1';
-
-        let content = '';
-
-        if (type === 'table') {
-            // Tentar extrair tabela real do código LaTeX
-            const tableMatch = latexCode.match(/\\begin\{tabular\}.*?\\end\{tabular\}/s);
-            let tableContent = '';
-            
-            if (tableMatch) {
-                // Usar a tabela real do LaTeX
-                tableContent = `
-                    <div style="background: white; border: 2px solid #333; margin: 20px 0;">
-                        <div style="padding: 20px; background: #f9f9f9; border-bottom: 1px solid #ddd;">
-                            <p style="margin: 0; font-style: italic; color: #666;">Tabela extraída do código LaTeX gerado pela IA:</p>
-                        </div>
-                        <div style="padding: 20px; font-family: 'Courier New', monospace; font-size: 12px; background: white;">
-                            <pre style="margin: 0; white-space: pre-wrap;">${this.escapeHtml(tableMatch[0])}</pre>
-                        </div>
-                    </div>
-                `;
-            } else {
-                // Fallback para tabela genérica se não encontrar
-                tableContent = `
-                    <div style="background: white; border: 2px solid #333; margin: 20px 0;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                            <thead>
-                                <tr style="background: #f0f0f0;">
-                                    <th style="border: 1px solid #333; padding: 12px; text-align: left;">Categoria</th>
-                                    <th style="border: 1px solid #333; padding: 12px; text-align: left;">Descrição</th>
-                                    <th style="border: 1px solid #333; padding: 12px; text-align: center;">Valor</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="border: 1px solid #333; padding: 10px;">Básico</td>
-                                    <td style="border: 1px solid #333; padding: 10px;">Plano essencial com recursos fundamentais</td>
-                                    <td style="border: 1px solid #333; padding: 10px; text-align: center;">R$ 29,90</td>
-                                </tr>
-                                <tr style="background: #f9f9f9;">
-                                    <td style="border: 1px solid #333; padding: 10px;">Profissional</td>
-                                    <td style="border: 1px solid #333; padding: 10px;">Recursos avançados para negócios</td>
-                                    <td style="border: 1px solid #333; padding: 10px; text-align: center;">R$ 79,90</td>
-                                </tr>
-                                <tr>
-                                    <td style="border: 1px solid #333; padding: 10px;">Enterprise</td>
-                                    <td style="border: 1px solid #333; padding: 10px;">Solução completa com suporte dedicado</td>
-                                    <td style="border: 1px solid #333; padding: 10px; text-align: center;">R$ 199,90</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-            }
-            
-            content = `
-                <div style="font-family: 'Times New Roman', serif; padding: 40px; background: white; max-width: 800px; margin: 0 auto;">
-                    <h1 style="text-align: center; margin-bottom: 30px; color: #333;">${title}</h1>
-                    <p style="text-align: center; color: #666; margin-bottom: 40px;">por ${author}</p>
-                    
-                    ${tableContent}
-                    
-                    <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #007acc;">
-                        <p style="margin: 0; font-weight: bold;">✅ Tabela LaTeX gerada com sucesso!</p>
-                        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
-                            Esta é uma visualização simulada. Em produção, o PDF real da tabela seria gerado.
-                        </p>
-                    </div>
-                </div>
-            `;
-        } else if (type === 'slides') {
-            // Tentar extrair slides reais do código LaTeX
-            const frameMatches = latexCode.match(/\\begin\{frame\}.*?\\end\{frame\}/gs);
-            let slidesContent = '';
-            
-            if (frameMatches && frameMatches.length > 0) {
-                // Usar os slides reais do LaTeX
-                slidesContent = frameMatches.map((frame, index) => {
-                    const frameTitle = frame.match(/\\frametitle\{([^}]+)\}/);
-                    const title = frameTitle ? frameTitle[1] : `Slide ${index + 1}`;
-                    const cleanFrame = frame.replace(/\\begin\{frame\}/g, '').replace(/\\end\{frame\}/g, '').replace(/\\frametitle\{[^}]+\}/g, '').trim();
-                    
-                    return `
-                        <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px;">
-                            <h2 style="color: #1a237e; margin-bottom: 20px;">${title}</h2>
-                            <div style="font-family: 'Courier New', monospace; font-size: 12px; background: #f9f9f9; padding: 15px; border-radius: 4px;">
-                                <pre style="margin: 0; white-space: pre-wrap;">${this.escapeHtml(cleanFrame)}</pre>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } else {
-                // Fallback para slides genéricos se não encontrar
-                slidesContent = `
-                    <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px;">
-                        <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 1: Introdução</h2>
-                        <p style="line-height: 1.6; font-size: 16px; margin-bottom: 15px;">
-                            <strong>Definição:</strong> ${title} representa uma das tecnologias mais transformadoras da era moderna, 
-                            revolucionando a forma como interagimos com sistemas computacionais e tomamos decisões baseadas em dados.
-                        </p>
-                        <ul style="line-height: 1.8; font-size: 16px;">
-                            <li>Capacidade de aprender e adaptar-se</li>
-                            <li>Processamento de grandes volumes de dados</li>
-                            <li>Automação de tarefas complexas</li>
-                        </ul>
-                    </div>
-                    
-                    <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px;">
-                        <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 2: Conceitos Fundamentais</h2>
-                        <p style="line-height: 1.6; font-size: 16px; margin-bottom: 15px;">
-                            <strong>Machine Learning:</strong> Algoritmos que melhoram automaticamente através da experiência.
-                        </p>
-                        <p style="line-height: 1.6; font-size: 16px; margin-bottom: 15px;">
-                            <strong>Deep Learning:</strong> Redes neurais artificiais com múltiplas camadas.
-                        </p>
-                        <p style="line-height: 1.6; font-size: 16px;">
-                            <strong>Processamento Natural:</strong> Capacidade de compreender e gerar linguagem humana.
-                        </p>
-                    </div>
-                    
-                    <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px;">
-                        <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 3: Aplicações Práticas</h2>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                            <div>
-                                <h4 style="color: #333; margin-bottom: 10px;">🏥 Saúde</h4>
-                                <p style="font-size: 14px;">Diagnóstico médico, descoberta de medicamentos</p>
-                            </div>
-                            <div>
-                                <h4 style="color: #333; margin-bottom: 10px;">🏦 Finanças</h4>
-                                <p style="font-size: 14px;">Análise de risco, detecção de fraudes</p>
-                            </div>
-                            <div>
-                                <h4 style="color: #333; margin-bottom: 10px;">🚗 Transporte</h4>
-                                <p style="font-size: 14px;">Veículos autônomos, otimização de rotas</p>
-                            </div>
-                            <div>
-                                <h4 style="color: #333; margin-bottom: 10px;">🎯 Marketing</h4>
-                                <p style="font-size: 14px;">Personalização, análise de comportamento</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px;">
-                        <h2 style="color: #1a237e; margin-bottom: 20px;">Slide 4: Conclusão</h2>
-                        <p style="line-height: 1.6; font-size: 16px; margin-bottom: 15px;">
-                            <strong>${title}</strong> está transformando radicalmente todos os setores da sociedade, 
-                            criando novas possibilidades e redefinindo o que é possível.
-                        </p>
-                        <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-top: 20px;">
-                            <p style="margin: 0; font-style: italic; color: #1565c0;">
-                                "A melhor maneira de prever o futuro é inventá-lo." - Alan Kay
-                            </p>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            content = `
-                <div style="font-family: Arial, sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto;">
-                    <div style="background: #1a237e; color: white; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
-                        <h1 style="margin: 0; font-size: 32px;">${title}</h1>
-                        <p style="margin: 20px 0 0 0; font-size: 18px; opacity: 0.9;">por ${author}</p>
-                    </div>
-                    
-                    ${slidesContent}
-                    
-                    <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #1a237e;">
-                        <p style="margin: 0; font-weight: bold;">✅ Apresentação LaTeX gerada com sucesso!</p>
-                        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
-                            Esta é uma visualização simulada. Em produção, o PDF real dos slides seria gerado.
-                        </p>
-                    </div>
-                </div>
-            `;
-        } else {
-            // Para documentos, tentar extrair seções reais
-            const sectionMatches = latexCode.match(/\\section\{([^}]+)\}.*?(?=\\section\{|\\end\{document\})/gs);
-            let documentContent = '';
-            
-            if (sectionMatches && sectionMatches.length > 0) {
-                // Usar as seções reais do LaTeX
-                documentContent = sectionMatches.map(section => {
-                    const sectionTitle = section.match(/\\section\{([^}]+)\}/);
-                    const title = sectionTitle ? sectionTitle[1] : 'Seção';
-                    const cleanSection = section.replace(/\\section\{[^}]+\}/g, '').trim();
-                    
-                    return `
-                        <div style="margin: 20px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #007acc;">
-                            <h2 style="margin-top: 0; color: #333;">${title}</h2>
-                            <div style="font-family: 'Courier New', monospace; font-size: 12px; background: white; padding: 15px; border-radius: 4px; margin-top: 15px;">
-                                <pre style="margin: 0; white-space: pre-wrap;">${this.escapeHtml(cleanSection)}</pre>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } else {
-                // Fallback para documento genérico
-                documentContent = `
-                    <div style="margin: 20px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #007acc;">
-                        <h2 style="margin-top: 0; color: #333;">Introdução</h2>
-                        <p style="line-height: 1.6; margin-bottom: 20px;">
                             ${title} representa um dos avanços mais significativos da tecnologia moderna, 
                             transformando fundamentalmente a forma como processamos informações e tomamos decisões.
                         </p>
@@ -1207,58 +1059,98 @@ ${latexCode}
             console.error('❌ Elemento de mensagem não encontrado para displayCompiledContent:', messageId);
             return;
         }
-
         const typeName = this.getCreateTypeName();
-        console.log('📝 Exibindo conteúdo para:', typeName, 'URL:', compiledData.url);
         
-        // FORÇAR ATUALIZAÇÃO COM VISIBILIDADE
-        messageElement.style.display = 'block';
-        messageElement.style.visibility = 'visible';
-        
-        messageElement.innerHTML = `
-            <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="material-icons-outlined text-${type === 'slides' ? 'green' : type === 'document' ? 'blue' : 'purple'}-400">
-                        ${type === 'slides' ? 'slideshow' : type === 'document' ? 'description' : 'table_chart'}
-                    </span>
-                    <h3 class="font-semibold text-gray-800 dark:text-gray-200">${typeName} gerado com sucesso!</h3>
-                </div>
-                
-                <div class="mb-4">
-                    <iframe 
-                        src="${compiledData.url}" 
-                        style="width: 100%; height: 600px; border: 1px solid #ddd; border-radius: 8px; background: white;"
-                        onload="console.log('✅ Iframe carregado com sucesso'); this.style.opacity='1'"
-                        onerror="console.error('❌ Erro ao carregar iframe'); this.parentElement.innerHTML='<div class=\\'text-center p-8 text-red-500\\'>❌ Erro ao carregar visualização. Use o botão de download.</div>'">
-                    </iframe>
+        // Verificar se é PDF REAL (compilação bem-sucedida)
+        if (compiledData.isPDF && !compiledData.isSimulated) {
+            console.log('🎯 PDF REAL detectado, exibindo visualizador PDF...');
+            
+            // Para PDF REAL, usar visualizador PDF nativo
+            this.updateProcessingMessage(messageId, `
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl mx-auto">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="material-icons-outlined text-${type === 'slides' ? 'green' : type === 'document' ? 'blue' : 'purple'}-400">
+                            ${type === 'slides' ? 'slideshow' : type === 'document' ? 'description' : 'table_chart'}
+                        </span>
+                        <h3 class="font-semibold text-gray-800 dark:text-gray-200">${typeName} gerado com sucesso!</h3>
+                    </div>
                     
-                    <!-- DEBUG: Mostrar URL e informações -->
-                    <div style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 4px; font-size: 12px;">
-                        <strong>DEBUG:</strong><br>
-                        URL: ${compiledData.url}<br>
-                        Filename: ${compiledData.filename}<br>
-                        Is Simulated: ${compiledData.isSimulated}<br>
-                        Type: ${type}
+                    <div class="mb-4">
+                        <iframe 
+                            src="${compiledData.url}" 
+                            style="width: 100%; height: 700px; border: 1px solid #ddd; border-radius: 8px; background: white;"
+                            onload="console.log('✅ PDF Iframe carregado com sucesso'); this.style.opacity='1'"
+                            onerror="console.error('❌ Erro ao carregar PDF iframe'); this.parentElement.innerHTML='<div class=\\'text-center p-8 text-red-500\\'>❌ Erro ao carregar PDF. Use o botão de download.</div>'">
+                        </iframe>
+                        
+                        <!-- DEBUG: Mostrar informações do PDF -->
+                        <div style="margin-top: 10px; padding: 10px; background: #e8f5e8; border-radius: 4px; font-size: 12px;">
+                            <strong>✅ PDF REAL:</strong><br>
+                            URL: ${compiledData.url}<br>
+                            Filename: ${compiledData.filename}<br>
+                            Type: ${type} (PDF Beamer)<br>
+                            Status: Compilação bem-sucedida
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <button onclick="window.downloadGeneratedContent('${compiledData.url}', '${compiledData.filename}')" 
+                                class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                            <span class="material-icons-outlined text-sm">download</span>
+                            Baixar ${typeName} PDF
+                        </button>
+                        <span class="text-xs text-green-600 italic">*PDF Beamer compilado com sucesso!</span>
                     </div>
                 </div>
-                
-                <div class="flex gap-2">
-                    <button onclick="window.downloadGeneratedContent('${compiledData.url}', '${compiledData.filename}')" 
-                            class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
-                        <span class="material-icons-outlined text-sm">download</span>
-                        Baixar ${typeName}
-                    </button>
-                    ${compiledData.isSimulated ? `
-                        <span class="text-xs text-gray-500 italic">*Visualização simulada para demonstração</span>
-                    ` : ''}
+            `);
+        } else {
+            // Fallback HTML simulado
+            console.log('🔄 Usando fallback HTML simulado...');
+            
+            this.updateProcessingMessage(messageId, `
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl mx-auto">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="material-icons-outlined text-${type === 'slides' ? 'green' : type === 'document' ? 'blue' : 'purple'}-400">
+                            ${type === 'slides' ? 'slideshow' : type === 'document' ? 'description' : 'table_chart'}
+                        </span>
+                        <h3 class="font-semibold text-gray-800 dark:text-gray-200">${typeName} gerado com sucesso!</h3>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <iframe 
+                            src="${compiledData.url}" 
+                            style="width: 100%; height: 600px; border: 1px solid #ddd; border-radius: 8px; background: white;"
+                            onload="console.log('✅ Iframe carregado com sucesso'); this.style.opacity='1'"
+                            onerror="console.error('❌ Erro ao carregar iframe'); this.parentElement.innerHTML='<div class=\\'text-center p-8 text-red-500\\'>❌ Erro ao carregar visualização. Use o botão de download.</div>'">
+                        </iframe>
+                        
+                        <!-- DEBUG: Mostrar URL e informações -->
+                        <div style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 4px; font-size: 12px;">
+                            <strong>DEBUG:</strong><br>
+                            URL: ${compiledData.url}<br>
+                            Filename: ${compiledData.filename}<br>
+                            Is Simulated: ${compiledData.isSimulated}<br>
+                            Type: ${type}
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <button onclick="window.downloadGeneratedContent('${compiledData.url}', '${compiledData.filename}')" 
+                                class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                            <span class="material-icons-outlined text-sm">download</span>
+                            Baixar ${typeName}
+                        </button>
+                        ${compiledData.isSimulated ? `
+                            <span class="text-xs text-gray-500 italic">*Visualização simulada para demonstração</span>
+                        ` : ''}
+                    </div>
                 </div>
-            </div>
-        `;
+            `);
+        }
 
         console.log('✅ Conteúdo compilado exibido para:', typeName);
         this.scrollToBottom();
     }
-
     getCreateTypeName() {
         const names = {
             'slides': 'Apresentação',
