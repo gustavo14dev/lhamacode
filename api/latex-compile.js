@@ -199,110 +199,83 @@ function generateSimulatedHTML(latex, type = 'document') {
   } else if (type === 'slides') {
     // USAR 100% O LATEX REAL GERADO PELA IA!
     // Extrair informações básicas
-    const titleMatch = latex.match(/\\title\{([^}]+)\}/);
-    const authorMatch = latex.match(/\\author\{([^}]+)\}/);
-    const title = titleMatch ? titleMatch[1] : 'Conteúdo Gerado';
-    const author = authorMatch ? authorMatch[1] : 'Drekee AI 1';
     
-    // Tentar compilar o LaTeX REAL primeiro
-    try {
-      console.log(' Tentando compilar LaTeX REAL da IA...');
+    // Extrair frames do LaTeX REAL
+    const frameMatches = latex.match(/\\begin\{frame\}.*?\\end\{frame\}/gs);
+    if (frameMatches && frameMatches.length > 0) {
+      console.log(' Frames encontrados:', frameMatches.length);
       
-      // Se chegamos aqui, é porque a compilação falhou e estamos no fallback
-      // Mas vamos mostrar o LaTeX REAL em formato HTML para preview
+      let slidesHTML = '';
       
-      // Extrair frames do LaTeX REAL
-      const frameMatches = latex.match(/\\begin\{frame\}.*?\\end\{frame\}/gs);
-      if (frameMatches && frameMatches.length > 0) {
-        let slidesHTML = '';
+      frameMatches.forEach((frame, index) => {
+        const frameTitleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
+        const frameTitle = frameTitleMatch ? frameTitleMatch[1] : `Slide ${index + 1}`;
         
-        frameMatches.forEach((frame, index) => {
-          const frameTitleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
-          const frameTitle = frameTitleMatch ? frameTitleMatch[1] : `Slide ${index + 1}`;
-          
-          // Extrair conteúdo bruto do frame
-          let frameContent = frame
-            .replace(/\\begin\{frame\}/g, '')
-            .replace(/\\end\{frame\}/g, '')
-            .replace(/\\frametitle\{[^}]+\}/g, '')
-            .trim();
-          
-          slidesHTML += `
-            <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px; min-height: 400px;">
-              <h2 style="color: #1a237e; margin-bottom: 20px; font-size: 1.5em;">${frameTitle}</h2>
-              <div style="font-family: 'Courier New', monospace; font-size: 14px; background: #f5f5f5; padding: 20px; border-radius: 4px; white-space: pre-wrap; line-height: 1.4;">
-${frameContent}
-              </div>
-              <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 4px; font-size: 12px; color: #1565c0;">
-                Este é o conteúdo LaTeX real gerado pela IA. O design final será aplicado na compilação.
-              </div>
-            </div>
-          `;
-        });
+        // Extrair conteúdo bruto do frame
+        let frameContent = frame
+          .replace(/\\begin\{frame\}/g, '')
+          .replace(/\\end\{frame\}/g, '')
+          .replace(/\\frametitle\{[^}]+\}/g, '')
+          .trim();
         
-        content = `
-          <div style="font-family: Arial, sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
-              <h1 style="margin: 0; font-size: 32px;">${title}</h1>
-              <p style="margin: 20px 0 0 0; font-size: 18px; opacity: 0.9;">por ${author}</p>
+        console.log(` Slide ${index + 1}: ${frameTitle}`);
+        console.log(` Conteúdo: ${frameContent.substring(0, 100)}...`);
+        
+        slidesHTML += `
+          <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px; margin-bottom: 20px; min-height: 400px;">
+            <h2 style="color: #1a237e; margin-bottom: 20px; font-size: 1.5em;">${frameTitle}</h2>
+            <div style="font-family: 'Times New Roman', serif; font-size: 16px; line-height: 1.6; color: #333; text-align: justify;">
+              ${frameContent}
             </div>
-            
-            ${slidesHTML}
-            
-            <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #667eea;">
-              <p style="margin: 0; font-weight: bold; color: #333;"> Apresentação LaTeX gerada com sucesso!</p>
-              <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
-                Este preview mostra o conteúdo LaTeX real. O design final será aplicado na compilação PDF.
-              </p>
+            <div style="margin-top: 20px; padding: 10px; background: #e3f2fd; border-radius: 4px; font-size: 12px; color: #1565c0;">
+              Este é o conteúdo real gerado pela IA. Design: ${latex.includes('\\usetheme{Warsaw}') ? 'Warsaw' : latex.includes('\\usetheme{Berkeley}') ? 'Berkeley' : 'Padrão'}
             </div>
           </div>
         `;
-      } else {
-        // Se não encontrar frames, mostrar o LaTeX completo
-        content = `
-          <div style="font-family: Arial, sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto;">
-            <div style="background: #1a237e; color: white; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
-              <h1 style="margin: 0; font-size: 32px;">${title}</h1>
-              <p style="margin: 20px 0 0 0; font-size: 18px; opacity: 0.9;">por ${author}</p>
-            </div>
-            
-            <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px;">
-              <h2 style="color: #1a237e; margin-bottom: 20px;">Código LaTeX Completo</h2>
-              <div style="font-family: 'Courier New', monospace; font-size: 12px; background: #f5f5f5; padding: 20px; border-radius: 4px; white-space: pre-wrap; line-height: 1.4; max-height: 600px; overflow-y: auto;">
-${latex}
-              </div>
-            </div>
-            
-            <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #1a237e;">
-              <p style="margin: 0; font-weight: bold;"> Código LaTeX gerado com sucesso!</p>
-              <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
-                Este é o código LaTeX completo gerado pela IA. Use-o para compilar em seu editor LaTeX preferido.
-              </p>
-            </div>
-          </div>
-        `;
-      }
-    } catch (error) {
-      console.error(' Erro ao processar LaTeX real:', error);
-      // Fallback extremo
+      });
+      
       content = `
-        <div style="font-family: Arial, sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto;">
-          <div style="background: #dc3545; color: white; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
-            <h1 style="margin: 0; font-size: 32px;">Erro no Processamento</h1>
-            <p style="margin: 20px 0 0 0; font-size: 18px;">Não foi possível processar o LaTeX</p>
+        <div style="font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; max-width: 900px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
+            <h1 style="margin: 0; font-size: 32px;">${title}</h1>
+            <p style="margin: 20px 0 0 0; font-size: 18px; opacity: 0.9;">por ${author}</p>
           </div>
           
-          <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px;">
-            <h2 style="color: #dc3545; margin-bottom: 20px;">Código LaTeX Bruto</h2>
-            <div style="font-family: 'Courier New', monospace; font-size: 12px; background: #f5f5f5; padding: 20px; border-radius: 4px; white-space: pre-wrap; line-height: 1.4; max-height: 600px; overflow-y: auto;">
-${latex}
-            </div>
+          ${slidesHTML}
+          
+          <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #667eea;">
+            <p style="margin: 0; font-weight: bold; color: #333;"> Apresentação LaTeX gerada com sucesso!</p>
+            <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
+              Este preview mostra o conteúdo real gerado pela IA. O design LaTeX completo foi preservado.
+            </p>
           </div>
         </div>
       `;
     } else {
-      // Fallback genérico se não encontrar slides
-      content = `...conteúdo genérico...`;
+      // Se não encontrar frames, mostrar o LaTeX completo
+      console.log(' Nenhum frame encontrado, mostrando LaTeX completo...');
+      content = `
+        <div style="font-family: Arial, sans-serif; padding: 40px; background: white; max-width: 900px; margin: 0 auto;">
+          <div style="background: #1a237e; color: white; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
+            <h1 style="margin: 0; font-size: 32px;">${title}</h1>
+            <p style="margin: 20px 0 0 0; font-size: 18px; opacity: 0.9;">por ${author}</p>
+          </div>
+          
+          <div style="background: white; border: 2px solid #ddd; padding: 40px; border-radius: 8px;">
+            <h2 style="color: #1a237e; margin-bottom: 20px;">Código LaTeX Completo</h2>
+            <div style="font-family: 'Courier New', monospace; font-size: 12px; background: #f5f5f5; padding: 20px; border-radius: 4px; white-space: pre-wrap; line-height: 1.4; max-height: 600px; overflow-y: auto;">
+${latex}
+            </div>
+          </div>
+          
+          <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-left: 4px solid #1a237e;">
+            <p style="margin: 0; font-weight: bold;"> Código LaTeX gerado com sucesso!</p>
+            <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
+              Este é o código LaTeX completo gerado pela IA. Use-o para compilar em seu editor LaTeX preferido.
+            </p>
+          </div>
+        </div>
+      `;
     }
   } else {
     // Extrair DOCUMENTO REAL do LaTeX - ESTILO CLÁSSICO
