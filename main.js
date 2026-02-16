@@ -810,6 +810,8 @@ class UI {
                     const processingId = e.currentTarget.dataset.processingId;
                     const messageId = e.currentTarget.dataset.messageId;
                     
+                    console.log('🎯 Dados do clique:', { designType, messageData, processingId, messageId });
+                    
                     // Chamar função global com os dados
                     window.selectDesign(designType, messageData, parseInt(processingId), parseInt(messageId));
                 });
@@ -2611,6 +2613,7 @@ console.log('- session.clear() → Remove API Key Groq');
 // Função global para seleção de design
 window.selectDesign = async (designType, message, processingId, messageId) => {
     console.log('🎨 Design selecionado:', designType, 'para:', message);
+    console.log('🎯 IDs recebidos:', { processingId, messageId });
     
     // Mapeamento de designs para templates LaTeX
     const designTemplates = {
@@ -2785,6 +2788,8 @@ window.selectDesign = async (designType, message, processingId, messageId) => {
         // Gerar conteúdo LaTeX com o template selecionado
         const latexCode = await ui.generateLatexContent(message, 'slides', selectedDesign.template);
         const compiledData = await ui.compileLatexToPDF(latexCode);
+        
+        // Usar o messageId correto
         ui.displayCompiledContent(messageId, compiledData, 'slides', message);
         
         console.log('✅ Apresentação gerada com sucesso!');
