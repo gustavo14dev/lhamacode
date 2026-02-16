@@ -869,10 +869,31 @@ class UI {
     }
 
     async generateLatexContent(message, type, design = null, template = null) {
+        // Extrair o tema real da mensagem (remover comandos)
+        let realTopic = message;
+        
+        // Remover prefixos comuns de comandos
+        const commandPrefixes = [
+            /^gere\s+uma\s+apresentação\s+sobre\s+/i,
+            /^crie\s+uma\s+apresentação\s+sobre\s+/i,
+            /^faça\s+uma\s+apresentação\s+sobre\s+/i,
+            /^apresentação\s+sobre\s+/i,
+            /^slides\s+sobre\s+/i
+        ];
+        
+        commandPrefixes.forEach(prefix => {
+            if (prefix.test(message)) {
+                realTopic = message.replace(prefix, '').trim();
+            }
+        });
+        
+        console.log('🎯 Mensagem original:', message);
+        console.log('🎯 Tema extraído:', realTopic);
+        
         // Prompt interno para gerar LaTeX - ISSO FICA SECRETO
         const systemPrompt = {
             role: 'system',
-            content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional' : type === 'document' ? 'documento acadêmico' : 'tabela técnica'} sobre: "${message}". 
+            content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional' : type === 'document' ? 'documento acadêmico' : 'tabela técnica'} sobre: "${realTopic}". 
             
 REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
 - GERE APENAS O CÓDIGO LATEX PURO, NADA MAIS
@@ -970,7 +991,7 @@ RETORNE APENAS O CÓDIGO LATEX, SEM NENHUM TEXTO ADICIONAL!`
                 // Se tiver template, usar o template base
                 if (template && design) {
                     // Aqui vamos carregar o template específico do design
-                    latexCode = await this.loadDesignTemplate(template, message, latexCode);
+                    latexCode = await this.loadDesignTemplate(template, realTopic, latexCode);
                 } else {
                     // Template padrão
                     latexCode = `\\documentclass{beamer}
@@ -979,7 +1000,7 @@ RETORNE APENAS O CÓDIGO LATEX, SEM NENHUM TEXTO ADICIONAL!`
 \\usepackage{graphicx}
 \\usepackage{amsmath}
 
-\\title{${message}}
+\\title{${realTopic}}
 \\author{Drekee AI 1}
 \\date{\\today}
 
@@ -997,7 +1018,7 @@ ${latexCode}
 \\usepackage{graphicx}
 \\usepackage{amsmath}
 
-\\title{${message}}
+\\title{${realTopic}}
 \\author{Drekee AI 1}
 \\date{\\today}
 
@@ -1018,7 +1039,7 @@ ${latexCode}
             const framesOnly = frameMatches ? frameMatches.join('\n\n') : latexCode;
             
             // Carregar template e inserir os frames
-            latexCode = await this.loadDesignTemplate(template, message, framesOnly);
+            latexCode = await this.loadDesignTemplate(template, realTopic, framesOnly);
         }
         
         console.log('🔒 LaTeX gerado internamente (segredo):', latexCode.substring(0, 200) + '...');
