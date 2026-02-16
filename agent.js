@@ -596,11 +596,16 @@ export class Agent {
     // ==================== APIS ====================
     // Gemini API methods removed (attachments/Gemini integration disabled)
 
-async callGroqAPI(model, customMessages = null) {
-    // Not required to have a client-side Groq API key when using server-side proxy
-    // The proxy will use GROQ_API_KEY from environment variables on Vercel
-    
-    // System prompts diferenciados por modelo
+    async callGroqAPI(model, customMessages = null) {
+        console.log('🚀 callGroqAPI iniciado');
+        console.log('📋 Modelo:', model);
+        console.log('📋 Mensagens customizadas:', customMessages ? 'SIM' : 'NÃO');
+        console.log('📋 Histórico atual:', this.conversationHistory.length, 'mensagens');
+        
+        // Not required to have a client-side Groq API key when using server-side proxy
+        // The proxy will use GROQ_API_KEY from environment variables on Vercel
+        
+        // System prompts diferenciados por modelo
         let systemPrompt;
         if (this.currentModel === 'rapido') {
             systemPrompt = {
@@ -616,24 +621,48 @@ async callGroqAPI(model, customMessages = null) {
         }
 
         const messages = customMessages || [systemPrompt, ...this.conversationHistory];
+        
+        console.log('📤 Mensagens finais para API:', messages.length, 'mensagens');
+        console.log('📤 Primeira mensagem:', messages[0]?.content?.substring(0, 100) + '...');
+        if (messages.length > 1) {
+            console.log('📤 Última mensagem:', messages[messages.length - 1]?.content?.substring(0, 100) + '...');
+        }
 
         // Criar novo AbortController para cada requisição
         this.abortController = new AbortController();
 
         try {
+            console.log('📡 Enviando requisição para /api/groq-proxy...');
+            
+            const requestBody = {
+                model, 
+                messages, 
+                temperature: 0.7, 
+                max_tokens: 8192, 
+                top_p: 1, 
+                stream: false
+            };
+            
+            console.log('📦 Corpo da requisição:', requestBody);
+
             // Chamar proxy server-side no Vercel
             const response = await fetch('/api/groq-proxy', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ model, messages, temperature: 0.7, max_tokens: 8192, top_p: 1, stream: false }),
+                body: JSON.stringify(requestBody),
                 signal: this.abortController.signal
             });
+
+            console.log('📡 Resposta recebida:', response.status, response.statusText);
+            console.log('📡 Headers:', Object.fromEntries(response.headers.entries()));
 
             if (!response.ok) {
                 const status = response.status;
                 const text = await response.text().catch(() => null);
+                console.error('❌ Erro na resposta:', status, text);
+                
                 // Mensagens amigáveis para erros comuns
                 if (status === 500 && text && text.includes('GROQ_API_KEY is not configured')) {
                     throw new Error('GROQ API Key não está configurada no servidor. Adicione GROQ_API_KEY nas Environment Variables do Vercel.');
@@ -645,6 +674,7 @@ async callGroqAPI(model, customMessages = null) {
             }
 
             const data = await response.json().catch(() => ({}));
+            console.log('📦 Dados recebidos:', data);
 
             // Normalizar formatos comuns de resposta de proxies/LLMs
             let content = null;
@@ -661,13 +691,17 @@ async callGroqAPI(model, customMessages = null) {
                 content = data;
             }
 
+            console.log('📝 Conteúdo extraído:', content ? content.substring(0, 200) + '...' : 'NULO');
+
             if (!content || typeof content !== 'string' || content.trim().length === 0) {
                 console.error('[callGroqAPI] resposta inesperada do proxy:', data);
                 throw new Error('Resposta vazia ou formato inesperado do proxy Groq');
             }
 
+            console.log('✅ callGroqAPI concluído com sucesso');
             return content;
         } catch (error) {
+            console.error('❌ Erro em callGroqAPI:', error);
             if (error.name === 'AbortError') {
                 console.log('⚠️ Requisição foi abortada pelo usuário');
                 throw new Error('ABORTED');

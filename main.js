@@ -885,48 +885,6 @@ ESTRUTURA OBRIGATÓRIA - ADICIONE APENAS ESTES SLIDES:
 \\end{frame}
 
 \\section{Benefícios e Desafios}
-\\begin{frame}{Benefícios}
-[lista com 4-6 benefícios]
-\\end{frame}
-
-\\begin{frame}{Desafios}
-[lista com 3-5 desafios]
-\\end{frame}
-
-\\section{Conclusão}
-\\begin{frame}{Conclusão}
-[2-3 parágrafos de conclusão]
-\\end{frame}
-
-\\begin{frame}[plain]
-\\begin{center}
-{\\Huge Obrigado!}
-
-\\vspace{1em}
-
-{\\Large Perguntas?}
-\\end{center}
-\\end{frame}
-
-\\end{document}
-
-OBRIGATÓRIO - SLIDE "O que é":
-- Deve ter 3-4 parágrafos corridos explicando o conceito
-- Definição clara e detalhada
-- Contexto histórico se aplicável
-- Importância e relevância do tema
-- NÃO use bullets neste slide - apenas texto corrido
-- Seja didático e completo
-
-IMPORTANTE: Mantenha EXATAMENTE o design do template. RETORNE APENAS O CÓDIGO LATEX CONTINUADO!`
-            };
-
-            const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [systemPrompt, { role: 'user', content: message }]);
-            
-            // Limpar resposta para obter apenas o código LaTeX
-            let latexCode = response.trim();
-            
-            // Remover marcadores de código se existirem
             latexCode = latexCode.replace(/```latex/gi, '').replace(/```/g, '');
             
             // Combinar template com o conteúdo gerado
@@ -2718,9 +2676,30 @@ window.selectDesign = async (designType, message, processingId, messageId) => {
     const finalMessageId = (messageId && !isNaN(messageId)) ? messageId : processingId;
     console.log('🎯 ID final usado:', finalMessageId);
     
-    // Extrair apenas o assunto do prompt
-    const subject = message.replace(/^(gere|crie|faça|monte|produza)\s+(uma\s+)?(apresentação|slides?)\s+sobre\s+/i, '').trim();
+    // Extrair apenas o assunto do prompt - melhorado e mais robusto
+    let subject = message;
+    
+    // Tentar diferentes padrões de extração
+    const patterns = [
+        /^(gere|crie|faça|monte|produza)\s+(uma\s+)?(apresentação|slides?)\s+sobre\s+/i,
+        /^(apresentação|slides?)\s+sobre\s+/i,
+        /^sobre\s+/i
+    ];
+    
+    for (const pattern of patterns) {
+        const match = message.match(pattern);
+        if (match) {
+            subject = message.replace(pattern, '').trim();
+            break;
+        }
+    }
+    
+    // Limpar aspas e caracteres especiais do assunto
+    subject = subject.replace(/["'']/g, '').trim();
+    
+    console.log('🎯 Mensagem original:', message);
     console.log('🎯 Assunto extraído:', subject);
+    console.log('🎯 Design selecionado:', designType);
     
     // Mapeamento de designs para templates LaTeX
     const designTemplates = {
