@@ -1065,6 +1065,11 @@ ${latexCode}
                 .replace(/\\author\{[^}]+\}/g, '\\author{Drekee AI 1}')
                 .replace(/\\date\{[^}]+\}/g, '\\date{\\today}');
             
+            console.log('🎨 Template antes:', templateContent.substring(0, 200) + '...');
+            console.log('🎨 Template após substituição:', finalLatex.substring(0, 200) + '...');
+            console.log('🎨 Parâmetro message:', message);
+            console.log('🎨 Parâmetro realTopic (deveria ser o mesmo):', this.realTopic || 'não definido');
+            
             // Inserir o conteúdo gerado pela IA no lugar apropriado
             // Procurar por onde inserir o conteúdo (geralmente após \begin{document})
             const contentInsertPoint = finalLatex.indexOf('\\begin{document}');
