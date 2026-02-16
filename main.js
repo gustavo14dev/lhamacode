@@ -811,7 +811,17 @@ class UI {
             option.addEventListener('click', () => {
                 const design = option.dataset.design;
                 const template = option.dataset.template;
-                this.generateSlidesWithDesign(message, design, template);
+                
+                // Extrair apenas o tópico da mensagem (remover comandos)
+                const topic = message
+                    .replace(/^gere uma apresentação sobre /i, '')
+                    .replace(/^crie uma apresentação sobre /i, '')
+                    .replace(/^criar apresentação sobre /i, '')
+                    .replace(/^apresentação sobre /i, '')
+                    .trim();
+                
+                console.log('🎨 Tópico extraído:', topic, 'do comando:', message);
+                this.generateSlidesWithDesign(topic, design, template);
             });
         });
         
@@ -1026,6 +1036,7 @@ ${latexCode}
 
     async loadDesignTemplate(template, message, latexCode) {
         console.log('🎨 Carregando template:', template, 'para:', message);
+        console.log('🎨 Frames da IA recebidos:', latexCode.substring(0, 200) + '...');
         
         try {
             // Fazer fetch do arquivo de template
@@ -1035,6 +1046,7 @@ ${latexCode}
             }
             
             const templateContent = await response.text();
+            console.log('🎨 Template carregado:', templateContent.substring(0, 300) + '...');
             
             // Substituir placeholders no template
             let finalLatex = templateContent
@@ -1052,14 +1064,20 @@ ${latexCode}
                 // Remover frames existentes do template (manter só estrutura)
                 const cleanedAfter = afterContent.replace(/\\begin\{frame\}[\s\S]*?\\end\{frame\}/gs, '');
                 
-                finalLatex = beforeContent + latexCode + cleanedAfter + '\n\\end{document}';
+                // Inserir os frames da IA
+                finalLatex = beforeContent + latexCode + cleanedAfter;
+                
+                // Garantir que tenha \end{document}
+                if (!finalLatex.includes('\\end{document}')) {
+                    finalLatex += '\n\\end{document}';
+                }
             } else {
                 // Se não encontrar \begin{document}, apenas substituir o conteúdo
                 finalLatex = templateContent + '\n\n' + latexCode + '\n\\end{document}';
             }
             
             console.log('🎨 Template carregado com sucesso - frames inseridos');
-            console.log('🔍 LaTeX final com template:', finalLatex.substring(0, 300) + '...');
+            console.log('🔍 LaTeX final com template:', finalLatex.substring(0, 500) + '...');
             return finalLatex;
             
         } catch (error) {
