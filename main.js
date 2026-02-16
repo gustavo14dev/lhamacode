@@ -677,41 +677,22 @@ class UI {
     }
 
     async handleCreateRequest(message) {
-        console.log('🎨 Iniciando criação de:', this.currentCreateType, 'para:', message);
+        const processingId = Date.now();
         
         // Se for slides, mostrar card de escolha de design primeiro
         if (this.currentCreateType === 'slides') {
-            this.showSlideDesignSelector(message);
+            this.showDesignSelectionCard(processingId, message);
             return;
         }
         
-        // Para outros tipos (document, table), continuar normal
-        if (!this.isTransitioned) {
-            this.createNewChat();
-            await this.sleep(300);
-        }
-
-        if (!this.currentChatId) {
-            this.createNewChat();
-        }
-
-        // Adicionar mensagem do usuário ao chat
-        this.addUserMessage(message);
-        
-        const processingId = this.addProcessingMessage(`🔧 Gerando ${this.getCreateTypeName()}...`);
+        // Para outros tipos (document, table), processa normalmente
+        this.updateProcessingMessage(processingId, `Gerando ${this.getCreateTypeName()}...`);
         
         try {
-            // Gerar código LaTeX internamente (NUNCA MOSTRAR PARA O USUÁRIO)
-            console.log('🚀 Iniciando geração LaTeX para:', this.currentCreateType, '-', message);
             const latexCode = await this.generateLatexContent(message, this.currentCreateType);
-            console.log('✅ LaTeX gerado, iniciando compilação...');
-            
-            // Compilar LaTeX para PDF (usando serviço online)
             const compiledData = await this.compileLatexToPDF(latexCode);
-            console.log('✅ Compilação concluída, exibindo resultado...');
-            
-            // Mostrar resultado visual para o usuário
             this.displayCompiledContent(processingId, compiledData, this.currentCreateType, message);
+            
             console.log('✅ Processo concluído com sucesso!');
             
         } catch (error) {
@@ -725,175 +706,185 @@ class UI {
         this.resetCreateButton();
     }
 
-    async showSlideDesignSelector(message) {
-        console.log('🎨 Mostrando seletor de design para slides:', message);
-        
-        // Criar novo chat se necessário
-        if (!this.isTransitioned) {
-            this.createNewChat();
-            await this.sleep(300);
-        }
-
-        if (!this.currentChatId) {
-            this.createNewChat();
-        }
-
+    showDesignSelectionCard(processingId, message) {
         // Adicionar mensagem do usuário ao chat
         this.addUserMessage(message);
         
-        // Criar card de seleção de design
-        const messageContainer = this.createAssistantMessageContainer();
-        const timestamp = Date.now();
-        const selectorId = `designSelector_${timestamp}`;
+        // Criar mensagem de seleção de design
+        const messageId = this.addAssistantMessage('');
         
-        messageContainer.container.innerHTML = `
-            <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-                <div class="flex items-center gap-2 mb-4">
-                    <span class="material-icons-outlined text-green-400">slideshow</span>
-                    <h3 class="font-semibold text-gray-800 dark:text-gray-200">Escolha o design da sua apresentação</h3>
-                </div>
-                
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                    Selecione um dos designs abaixo para personalizar sua apresentação sobre "${message}"
-                </p>
-                
-                <!-- Grid de Designs 3x3 (mostrando apenas 4 por enquanto) -->
-                <div class="grid grid-cols-3 gap-4 mb-6">
-                    <!-- Design 1: Sapientia -->
-                    <div class="design-option cursor-pointer group" data-design="sapientia" data-template="tex/ex1.tex">
-                        <div class="border-2 border-gray-200 dark:border-gray-600 rounded-lg p-3 hover:border-primary transition-all group-hover:shadow-md">
-                            <img src="img/ex1.png" alt="Sapientia" class="w-full h-24 object-cover rounded mb-2">
-                            <h4 class="font-medium text-sm text-gray-800 dark:text-gray-200 text-center">Sapientia</h4>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 text-center mt-1">Clássico Acadêmico</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Design 2: Slate & Gold Executive -->
-                    <div class="design-option cursor-pointer group" data-design="slate-gold" data-template="tex/ex2.tex">
-                        <div class="border-2 border-gray-200 dark:border-gray-600 rounded-lg p-3 hover:border-primary transition-all group-hover:shadow-md">
-                            <img src="img/ex2.png" alt="Slate & Gold Executive" class="w-full h-24 object-cover rounded mb-2">
-                            <h4 class="font-medium text-sm text-gray-800 dark:text-gray-200 text-center">Slate & Gold</h4>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 text-center mt-1">Executivo Premium</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Design 3: Aura Neo-Tech -->
-                    <div class="design-option cursor-pointer group" data-design="aura-neo" data-template="tex/ex3.tex">
-                        <div class="border-2 border-gray-200 dark:border-gray-600 rounded-lg p-3 hover:border-primary transition-all group-hover:shadow-md">
-                            <img src="img/ex3.png" alt="Aura Neo-Tech" class="w-full h-24 object-cover rounded mb-2">
-                            <h4 class="font-medium text-sm text-gray-800 dark:text-gray-200 text-center">Aura Neo-Tech</h4>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 text-center mt-1">Dark Mode Futurista</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Design 4: Placeholder para futuro -->
-                    <div class="design-option cursor-pointer group opacity-50" data-design="coming-soon">
-                        <div class="border-2 border-gray-200 dark:border-gray-600 rounded-lg p-3">
-                            <div class="w-full h-24 bg-gray-200 dark:bg-gray-700 rounded mb-2 flex items-center justify-center">
-                                <span class="material-icons-outlined text-gray-400">more_horiz</span>
-                            </div>
-                            <h4 class="font-medium text-sm text-gray-500 dark:text-gray-400 text-center">Em breve...</h4>
-                            <p class="text-xs text-gray-400 dark:text-gray-500 text-center mt-1">Mais designs</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    <span class="material-icons-outlined text-sm">info</span>
-                    <span>Clique em um design para gerar sua apresentação personalizada</span>
-                </div>
-            </div>
-        `;
-        
-        // Adicionar evento de clique aos designs
-        const designOptions = messageContainer.container.querySelectorAll('.design-option:not([data-design="coming-soon"])');
-        designOptions.forEach(option => {
-            option.addEventListener('click', () => {
-                const design = option.dataset.design;
-                const template = option.dataset.template;
-                this.generateSlidesWithDesign(message, design, template);
-            });
-        });
-        
-        // Adicionar ao container de mensagens
-        const messagesContainer = document.getElementById('messagesContainer');
-        if (messagesContainer) {
-            messagesContainer.appendChild(messageContainer.container);
-            this.scrollToBottom();
+        // Encontrar o elemento da mensagem
+        let messageElement = document.getElementById(`responseText_${messageId}`);
+        if (!messageElement) {
+            const allMessages = document.querySelectorAll('[id^="responseText_"]');
+            if (allMessages.length > 0) {
+                messageElement = allMessages[allMessages.length - 1];
+            }
         }
-    }
-
-    async generateSlidesWithDesign(message, design, template) {
-        console.log('🎨 Gerando slides com design:', design, 'template:', template);
         
-        // Atualizar o card para mostrar que está processando
-        const selectorCard = document.querySelector('.design-option').closest('.bg-surface-light, .dark\\:bg-surface-dark');
-        if (selectorCard) {
-            selectorCard.innerHTML = `
-                <div class="flex items-center gap-3 p-4">
-                    <div class="flex gap-1">
-                        <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0s"></div>
-                        <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                        <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+        if (messageElement) {
+            messageElement.innerHTML = `
+                <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="material-icons-outlined text-2xl text-green-400">slideshow</span>
+                        <h3 class="font-semibold text-gray-800 dark:text-gray-200 text-lg">Escolha o Design da Apresentação</h3>
                     </div>
-                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Gerando apresentação com design "${design}"...</span>
+                    
+                    <p class="text-gray-600 dark:text-gray-400 mb-6">Selecione um estilo visual para sua apresentação sobre "${message}":</p>
+                    
+                    <!-- Grid 3x3 de Designs -->
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <!-- Botão 1: Sapientia -->
+                        <button onclick="window.selectDesign('sapientia', '${message}', ${processingId}, ${messageId})" 
+                                class="group bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-green-400 dark:hover:border-green-400 transition-all hover:shadow-lg cursor-pointer">
+                            <div class="aspect-video bg-gray-100 dark:bg-gray-700 rounded mb-3 flex items-center justify-center">
+                                <img src="img/ex1.png" alt="Sapientia" class="w-full h-full object-cover rounded" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div class="hidden items-center justify-center w-full h-full text-gray-400">
+                                    <span class="material-icons-outlined">slideshow</span>
+                                </div>
+                            </div>
+                            <h4 class="font-semibold text-gray-800 dark:text-gray-200 text-sm">Sapientia</h4>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Clássico Acadêmico</p>
+                        </button>
+                        
+                        <!-- Botão 2: Slate & Gold Executive -->
+                        <button onclick="window.selectDesign('slate-gold', '${message}', ${processingId}, ${messageId})" 
+                                class="group bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-green-400 dark:hover:border-green-400 transition-all hover:shadow-lg cursor-pointer">
+                            <div class="aspect-video bg-gray-100 dark:bg-gray-700 rounded mb-3 flex items-center justify-center">
+                                <img src="img/ex2.png" alt="Slate & Gold Executive" class="w-full h-full object-cover rounded" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div class="hidden items-center justify-center w-full h-full text-gray-400">
+                                    <span class="material-icons-outlined">business</span>
+                                </div>
+                            </div>
+                            <h4 class="font-semibold text-gray-800 dark:text-gray-200 text-sm">Slate & Gold Executive</h4>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Profissional Corporativo</p>
+                        </button>
+                        
+                        <!-- Botão 3: Aura Neo-Tech -->
+                        <button onclick="window.selectDesign('aura-neo', '${message}', ${processingId}, ${messageId})" 
+                                class="group bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-green-400 dark:hover:border-green-400 transition-all hover:shadow-lg cursor-pointer">
+                            <div class="aspect-video bg-gray-100 dark:bg-gray-700 rounded mb-3 flex items-center justify-center">
+                                <img src="img/ex3.png" alt="Aura Neo-Tech" class="w-full h-full object-cover rounded" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div class="hidden items-center justify-center w-full h-full text-gray-400">
+                                    <span class="material-icons-outlined">rocket_launch</span>
+                                </div>
+                            </div>
+                            <h4 class="font-semibold text-gray-800 dark:text-gray-200 text-sm">Aura Neo-Tech</h4>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Futurista Dark Mode</p>
+                        </button>
+                        
+                        <!-- Espaços vazios para completar 3x3 -->
+                        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-center text-gray-400">
+                            <span class="text-sm">Em breve...</span>
+                        </div>
+                        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-center text-gray-400">
+                            <span class="text-sm">Em breve...</span>
+                        </div>
+                        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-center text-gray-400">
+                            <span class="text-sm">Em breve...</span>
+                        </div>
+                        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-center text-gray-400">
+                            <span class="text-sm">Em breve...</span>
+                        </div>
+                        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-center text-gray-400">
+                            <span class="text-sm">Em breve...</span>
+                        </div>
+                        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-center text-gray-400">
+                            <span class="text-sm">Em breve...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                        <span class="material-icons-outlined text-base">info</span>
+                        <span>Escolha um design para continuar. A apresentação será gerada com o estilo selecionado.</span>
+                    </div>
                 </div>
             `;
         }
         
-        const processingId = this.showThinkingMessage(`🎨 Gerando apresentação com design ${design}...`);
-        
-        try {
-            // Gerar código LaTeX internamente (NUNCA MOSTRAR PARA O USUÁRIO)
-            console.log('🚀 Iniciando geração LaTeX para:', this.currentCreateType, '-', message, 'com design:', design);
-            const latexCode = await this.generateLatexContent(message, this.currentCreateType, design, template);
-            console.log('✅ LaTeX gerado, iniciando compilação...');
-            
-            // Compilar LaTeX para PDF (usando serviço online)
-            const compiledData = await this.compileLatexToPDF(latexCode);
-            console.log('✅ Compilação concluída, exibindo resultado...');
-            
-            // Mostrar resultado visual para o usuário
-            this.displayCompiledContent(processingId, compiledData, this.currentCreateType, message);
-            console.log('✅ Processo concluído com sucesso!');
-            
-        } catch (error) {
-            console.error('❌ Erro ao gerar conteúdo:', error);
-            console.error('❌ Stack trace:', error.stack);
-            this.updateProcessingMessage(processingId, `❌ Erro ao gerar ${this.getCreateTypeName()}: ${error.message}`);
-        }
-        
-        // Resetar tipo de criação após uso
-        this.currentCreateType = null;
-        this.resetCreateButton();
+        this.scrollToBottom();
     }
 
-    async generateLatexContent(message, type, design = null, template = null) {
-        // Extrair o tema real da mensagem (remover comandos)
-        let realTopic = message;
-        
-        // Remover prefixos comuns de comandos
-        const commandPrefixes = [
-            /^gere\s+uma\s+apresentação\s+sobre\s+/i,
-            /^crie\s+uma\s+apresentação\s+sobre\s+/i,
-            /^faça\s+uma\s+apresentação\s+sobre\s+/i,
-            /^apresentação\s+sobre\s+/i,
-            /^slides\s+sobre\s+/i
-        ];
-        
-        commandPrefixes.forEach(prefix => {
-            if (prefix.test(message)) {
-                realTopic = message.replace(prefix, '').trim();
+    async generateLatexContent(message, type, customTemplate = null) {
+        // Se houver template customizado, usar como base
+        if (customTemplate && type === 'slides') {
+            const systemPrompt = {
+                role: 'system',
+                content: `Você é um especialista acadêmico e profissional em LaTeX. Continue o código LaTeX abaixo para criar uma apresentação completa sobre: "${message}".
+
+O TEMPLATE JÁ FOI INICIADO. APENAS CONTINUE ADICIONANDO OS SLIDES DE CONTEÚDO.
+
+TEMPLATE INICIADO:
+${customTemplate}
+
+REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
+- APENAS continue o código LaTeX, NÃO repita o template
+- NÃO inclua explicações ou textos fora do código
+- Adicione os slides de conteúdo DEPOIS do template existente
+- Use \\end{document} apenas no final
+- O código deve ser compilável com pdflatex
+
+CONTEÚDO ESPECÍFICO E DE ALTA QUALIDADE:
+- PESQUISE E GERE CONTEÚDO ESPECIALIZADO sobre o tema
+- MÍNIMO 8 SLIDES no total (incluindo os do template)
+- Estrutura: continue com → introdução → desenvolvimento (3-8 slides) → aplicações → conclusão → agradecimento
+- NUNCA use placeholders genéricos como "Exemplo 1", "Conteúdo da tabela"
+- INCLUA dados técnicos, estatísticas, exemplos reais, citações
+- SEJA ESPECÍFICO E DENSO - o usuário quer APRENDER de verdade
+
+IMPORTANTE - TIPO DE CONTEÚDO NOS SLIDES:
+- NÃO use apenas tópicos/bullets curtos
+- GERE TEXTO CORRIDO EXPLICATIVO em cada slide
+- Cada slide deve ter 2-3 parágrafos explicativos completos
+- Use bullets APENAS para complementar o texto corrido
+- Explique conceitos detalhadamente, como se estivesse ensinando
+- Inclua exemplos práticos, dados específicos, números reais
+- Cada slide deve ser uma aula completa sobre o tópico
+
+ESTRUTURA OBRIGATÓRIA PARA TODAS APRESENTAÇÕES:
+- Slide 1: Título (já está no template)
+- Slide 2: O que é [TEMA] - TEXTO CORRIDO EXPLICATIVO COMPLETO
+- Slide 3: Como funciona [TEMA] - TEXTO CORRIDO EXPLICATIVO COMPLETO
+- Slide 4+: Desenvolvimento detalhado com mais texto corrido
+- Penúltimo: Resumo
+- Último: Agradecimento
+
+OBRIGATÓRIO - SLIDE "O QUE É":
+- Deve ter 3-4 parágrafos corridos explicando o conceito
+- Definição clara e detalhada
+- Contexto histórico se aplicável
+- Importância e relevância do tema
+- NÃO use bullets neste slide - apenas texto corrido
+- Seja didático e completo
+
+IMPORTANTE: O usuário quer CONTEÚDO REAL para APRENDER, não superficial. 
+RETORNE APENAS O CÓDIGO LATEX CONTINUADO, SEM NENHUM TEXTO ADICIONAL!`
+            };
+
+            const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [systemPrompt, { role: 'user', content: message }]);
+            
+            // Limpar resposta para obter apenas o código LaTeX
+            let latexCode = response.trim();
+            
+            // Remover marcadores de código se existirem
+            latexCode = latexCode.replace(/```latex/gi, '').replace(/```/g, '');
+            
+            // Combinar template com o conteúdo gerado
+            const fullLatexCode = customTemplate + '\n' + latexCode;
+            
+            // Garantir que termine com \end{document}
+            if (!fullLatexCode.includes('\\end{document}')) {
+                return fullLatexCode + '\n\\end{document}';
             }
-        });
-        
-        console.log('🎯 Mensagem original:', message);
-        console.log('🎯 Tema extraído:', realTopic);
+            
+            console.log('🔒 LaTeX gerado com template customizado:', fullLatexCode.substring(0, 200) + '...');
+            return fullLatexCode;
+        }
         
         // Prompt interno para gerar LaTeX - ISSO FICA SECRETO
         const systemPrompt = {
             role: 'system',
-            content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional' : type === 'document' ? 'documento acadêmico' : 'tabela técnica'} sobre: "${realTopic}". 
+            content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional' : type === 'document' ? 'documento acadêmico' : 'tabela técnica'} sobre: "${message}". 
             
 REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
 - GERE APENAS O CÓDIGO LATEX PURO, NADA MAIS
@@ -916,17 +907,15 @@ CONTEÚDO ESPECÍFICO E DE ALTA QUALIDADE:
 - INCLUA dados técnicos, estatísticas, exemplos reais, citações
 - SEJA ESPECÍFICO E DENSO - o usuário quer APRENDER de verdade
 - ADAPTE-SE AO PEDIDO DO USUÁRIO - se pedir curto, faça curto; se pedir completo, faça completo
-- IMPORTANTE: MANTENHA O CONTEÚDO CONCISO para caber no slide sem rolagem (máximo 3-4 parágrafos por slide)
 
 IMPORTANTE - TIPO DE CONTEÚDO NOS SLIDES:
 - NÃO use apenas tópicos/bullets curtos
 - GERE TEXTO CORRIDO EXPLICATIVO em cada slide
-- Cada slide deve ter 2-3 parágrafos CURTOS (máximo 4 linhas cada)
+- Cada slide deve ter 2-3 parágrafos explicativos completos
 - Use bullets APENAS para complementar o texto corrido
-- Explique conceitos de forma CONCISA e direta
+- Explique conceitos detalhadamente, como se estivesse ensinando
 - Inclua exemplos práticos, dados específicos, números reais
-- Cada slide deve caber inteiro na tela sem rolagem
-- MANTENHA O FOCO: um conceito principal por slide
+- Cada slide deve ser uma aula completa sobre o tópico
 
 ESTRUTURA OBRIGATÓRIA PARA TODAS APRESENTAÇÕES:
 - Slide 1: Título (capa)
@@ -988,111 +977,7 @@ RETORNE APENAS O CÓDIGO LATEX, SEM NENHUM TEXTO ADICIONAL!`
         // Adicionar estrutura básica se faltar
         if (!latexCode.includes('\\documentclass')) {
             if (type === 'slides') {
-                // Se tiver template, usar o template base
-                if (template && design) {
-                    // Aqui vamos carregar o template específico do design
-                    latexCode = await this.loadDesignTemplate(template, realTopic, latexCode);
-                } else {
-                    // Template padrão
-                    latexCode = `\\documentclass{beamer}
-\\usetheme{Madrid}
-\\usepackage[utf8]{inputenc}
-\\usepackage{graphicx}
-\\usepackage{amsmath}
-
-\\title{${realTopic}}
-\\author{Drekee AI 1}
-\\date{\\today}
-
-\\begin{document}
-
-\\frame{\\titlepage}
-
-${latexCode}
-
-\\end{document}`;
-                }
-            } else if (type === 'document') {
-                latexCode = `\\documentclass{article}
-\\usepackage[utf8]{inputenc}
-\\usepackage{graphicx}
-\\usepackage{amsmath}
-
-\\title{${realTopic}}
-\\author{Drekee AI 1}
-\\date{\\today}
-
-\\begin{document}
-
-\\maketitle
-
-${latexCode}
-
-\\end{document}`;
-            }
-        } else if (type === 'slides' && template && design) {
-            // Se já tem documentclass mas tem template, substituir o conteúdo
-            console.log('🎨 Substituindo conteúdo com template:', template);
-            
-            // Extrair apenas os frames do LaTeX gerado (sem estrutura)
-            const frameMatches = latexCode.match(/\\begin\{frame\}[\s\S]*?\\end\{frame\}/g);
-            const framesOnly = frameMatches ? frameMatches.join('\n\n') : latexCode;
-            
-            // Carregar template e inserir os frames
-            latexCode = await this.loadDesignTemplate(template, realTopic, framesOnly);
-        }
-        
-        console.log('🔒 LaTeX gerado internamente (segredo):', latexCode.substring(0, 200) + '...');
-        console.log('🔍 Código LaTeX completo:', latexCode);
-        return latexCode;
-    }
-
-    async loadDesignTemplate(template, message, latexCode) {
-        console.log('🎨 Carregando template:', template, 'para:', message);
-        
-        try {
-            // Fazer fetch do arquivo de template
-            const response = await fetch(template);
-            if (!response.ok) {
-                throw new Error(`Template não encontrado: ${template}`);
-            }
-            
-            const templateContent = await response.text();
-            
-            // Substituir placeholders no template
-            let finalLatex = templateContent
-                .replace(/\\title\{[^}]+\}/g, `\\title{${message}}`)
-                .replace(/\\author\{[^}]+\}/g, '\\author{Drekee AI 1}')
-                .replace(/\\date\{[^}]+\}/g, '\\date{\\today}');
-            
-            console.log('🎨 Template antes:', templateContent.substring(0, 200) + '...');
-            console.log('🎨 Template após substituição:', finalLatex.substring(0, 200) + '...');
-            console.log('🎨 Parâmetro message:', message);
-            console.log('🎨 Parâmetro realTopic (deveria ser o mesmo):', this.realTopic || 'não definido');
-            
-            // Inserir o conteúdo gerado pela IA no lugar apropriado
-            // Procurar por onde inserir o conteúdo (geralmente após \begin{document})
-            const contentInsertPoint = finalLatex.indexOf('\\begin{document}');
-            if (contentInsertPoint > -1) {
-                const beforeContent = finalLatex.substring(0, contentInsertPoint + 16);
-                const afterContent = finalLatex.substring(contentInsertPoint + 16);
-                
-                // Remover frames existentes do template (manter só estrutura)
-                const cleanedAfter = afterContent.replace(/\\begin\{frame\}.*?\\end\{frame\}/gs, '');
-                
-                finalLatex = beforeContent + latexCode + cleanedAfter;
-            } else {
-                // Se não encontrar \begin{document}, apenas substituir o conteúdo
-                finalLatex = templateContent + '\n\n' + latexCode;
-            }
-            
-            console.log('✅ Template carregado com sucesso');
-            return finalLatex;
-            
-        } catch (error) {
-            console.error('❌ Erro ao carregar template:', error);
-            // Fallback para template padrão
-            return `\\documentclass{beamer}
+                latexCode = `\\documentclass{beamer}
 \\usetheme{Madrid}
 \\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
@@ -1109,13 +994,34 @@ ${latexCode}
 ${latexCode}
 
 \\end{document}`;
+            } else if (type === 'document') {
+                latexCode = `\\documentclass{article}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+
+\\title{${message}}
+\\author{Drekee AI 1}
+\\date{\\today}
+
+\\begin{document}
+
+\\maketitle
+
+${latexCode}
+
+\\end{document}`;
+            }
         }
+        
+        console.log('🔒 LaTeX gerado internamente (segredo):', latexCode.substring(0, 200) + '...');
+        console.log('🔍 Código LaTeX completo:', latexCode);
+        return latexCode;
     }
 
     async compileLatexToPDF(latexCode) {
         // Usar serviço de compilação LaTeX próprio
         console.log('🔧 Iniciando compilação LaTeX...');
-        console.log('📝 Código LaTeX sendo compilado:', latexCode.substring(0, 500) + '...');
         try {
             console.log('📡 Enviando requisição para /api/latex-compile...');
             const response = await fetch('/api/latex-compile', {
@@ -1140,7 +1046,6 @@ ${latexCode}
 
             const pdfBlob = await response.blob();
             console.log('✅ PDF blob criado com sucesso');
-            console.log('🔍 Tamanho do PDF:', pdfBlob.size, 'bytes');
             return {
                 blob: pdfBlob,
                 url: URL.createObjectURL(pdfBlob),
@@ -1452,41 +1357,12 @@ ${latexCode}
     displayCompiledContent(messageId, compiledData, type, originalMessage) {
         console.log('🎨 Iniciando displayCompiledContent para:', type, 'com ID:', messageId);
         
-        // Encontrar o elemento - tentar diferentes padrões de ID
+        // Encontrar o elemento usando o ID correto
         let messageElement = document.getElementById(`responseText_${messageId}`);
-        
-        // Se não encontrar, tentar encontrar thinking message
-        if (!messageElement && messageId.startsWith('thinking_')) {
-            const thinkingMessages = document.querySelectorAll('.thinking-message');
-            if (thinkingMessages.length > 0) {
-                // Remover thinking message e criar container para resultado
-                const lastThinking = thinkingMessages[thinkingMessages.length - 1];
-                lastThinking.remove();
-                
-                // Criar novo container para o resultado
-                const newContainer = this.createAssistantMessageContainer();
-                messageElement = document.getElementById(newContainer.responseId);
-                
-                // Adicionar ao DOM
-                const messagesContainer = document.getElementById('messagesContainer');
-                if (messagesContainer) {
-                    messagesContainer.appendChild(newContainer.container);
-                    this.scrollToBottom();
-                }
-            }
-        }
         
         if (!messageElement) {
             console.error('❌ Elemento de mensagem não encontrado para displayCompiledContent:', messageId);
-            // Criar novo container como fallback
-            const fallbackContainer = this.createAssistantMessageContainer();
-            messageElement = document.getElementById(fallbackContainer.responseId);
-            
-            const messagesContainer = document.getElementById('messagesContainer');
-            if (messagesContainer) {
-                messagesContainer.appendChild(fallbackContainer.container);
-                this.scrollToBottom();
-            }
+            return;
         }
 
         const typeName = this.getCreateTypeName();
@@ -1742,32 +1618,18 @@ ${latexCode}
         messageDiv.className = 'mb-6 flex justify-start animate-slideIn thinking-message';
         messageDiv.innerHTML = `
             <div class="w-full max-w-[85%] bg-surface-light dark:bg-surface-dark rounded-2xl px-5 py-4 shadow-soft border border-gray-100 dark:border-gray-700">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                     <div class="flex gap-1">
-                        <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0s"></div>
-                        <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                        <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
                     </div>
-                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">${text}</span>
+                    <span class="text-sm font-medium">${text}</span>
                 </div>
             </div>
         `;
         this.elements.messagesContainer.appendChild(messageDiv);
         this.scrollToBottom();
-        
-        // Retornar ID único para poder atualizar depois
-        return 'thinking_' + Date.now();
-    }
-
-    addProcessingMessage(text) {
-        return this.showThinkingMessage(text);
-    }
-
-    updateProcessingMessage(messageId, text) {
-        const thinkingMsg = this.elements.messagesContainer.querySelector('.thinking-message');
-        if (thinkingMsg) {
-            thinkingMsg.remove();
-        }
     }
 
     removeLastThinkingMessage() {
@@ -2731,6 +2593,201 @@ console.log('- session.clear() → Remove API Key Groq');
         console.warn('Debug system não carregado:', error);
     }
 })();
+
+// Função global para seleção de design
+window.selectDesign = async (designType, message, processingId, messageId) => {
+    console.log('🎨 Design selecionado:', designType, 'para:', message);
+    
+    // Mapeamento de designs para templates LaTeX
+    const designTemplates = {
+        'sapientia': {
+            name: 'Sapientia',
+            template: `\\documentclass[10pt]{beamer}
+\\usetheme{Madrid}
+\\usecolortheme{default}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
+\\usepackage{amsmath}
+\\usepackage{amsfonts}
+\\usepackage{amssymb}
+\\usepackage{tikz}
+\\usepackage{pgfplots}
+\\pgfplotsset{compat=1.18}
+
+\\title{${message}}
+\\subtitle{Apresentação Profissional}
+\\author{Drekee AI 1}
+\\date{\\today}
+
+\\begin{document}
+
+\\frame{\\titlepage}
+
+\\begin{frame}{Sumário}
+\\tableofcontents
+\\end{frame}`,
+            reference: 'img/ex1.tex'
+        },
+        'slate-gold': {
+            name: 'Slate & Gold Executive',
+            template: `\\documentclass[10pt]{beamer}
+\\usetheme{Berkeley}
+\\usecolortheme{whale}
+\\useinnertheme{rounded}
+
+\\definecolor{DeepSlate}{RGB}{37, 45, 51}
+\\definecolor{GoldAccent}{RGB}{191, 161, 98}
+
+\\setbeamercolor{palette primary}{bg=DeepSlate, fg=white}
+\\setbeamercolor{palette secondary}{bg=DeepSlate!90, fg=white}
+\\setbeamercolor{sidebar}{bg=DeepSlate}
+\\setbeamercolor{title}{fg=DeepSlate, bg=GoldAccent!20}
+\\setbeamercolor{frametitle}{fg=DeepSlate, bg=white}
+\\setbeamercolor{structure}{fg=DeepSlate}
+\\setbeamercolor{section in sidebar}{fg=GoldAccent}
+\\setbeamercolor{block title}{bg=DeepSlate, fg=white}
+\\setbeamercolor{block body}{bg=DeepSlate!5, fg=black}
+
+\\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
+\\usepackage{amsmath}
+\\usepackage{tikz}
+\\usepackage{pgfplots}
+\\pgfplotsset{compat=1.18}
+
+\\setbeamertemplate{navigation symbols}{}
+
+\\title{${message}}
+\\subtitle{Apresentação Corporativa}
+\\author{Drekee AI 1}
+\\date{\\today}
+
+\\begin{document}
+
+\\begin{frame}[plain]
+\\titlepage
+\\end{frame}
+
+\\section*{Início}
+\\begin{frame}{Plano de Voo}
+\\tableofcontents
+\\end{frame}`,
+            reference: 'tex/ex2.tex'
+        },
+        'aura-neo': {
+            name: 'Aura Neo-Tech',
+            template: `\\documentclass[aspectratio=169]{beamer}
+\\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
+\\usepackage{amsmath, amsfonts, amssymb}
+\\usepackage{tikz}
+\\usepackage{pgfplots}
+\\pgfplotsset{compat=1.18}
+
+\\definecolor{DeepBlack}{HTML}{0B0E14}
+\\definecolor{AccentCyan}{HTML}{00F2FF}
+\\definecolor{MutedGray}{HTML}{2D3436}
+\\definecolor{TextWhite}{HTML}{F0F0F0}
+\\definecolor{SoftRed}{HTML}{FF4757}
+
+\\setbeamercolor{background canvas}{bg=DeepBlack}
+\\setbeamercolor{normal text}{fg=TextWhite}
+\\setbeamercolor{frametitle}{fg=AccentCyan}
+\\setbeamercolor{title}{fg=AccentCyan}
+\\setbeamercolor{section in toc}{fg=TextWhite}
+\\setbeamercolor{block title}{fg=DeepBlack, bg=AccentCyan}
+\\setbeamercolor{block body}{fg=TextWhite, bg=MutedGray}
+\\setbeamercolor{item}{fg=AccentCyan}
+
+\\setbeamertemplate{navigation symbols}{}
+
+\\setbeamertemplate{frametitle}{
+\\vspace{0.3cm}
+\\begin{minipage}{0.9\\textwidth}
+\\flushleft
+\\insertframetitle \\\\
+\\tikz \\draw[AccentCyan, line width=1pt] (0,0) -- (2,0);
+\\end{minipage}
+}
+
+\\setbeamertemplate{footline}{
+\\hfill
+\\tikz \\node[TextWhite, opacity=0.3] at (0,0) {\\small \\insertframenumber / \\inserttotalframenumber};
+\\hspace{0.5cm} \\vspace{0.3cm}
+}
+
+\\title{${message}}
+\\subtitle{Apresentação Futurista}
+\\author{Drekee AI 1}
+\\date{\\today}
+
+\\begin{document}
+
+{
+\\setbeamertemplate{footline}{}
+\\begin{frame}
+\\centering
+\\begin{tikzpicture}[remember picture, overlay]
+\\fill[MutedGray] (current page.north west) rectangle ([xshift=0.5cm]current page.south west);
+\\draw[AccentCyan, line width=2pt] ([xshift=0.6cm]current page.north west) -- ([xshift=0.6cm]current page.south west);
+\\end{tikzpicture}
+
+{\\Huge \\textbf{\\inserttitle}} \\\\
+\\vspace{0.2cm}
+{\\large \\color{AccentCyan} \\insertsubtitle} \\\\
+\\vspace{1.5cm}
+\\textbf{\\insertauthor} \\\\
+\\textit{\\small \\insertinstitute} \\\\
+\\vspace{0.5cm}
+\\small \\insertdate
+\\end{frame}
+}
+
+\\begin{frame}{Sumário}
+\\tableofcontents
+\\end{frame}`,
+            reference: 'tex/ex3.tex'
+        }
+    };
+    
+    const selectedDesign = designTemplates[designType];
+    if (!selectedDesign) {
+        console.error('❌ Design não encontrado:', designType);
+        return;
+    }
+    
+    // Atualizar mensagem para mostrar processamento
+    const ui = window.ui || window.agent?.ui;
+    if (ui) {
+        ui.updateProcessingMessage(messageId, `Gerando apresentação com design "${selectedDesign.name}"...`);
+    }
+    
+    try {
+        // Gerar conteúdo LaTeX com o template selecionado
+        const latexCode = await ui.generateLatexContent(message, 'slides', selectedDesign.template);
+        const compiledData = await ui.compileLatexToPDF(latexCode);
+        ui.displayCompiledContent(messageId, compiledData, 'slides', message);
+        
+        console.log('✅ Apresentação gerada com sucesso!');
+        
+    } catch (error) {
+        console.error('❌ Erro ao gerar apresentação:', error);
+        if (ui) {
+            ui.updateProcessingMessage(messageId, `❌ Erro ao gerar apresentação: ${error.message}`);
+        }
+    }
+    
+    // Resetar tipo de criação
+    if (ui) {
+        ui.currentCreateType = null;
+        ui.resetCreateButton();
+    }
+};
 
 // Função global para download de conteúdo gerado
 window.downloadGeneratedContent = (url, filename) => {
