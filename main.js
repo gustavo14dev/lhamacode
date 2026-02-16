@@ -735,8 +735,8 @@ class UI {
                     <!-- Grid 3x3 de Designs -->
                     <div class="grid grid-cols-3 gap-4 mb-6">
                         <!-- Botão 1: Sapientia -->
-                        <button onclick="window.selectDesign('sapientia', '${message.replace(/['"\\]/g, '\\$&')}', ${processingId}, ${messageId})" 
-                                class="group bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-green-400 dark:hover:border-green-400 transition-all hover:shadow-lg cursor-pointer">
+                        <button data-design="sapientia" data-message="${message.replace(/['"\\]/g, '\\$&')}" data-processing-id="${processingId}" data-message-id="${messageId}"
+                                class="design-button group bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-green-400 dark:hover:border-green-400 transition-all hover:shadow-lg cursor-pointer">
                             <div class="aspect-video bg-gray-100 dark:bg-gray-700 rounded mb-3 flex items-center justify-center">
                                 <img src="img/ex1.png" alt="Sapientia" class="w-full h-full object-cover rounded" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                 <div class="hidden items-center justify-center w-full h-full text-gray-400">
@@ -748,8 +748,8 @@ class UI {
                         </button>
                         
                         <!-- Botão 2: Slate & Gold Executive -->
-                        <button onclick="window.selectDesign('slate-gold', '${message.replace(/['"\\]/g, '\\$&')}', ${processingId}, ${messageId})" 
-                                class="group bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-green-400 dark:hover:border-green-400 transition-all hover:shadow-lg cursor-pointer">
+                        <button data-design="slate-gold" data-message="${message.replace(/['"\\]/g, '\\$&')}" data-processing-id="${processingId}" data-message-id="${messageId}"
+                                class="design-button group bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-green-400 dark:hover:border-green-400 transition-all hover:shadow-lg cursor-pointer">
                             <div class="aspect-video bg-gray-100 dark:bg-gray-700 rounded mb-3 flex items-center justify-center">
                                 <img src="img/ex2.png" alt="Slate & Gold Executive" class="w-full h-full object-cover rounded" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                 <div class="hidden items-center justify-center w-full h-full text-gray-400">
@@ -761,8 +761,8 @@ class UI {
                         </button>
                         
                         <!-- Botão 3: Aura Neo-Tech -->
-                        <button onclick="window.selectDesign('aura-neo', '${message.replace(/['"\\]/g, '\\$&')}', ${processingId}, ${messageId})" 
-                                class="group bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-green-400 dark:hover:border-green-400 transition-all hover:shadow-lg cursor-pointer">
+                        <button data-design="aura-neo" data-message="${message.replace(/['"\\]/g, '\\$&')}" data-processing-id="${processingId}" data-message-id="${messageId}"
+                                class="design-button group bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-green-400 dark:hover:border-green-400 transition-all hover:shadow-lg cursor-pointer">
                             <div class="aspect-video bg-gray-100 dark:bg-gray-700 rounded mb-3 flex items-center justify-center">
                                 <img src="img/ex3.png" alt="Aura Neo-Tech" class="w-full h-full object-cover rounded" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                 <div class="hidden items-center justify-center w-full h-full text-gray-400">
@@ -800,6 +800,20 @@ class UI {
                     </div>
                 </div>
             `;
+            
+            // Adicionar event listeners aos botões
+            const designButtons = messageElement.querySelectorAll('.design-button');
+            designButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const designType = e.currentTarget.dataset.design;
+                    const messageData = e.currentTarget.dataset.message;
+                    const processingId = e.currentTarget.dataset.processingId;
+                    const messageId = e.currentTarget.dataset.messageId;
+                    
+                    // Chamar função global com os dados
+                    window.selectDesign(designType, messageData, parseInt(processingId), parseInt(messageId));
+                });
+            });
         }
         
         this.scrollToBottom();

@@ -1,0 +1,178 @@
+\documentclass[10pt, aspectratio=169]{beamer}
+
+% --- Pacotes de Design e Tipografia ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, shadows}
+\usepackage{anyfontsize}
+\usepackage{tcolorbox}
+
+% --- Paleta de Cores "Vanguardista" ---
+\definecolor{BgPaper}{HTML}{F5F5F0}
+\definecolor{BauhausRed}{HTML}{E63946}
+\definecolor{DeepSlate}{HTML}{1D3557}
+\definecolor{GoldAccent}{HTML}{A89672}
+
+% --- Configurações Básicas ---
+\setbeamercolor{background canvas}{bg=BgPaper}
+\setbeamercolor{normal text}{fg=DeepSlate}
+\setbeamertemplate{navigation symbols}{}
+
+% --- Template de Título ---
+\setbeamertemplate{frametitle}{
+    \vspace{0.4cm}
+    \begin{tikzpicture}[remember picture, overlay]
+        \fill[GoldAccent, opacity=0.2] (2, 0.5) circle (1.2cm);
+        \node[anchor=west] at (0.5, 0) {
+            \fontsize{22}{26}\selectfont \textbf{\textcolor{DeepSlate}{\insertframetitle}}
+        };
+        \fill[BauhausRed] (0.5, -0.6) rectangle (2.5, -0.7);
+    \end{tikzpicture}
+    \vspace{0.8cm}
+}
+
+% --- Capa ---
+\setbeamertemplate{title page}{
+    \begin{tikzpicture}[remember picture, overlay]
+        \fill[DeepSlate] ([xshift=-6cm]current page.north east) rectangle (current page.south east);
+        \fill[BauhausRed] ([xshift=-6cm, yshift=2cm]current page.center) circle (1.5cm);
+        \node[anchor=west, text width=7cm] at ([xshift=1.5cm, yshift=1cm]current page.west) {
+            {\fontsize{35}{40}\selectfont \textbf{\inserttitle}} \\[0.5cm]
+            {\large \textcolor{GoldAccent}{\insertsubtitle}}
+        };
+        \node[anchor=west, text white] at ([xshift=-5.5cm, yshift=-3cm]current page.north east) {
+            \begin{minipage}{5cm}
+                \textcolor{white}{\textbf{\insertauthor}} \\
+                \textcolor{BgPaper!70}{\footnotesize \insertinstitute} \\
+                \vspace{0.2cm}
+                \tikz \draw[white, thin] (0,0) -- (2,0);
+            \end{minipage}
+        };
+    \end{tikzpicture}
+}
+
+\begin{document}
+
+\title{DISRUPÇÃO}
+\subtitle{Design Além do Óbvio}
+\author{Seu Nome Aqui}
+\institute{Laboratório de Inovação}
+
+% Slide 1 - Capa
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% Slide 2
+\begin{frame}{O Conceito Bauhaus}
+\begin{columns}
+\column{0.5\textwidth}
+\textbf{Menos é Mais?} \\
+Não. O design aqui fala sobre \textbf{controle visual e hierarquia}.  
+Cada elemento possui peso, função e silêncio.
+
+\vspace{0.4cm}
+Nada está aqui por acaso.
+\column{0.5\textwidth}
+\begin{tcolorbox}[colback=BauhausRed, colframe=BauhausRed, arc=0pt, boxrule=0pt]
+\textcolor{white}{Design não é estética. É decisão visual.}
+\end{tcolorbox}
+\end{columns}
+\end{frame}
+
+% Slide 3
+\begin{frame}{Forma Antes da Função}
+O olhar humano responde primeiro à forma, depois ao conteúdo.
+
+\vspace{0.4cm}
+\begin{itemize}
+\item[\color{BauhausRed}\tiny$\blacksquare$] Geometria orienta leitura
+\item[\color{BauhausRed}\tiny$\blacksquare$] Cores criam tensão
+\item[\color{BauhausRed}\tiny$\blacksquare$] Espaço comunica intenção
+\end{itemize}
+\end{frame}
+
+% Slide 4
+\begin{frame}{Design é Ritmo}
+Texto, vazio, forma.  
+Texto, vazio, forma.
+
+\vspace{0.6cm}
+\textit{O ritmo visual define a experiência antes da mensagem.}
+\end{frame}
+
+% Slide 5
+\begin{frame}{Equações como Arte}
+\vspace{1cm}
+\begin{center}
+{\fontsize{30}{35}\selectfont
+\[
+\oint_C \mathbf{B} \cdot d\mathbf{l} = \mu_0 I_{enc}
+\]
+}
+\vspace{0.5cm}
+\tikz \draw[GoldAccent, line width=3pt] (0,0) -- (1,0);\\
+\small Informação também pode ser bela.
+\end{center}
+\end{frame}
+
+% Slide 6
+\begin{frame}{Tipografia como Arquitetura}
+Cada fonte cria uma estrutura invisível.
+
+\vspace{0.4cm}
+\begin{itemize}
+\item Peso define autoridade
+\item Espaçamento cria conforto
+\item Tamanho define prioridade
+\end{itemize}
+\end{frame}
+
+% Slide 7
+\begin{frame}{Cores Não Decoram}
+Cores \textbf{direcionam decisões}.
+
+\vspace{0.5cm}
+\begin{tcolorbox}[colback=GoldAccent!30, colframe=GoldAccent, arc=0pt, boxrule=0pt]
+Contraste é narrativa visual.
+\end{tcolorbox}
+\end{frame}
+
+% Slide 8
+\begin{frame}{Assimetria Controlada}
+A quebra do padrão chama atenção.
+
+\vspace{0.4cm}
+Assimetria gera dinamismo sem caos — quando bem calculada.
+\end{frame}
+
+% Slide 9
+\begin{frame}{Design é Estratégia}
+Não existe design neutro.
+
+\vspace{0.5cm}
+Tudo influencia:
+\begin{itemize}
+\item Decisão
+\item Emoção
+\item Comportamento
+\end{itemize}
+\end{frame}
+
+% Slide 10 - Encerramento
+\begin{frame}[plain]
+\begin{tikzpicture}[remember picture, overlay]
+\fill[BauhausRed] (current page.south west) rectangle (current page.north east);
+\node at (current page.center) {
+\begin{minipage}{\textwidth}
+\centering
+\fontsize{50}{60}\selectfont \textbf{\textcolor{white}{OBRIGADO.}}\\
+\vspace{0.5cm}
+\large \textcolor{DeepSlate}{Vamos conversar?}
+\end{minipage}
+};
+\end{tikzpicture}
+\end{frame}
+
+\end{document}
