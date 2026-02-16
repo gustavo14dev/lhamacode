@@ -1227,10 +1227,19 @@ ${latexCode}
                 <div class="mb-4">
                     <iframe 
                         src="${compiledData.url}" 
-                        style="width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 8px; background: white;"
+                        style="width: 100%; height: 600px; border: 1px solid #ddd; border-radius: 8px; background: white;"
                         onload="console.log('✅ Iframe carregado com sucesso'); this.style.opacity='1'"
                         onerror="console.error('❌ Erro ao carregar iframe'); this.parentElement.innerHTML='<div class=\\'text-center p-8 text-red-500\\'>❌ Erro ao carregar visualização. Use o botão de download.</div>'">
                     </iframe>
+                    
+                    <!-- DEBUG: Mostrar URL e informações -->
+                    <div style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 4px; font-size: 12px;">
+                        <strong>DEBUG:</strong><br>
+                        URL: ${compiledData.url}<br>
+                        Filename: ${compiledData.filename}<br>
+                        Is Simulated: ${compiledData.isSimulated}<br>
+                        Type: ${type}
+                    </div>
                 </div>
                 
                 <div class="flex gap-2">
