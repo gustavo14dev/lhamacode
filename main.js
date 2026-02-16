@@ -677,22 +677,39 @@ class UI {
     }
 
     async handleCreateRequest(message) {
-        const processingId = Date.now();
-        
-        // Se for slides, mostrar card de escolha de design primeiro
-        if (this.currentCreateType === 'slides') {
-            this.showDesignSelectionCard(processingId, message);
-            return;
+        if (!this.isTransitioned) {
+            this.createNewChat();
+            await this.sleep(300);
         }
+
+        if (!this.currentChatId) {
+            this.createNewChat();
+        }
+
+        // Adicionar mensagem do usuário ao chat
+        this.addUserMessage(message);
         
-        // Para outros tipos (document, table), processa normalmente
-        this.updateProcessingMessage(processingId, `Gerando ${this.getCreateTypeName()}...`);
+        // Mostrar mensagem de processamento E OBTER O ID CORRETO
+        const processingId = this.addAssistantMessage('Gerando conteúdo...');
+        
+        // Aguardar um pouco para o DOM ser atualizado
+        await this.sleep(100);
+        
+        // Atualizar mensagem para mostrar processamento LaTeX
+        this.updateProcessingMessage(processingId, 'Gerando conteúdo...');
         
         try {
+            // Gerar código LaTeX internamente (NUNCA MOSTRAR PARA O USUÁRIO)
+            console.log('🚀 Iniciando geração LaTeX para:', this.currentCreateType, '-', message);
             const latexCode = await this.generateLatexContent(message, this.currentCreateType);
-            const compiledData = await this.compileLatexToPDF(latexCode);
-            this.displayCompiledContent(processingId, compiledData, this.currentCreateType, message);
+            console.log('✅ LaTeX gerado, iniciando compilação...');
             
+            // Compilar LaTeX para PDF (usando serviço online)
+            const compiledData = await this.compileLatexToPDF(latexCode);
+            console.log('✅ Compilação concluída, exibindo resultado...');
+            
+            // Mostrar resultado visual para o usuário
+            this.displayCompiledContent(processingId, compiledData, this.currentCreateType, message);
             console.log('✅ Processo concluído com sucesso!');
             
         } catch (error) {
@@ -706,241 +723,7 @@ class UI {
         this.resetCreateButton();
     }
 
-    showDesignSelectionCard(processingId, message) {
-        // Adicionar mensagem do usuário ao chat
-        this.addUserMessage(message);
-        
-        // Criar mensagem de seleção de design
-        const messageId = this.addAssistantMessage('');
-        
-        // Encontrar o elemento da mensagem
-        let messageElement = document.getElementById(`responseText_${messageId}`);
-        if (!messageElement) {
-            const allMessages = document.querySelectorAll('[id^="responseText_"]');
-            if (allMessages.length > 0) {
-                messageElement = allMessages[allMessages.length - 1];
-            }
-        }
-        
-        if (messageElement) {
-            messageElement.innerHTML = `
-                <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-                    <div class="flex items-center gap-3 mb-4">
-                        <span class="material-icons-outlined text-2xl text-green-400">slideshow</span>
-                        <h3 class="font-semibold text-gray-800 dark:text-gray-200 text-lg">Escolha o Design da Apresentação</h3>
-                    </div>
-                    
-                    <p class="text-gray-600 dark:text-gray-400 mb-6">Selecione um estilo visual para sua apresentação sobre "${message}":</p>
-                    
-                    <!-- Grid 3x3 de Designs -->
-                    <div class="grid grid-cols-3 gap-4 mb-6">
-                        <!-- Botão 1: Sapientia -->
-                        <button data-design="sapientia" data-message="${message.replace(/['"\\]/g, '\\$&')}" data-processing-id="${processingId}" data-message-id="${messageId}"
-                                class="design-button group bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-green-400 dark:hover:border-green-400 transition-all hover:shadow-lg cursor-pointer">
-                            <div class="aspect-video bg-gray-100 dark:bg-gray-700 rounded mb-3 flex items-center justify-center">
-                                <img src="img/ex1.png" alt="Sapientia" class="w-full h-full object-cover rounded" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                <div class="hidden items-center justify-center w-full h-full text-gray-400">
-                                    <span class="material-icons-outlined">slideshow</span>
-                                </div>
-                            </div>
-                            <h4 class="font-semibold text-gray-800 dark:text-gray-200 text-sm">Sapientia</h4>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Clássico Acadêmico</p>
-                        </button>
-                        
-                        <!-- Botão 2: Slate & Gold Executive -->
-                        <button data-design="slate-gold" data-message="${message.replace(/['"\\]/g, '\\$&')}" data-processing-id="${processingId}" data-message-id="${messageId}"
-                                class="design-button group bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-green-400 dark:hover:border-green-400 transition-all hover:shadow-lg cursor-pointer">
-                            <div class="aspect-video bg-gray-100 dark:bg-gray-700 rounded mb-3 flex items-center justify-center">
-                                <img src="img/ex2.png" alt="Slate & Gold Executive" class="w-full h-full object-cover rounded" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                <div class="hidden items-center justify-center w-full h-full text-gray-400">
-                                    <span class="material-icons-outlined">business</span>
-                                </div>
-                            </div>
-                            <h4 class="font-semibold text-gray-800 dark:text-gray-200 text-sm">Slate & Gold Executive</h4>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Profissional Corporativo</p>
-                        </button>
-                        
-                        <!-- Botão 3: Aura Neo-Tech -->
-                        <button data-design="aura-neo" data-message="${message.replace(/['"\\]/g, '\\$&')}" data-processing-id="${processingId}" data-message-id="${messageId}"
-                                class="design-button group bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-green-400 dark:hover:border-green-400 transition-all hover:shadow-lg cursor-pointer">
-                            <div class="aspect-video bg-gray-100 dark:bg-gray-700 rounded mb-3 flex items-center justify-center">
-                                <img src="img/ex3.png" alt="Aura Neo-Tech" class="w-full h-full object-cover rounded" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                <div class="hidden items-center justify-center w-full h-full text-gray-400">
-                                    <span class="material-icons-outlined">rocket_launch</span>
-                                </div>
-                            </div>
-                            <h4 class="font-semibold text-gray-800 dark:text-gray-200 text-sm">Aura Neo-Tech</h4>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Futurista Dark Mode</p>
-                        </button>
-                        
-                        <!-- Espaços vazios para completar 3x3 -->
-                        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-center text-gray-400">
-                            <span class="text-sm">Em breve...</span>
-                        </div>
-                        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-center text-gray-400">
-                            <span class="text-sm">Em breve...</span>
-                        </div>
-                        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-center text-gray-400">
-                            <span class="text-sm">Em breve...</span>
-                        </div>
-                        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-center text-gray-400">
-                            <span class="text-sm">Em breve...</span>
-                        </div>
-                        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-center text-gray-400">
-                            <span class="text-sm">Em breve...</span>
-                        </div>
-                        <div class="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-center text-gray-400">
-                            <span class="text-sm">Em breve...</span>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                        <span class="material-icons-outlined text-base">info</span>
-                        <span>Escolha um design para continuar. A apresentação será gerada com o estilo selecionado.</span>
-                    </div>
-                </div>
-            `;
-            
-            // Adicionar event listeners aos botões
-            const designButtons = messageElement.querySelectorAll('.design-button');
-            console.log('🎯 Botões encontrados:', designButtons.length);
-            console.log('🎯 Message element:', messageElement);
-            
-            designButtons.forEach((button, index) => {
-                console.log(`🎯 Botão ${index}:`, {
-                    design: button.dataset.design,
-                    message: button.dataset.message,
-                    processingId: button.dataset.processingId,
-                    messageId: button.dataset.messageId
-                });
-                
-                button.addEventListener('click', (e) => {
-                    console.log('🎯 Click no botão!', e.currentTarget);
-                    
-                    const designType = e.currentTarget.dataset.design;
-                    const messageData = e.currentTarget.dataset.message;
-                    const processingId = e.currentTarget.dataset.processingId;
-                    const messageId = e.currentTarget.dataset.messageId;
-                    
-                    console.log('🎯 Dados do clique:', { designType, messageData, processingId, messageId });
-                    
-                    // Chamar função global com os dados
-                    window.selectDesign(designType, messageData, parseInt(processingId), parseInt(messageId));
-                });
-            });
-        }
-        
-        this.scrollToBottom();
-    }
-
-    async generateLatexContent(message, type, customTemplate = null) {
-        // Se houver template customizado, usar como base
-        if (customTemplate && type === 'slides') {
-            const systemPrompt = {
-                role: 'system',
-                content: `Você é um especialista acadêmico e profissional em LaTeX. 
-
-IMPORTANTE: Você recebeu um template LaTeX completo e deve APENAS continuar gerando o conteúdo dos slides. NÃO modifique o template inicial, NÃO substitua o tema, NÃO mude as cores ou configurações.
-
-TEMPLATE RECEBIDO:
-${customTemplate}
-
-SUA TAREFA:
-1. Continue a partir do template acima
-2. Gere slides de conteúdo sobre: "${message}"
-3. Mantenha EXATAMENTE o design, tema, cores e configurações do template
-4. Adicione slides de conteúdo APÓS o template existente
-5. Termine com \\end{document}
-
-REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
-- NÃO modifique NADA do template inicial
-- NÃO mude o tema, cores ou configurações
-- APENAS adicione slides de conteúdo
-- GERE APENAS O CÓDIGO LATEX CONTINUADO, SEM NENHUM TEXTO ADICIONAL
-- Use a mesma estrutura do template
-- Termine com \\end{document}
-
-ESTRUTURA OBRIGATÓRIA - ADICIONE APENAS ESTES SLIDES:
-\\section{Introdução}
-\\begin{frame}{O que é ${message}}
-[3-4 parágrafos corridos explicando o conceito]
-\\end{frame}
-
-\\section{Conceitos Fundamentais}
-\\begin{frame}{Principais Conceitos}
-[lista com 5-7 conceitos importantes]
-\\end{frame}
-
-\\begin{frame}{Características}
-[lista com 4-6 características principais]
-\\end{frame}
-
-\\section{Aplicações}
-\\begin{frame}{Aplicações Práticas}
-[lista com 5-7 aplicações reais]
-\\end{frame}
-
-\\begin{frame}{Exemplos de Uso}
-[3-4 exemplos detalhados]
-\\end{frame}
-
-\\section{Benefícios e Desafios}
-\\begin{frame}{Benefícios}
-[lista com 4-6 benefícios]
-\\end{frame}
-
-\\begin{frame}{Desafios}
-[lista com 3-5 desafios]
-\\end{frame}
-
-\\section{Conclusão}
-\\begin{frame}{Conclusão}
-[2-3 parágrafos de conclusão]
-\\end{frame}
-
-\\begin{frame}[plain]
-\\begin{center}
-{\\Huge Obrigado!}
-
-\\vspace{1em}
-
-{\\Large Perguntas?}
-\\end{center}
-\\end{frame}
-
-\\end{document}
-
-OBRIGATÓRIO - SLIDE "O que é":
-- Deve ter 3-4 parágrafos corridos explicando o conceito
-- Definição clara e detalhada
-- Contexto histórico se aplicável
-- Importância e relevância do tema
-- NÃO use bullets neste slide - apenas texto corrido
-- Seja didático e completo
-
-IMPORTANTE: Mantenha EXATAMENTE o design do template. RETORNE APENAS O CÓDIGO LATEX CONTINUADO!`
-            };
-
-            const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [systemPrompt, { role: 'user', content: message }]);
-            
-            // Limpar resposta para obter apenas o código LaTeX
-            let latexCode = response.trim();
-            
-            // Remover marcadores de código se existirem
-            latexCode = latexCode.replace(/```latex/gi, '').replace(/```/g, '');
-            
-            // Combinar template com o conteúdo gerado
-            const fullLatexCode = customTemplate + '\n' + latexCode;
-            
-            // Garantir que termine com \end{document}
-            if (!fullLatexCode.includes('\\end{document}')) {
-                return fullLatexCode + '\n\\end{document}';
-            }
-            
-            console.log('🔒 LaTeX gerado com template customizado:', fullLatexCode.substring(0, 200) + '...');
-            return fullLatexCode;
-        }
-        
+    async generateLatexContent(message, type) {
         // Prompt interno para gerar LaTeX - ISSO FICA SECRETO
         const systemPrompt = {
             role: 'system',
@@ -1420,105 +1203,50 @@ ${latexCode}
         // Encontrar o elemento usando o ID correto
         let messageElement = document.getElementById(`responseText_${messageId}`);
         
-        // Se não encontrar, tentar encontrar o último elemento de mensagem
         if (!messageElement) {
-            console.log('🔍 Elemento não encontrado por ID, buscando último...');
-            const allMessages = document.querySelectorAll('[id^="responseText_"]');
-            if (allMessages.length > 0) {
-                messageElement = allMessages[allMessages.length - 1];
-                console.log('🔍 Último elemento encontrado:', messageElement.id);
-            }
-        }
-        
-        // Se ainda não encontrar, criar um novo elemento
-        if (!messageElement) {
-            console.log('🔍 Criando novo elemento de mensagem...');
-            const messagesContainer = document.getElementById('messagesContainer');
-            if (messagesContainer) {
-                const newMessageDiv = document.createElement('div');
-                newMessageDiv.id = `responseText_${messageId}`;
-                newMessageDiv.className = 'message mb-4';
-                newMessageDiv.innerHTML = `
-                    <div class="flex items-start gap-3">
-                        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center">
-                            <span class="material-icons-outlined text-white text-sm">smart_toy</span>
-                        </div>
-                        <div class="flex-1">
-                            <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                                <div class="flex items-center gap-2 mb-3">
-                                    <span class="material-icons-outlined text-${type === 'slides' ? 'green' : type === 'document' ? 'blue' : 'purple'}-400">
-                                        ${type === 'slides' ? 'slideshow' : type === 'document' ? 'description' : 'table_chart'}
-                                    </span>
-                                    <h3 class="font-semibold text-gray-800 dark:text-gray-200">${this.getCreateTypeName()} gerado com sucesso!</h3>
-                                </div>
-                                
-                                <div class="mb-4">
-                                    <iframe 
-                                        src="${compiledData.url}" 
-                                        style="width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 8px; background: white;"
-                                        onload="console.log('✅ Iframe carregado com sucesso'); this.style.opacity='1'"
-                                        onerror="console.error('❌ Erro ao carregar iframe'); this.parentElement.innerHTML='<div class=\\'text-center p-8 text-red-500\\'>❌ Erro ao carregar visualização. Use o botão de download.</div>'">
-                                    </iframe>
-                                </div>
-                                
-                                <div class="flex gap-2">
-                                    <button onclick="window.downloadGeneratedContent('${compiledData.url}', '${compiledData.filename}')" 
-                                            class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
-                                        <span class="material-icons-outlined text-sm">download</span>
-                                        Baixar ${this.getCreateTypeName()}
-                                    </button>
-                                    ${compiledData.isSimulated ? `
-                                        <span class="text-xs text-gray-500 italic">*Visualização simulada para demonstração</span>
-                                    ` : ''}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                messagesContainer.appendChild(newMessageDiv);
-                messageElement = newMessageDiv;
-            }
-        }
-        
-        if (messageElement) {
-            console.log('✅ Elemento encontrado para displayCompiledContent:', messageElement.id);
-            
-            messageElement.innerHTML = `
-                <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                    <div class="flex items-center gap-2 mb-3">
-                        <span class="material-icons-outlined text-${type === 'slides' ? 'green' : type === 'document' ? 'blue' : 'purple'}-400">
-                            ${type === 'slides' ? 'slideshow' : type === 'document' ? 'description' : 'table_chart'}
-                        </span>
-                        <h3 class="font-semibold text-gray-800 dark:text-gray-200">${this.getCreateTypeName()} gerado com sucesso!</h3>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <iframe 
-                            src="${compiledData.url}" 
-                            style="width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 8px; background: white;"
-                            onload="console.log('✅ Iframe carregado com sucesso'); this.style.opacity='1'"
-                            onerror="console.error('❌ Erro ao carregar iframe'); this.parentElement.innerHTML='<div class=\\'text-center p-8 text-red-500\\'>❌ Erro ao carregar visualização. Use o botão de download.</div>'">
-                        </iframe>
-                    </div>
-                    
-                    <div class="flex gap-2">
-                        <button onclick="window.downloadGeneratedContent('${compiledData.url}', '${compiledData.filename}')" 
-                                class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
-                            <span class="material-icons-outlined text-sm">download</span>
-                            Baixar ${this.getCreateTypeName()}
-                        </button>
-                        ${compiledData.isSimulated ? `
-                            <span class="text-xs text-gray-500 italic">*Visualização simulada para demonstração</span>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
-
-            console.log('✅ Conteúdo compilado exibido para:', this.getCreateTypeName());
-        } else {
             console.error('❌ Elemento de mensagem não encontrado para displayCompiledContent:', messageId);
-            console.error('❌ Todos os elementos responseText:', document.querySelectorAll('[id^="responseText_"]').length);
+            return;
         }
+
+        const typeName = this.getCreateTypeName();
+        console.log('📝 Exibindo conteúdo para:', typeName, 'URL:', compiledData.url);
+        
+        // FORÇAR ATUALIZAÇÃO COM VISIBILIDADE
+        messageElement.style.display = 'block';
+        messageElement.style.visibility = 'visible';
+        
+        messageElement.innerHTML = `
+            <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="material-icons-outlined text-${type === 'slides' ? 'green' : type === 'document' ? 'blue' : 'purple'}-400">
+                        ${type === 'slides' ? 'slideshow' : type === 'document' ? 'description' : 'table_chart'}
+                    </span>
+                    <h3 class="font-semibold text-gray-800 dark:text-gray-200">${typeName} gerado com sucesso!</h3>
+                </div>
+                
+                <div class="mb-4">
+                    <iframe 
+                        src="${compiledData.url}" 
+                        style="width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 8px; background: white;"
+                        onload="console.log('✅ Iframe carregado com sucesso'); this.style.opacity='1'"
+                        onerror="console.error('❌ Erro ao carregar iframe'); this.parentElement.innerHTML='<div class=\\'text-center p-8 text-red-500\\'>❌ Erro ao carregar visualização. Use o botão de download.</div>'">
+                    </iframe>
+                </div>
+                
+                <div class="flex gap-2">
+                    <button onclick="window.downloadGeneratedContent('${compiledData.url}', '${compiledData.filename}')" 
+                            class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                        <span class="material-icons-outlined text-sm">download</span>
+                        Baixar ${typeName}
+                    </button>
+                    ${compiledData.isSimulated ? `
+                        <span class="text-xs text-gray-500 italic">*Visualização simulada para demonstração</span>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+
+        console.log('✅ Conteúdo compilado exibido para:', typeName);
         this.scrollToBottom();
     }
 
@@ -2708,233 +2436,6 @@ console.log('- session.clear() → Remove API Key Groq');
         console.warn('Debug system não carregado:', error);
     }
 })();
-
-// Função global para seleção de design
-window.selectDesign = async (designType, message, processingId, messageId) => {
-    console.log('🎨 Design selecionado:', designType, 'para:', message);
-    console.log('🎯 IDs recebidos:', { processingId, messageId });
-    
-    // CORREÇÃO: Se messageId for NaN, usar o processingId
-    const finalMessageId = (messageId && !isNaN(messageId)) ? messageId : processingId;
-    console.log('🎯 ID final usado:', finalMessageId);
-    
-    // Extrair apenas o assunto do prompt - melhorado e mais robusto
-    let subject = message;
-    
-    // Tentar diferentes padrões de extração
-    const patterns = [
-        /^(gere|crie|faça|monte|produza)\s+(uma\s+)?(apresentação|slides?)\s+sobre\s+/i,
-        /^(apresentação|slides?)\s+sobre\s+/i,
-        /^sobre\s+/i
-    ];
-    
-    for (const pattern of patterns) {
-        const match = message.match(pattern);
-        if (match) {
-            subject = message.replace(pattern, '').trim();
-            break;
-        }
-    }
-    
-    // Limpar aspas e caracteres especiais do assunto
-    subject = subject.replace(/["'']/g, '').trim();
-    
-    console.log('🎯 Mensagem original:', message);
-    console.log('🎯 Assunto extraído:', subject);
-    console.log('🎯 Design selecionado:', designType);
-    
-    // Mapeamento de designs para templates LaTeX
-    const designTemplates = {
-        'sapientia': {
-            name: 'Sapientia',
-            template: `\\documentclass[10pt]{beamer}
-\\usetheme{Madrid}
-\\usecolortheme{default}
-\\usepackage[utf8]{inputenc}
-\\usepackage{graphicx}
-\\usepackage{booktabs}
-\\usepackage{amsmath}
-\\usepackage{amsfonts}
-\\usepackage{amssymb}
-\\usepackage{tikz}
-\\usepackage{pgfplots}
-\\pgfplotsset{compat=1.18}
-
-\\title{${subject}}
-\\subtitle{Apresentação Profissional}
-\\author{Drekee AI 1}
-\\date{\\today}
-
-\\begin{document}
-
-\\frame{\\titlepage}
-
-\\begin{frame}{Sumário}
-\\tableofcontents
-\\end{frame}`,
-            reference: 'img/ex1.tex'
-        },
-        'slate-gold': {
-            name: 'Slate & Gold Executive',
-            template: `\\documentclass[10pt]{beamer}
-\\usetheme{Berkeley}
-\\usecolortheme{whale}
-\\useinnertheme{rounded}
-
-\\definecolor{DeepSlate}{RGB}{37, 45, 51}
-\\definecolor{GoldAccent}{RGB}{191, 161, 98}
-
-\\setbeamercolor{palette primary}{bg=DeepSlate, fg=white}
-\\setbeamercolor{palette secondary}{bg=DeepSlate!90, fg=white}
-\\setbeamercolor{sidebar}{bg=DeepSlate}
-\\setbeamercolor{title}{fg=DeepSlate, bg=GoldAccent!20}
-\\setbeamercolor{frametitle}{fg=DeepSlate, bg=white}
-\\setbeamercolor{structure}{fg=DeepSlate}
-\\setbeamercolor{section in sidebar}{fg=GoldAccent}
-\\setbeamercolor{block title}{bg=DeepSlate, fg=white}
-\\setbeamercolor{block body}{bg=DeepSlate!5, fg=black}
-
-\\usepackage[utf8]{inputenc}
-\\usepackage[T1]{fontenc}
-\\usepackage{graphicx}
-\\usepackage{booktabs}
-\\usepackage{amsmath}
-\\usepackage{tikz}
-\\usepackage{pgfplots}
-\\pgfplotsset{compat=1.18}
-
-\\setbeamertemplate{navigation symbols}{}
-
-\\title{${subject}}
-\\subtitle{Apresentação Corporativa}
-\\author{Drekee AI 1}
-\\date{\\today}
-
-\\begin{document}
-
-\\begin{frame}[plain]
-\\titlepage
-\\end{frame}
-
-\\section*{Início}
-\\begin{frame}{Plano de Voo}
-\\tableofcontents
-\\end{frame}`,
-            reference: 'tex/ex2.tex'
-        },
-        'aura-neo': {
-            name: 'Aura Neo-Tech',
-            template: `\\documentclass[aspectratio=169]{beamer}
-\\usepackage[utf8]{inputenc}
-\\usepackage[T1]{fontenc}
-\\usepackage{graphicx}
-\\usepackage{booktabs}
-\\usepackage{amsmath, amsfonts, amssymb}
-\\usepackage{tikz}
-\\usepackage{pgfplots}
-\\pgfplotsset{compat=1.18}
-
-\\definecolor{DeepBlack}{HTML}{0B0E14}
-\\definecolor{AccentCyan}{HTML}{00F2FF}
-\\definecolor{MutedGray}{HTML}{2D3436}
-\\definecolor{TextWhite}{HTML}{F0F0F0}
-\\definecolor{SoftRed}{HTML}{FF4757}
-
-\\setbeamercolor{background canvas}{bg=DeepBlack}
-\\setbeamercolor{normal text}{fg=TextWhite}
-\\setbeamercolor{frametitle}{fg=AccentCyan}
-\\setbeamercolor{title}{fg=AccentCyan}
-\\setbeamercolor{section in toc}{fg=TextWhite}
-\\setbeamercolor{block title}{fg=DeepBlack, bg=AccentCyan}
-\\setbeamercolor{block body}{fg=TextWhite, bg=MutedGray}
-\\setbeamercolor{item}{fg=AccentCyan}
-
-\\setbeamertemplate{navigation symbols}{}
-
-\\setbeamertemplate{frametitle}{
-\\vspace{0.3cm}
-\\begin{minipage}{0.9\\textwidth}
-\\flushleft
-\\insertframetitle \\\\
-\\tikz \\draw[AccentCyan, line width=1pt] (0,0) -- (2,0);
-\\end{minipage}
-}
-
-\\setbeamertemplate{footline}{
-\\hfill
-\\tikz \\node[TextWhite, opacity=0.3] at (0,0) {\\small \\insertframenumber / \\inserttotalframenumber};
-\\hspace{0.5cm} \\vspace{0.3cm}
-}
-
-\\title{${subject}}
-\\subtitle{Apresentação Futurista}
-\\author{Drekee AI 1}
-\\date{\\today}
-
-\\begin{document}
-
-{
-\\setbeamertemplate{footline}{}
-\\begin{frame}
-\\centering
-\\begin{tikzpicture}[remember picture, overlay]
-\\fill[MutedGray] (current page.north west) rectangle ([xshift=0.5cm]current page.south west);
-\\draw[AccentCyan, line width=2pt] ([xshift=0.6cm]current page.north west) -- ([xshift=0.6cm]current page.south west);
-\\end{tikzpicture}
-
-{\\Huge \\textbf{\\inserttitle}} \\\\
-\\vspace{0.2cm}
-{\\large \\color{AccentCyan} \\insertsubtitle} \\\\
-\\vspace{1.5cm}
-\\textbf{\\insertauthor} \\\\
-\\textit{\\small \\insertinstitute} \\\\
-\\vspace{0.5cm}
-\\small \\insertdate
-\\end{frame}
-}
-
-\\begin{frame}{Sumário}
-\\tableofcontents
-\\end{frame}`,
-            reference: 'tex/ex3.tex'
-        }
-    };
-    
-    const selectedDesign = designTemplates[designType];
-    if (!selectedDesign) {
-        console.error('❌ Design não encontrado:', designType);
-        return;
-    }
-    
-    // Atualizar mensagem para mostrar processamento
-    const ui = window.ui || window.agent?.ui;
-    if (ui) {
-        ui.updateProcessingMessage(finalMessageId, `Gerando apresentação com design "${selectedDesign.name}"...`);
-    }
-    
-    try {
-        // Gerar conteúdo LaTeX com o template selecionado
-        const latexCode = await ui.generateLatexContent(subject, 'slides', selectedDesign.template);
-        const compiledData = await ui.compileLatexToPDF(latexCode);
-        
-        // Usar o ID correto (finalMessageId em vez de messageId)
-        ui.displayCompiledContent(finalMessageId, compiledData, 'slides', subject);
-        
-        console.log('✅ Apresentação gerada com sucesso!');
-        
-    } catch (error) {
-        console.error('❌ Erro ao gerar apresentação:', error);
-        if (ui) {
-            ui.updateProcessingMessage(finalMessageId, `❌ Erro ao gerar apresentação: ${error.message}`);
-        }
-    }
-    
-    // Resetar tipo de criação
-    if (ui) {
-        ui.currentCreateType = null;
-        ui.resetCreateButton();
-    }
-};
 
 // Função global para download de conteúdo gerado
 window.downloadGeneratedContent = (url, filename) => {
