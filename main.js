@@ -1388,50 +1388,105 @@ ${latexCode}
         // Encontrar o elemento usando o ID correto
         let messageElement = document.getElementById(`responseText_${messageId}`);
         
+        // Se não encontrar, tentar encontrar o último elemento de mensagem
         if (!messageElement) {
-            console.error('❌ Elemento de mensagem não encontrado para displayCompiledContent:', messageId);
-            return;
+            console.log('🔍 Elemento não encontrado por ID, buscando último...');
+            const allMessages = document.querySelectorAll('[id^="responseText_"]');
+            if (allMessages.length > 0) {
+                messageElement = allMessages[allMessages.length - 1];
+                console.log('🔍 Último elemento encontrado:', messageElement.id);
+            }
         }
-
-        const typeName = this.getCreateTypeName();
-        console.log('📝 Exibindo conteúdo para:', typeName, 'URL:', compiledData.url);
         
-        // FORÇAR ATUALIZAÇÃO COM VISIBILIDADE
-        messageElement.style.display = 'block';
-        messageElement.style.visibility = 'visible';
+        // Se ainda não encontrar, criar um novo elemento
+        if (!messageElement) {
+            console.log('🔍 Criando novo elemento de mensagem...');
+            const messagesContainer = document.getElementById('messagesContainer');
+            if (messagesContainer) {
+                const newMessageDiv = document.createElement('div');
+                newMessageDiv.id = `responseText_${messageId}`;
+                newMessageDiv.className = 'message mb-4';
+                newMessageDiv.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center">
+                            <span class="material-icons-outlined text-white text-sm">smart_toy</span>
+                        </div>
+                        <div class="flex-1">
+                            <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <span class="material-icons-outlined text-${type === 'slides' ? 'green' : type === 'document' ? 'blue' : 'purple'}-400">
+                                        ${type === 'slides' ? 'slideshow' : type === 'document' ? 'description' : 'table_chart'}
+                                    </span>
+                                    <h3 class="font-semibold text-gray-800 dark:text-gray-200">${this.getCreateTypeName()} gerado com sucesso!</h3>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <iframe 
+                                        src="${compiledData.url}" 
+                                        style="width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 8px; background: white;"
+                                        onload="console.log('✅ Iframe carregado com sucesso'); this.style.opacity='1'"
+                                        onerror="console.error('❌ Erro ao carregar iframe'); this.parentElement.innerHTML='<div class=\\'text-center p-8 text-red-500\\'>❌ Erro ao carregar visualização. Use o botão de download.</div>'">
+                                    </iframe>
+                                </div>
+                                
+                                <div class="flex gap-2">
+                                    <button onclick="window.downloadGeneratedContent('${compiledData.url}', '${compiledData.filename}')" 
+                                            class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                                        <span class="material-icons-outlined text-sm">download</span>
+                                        Baixar ${this.getCreateTypeName()}
+                                    </button>
+                                    ${compiledData.isSimulated ? `
+                                        <span class="text-xs text-gray-500 italic">*Visualização simulada para demonstração</span>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                messagesContainer.appendChild(newMessageDiv);
+                messageElement = newMessageDiv;
+            }
+        }
         
-        messageElement.innerHTML = `
-            <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="material-icons-outlined text-${type === 'slides' ? 'green' : type === 'document' ? 'blue' : 'purple'}-400">
-                        ${type === 'slides' ? 'slideshow' : type === 'document' ? 'description' : 'table_chart'}
-                    </span>
-                    <h3 class="font-semibold text-gray-800 dark:text-gray-200">${typeName} gerado com sucesso!</h3>
+        if (messageElement) {
+            console.log('✅ Elemento encontrado para displayCompiledContent:', messageElement.id);
+            
+            messageElement.innerHTML = `
+                <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="material-icons-outlined text-${type === 'slides' ? 'green' : type === 'document' ? 'blue' : 'purple'}-400">
+                            ${type === 'slides' ? 'slideshow' : type === 'document' ? 'description' : 'table_chart'}
+                        </span>
+                        <h3 class="font-semibold text-gray-800 dark:text-gray-200">${this.getCreateTypeName()} gerado com sucesso!</h3>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <iframe 
+                            src="${compiledData.url}" 
+                            style="width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 8px; background: white;"
+                            onload="console.log('✅ Iframe carregado com sucesso'); this.style.opacity='1'"
+                            onerror="console.error('❌ Erro ao carregar iframe'); this.parentElement.innerHTML='<div class=\\'text-center p-8 text-red-500\\'>❌ Erro ao carregar visualização. Use o botão de download.</div>'">
+                        </iframe>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <button onclick="window.downloadGeneratedContent('${compiledData.url}', '${compiledData.filename}')" 
+                                class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                            <span class="material-icons-outlined text-sm">download</span>
+                            Baixar ${this.getCreateTypeName()}
+                        </button>
+                        ${compiledData.isSimulated ? `
+                            <span class="text-xs text-gray-500 italic">*Visualização simulada para demonstração</span>
+                        ` : ''}
+                    </div>
                 </div>
-                
-                <div class="mb-4">
-                    <iframe 
-                        src="${compiledData.url}" 
-                        style="width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 8px; background: white;"
-                        onload="console.log('✅ Iframe carregado com sucesso'); this.style.opacity='1'"
-                        onerror="console.error('❌ Erro ao carregar iframe'); this.parentElement.innerHTML='<div class=\\'text-center p-8 text-red-500\\'>❌ Erro ao carregar visualização. Use o botão de download.</div>'">
-                    </iframe>
-                </div>
-                
-                <div class="flex gap-2">
-                    <button onclick="window.downloadGeneratedContent('${compiledData.url}', '${compiledData.filename}')" 
-                            class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
-                        <span class="material-icons-outlined text-sm">download</span>
-                        Baixar ${typeName}
-                    </button>
-                    ${compiledData.isSimulated ? `
-                        <span class="text-xs text-gray-500 italic">*Visualização simulada para demonstração</span>
-                    ` : ''}
-                </div>
-            </div>
-        `;
+            `;
 
-        console.log('✅ Conteúdo compilado exibido para:', typeName);
+            console.log('✅ Conteúdo compilado exibido para:', this.getCreateTypeName());
+        } else {
+            console.error('❌ Elemento de mensagem não encontrado para displayCompiledContent:', messageId);
+            console.error('❌ Todos os elementos responseText:', document.querySelectorAll('[id^="responseText_"]').length);
+        }
         this.scrollToBottom();
     }
 
