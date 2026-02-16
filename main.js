@@ -2627,6 +2627,10 @@ window.selectDesign = async (designType, message, processingId, messageId) => {
     console.log('🎨 Design selecionado:', designType, 'para:', message);
     console.log('🎯 IDs recebidos:', { processingId, messageId });
     
+    // CORREÇÃO: Se messageId for NaN, usar o processingId
+    const finalMessageId = (messageId && !isNaN(messageId)) ? messageId : processingId;
+    console.log('🎯 ID final usado:', finalMessageId);
+    
     // Mapeamento de designs para templates LaTeX
     const designTemplates = {
         'sapientia': {
@@ -2793,7 +2797,7 @@ window.selectDesign = async (designType, message, processingId, messageId) => {
     // Atualizar mensagem para mostrar processamento
     const ui = window.ui || window.agent?.ui;
     if (ui) {
-        ui.updateProcessingMessage(messageId, `Gerando apresentação com design "${selectedDesign.name}"...`);
+        ui.updateProcessingMessage(finalMessageId, `Gerando apresentação com design "${selectedDesign.name}"...`);
     }
     
     try {
@@ -2801,15 +2805,15 @@ window.selectDesign = async (designType, message, processingId, messageId) => {
         const latexCode = await ui.generateLatexContent(message, 'slides', selectedDesign.template);
         const compiledData = await ui.compileLatexToPDF(latexCode);
         
-        // Usar o messageId correto
-        ui.displayCompiledContent(messageId, compiledData, 'slides', message);
+        // Usar o ID correto (finalMessageId em vez de messageId)
+        ui.displayCompiledContent(finalMessageId, compiledData, 'slides', message);
         
         console.log('✅ Apresentação gerada com sucesso!');
         
     } catch (error) {
         console.error('❌ Erro ao gerar apresentação:', error);
         if (ui) {
-            ui.updateProcessingMessage(messageId, `❌ Erro ao gerar apresentação: ${error.message}`);
+            ui.updateProcessingMessage(finalMessageId, `❌ Erro ao gerar apresentação: ${error.message}`);
         }
     }
     
