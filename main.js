@@ -803,8 +803,20 @@ class UI {
             
             // Adicionar event listeners aos botões
             const designButtons = messageElement.querySelectorAll('.design-button');
-            designButtons.forEach(button => {
+            console.log('🎯 Botões encontrados:', designButtons.length);
+            console.log('🎯 Message element:', messageElement);
+            
+            designButtons.forEach((button, index) => {
+                console.log(`🎯 Botão ${index}:`, {
+                    design: button.dataset.design,
+                    message: button.dataset.message,
+                    processingId: button.dataset.processingId,
+                    messageId: button.dataset.messageId
+                });
+                
                 button.addEventListener('click', (e) => {
+                    console.log('🎯 Click no botão!', e.currentTarget);
+                    
                     const designType = e.currentTarget.dataset.design;
                     const messageData = e.currentTarget.dataset.message;
                     const processingId = e.currentTarget.dataset.processingId;
