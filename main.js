@@ -811,17 +811,7 @@ class UI {
             option.addEventListener('click', () => {
                 const design = option.dataset.design;
                 const template = option.dataset.template;
-                
-                // Extrair apenas o tópico da mensagem (remover comandos)
-                const topic = message
-                    .replace(/^gere uma apresentação sobre /i, '')
-                    .replace(/^crie uma apresentação sobre /i, '')
-                    .replace(/^criar apresentação sobre /i, '')
-                    .replace(/^apresentação sobre /i, '')
-                    .trim();
-                
-                console.log('🎨 Tópico extraído:', topic, 'do comando:', message);
-                this.generateSlidesWithDesign(topic, design, template);
+                this.generateSlidesWithDesign(message, design, template);
             });
         });
         
@@ -1036,7 +1026,6 @@ ${latexCode}
 
     async loadDesignTemplate(template, message, latexCode) {
         console.log('🎨 Carregando template:', template, 'para:', message);
-        console.log('🎨 Frames da IA recebidos:', latexCode.substring(0, 200) + '...');
         
         try {
             // Fazer fetch do arquivo de template
@@ -1046,7 +1035,6 @@ ${latexCode}
             }
             
             const templateContent = await response.text();
-            console.log('🎨 Template carregado:', templateContent.substring(0, 300) + '...');
             
             // Substituir placeholders no template
             let finalLatex = templateContent
@@ -1062,22 +1050,15 @@ ${latexCode}
                 const afterContent = finalLatex.substring(contentInsertPoint + 16);
                 
                 // Remover frames existentes do template (manter só estrutura)
-                const cleanedAfter = afterContent.replace(/\\begin\{frame\}[\s\S]*?\\end\{frame\}/gs, '');
+                const cleanedAfter = afterContent.replace(/\\begin\{frame\}.*?\\end\{frame\}/gs, '');
                 
-                // Inserir os frames da IA
                 finalLatex = beforeContent + latexCode + cleanedAfter;
-                
-                // Garantir que tenha \end{document}
-                if (!finalLatex.includes('\\end{document}')) {
-                    finalLatex += '\n\\end{document}';
-                }
             } else {
                 // Se não encontrar \begin{document}, apenas substituir o conteúdo
-                finalLatex = templateContent + '\n\n' + latexCode + '\n\\end{document}';
+                finalLatex = templateContent + '\n\n' + latexCode;
             }
             
-            console.log('🎨 Template carregado com sucesso - frames inseridos');
-            console.log('🔍 LaTeX final com template:', finalLatex.substring(0, 500) + '...');
+            console.log('✅ Template carregado com sucesso');
             return finalLatex;
             
         } catch (error) {
@@ -1106,6 +1087,7 @@ ${latexCode}
     async compileLatexToPDF(latexCode) {
         // Usar serviço de compilação LaTeX próprio
         console.log('🔧 Iniciando compilação LaTeX...');
+        console.log('📝 Código LaTeX sendo compilado:', latexCode.substring(0, 500) + '...');
         try {
             console.log('📡 Enviando requisição para /api/latex-compile...');
             const response = await fetch('/api/latex-compile', {
@@ -1130,6 +1112,7 @@ ${latexCode}
 
             const pdfBlob = await response.blob();
             console.log('✅ PDF blob criado com sucesso');
+            console.log('🔍 Tamanho do PDF:', pdfBlob.size, 'bytes');
             return {
                 blob: pdfBlob,
                 url: URL.createObjectURL(pdfBlob),
