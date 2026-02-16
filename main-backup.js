@@ -856,7 +856,7 @@ ${latexCode}
             if (frameMatches && frameMatches.length > 0) {
                 frameMatches.forEach((frame, index) => {
                     const titleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
-                    const frameTitle = titleMatch ? titleMatch[1] : `Slide ${index + 1}`;
+                    const frameTitle = titleMatch ? titleMatch[1] : 'Slide ' + (index + 1);
                     let frameContent = frame.replace(/\\frametitle\{[^}]+\}/, '');
                     frameContent = frameContent.replace(/\\begin\{frame\}/, '').replace(/\\end\{frame\}/, '');
                     
@@ -1005,7 +1005,7 @@ ${latexCode}
             if (frameMatches && frameMatches.length > 0) {
                 frameMatches.forEach((frame, index) => {
                     const titleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
-                    const frameTitle = titleMatch ? titleMatch[1] : `Slide ${index + 1}`;
+                    const frameTitle = titleMatch ? titleMatch[1] : 'Slide ' + (index + 1);
                     let frameContent = frame.replace(/\\frametitle\{[^}]+\}/, '');
                     frameContent = frameContent.replace(/\\begin\{frame\}/, '').replace(/\\end\{frame\}/, '');
                     
@@ -1154,7 +1154,7 @@ ${latexCode}
             if (frameMatches && frameMatches.length > 0) {
                 frameMatches.forEach((frame, index) => {
                     const titleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
-                    const frameTitle = titleMatch ? titleMatch[1] : `Slide ${index + 1}`;
+                    const frameTitle = titleMatch ? titleMatch[1] : 'Slide ' + (index + 1);
                     let frameContent = frame.replace(/\\frametitle\{[^}]+\}/, '');
                     frameContent = frameContent.replace(/\\begin\{frame\}/, '').replace(/\\end\{frame\}/, '');
                     
@@ -1410,7 +1410,7 @@ ${latexCode}
             if (frameMatches && frameMatches.length > 0) {
                 frameMatches.forEach((frame, index) => {
                     const titleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
-                    const frameTitle = titleMatch ? titleMatch[1] : `Slide ${index + 1}`;
+                    const frameTitle = titleMatch ? titleMatch[1] : 'Slide ' + (index + 1);
                     let frameContent = frame.replace(/\\frametitle\{[^}]+\}/, '');
                     frameContent = frameContent.replace(/\\begin\{frame\}/, '').replace(/\\end\{frame\}/, '');
                     
@@ -1665,7 +1665,7 @@ ${latexCode}
             if (frameMatches && frameMatches.length > 0) {
                 frameMatches.forEach((frame, index) => {
                     const titleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
-                    const frameTitle = titleMatch ? titleMatch[1] : `Slide ${index + 1}`;
+                    const frameTitle = titleMatch ? titleMatch[1] : 'Slide ' + (index + 1);
                     let frameContent = frame.replace(/\\frametitle\{[^}]+\}/, '');
                     frameContent = frameContent.replace(/\\begin\{frame\}/, '').replace(/\\end\{frame\}/, '');
                     
