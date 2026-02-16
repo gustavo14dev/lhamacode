@@ -2686,6 +2686,10 @@ window.selectDesign = async (designType, message, processingId, messageId) => {
     const finalMessageId = (messageId && !isNaN(messageId)) ? messageId : processingId;
     console.log('🎯 ID final usado:', finalMessageId);
     
+    // Extrair apenas o assunto do prompt
+    const subject = message.replace(/^(gere|crie|faça|monte|produza)\s+(uma\s+)?(apresentação|slides?)\s+sobre\s+/i, '').trim();
+    console.log('🎯 Assunto extraído:', subject);
+    
     // Mapeamento de designs para templates LaTeX
     const designTemplates = {
         'sapientia': {
@@ -2703,7 +2707,7 @@ window.selectDesign = async (designType, message, processingId, messageId) => {
 \\usepackage{pgfplots}
 \\pgfplotsset{compat=1.18}
 
-\\title{${message}}
+\\title{${subject}}
 \\subtitle{Apresentação Profissional}
 \\author{Drekee AI 1}
 \\date{\\today}
@@ -2748,7 +2752,7 @@ window.selectDesign = async (designType, message, processingId, messageId) => {
 
 \\setbeamertemplate{navigation symbols}{}
 
-\\title{${message}}
+\\title{${subject}}
 \\subtitle{Apresentação Corporativa}
 \\author{Drekee AI 1}
 \\date{\\today}
@@ -2809,7 +2813,7 @@ window.selectDesign = async (designType, message, processingId, messageId) => {
 \\hspace{0.5cm} \\vspace{0.3cm}
 }
 
-\\title{${message}}
+\\title{${subject}}
 \\subtitle{Apresentação Futurista}
 \\author{Drekee AI 1}
 \\date{\\today}
@@ -2857,11 +2861,11 @@ window.selectDesign = async (designType, message, processingId, messageId) => {
     
     try {
         // Gerar conteúdo LaTeX com o template selecionado
-        const latexCode = await ui.generateLatexContent(message, 'slides', selectedDesign.template);
+        const latexCode = await ui.generateLatexContent(subject, 'slides', selectedDesign.template);
         const compiledData = await ui.compileLatexToPDF(latexCode);
         
         // Usar o ID correto (finalMessageId em vez de messageId)
-        ui.displayCompiledContent(finalMessageId, compiledData, 'slides', message);
+        ui.displayCompiledContent(finalMessageId, compiledData, 'slides', subject);
         
         console.log('✅ Apresentação gerada com sucesso!');
         
