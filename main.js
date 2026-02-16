@@ -838,46 +838,79 @@ class UI {
         if (customTemplate && type === 'slides') {
             const systemPrompt = {
                 role: 'system',
-                content: `Você é um especialista acadêmico e profissional em LaTeX. Continue o código LaTeX abaixo para criar uma apresentação completa sobre: "${message}".
+                content: `Você é um especialista acadêmico e profissional em LaTeX. 
 
-O TEMPLATE JÁ FOI INICIADO. APENAS CONTINUE ADICIONANDO OS SLIDES DE CONTEÚDO.
+IMPORTANTE: Você recebeu um template LaTeX completo e deve APENAS continuar gerando o conteúdo dos slides. NÃO modifique o template inicial, NÃO substitua o tema, NÃO mude as cores ou configurações.
 
-TEMPLATE INICIADO:
+TEMPLATE RECEBIDO:
 ${customTemplate}
 
+SUA TAREFA:
+1. Continue a partir do template acima
+2. Gere slides de conteúdo sobre: "${message}"
+3. Mantenha EXATAMENTE o design, tema, cores e configurações do template
+4. Adicione slides de conteúdo APÓS o template existente
+5. Termine com \\end{document}
+
 REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
-- APENAS continue o código LaTeX, NÃO repita o template
-- NÃO inclua explicações ou textos fora do código
-- Adicione os slides de conteúdo DEPOIS do template existente
-- Use \\end{document} apenas no final
-- O código deve ser compilável com pdflatex
+- NÃO modifique NADA do template inicial
+- NÃO mude o tema, cores ou configurações
+- APENAS adicione slides de conteúdo
+- GERE APENAS O CÓDIGO LATEX CONTINUADO, SEM NENHUM TEXTO ADICIONAL
+- Use a mesma estrutura do template
+- Termine com \\end{document}
 
-CONTEÚDO ESPECÍFICO E DE ALTA QUALIDADE:
-- PESQUISE E GERE CONTEÚDO ESPECIALIZADO sobre o tema
-- MÍNIMO 8 SLIDES no total (incluindo os do template)
-- Estrutura: continue com → introdução → desenvolvimento (3-8 slides) → aplicações → conclusão → agradecimento
-- NUNCA use placeholders genéricos como "Exemplo 1", "Conteúdo da tabela"
-- INCLUA dados técnicos, estatísticas, exemplos reais, citações
-- SEJA ESPECÍFICO E DENSO - o usuário quer APRENDER de verdade
+ESTRUTURA OBRIGATÓRIA - ADICIONE APENAS ESTES SLIDES:
+\\section{Introdução}
+\\begin{frame}{O que é ${message}}
+[3-4 parágrafos corridos explicando o conceito]
+\\end{frame}
 
-IMPORTANTE - TIPO DE CONTEÚDO NOS SLIDES:
-- NÃO use apenas tópicos/bullets curtos
-- GERE TEXTO CORRIDO EXPLICATIVO em cada slide
-- Cada slide deve ter 2-3 parágrafos explicativos completos
-- Use bullets APENAS para complementar o texto corrido
-- Explique conceitos detalhadamente, como se estivesse ensinando
-- Inclua exemplos práticos, dados específicos, números reais
-- Cada slide deve ser uma aula completa sobre o tópico
+\\section{Conceitos Fundamentais}
+\\begin{frame}{Principais Conceitos}
+[lista com 5-7 conceitos importantes]
+\\end{frame}
 
-ESTRUTURA OBRIGATÓRIA PARA TODAS APRESENTAÇÕES:
-- Slide 1: Título (já está no template)
-- Slide 2: O que é [TEMA] - TEXTO CORRIDO EXPLICATIVO COMPLETO
-- Slide 3: Como funciona [TEMA] - TEXTO CORRIDO EXPLICATIVO COMPLETO
-- Slide 4+: Desenvolvimento detalhado com mais texto corrido
-- Penúltimo: Resumo
-- Último: Agradecimento
+\\begin{frame}{Características}
+[lista com 4-6 características principais]
+\\end{frame}
 
-OBRIGATÓRIO - SLIDE "O QUE É":
+\\section{Aplicações}
+\\begin{frame}{Aplicações Práticas}
+[lista com 5-7 aplicações reais]
+\\end{frame}
+
+\\begin{frame}{Exemplos de Uso}
+[3-4 exemplos detalhados]
+\\end{frame}
+
+\\section{Benefícios e Desafios}
+\\begin{frame}{Benefícios}
+[lista com 4-6 benefícios]
+\\end{frame}
+
+\\begin{frame}{Desafios}
+[lista com 3-5 desafios]
+\\end{frame}
+
+\\section{Conclusão}
+\\begin{frame}{Conclusão}
+[2-3 parágrafos de conclusão]
+\\end{frame}
+
+\\begin{frame}[plain]
+\\begin{center}
+{\\Huge Obrigado!}
+
+\\vspace{1em}
+
+{\\Large Perguntas?}
+\\end{center}
+\\end{frame}
+
+\\end{document}
+
+OBRIGATÓRIO - SLIDE "O que é":
 - Deve ter 3-4 parágrafos corridos explicando o conceito
 - Definição clara e detalhada
 - Contexto histórico se aplicável
@@ -885,8 +918,7 @@ OBRIGATÓRIO - SLIDE "O QUE É":
 - NÃO use bullets neste slide - apenas texto corrido
 - Seja didático e completo
 
-IMPORTANTE: O usuário quer CONTEÚDO REAL para APRENDER, não superficial. 
-RETORNE APENAS O CÓDIGO LATEX CONTINUADO, SEM NENHUM TEXTO ADICIONAL!`
+IMPORTANTE: Mantenha EXATAMENTE o design do template. RETORNE APENAS O CÓDIGO LATEX CONTINUADO!`
             };
 
             const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [systemPrompt, { role: 'user', content: message }]);
