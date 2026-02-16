@@ -820,8 +820,9 @@ RETORNE APENAS O CÓDIGO LATEX, SEM NENHUM TEXTO ADICIONAL!`
         // Adicionar estrutura básica se faltar
         if (!latexCode.includes('\\documentclass')) {
             if (type === 'slides') {
-                latexCode = `\\documentclass{beamer}
-\\usetheme{Madrid}
+                latexCode = `\\documentclass[10pt,aspectratio=169]{beamer}
+\\usetheme{default}
+\\usecolortheme{default}
 \\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
 \\usepackage{amsmath}
@@ -856,11 +857,11 @@ ${latexCode}
 \\end{document}`;
             }
         }
-        
-        console.log('🔒 LaTeX gerado internamente (segredo):', latexCode.substring(0, 200) + '...');
-        console.log('🔍 Código LaTeX completo:', latexCode);
-        return latexCode;
-    }
+    
+    console.log('🔒 LaTeX gerado internamente (segredo):', latexCode.substring(0, 200) + '...');
+    console.log('🔍 Código LaTeX completo:', latexCode);
+    return latexCode;
+}
 
     async compileLatexToPDF(latexCode) {
         // Para APRESENTAÇÕES Beamer, tentar compilação REAL primeiro
@@ -961,32 +962,106 @@ ${latexCode}
             return this.createSimulatedContent(latexCode);
         }
     }
-                            ${title} representa um dos avanços mais significativos da tecnologia moderna, 
-                            transformando fundamentalmente a forma como processamos informações e tomamos decisões.
-                        </p>
-                        <p style="line-height: 1.6;">
-                            Este documento explora os conceitos fundamentais, aplicações práticas e 
-                            implicações futuras desta tecnologia revolucionária.
-                        </p>
-                    </div>
+
+    createSimulatedContent(latexCode) {
+        console.log('🎨 Criando conteúdo simulado para fallback...');
+        
+        const type = this.currentCreateType || 'document';
+        const title = 'Conteúdo Gerado';
+        const author = 'Drekee AI 1';
+        
+        let content = '';
+        
+        if (type === 'slides') {
+            // Extrair frames do LaTeX para slides simulados
+            const frameMatches = latexCode.match(/\\begin\{frame\}.*?\\end\{frame\}/gs);
+            let slidesContent = '';
+            
+            if (frameMatches && frameMatches.length > 0) {
+                frameMatches.forEach((frame, index) => {
+                    const titleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
+                    const frameTitle = titleMatch ? titleMatch[1] : `Slide ${index + 1}`;
+                    let frameContent = frame.replace(/\\frametitle\{[^}]+\}/, '');
+                    frameContent = frameContent.replace(/\\begin\{frame\}/, '').replace(/\\end\{frame\}/, '');
                     
-                    <div style="margin: 20px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #007acc;">
-                        <h2 style="margin-top: 0; color: #333;">Desenvolvimento</h2>
-                        <p style="line-height: 1.6; margin-bottom: 15px;">
-                            <strong>Conceitos Fundamentais:</strong> A tecnologia baseia-se em algoritmos 
-                            capazes de aprender padrões e tomar decisões autônomas.
-                        </p>
-                        <p style="line-height: 1.6; margin-bottom: 15px;">
-                            <strong>Aplicações:</strong> Setores como saúde, finanças, transporte e educação 
-                            já utilizam ativamente soluções baseadas nesta tecnologia.
-                        </p>
-                        <p style="line-height: 1.6;">
-                            <strong>Impacto Socioeconômico:</strong> Redefinição de modelos de negócio 
-                            e criação de novas oportunidades profissionais.
-                        </p>
+                    // Converter comandos LaTeX básicos para HTML
+                    frameContent = frameContent.replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>');
+                    frameContent = frameContent.replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>');
+                    frameContent = frameContent.replace(/\\begin\{itemize\}/g, '<ul>');
+                    frameContent = frameContent.replace(/\\end\{itemize\}/g, '</ul>');
+                    frameContent = frameContent.replace(/\\item\s+/g, '<li>');
+                    frameContent = frameContent.replace(/\n(?=[^<])/g, '</li><li>');
+                    frameContent = frameContent.replace(/<\/li>$/, '');
+                    
+                    slidesContent += `
+                        <div style="margin: 20px 0; padding: 20px; background: white; border: 1px solid #ddd; border-radius: 8px;">
+                            <h2 style="margin-top: 0; color: #333; font-size: 18px;">${frameTitle}</h2>
+                            <div style="line-height: 1.6; color: #666;">
+                                ${frameContent || '<p>Conteúdo do slide em desenvolvimento...</p>'}
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                // Slides genéricos se não encontrar frames
+                slidesContent = `
+                    <div style="margin: 20px 0; padding: 20px; background: white; border: 1px solid #ddd; border-radius: 8px;">
+                        <h2 style="margin-top: 0; color: #333;">O que é ${title}</h2>
+                        <p style="line-height: 1.6;">Conteúdo explicativo sobre o tema...</p>
+                    </div>
+                    <div style="margin: 20px 0; padding: 20px; background: white; border: 1px solid #ddd; border-radius: 8px;">
+                        <h2 style="margin-top: 0; color: #333;">Como funciona</h2>
+                        <p style="line-height: 1.6;">Explicação do funcionamento...</p>
                     </div>
                 `;
             }
+            
+            content = `
+                <div style="font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; min-height: 100vh;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="margin: 0; color: #333;">${title}</h1>
+                        <p style="margin: 10px 0 0 0; color: #666;">Apresentação Simulada</p>
+                    </div>
+                    ${slidesContent}
+                    <div style="margin-top: 30px; padding: 15px; background: #e8f4f8; border-left: 4px solid #007acc;">
+                        <p style="margin: 0; font-weight: bold;">📊 Apresentação LaTeX simulada</p>
+                        <p style="margin: 5px 0 0 0; font-size: 14px; color: #666;">
+                            Esta é uma visualização simulada. Em produção, o PDF real seria gerado.
+                        </p>
+                    </div>
+                </div>
+            `;
+        } else {
+            // Documento simulado
+            const documentContent = `
+                <div style="margin: 20px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #007acc;">
+                    <h2 style="margin-top: 0; color: #333;">Introdução</h2>
+                    <p style="line-height: 1.6; margin-bottom: 15px;">
+                        <strong>${title}</strong> representa um dos avanços mais significativos da tecnologia moderna, 
+                        transformando fundamentalmente a forma como processamos informações e tomamos decisões.
+                    </p>
+                    <p style="line-height: 1.6;">
+                        Este documento explora os conceitos fundamentais, aplicações práticas e 
+                        implicações futuras desta tecnologia revolucionária.
+                    </p>
+                </div>
+                
+                <div style="margin: 20px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #007acc;">
+                    <h2 style="margin-top: 0; color: #333;">Desenvolvimento</h2>
+                    <p style="line-height: 1.6; margin-bottom: 15px;">
+                        <strong>Conceitos Fundamentais:</strong> A tecnologia baseia-se em algoritmos 
+                        capazes de aprender padrões e tomar decisões autônomas.
+                    </p>
+                    <p style="line-height: 1.6; margin-bottom: 15px;">
+                        <strong>Aplicações:</strong> Setores como saúde, finanças, transporte e educação 
+                        já utilizam ativamente soluções baseadas nesta tecnologia.
+                    </p>
+                    <p style="line-height: 1.6;">
+                        <strong>Impacto Socioeconômico:</strong> Redefinição de modelos de negócio 
+                        e criação de novas oportunidades profissionais.
+                    </p>
+                </div>
+            `;
             
             content = `
                 <div style="font-family: 'Times New Roman', serif; padding: 40px; background: white; max-width: 800px; margin: 0 auto;">
