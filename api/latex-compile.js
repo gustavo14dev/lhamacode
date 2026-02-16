@@ -268,7 +268,7 @@ function generateSimulatedHTML(latex, type = 'document') {
           frameContent = frameContent.substring(0, 1047) + '...';
         }
         
-        // Estrutura inteligente baseada na posição
+        // Estrutura inteligente baseada na posição - USAR CONTEÚDO REAL!
         if (index === 0) {
           // Slide 1: TÍTULO (CAPA) - O slide que você queria!
           frameTitle = title;
@@ -281,37 +281,56 @@ function generateSimulatedHTML(latex, type = 'document') {
             </div>
           `;
         } else if (index === 1) {
-          // Slide 2: O QUE É [TEMA]
+          // Slide 2: O QUE É [TEMA] - USAR CONTEÚDO REAL DO FRAME
           frameTitle = `O que é ${title}`;
-          frameContent = `
-            <div style="text-align: left;">
-              <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
-                Large Language Models (LLMs) são sistemas de inteligência artificial projetados para compreender, processar e gerar linguagem humana de forma natural e contextual. Esses modelos utilizam arquiteturas de redes neurais profundas, principalmente a arquitetura Transformer, que permite processar sequências longas de texto com compreensão semântica e sintática avançada.
-              </p>
-              <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
-                O desenvolvimento dos LLMs representa uma revolução na IA, permitindo que máquinas realizem tarefas linguísticas complexas como tradução automática, resumo de textos, geração de conteúdo e até mesmo raciocínio abstrato. Esses modelos são treinados com enormes quantidades de dados textuais, aprendendo padrões linguísticos e conhecimento factual de forma escalável.
-              </p>
-              <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
-                A importância dos LLMs no cenário atual é fundamental, pois estão transformando radicalmente como interagimos com a tecnologia, automatizando processos antes exclusivamente humanos e criando novas possibilidades para educação, negócios e pesquisa científica. Modelos como GPT-4, Claude e Llama demonstram capacidades que antes eram consideradas exclusivas da inteligência humana.
-              </p>
-            </div>
-          `;
+          // Se o frame tiver conteúdo real, usar ele. Se não, criar conteúdo baseado no título.
+          if (frameContent && frameContent.trim().length > 50) {
+            // Usar conteúdo real do frame
+            frameContent = `
+              <div style="text-align: left;">
+                <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
+                  ${frameContent}
+                </p>
+              </div>
+            `;
+          } else {
+            // Fallback - conteúdo genérico sobre o tema
+            frameContent = `
+              <div style="text-align: left;">
+                <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
+                  ${title} é um tema importante que merece análise detalhada. Esta apresentação explora os principais aspectos, conceitos e aplicações relacionadas a este assunto, fornecendo uma visão compreensiva para melhor entendimento.
+                </p>
+                <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
+                  Ao longo desta apresentação, examinaremos os fundamentos, características e relevância de ${title} no contexto atual, destacando seus pontos principais e aplicações práticas.
+                </p>
+              </div>
+            `;
+          }
         } else if (index === 2) {
-          // Slide 3: COMO FUNCIONA
+          // Slide 3: COMO FUNCIONA - USAR CONTEÚDO REAL DO FRAME
           frameTitle = `Como funciona ${title}`;
-          frameContent = `
-            <div style="text-align: left;">
-              <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
-                O funcionamento dos Large Language Models baseia-se na arquitetura Transformer, introduzida em 2017, que utiliza mecanismos de atenção para processar relações entre palavras em longas distâncias textuais. Diferente dos modelos anteriores, os Transformers podem considerar o contexto completo de uma frase simultaneamente, permitindo compreensão mais profunda das relações semânticas.
-              </p>
-              <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
-                O processo de treinamento envolve duas fases principais: pré-treinamento em grandes corpus de texto (livros, artigos, websites) e ajuste fino para tarefas específicas. Durante o pré-treinamento, o modelo aprende a prever palavras ausentes em sequências, desenvolvendo representações estatísticas da linguagem e conhecimento factual sobre o mundo.
-              </p>
-              <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
-                Na inferência, os LLMs utilizam processamento autoregressivo, gerando texto palavra por palavra baseado no contexto anterior e nas probabilidades aprendidas durante o treinamento. Técnicas como temperatura, top-k e nucleus sampling permitem controlar a criatividade e coerência das respostas geradas.
-              </p>
-            </div>
-          `;
+          if (frameContent && frameContent.trim().length > 50) {
+            // Usar conteúdo real do frame
+            frameContent = `
+              <div style="text-align: left;">
+                <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
+                  ${frameContent}
+                </p>
+              </div>
+            `;
+          } else {
+            // Fallback - conteúdo genérico sobre funcionamento
+            frameContent = `
+              <div style="text-align: left;">
+                <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
+                  O funcionamento de ${title} envolve processos e mecanismos específicos que garantem sua eficácia e aplicabilidade. Compreender esses aspectos é fundamental para utilizar adequadamente este conhecimento.
+                </p>
+                <p style="color: #2D2624; margin-bottom: 15px; line-height: 1.6;">
+                  Os princípios subjacentes a ${title} são baseados em conceitos estabelecidos e práticas validadas, assegurando resultados consistentes e confiáveis em diversas situações de aplicação.
+                </p>
+              </div>
+            `;
+          }
         } else if (index === 3) {
           // Slide 4: SUMÁRIO
           frameTitle = 'Sumário';
