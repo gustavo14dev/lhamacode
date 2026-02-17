@@ -871,94 +871,14 @@ ${latexCode}
 }
 
     async compileLatexToPDF(latexCode, messageId) {
-        // Tentar compilação REAL primeiro
+        // Usar renderização KaTeX simples
         try {
-            if (this.currentCreateType === 'slides') {
-                const isBeamer = latexCode.includes('\\documentclass{beamer}') || latexCode.includes('\\begin{frame}');
-                if (isBeamer) {
-                    console.log('🎯 Detectado Beamer - tentando compilação PDF REAL...');
-                    
-                    // Enviar para API de compilação LaTeX
-                    const response = await fetch('/api/latex-compile', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            latexCode: latexCode,
-                            type: 'slides'
-                        })
-                    });
-                    
-                    if (response.ok) {
-                        const blob = await response.blob();
-                        const url = URL.createObjectURL(blob);
-                        const filename = `apresentacao_${Date.now()}.pdf`;
-                        
-                        console.log('✅ Compilação Beamer PDF REAL bem-sucedida!');
-                        
-                        const compiledData = {
-                            blob: blob,
-                            url: url,
-                            filename: filename,
-                            isPDF: true,
-                            isSimulated: false,
-                            latexCode: latexCode
-                        };
-                        
-                        this.displayCompiledContent(messageId, compiledData, 'slides', '');
-                        return;
-                    } else {
-                        console.warn('⚠️ Falha na compilação Beamer, usando fallback');
-                    }
-                }
-            }
-            
-            // Para documentos, também tentar compilação REAL
-            if (this.currentCreateType === 'document') {
-                console.log('🎯 Documento detectado - tentando compilação PDF REAL...');
-                
-                const response = await fetch('/api/latex-compile', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        latexCode: latexCode,
-                        type: 'document'
-                    })
-                });
-                
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const url = URL.createObjectURL(blob);
-                    const filename = `documento_${Date.now()}.pdf`;
-                    
-                    console.log('✅ Compilação Documento PDF REAL bem-sucedida!');
-                    
-                    const compiledData = {
-                        blob: blob,
-                        url: url,
-                        filename: filename,
-                        isPDF: true,
-                        isSimulated: false,
-                        latexCode: latexCode
-                    };
-                    
-                    this.displayCompiledContent(messageId, compiledData, 'document', '');
-                    return;
-                } else {
-                    console.warn('⚠️ Falha na compilação de documento, usando fallback');
-                }
-            }
-            
-            // Fallback para outros tipos
-            console.log('🔄 Usando fallback simulado...');
-            const simulatedData = this.createSimulatedContent(latexCode);
-            this.displayCompiledContent(messageId, simulatedData, this.currentCreateType, '');
+            console.log('🎯 Usando renderização KaTeX simples...');
+            this.renderLatexWithKaTeX(latexCode, messageId, this.currentCreateType);
+            return;
             
         } catch (error) {
-            console.warn('⚠️ Erro na compilação, usando fallback:', error.message);
+            console.warn('⚠️ Erro na renderização KaTeX, usando fallback:', error.message);
             const simulatedData = this.createSimulatedContent(latexCode);
             this.displayCompiledContent(messageId, simulatedData, this.currentCreateType, '');
         }
@@ -1357,6 +1277,100 @@ ${latexCode}
         });
     }
 
+    // ==================== FUNÇÕES DE RENDERIZAÇÃO LATEX SIMPLES ====================
+    renderLatexWithKaTeX(latexCode, messageId, type) {
+        console.log('🎨 Renderizando LaTeX com KaTeX simples...');
+        
+        // Extrair frames do Beamer ou conteúdo do documento
+        const frameMatches = latexCode.match(/\\begin\{frame\}.*?\\end\{frame\}/gs);
+        let content = '';
+        
+        if (frameMatches && frameMatches.length > 0) {
+            // Slides
+            content = '<div class="latex-slides">';
+            frameMatches.forEach((frame, index) => {
+                const titleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
+                const frameTitle = titleMatch ? titleMatch[1] : `Slide ${index + 1}`;
+                let frameContent = frame.replace(/\\frametitle\{[^}]+\}/, '');
+                frameContent = frameContent.replace(/\\begin\{frame\}/, '').replace(/\\end\{frame\}/, '');
+                
+                // Limpar conteúdo básico
+                frameContent = frameContent.replace(/\\begin\{itemize\}/g, '<ul>');
+                frameContent = frameContent.replace(/\\end\{itemize\}/g, '</ul>');
+                frameContent = frameContent.replace(/\\item\s+/g, '<li>');
+                frameContent = frameContent.replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>');
+                frameContent = frameContent.replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>');
+                
+                content += `
+                    <div class="latex-slide" style="background: white; border: 1px solid #ddd; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
+                        <h2 style="margin-top: 0; color: #333; font-size: 20px; margin-bottom: 15px;">${frameTitle}</h2>
+                        <div class="latex-content" style="line-height: 1.5; color: #666;">
+                            ${frameContent || '<p>Conteúdo do slide...</p>'}
+                        </div>
+                    </div>
+                `;
+            });
+            content += '</div>';
+        } else {
+            // Documento único
+            let docContent = latexCode.replace(/\\documentclass.*?\\begin\{document\}/s, '').replace(/\\end\{document\}/, '');
+            docContent = docContent.replace(/\\begin\{itemize\}/g, '<ul>');
+            docContent = docContent.replace(/\\end\{itemize\}/g, '</ul>');
+            docContent = docContent.replace(/\\item\s+/g, '<li>');
+            docContent = docContent.replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>');
+            docContent = docContent.replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>');
+            
+            content = `
+                <div class="latex-document" style="background: white; border: 1px solid #ddd; border-radius: 8px; padding: 40px;">
+                    <div class="latex-content" style="line-height: 1.6; color: #666;">
+                        ${docContent}
+                    </div>
+                </div>
+            `;
+        }
+        
+        const typeName = this.getCreateTypeName();
+        this.updateProcessingMessage(messageId, `
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl mx-auto">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="material-icons-outlined text-${type === 'slides' ? 'green' : 'blue'}-400">
+                        ${type === 'slides' ? 'slideshow' : 'description'}
+                    </span>
+                    <h3 class="font-semibold text-gray-800 dark:text-gray-200">${typeName} renderizado com KaTeX!</h3>
+                </div>
+                
+                <div class="mb-4">
+                    ${content}
+                </div>
+                
+                <div class="flex gap-2">
+                    <button onclick="window.downloadLatexAsText('${encodeURIComponent(latexCode)}', '${typeName}.tex')" 
+                            class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                        <span class="material-icons-outlined text-sm">download</span>
+                        Baixar LaTeX
+                    </button>
+                </div>
+            </div>
+        `);
+        
+        // Renderizar matemática KaTeX após inserir no DOM
+        setTimeout(() => {
+            if (typeof katex !== 'undefined') {
+                const mathElements = document.querySelectorAll('.latex-content');
+                mathElements.forEach(element => {
+                    try {
+                        katex.render(element.textContent, element, {
+                            throwOnError: false,
+                            displayMode: false
+                        });
+                    } catch (e) {
+                        console.warn('Erro KaTeX:', e);
+                    }
+                });
+            }
+        }, 100);
+    }
+
     // ==================== FUNÇÕES DE DOWNLOAD ====================
     async downloadGeneratedContent(url, filename) {
         const link = document.createElement('a');
@@ -1367,6 +1381,20 @@ ${latexCode}
         link.click();
         document.body.removeChild(link);
         console.log('✅ Download iniciado:', filename);
+    }
+    
+    downloadLatexAsText(latexCode, filename) {
+        const blob = new Blob([latexCode], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        console.log('✅ Download LaTeX iniciado:', filename);
     }
 
     // ==================== MODO DEPURAÇÃO ====================
