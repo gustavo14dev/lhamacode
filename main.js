@@ -1175,11 +1175,16 @@ ${latexCode}
                         </div>
                     </div>
                     
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 flex-wrap">
                         <button onclick="window.downloadGeneratedContent('${compiledData.url}', '${compiledData.filename}')" 
                                 class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
                             <span class="material-icons-outlined text-sm">download</span>
                             Baixar ${typeName} PDF
+                        </button>
+                        <button onclick="window.open('${compiledData.url}', '_blank')" 
+                                class="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                            <span class="material-icons-outlined text-sm">open_in_new</span>
+                            Abrir em Nova Aba
                         </button>
                         <span class="text-xs text-green-600 italic">*PDF Beamer compilado com sucesso!</span>
                     </div>
