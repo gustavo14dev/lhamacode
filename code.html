@@ -3,11 +3,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Drekee AI 1</title>
-<!-- KaTeX para renderização LaTeX -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-    
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -180,13 +176,6 @@
 <span class="material-icons-outlined text-sm">expand_more</span>
 </button>
 </div>
-<div class="relative" id="createSelectorContainer">
-<button class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" id="createButton">
-<span class="material-icons-outlined text-base">add_circle</span>
-<span id="createButtonText">Criar</span>
-<span class="material-icons-outlined text-sm">expand_more</span>
-</button>
-</div>
 </div>
 <div class="flex items-center gap-2 ml-auto">
 <button class="p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 text-gray-500 dark:text-gray-400 transition-colors" title="Transcrição de áudio">
@@ -197,7 +186,6 @@
 </button>
 </div>
 
-</div>
 </div>
 </div>
 
@@ -222,14 +210,17 @@
                 <span class="material-icons-outlined text-gray-500 dark:text-gray-400">close</span>
             </button>
         </div>
-
         <!-- Content -->
         <div id="debugModalContent" class="p-6">
-            <!-- Conteúdo dinâmico será inserido aqui -->
+            <div class="text-center text-gray-500 dark:text-gray-400">
+                <span class="material-icons-outlined text-4xl mb-4">bug_report</span>
+                <p class="text-lg font-medium mb-2">Aguardando análise de erro...</p>
+                <p class="text-sm">O sistema está pronto para analisar qualquer erro que ocorrer.</p>
+            </div>
         </div>
     </div>
 </div>
 
-<script type="module" src="./main.js"></script>
-
-</body></html>
+<script type="module" src="main.js" defer></script>
+</body>
+</html>
