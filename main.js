@@ -873,7 +873,7 @@ ${latexCode}
                         <div style="margin: 20px 0; padding: 20px; background: white; border: 1px solid #ddd; border-radius: 8px;">
                             <h2 style="margin-top: 0; color: #333; font-size: 18px;">${frameTitle}</h2>
                             <div style="line-height: 1.6; color: #666;">
-                                ${frameContent || '<p>Conteúdo do slide em desenvolvimento...</p>'}
+                                ${frameContent || "<p>Conteúdo do slide em desenvolvimento...</p>"}
                             </div>
                         </div>
                     `;
