@@ -1164,15 +1164,6 @@ ${latexCode}
                             onload="console.log('✅ PDF Iframe carregado com sucesso'); this.style.opacity='1'"
                             onerror="console.error('❌ Erro ao carregar PDF iframe'); this.parentElement.innerHTML='<div class=\\'text-center p-8 text-red-500\\'>❌ Erro ao carregar PDF. Use o botão de download.</div>'">
                         </iframe>
-                        
-                        <!-- DEBUG: Mostrar informações do PDF -->
-                        <div style="margin-top: 10px; padding: 10px; background: #e8f5e8; border-radius: 4px; font-size: 12px;">
-                            <strong>✅ PDF REAL:</strong><br>
-                            URL: ${compiledData.url}<br>
-                            Filename: ${compiledData.filename}<br>
-                            Type: ${type} (PDF Beamer)<br>
-                            Status: Compilação bem-sucedida
-                        </div>
                     </div>
                     
                     <div class="flex gap-2 flex-wrap">
@@ -1186,7 +1177,6 @@ ${latexCode}
                             <span class="material-icons-outlined text-sm">open_in_new</span>
                             Abrir em Nova Aba
                         </button>
-                        <span class="text-xs text-green-600 italic">*PDF Beamer compilado com sucesso!</span>
                     </div>
                 </div>
             `);
@@ -1210,15 +1200,6 @@ ${latexCode}
                             onload="console.log('✅ Iframe carregado com sucesso'); this.style.opacity='1'"
                             onerror="console.error('❌ Erro ao carregar iframe'); this.parentElement.innerHTML='<div class=\\'text-center p-8 text-red-500\\'>❌ Erro ao carregar visualização. Use o botão de download.</div>'">
                         </iframe>
-                        
-                        <!-- DEBUG: Mostrar URL e informações -->
-                        <div style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 4px; font-size: 12px;">
-                            <strong>DEBUG:</strong><br>
-                            URL: ${compiledData.url}<br>
-                            Filename: ${compiledData.filename}<br>
-                            Is Simulated: ${compiledData.isSimulated}<br>
-                            Type: ${type}
-                        </div>
                     </div>
                     
                     <div class="flex gap-2">
@@ -1227,9 +1208,6 @@ ${latexCode}
                             <span class="material-icons-outlined text-sm">download</span>
                             Baixar ${typeName}
                         </button>
-                        ${compiledData.isSimulated ? `
-                            <span class="text-xs text-gray-500 italic">*Visualização simulada para demonstração</span>
-                        ` : ''}
                     </div>
                 </div>
             `);
