@@ -1386,7 +1386,7 @@ ${latexCode}
     }
 
     // ==================== FUNÇÕES DE DOWNLOAD ====================
-    downloadGeneratedContent(url, filename) {
+    async downloadGeneratedContent(url, filename) {
         const link = document.createElement('a');
         link.href = url;
         link.download = filename;
@@ -1398,7 +1398,7 @@ ${latexCode}
     }
 
     // ==================== MODO DEPURAÇÃO ====================
-    toggleDebugMode() {
+    async toggleDebugMode() {
         const debugBtn = document.getElementById('debugModeButton');
         this.debugModeActive = !this.debugModeActive;
         
