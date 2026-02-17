@@ -876,17 +876,80 @@ ${latexCode}
             if (this.currentCreateType === 'slides') {
                 const isBeamer = latexCode.includes('\\documentclass{beamer}') || latexCode.includes('\\begin{frame}');
                 if (isBeamer) {
-                    console.log('🎯 Detectado Beamer - usando renderização direta com KaTeX');
-                    this.renderLatexDirectly(latexCode, messageId, 'slides');
-                    return;
+                    console.log('🎯 Detectado Beamer - tentando compilação PDF REAL...');
+                    
+                    // Enviar para API de compilação LaTeX
+                    const response = await fetch('/api/latex-compile', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            latexCode: latexCode,
+                            type: 'slides'
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        const filename = `apresentacao_${Date.now()}.pdf`;
+                        
+                        console.log('✅ Compilação Beamer PDF REAL bem-sucedida!');
+                        
+                        const compiledData = {
+                            blob: blob,
+                            url: url,
+                            filename: filename,
+                            isPDF: true,
+                            isSimulated: false,
+                            latexCode: latexCode
+                        };
+                        
+                        this.displayCompiledContent(messageId, compiledData, 'slides', '');
+                        return;
+                    } else {
+                        console.warn('⚠️ Falha na compilação Beamer, usando fallback');
+                    }
                 }
             }
             
-            // Para documentos, também usar renderização direta
+            // Para documentos, também tentar compilação REAL
             if (this.currentCreateType === 'document') {
-                console.log('🎯 Documento detectado - usando renderização direta com KaTeX');
-                this.renderLatexDirectly(latexCode, messageId, 'document');
-                return;
+                console.log('🎯 Documento detectado - tentando compilação PDF REAL...');
+                
+                const response = await fetch('/api/latex-compile', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        latexCode: latexCode,
+                        type: 'document'
+                    })
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const filename = `documento_${Date.now()}.pdf`;
+                    
+                    console.log('✅ Compilação Documento PDF REAL bem-sucedida!');
+                    
+                    const compiledData = {
+                        blob: blob,
+                        url: url,
+                        filename: filename,
+                        isPDF: true,
+                        isSimulated: false,
+                        latexCode: latexCode
+                    };
+                    
+                    this.displayCompiledContent(messageId, compiledData, 'document', '');
+                    return;
+                } else {
+                    console.warn('⚠️ Falha na compilação de documento, usando fallback');
+                }
             }
             
             // Fallback para outros tipos
@@ -895,7 +958,7 @@ ${latexCode}
             this.displayCompiledContent(messageId, simulatedData, this.currentCreateType, '');
             
         } catch (error) {
-            console.warn('⚠️ Erro na renderização, usando fallback:', error.message);
+            console.warn('⚠️ Erro na compilação, usando fallback:', error.message);
             const simulatedData = this.createSimulatedContent(latexCode);
             this.displayCompiledContent(messageId, simulatedData, this.currentCreateType, '');
         }
@@ -1294,99 +1357,6 @@ ${latexCode}
         });
     }
 
-    // ==================== FUNÇÕES DE RENDERIZAÇÃO LATEX ====================
-    renderLatexDirectly(latexCode, messageId, type) {
-        console.log('🎨 Renderizando LaTeX diretamente com KaTeX...');
-        
-        // Extrair frames do Beamer
-        const frameMatches = latexCode.match(/\\begin\{frame\}.*?\\end\{frame\}/gs);
-        let slidesHTML = '';
-        
-        if (frameMatches && frameMatches.length > 0) {
-            frameMatches.forEach((frame, index) => {
-                const titleMatch = frame.match(/\\frametitle\{([^}]+)\}/);
-                const frameTitle = titleMatch ? titleMatch[1] : `Slide ${index + 1}`;
-                let frameContent = frame.replace(/\\frametitle\{[^}]+\}/, '');
-                frameContent = frameContent.replace(/\\begin\{frame\}/, '').replace(/\\end\{frame\}/, '');
-                
-                // Limpar conteúdo para renderização
-                frameContent = frameContent.replace(/\\begin\{itemize\}/g, '<ul>');
-                frameContent = frameContent.replace(/\\end\{itemize\}/g, '</ul>');
-                frameContent = frameContent.replace(/\\item\s+/g, '<li>');
-                frameContent = frameContent.replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>');
-                frameContent = frameContent.replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>');
-                
-                slidesHTML += `
-                    <div class="slide" style="display: ${index === 0 ? 'block' : 'none'}; min-height: 600px; background: white; border: 1px solid #ddd; border-radius: 8px; padding: 40px; margin-bottom: 20px;">
-                        <h2 style="margin-top: 0; color: #333; font-size: 24px; margin-bottom: 20px;">${frameTitle}</h2>
-                        <div class="latex-content" style="line-height: 1.6; color: #666;">
-                            ${frameContent || '<p>Conteúdo do slide...</p>'}
-                        </div>
-                    </div>
-                `;
-            });
-        } else {
-            // Conteúdo único se não for slides
-            slidesHTML = `
-                <div style="min-height: 600px; background: white; border: 1px solid #ddd; border-radius: 8px; padding: 40px;">
-                    <div class="latex-content" style="line-height: 1.6; color: #666;">
-                        ${latexCode.replace(/\\documentclass.*?\\begin\{document\}/s, '').replace(/\\end\{document\}/, '')}
-                    </div>
-                </div>
-            `;
-        }
-        
-        const typeName = this.getCreateTypeName();
-        this.updateProcessingMessage(messageId, `
-            <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl mx-auto">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="material-icons-outlined text-${type === 'slides' ? 'green' : 'blue'}-400">
-                        ${type === 'slides' ? 'slideshow' : 'description'}
-                    </span>
-                    <h3 class="font-semibold text-gray-800 dark:text-gray-200">${typeName} renderizado com sucesso!</h3>
-                </div>
-                
-                <div class="mb-4">
-                    <div id="latex-container">
-                        ${slidesHTML}
-                    </div>
-                </div>
-                
-                <div class="flex gap-2 flex-wrap">
-                    <button onclick="window.downloadLatexAsHTML('${encodeURIComponent(latexCode)}', '${typeName}')" 
-                            class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
-                        <span class="material-icons-outlined text-sm">download</span>
-                        Baixar ${typeName} HTML
-                    </button>
-                    ${type === 'slides' && frameMatches && frameMatches.length > 1 ? `
-                        <button onclick="window.previousSlide()" 
-                                class="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
-                            <span class="material-icons-outlined text-sm">arrow_back</span>
-                            Slide Anterior
-                        </button>
-                        <button onclick="window.nextSlide()" 
-                                class="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
-                            <span class="material-icons-outlined text-sm">arrow_forward</span>
-                            Próximo Slide
-                        </button>
-                    ` : ''}
-                </div>
-            </div>
-        `);
-        
-        // Renderizar matemática KaTeX após inserir no DOM
-        setTimeout(() => {
-            if (typeof renderMathInElement === 'function') {
-                renderMathInElement(document.body, {
-                    delimiters: [
-                        {left: '$$', right: '$$', display: true},
-                        {left: '$', right: '$', display: false}
-                    ]
-                });
-            }
-        }, 100);
-    }
-
     // ==================== FUNÇÕES DE DOWNLOAD ====================
     async downloadGeneratedContent(url, filename) {
         const link = document.createElement('a');
@@ -1399,84 +1369,7 @@ ${latexCode}
         console.log('✅ Download iniciado:', filename);
     }
 
-    downloadLatexAsHTML(latexCode, typeName) {
-        const decodedCode = decodeURIComponent(latexCode);
-        const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>${typeName}</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 40px; background: white; }
-        .slide { min-height: 600px; border: 1px solid #ddd; border-radius: 8px; padding: 40px; margin-bottom: 20px; }
-        h2 { margin-top: 0; color: #333; font-size: 24px; margin-bottom: 20px; }
-        .latex-content { line-height: 1.6; color: #666; }
-        ul { margin: 10px 0; padding-left: 20px; }
-        li { margin: 5px 0; }
-    </style>
-</head>
-<body>
-    <h1>${typeName}</h1>
-    <div class="latex-content">
-        ${decodedCode.replace(/\\documentclass.*?\\begin\{document\}/s, '').replace(/\\end\{document\}/, '')}
-    </div>
-    <script>
-        renderMathInElement(document.body, {
-            delimiters: [
-                {left: '$$', right: '$$', display: true},
-                {left: '$', right: '$', display: false}
-            ]
-        });
-    </script>
-</body>
-</html>`;
-        
-        const blob = new Blob([htmlContent], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${typeName.toLowerCase()}_${Date.now()}.html`;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        console.log('✅ Download HTML iniciado:', typeName);
-    }
-
-    // Funções globais para navegação de slides
-window.currentSlide = 0;
-window.totalSlides = 0;
-
-window.nextSlide = function() {
-    const slides = document.querySelectorAll('.slide');
-    if (slides.length === 0) return;
-    
-    if (window.currentSlide < slides.length - 1) {
-        slides[window.currentSlide].style.display = 'none';
-        window.currentSlide++;
-        slides[window.currentSlide].style.display = 'block';
-        console.log(`📊 Slide ${window.currentSlide + 1} de ${slides.length}`);
-    }
-};
-
-window.previousSlide = function() {
-    const slides = document.querySelectorAll('.slide');
-    if (slides.length === 0) return;
-    
-    if (window.currentSlide > 0) {
-        slides[window.currentSlide].style.display = 'none';
-        window.currentSlide--;
-        slides[window.currentSlide].style.display = 'block';
-        console.log(`📊 Slide ${window.currentSlide + 1} de ${slides.length}`);
-    }
-};
-
-// ==================== MODO DEPURAÇÃO ====================
+    // ==================== MODO DEPURAÇÃO ====================
     async toggleDebugMode() {
         const debugBtn = document.getElementById('debugModeButton');
         this.debugModeActive = !this.debugModeActive;
