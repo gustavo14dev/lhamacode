@@ -1158,6 +1158,9 @@ ${latexCode}
     async handleSend() {
         const message = this.elements.userInput.value.trim();
         
+        // Remover sugestões de acompanhamento ao enviar nova mensagem
+        this.removeFollowUpSuggestions();
+        
         // Resetar contador de retry ao enviar nova mensagem
         if (window.apiRetryTimeout) {
             clearTimeout(window.apiRetryTimeout);
@@ -2190,7 +2193,7 @@ ${latexCode}
         // Criar container de sugestões integrado ao inputWrapper
         const suggestionsContainer = document.createElement('div');
         suggestionsContainer.id = 'followUpSuggestionsContainer';
-        suggestionsContainer.className = 'mb-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 opacity-0 transform translate-y-2 transition-all duration-300 ease-out';
+        suggestionsContainer.className = 'mb-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 opacity-0 transform translate-y-2 transition-all duration-300 ease-out max-w-md mx-auto';
         
         suggestionsContainer.innerHTML = `
             <div class="flex items-center gap-2 mb-2">
@@ -2237,22 +2240,6 @@ ${latexCode}
                 }, index * 50);
             });
         }, 100);
-
-        // Auto-remover após 20 segundos
-        const autoRemove = setTimeout(() => {
-            this.removeFollowUpSuggestions();
-        }, 20000);
-
-        // Remover ao começar a digitar
-        const handleTyping = () => {
-            this.removeFollowUpSuggestions();
-            this.elements.userInput.removeEventListener('input', handleTyping);
-            clearTimeout(autoRemove);
-        };
-        
-        setTimeout(() => {
-            this.elements.userInput.addEventListener('input', handleTyping);
-        }, 1000);
     }
 
     removeFollowUpSuggestions() {
