@@ -76,6 +76,16 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        .typing-animation {
+            overflow: hidden;
+            white-space: nowrap;
+            border-right: 2px solid rgba(255,255,255,0.3);
+            animation: typing 0.5s steps(40, end) forwards;
+        }
         .animate-fadeIn {
             animation: fadeIn 0.3s ease;
         }

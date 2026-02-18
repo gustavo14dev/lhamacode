@@ -377,15 +377,15 @@ export class Agent {
         // Usamos proxy server-side (/api/groq-proxy) que utiliza GROQ_API_KEY em Vercel.
         // Não é necessário ter chave no localStorage para deploy em produção.
 
-        const messageContainer = this.ui.createAssistantMessageContainer();
+        const messageContainer = this.ui.createRapidMessageContainer();
         const timestamp = Date.now();
 
-        this.ui.setThinkingHeader('Processando sua solicitação de forma rápida...', messageContainer.headerId);
-        await this.ui.sleep(800);
-
-        const stepId = `step_${timestamp}`;
-        this.ui.addThinkingStep('flash_on', 'Consultando Groq Llama 3.1 8B Instant', stepId, messageContainer.stepsId);
-        await this.ui.sleep(1500);
+        // Adicionar texto simples de carregamento com pontinhos pulsando
+        const thinkingHeader = document.getElementById(`thinkingHeader_${messageContainer}`);
+        if (thinkingHeader) {
+            thinkingHeader.innerHTML = '<span class="inline-flex gap-1"><span class="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></span><span class="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style="animation-delay: 0.2s"></span><span class="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style="animation-delay: 0.4s"></span></span>';
+            thinkingHeader.className = 'text-base leading-relaxed text-gray-500 dark:text-gray-400';
+        }
 
         this.addToHistory('user', userMessage);
 
@@ -398,18 +398,26 @@ export class Agent {
             let response = await this.callGroqAPI('llama-3.1-8b-instant', messages);
             // limpar extras para próxima chamada
             this.extraMessagesForNextCall = null;
-            this.ui.updateThinkingStep(stepId, 'check_circle', 'Resposta gerada com sucesso');
-            await this.ui.sleep(500);
 
             this.addToHistory('assistant', response);
-            this.ui.setResponseText(response, messageContainer.responseId);
+            this.ui.setResponseText(response, `responseText_${messageContainer}`);
             
-            // Fechar raciocínio quando terminar
-            await this.ui.sleep(500);
-            this.ui.closeThinkingSteps(messageContainer.headerId);
+            // Mostrar botões de ação quando resposta estiver completa
+            const actionsDiv = document.getElementById(`actions_${messageContainer}`);
+            if (actionsDiv) {
+                actionsDiv.classList.remove('opacity-0');
+                actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
+            }
+            
+            // Limpar texto de carregamento após um pequeno delay
+            setTimeout(() => {
+                if (thinkingHeader) {
+                    thinkingHeader.textContent = '';
+                }
+            }, 100);
             
             // Gerar sugestões de acompanhamento
-            await this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
+            await this.generateFollowUpSuggestions(userMessage, response, `responseText_${messageContainer}`);
 
             const chat = this.ui.chats.find(c => c.id === this.ui.currentChatId);
             if (chat) {
@@ -426,8 +434,7 @@ export class Agent {
                 console.log('⚠️ Geração interrompida pelo usuário');
                 return;
             }
-            this.ui.updateThinkingStep(stepId, 'error', 'Erro ao processar');
-            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem. ' + error.message, messageContainer.responseId);
+            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem. ' + error.message, `responseText_${messageContainer}`);
             console.error('Erro no Modelo Rápido:', error);
         }
     }
@@ -440,27 +447,63 @@ export class Agent {
         const messageContainer = this.ui.createAssistantMessageContainer();
         const timestamp = Date.now();
 
-        this.ui.setThinkingHeader('Entendi sua solicitação, estou processando...', messageContainer.headerId);
-        await this.ui.sleep(1200);
-
-        // PRIMEIRA ETAPA: Gerar checks personalizados via IA econômica
-        console.log('🔄 Gerando checks personalizados...');
+        // PRIMEIRA ETAPA: Gerar raciocínios personalizados via IA econômica
+        console.log('🔄 Gerando raciocínios personalizados...');
         
         let thinkingChecks = await this.generateChecksSafely(userMessage);
         
-        // Mostrar checks gerados
+        // Guardar raciocínios para mostrar depois
+        this.currentThinkingSteps = thinkingChecks;
+        
+        // Mostrar raciocínios UM POR VEZ no thinkingHeader
+        for (let i = 0; i < thinkingChecks.length; i++) {
+            const checkText = thinkingChecks[i].step;
+            
+            // Mostrar no thinkingHeader (onde fica "Mostrar Raciocínio")
+            this.ui.setThinkingHeader(checkText, messageContainer.headerId);
+            
+            // Delay para parecer natural
+            const delay = 2000 + Math.random() * 1000;
+            await this.ui.sleep(delay);
+            
+            // Limpar para o próximo raciocínio
+            if (i < thinkingChecks.length - 1) {
+                this.ui.setThinkingHeader('', messageContainer.headerId);
+                await this.ui.sleep(500);
+            }
+        }
+
+        // Limpar completamente após o último raciocínio
+        this.ui.setThinkingHeader('', messageContainer.headerId);
+        
+        // Adicionar todos os raciocínios na lista (thinkingSteps)
         for (let i = 0; i < thinkingChecks.length; i++) {
             const stepId = `step_${timestamp}_${i}`;
             const checkText = thinkingChecks[i].step;
             
-            this.ui.addThinkingStep('schedule', checkText, stepId, messageContainer.stepsId);
+            this.ui.addThinkingStep('check_circle', checkText, stepId, messageContainer.stepsId);
+        }
+        
+        // Esconder container de raciocínio e mostrar botão "Mostrar Raciocínio" com animação suave
+        const thinkingContainer = document.getElementById(messageContainer.stepsId.replace('thinkingSteps_', 'thinkingContainer_'));
+        const showBtn = document.getElementById(messageContainer.showId);
+        const stepsDiv = document.getElementById(messageContainer.stepsId);
+        
+        if (thinkingContainer && showBtn && stepsDiv) {
+            // Adicionar animação de fade out suave
+            thinkingContainer.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+            thinkingContainer.style.opacity = '0';
+            thinkingContainer.style.transform = 'translateY(-10px)';
             
-            // Delay variável entre checks para parecer mais natural
-            const delay = 1500 + Math.random() * 1500;
-            await this.ui.sleep(delay);
-            
-            this.ui.updateThinkingStep(stepId, 'check_circle', checkText);
-            await this.ui.sleep(300);
+            setTimeout(() => {
+                thinkingContainer.classList.add('hidden');
+                showBtn.classList.remove('hidden');
+                
+                // Resetar para próxima animação
+                thinkingContainer.style.transition = '';
+                thinkingContainer.style.opacity = '';
+                thinkingContainer.style.transform = '';
+            }, 500);
         }
 
         this.addToHistory('user', userMessage);
@@ -505,6 +548,13 @@ export class Agent {
             this.addToHistory('assistant', response);
             this.ui.setResponseText(response, messageContainer.responseId);
             
+            // Mostrar botões de ação quando resposta estiver completa
+            const actionsDiv = document.getElementById(`actions_${messageContainer.container.id.replace('msg_', '')}`);
+            if (actionsDiv) {
+                actionsDiv.classList.remove('opacity-0');
+                actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
+            }
+            
             // Fechar raciocínio quando terminar
             await this.ui.sleep(500);
             this.ui.closeThinkingSteps(messageContainer.headerId);
@@ -523,7 +573,7 @@ export class Agent {
     }
 
     // ==================== MODELO PRO ====================
-    // 3 modelos Groq em 5 rounds + sintetizador
+    // 2 chamadas para mesmo modelo + 1 análise final
     async processProModel(userMessage) {
         // Usamos proxy server-side (/api/groq-proxy) que utiliza GROQ_API_KEY em Vercel.
         // Não é necessário ter chave no localStorage para deploy em produção.
@@ -531,34 +581,34 @@ export class Agent {
         const messageContainer = this.ui.createAssistantMessageContainer();
         const timestamp = Date.now();
 
-        this.ui.setThinkingHeader('🚀 Analisando com múltiplas perspectivas...', messageContainer.headerId);
+        this.ui.setThinkingHeader('🚀 Gerando múltiplas perspectivas...', messageContainer.headerId);
         await this.ui.sleep(800);
 
         this.addToHistory('user', userMessage);
 
         try {
-            // ========== ROUND 1: Análise paralela de 2 perspectivas ==========
+            // ========== ETAPA 1: 2 respostas do mesmo modelo ==========
             const step1aId = `step1a_${timestamp}`;
-            this.ui.addThinkingStep('psychology', 'Perspectiva 1: Análise Rápida', step1aId, messageContainer.stepsId);
-            const messages1 = this.extraMessagesForNextCall ? [
-                { role: 'system', content: this.getSystemPrompt('rapido') },
-                ...this.extraMessagesForNextCall,
-                ...this.conversationHistory
-            ] : undefined;
-            const resp1Promise = this.callGroqAPI('llama-3.1-8b-instant', messages1);
-
+            this.ui.addThinkingStep('psychology', 'Gerando resposta 1/2...', step1aId, messageContainer.stepsId);
+            
             const step1bId = `step1b_${timestamp}`;
-            this.ui.addThinkingStep('psychology', 'Perspectiva 2: Análise Profunda', step1bId, messageContainer.stepsId);
-            const messages2 = this.extraMessagesForNextCall ? [
-                { role: 'system', content: this.getSystemPrompt('raciocinio') },
+            this.ui.addThinkingStep('psychology', 'Gerando resposta 2/2...', step1bId, messageContainer.stepsId);
+            
+            // Preparar mensagens para ambas chamadas (mesmo modelo)
+            const messages = this.extraMessagesForNextCall ? [
+                { role: 'system', content: this.getSystemPrompt('pro') },
                 ...this.extraMessagesForNextCall,
                 ...this.conversationHistory
             ] : undefined;
-            const resp2Promise = this.callGroqAPI('llama-3.3-70b-versatile', messages2);
-
-            // Esperar ambas em paralelo
+            
+            // Fazer 2 chamadas em paralelo para o mesmo modelo
+            const resp1Promise = this.callGroqAPI('llama-3.3-70b-versatile', messages);
+            const resp2Promise = this.callGroqAPI('llama-3.3-70b-versatile', messages);
+            
+            // Esperar ambas respostas
             let [resp1, resp2] = await Promise.all([resp1Promise, resp2Promise]);
-            // Extrair arquivos se existirem e remover do texto para não expor JSON no chat
+            
+            // Extrair arquivos se existirem
             try {
                 const parsed1 = this.parseFilesFromText(resp1);
                 if (parsed1 && parsed1.length > 0) {
@@ -566,6 +616,7 @@ export class Agent {
                     resp1 = resp1.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
                 }
             } catch (e) { console.warn('⚠️ Falha parsing arquivos de resp1:', e); }
+            
             try {
                 const parsed2 = this.parseFilesFromText(resp2);
                 if (parsed2 && parsed2.length > 0) {
@@ -574,75 +625,39 @@ export class Agent {
                 }
             } catch (e) { console.warn('⚠️ Falha parsing arquivos de resp2:', e); }
             
-            this.ui.updateThinkingStep(step1aId, 'check_circle', '✅ Perspectiva 1');
-            this.ui.updateThinkingStep(step1bId, 'check_circle', '✅ Perspectiva 2');
+            this.ui.updateThinkingStep(step1aId, 'check_circle', '✅ Resposta 1 gerada');
+            this.ui.updateThinkingStep(step1bId, 'check_circle', '✅ Resposta 2 gerada');
             await this.ui.sleep(1200);
 
-            // ========== ROUND 2: Cross-review - cada perspectiva valida a outra ==========
-            const step2aId = `step2a_${timestamp}`;
-            this.ui.addThinkingStep('compare_arrows', 'Review 1→2: Validação Cruzada', step2aId, messageContainer.stepsId);
-            
-            const review1Promise = this.callGroqAPI('llama-3.1-8b-instant', [
-                {
-                    role: 'system',
-                    content: 'Você é um revisor crítico. Avalie a resposta de outro modelo e identifique: 1) O que está certo, 2) O que poderia melhorar, 3) Detalhes que faltam. Seja breve e direto.'
-                },
-                {
-                    role: 'user',
-                    content: `Pergunta original: "${userMessage}"\n\nResposta a revisar:\n${resp2}\n\nFaça uma revisão crítica breve.`
-                }
-            ]);
-
-            const step2bId = `step2b_${timestamp}`;
-            this.ui.addThinkingStep('compare_arrows', 'Review 2→1: Validação Cruzada', step2bId, messageContainer.stepsId);
-            
-            const review2Promise = this.callGroqAPI('llama-3.3-70b-versatile', [
-                {
-                    role: 'system',
-                    content: 'Você é um revisor crítico. Avalie a resposta de outro modelo e identifique: 1) O que está certo, 2) O que poderia melhorar, 3) Detalhes que faltam. Seja breve e direto.'
-                },
-                {
-                    role: 'user',
-                    content: `Pergunta original: "${userMessage}"\n\nResposta a revisar:\n${resp1}\n\nFaça uma revisão crítica breve.`
-                }
-            ]);
-
-            const [review1, review2] = await Promise.all([review1Promise, review2Promise]);
-            
-            this.ui.updateThinkingStep(step2aId, 'check_circle', '✅ Review 1→2');
-            this.ui.updateThinkingStep(step2bId, 'check_circle', '✅ Review 2→1');
-            await this.ui.sleep(1200);
-
-            // ========== SÍNTESE: Consolidar em resposta final ==========
-            const stepSynthId = `stepsynth_${timestamp}`;
-            this.ui.addThinkingStep('build', 'Consolidação: Síntese Final', stepSynthId, messageContainer.stepsId);
+            // ========== ETAPA 2: Análise e síntese final ==========
+            const step2Id = `step2_${timestamp}`;
+            this.ui.addThinkingStep('analytics', 'Analisando e consolidando respostas...', step2Id, messageContainer.stepsId);
             
             const synthMessages = [
                 {
                     role: 'system',
-                    content: this.getSystemPrompt('pro') + ' Você é um sintetizador especializado. Sua ÚNICA função é consolidar duas análises completas em UMA ÚNICA resposta final coerente e equilibrada. Inclua os melhores pontos de ambas as perspectivas. NÃO adicione informações novas.'
+                    content: this.getSystemPrompt('pro') + ' Você é um analista especializado. Analise as duas respostas geradas e consolide-as em UMA ÚNICA resposta final superior. Inclua os melhores pontos de ambas as respostas, corrija inconsistências e crie uma resposta mais completa e equilibrada.'
                 },
                 {
                     role: 'user',
-                    content: `Pergunta original: "${userMessage}"\n\n=== PERSPECTIVA 1 (Rápida) ===\n${resp1}\n\n=== PERSPECTIVA 2 (Profunda) ===\n${resp2}\n\n=== FEEDBACK CRUZADO ===\nReview de 2 sobre 1: ${review1}\nReview de 1 sobre 2: ${review2}\n\nAgora, CONSOLIDE tudo em UMA resposta final única, equilibrada e bem estruturada.`
+                    content: `Pergunta original: "${userMessage}"\n\n=== RESPOSTA 1 ===\n${resp1}\n\n=== RESPOSTA 2 ===\n${resp2}\n\nAnalise ambas respostas e gere UMA resposta final consolidada que seja superior às duas individuais.`
                 }
             ];
+            
             // Se houver arquivos anexados, incluí-los temporariamente nas mensagens de síntese
             if (this.extraMessagesForNextCall) {
                 synthMessages.splice(1, 0, ...this.extraMessagesForNextCall);
             }
-            let finalResponse = await this.callGroqAPI('llama-3.1-8b-instant', synthMessages);
-            this.extraMessagesForNextCall = null;
-            this.ui.updateThinkingStep(stepSynthId, 'check_circle', '✅ Síntese Concluída');
-
             
+            let finalResponse = await this.callGroqAPI('llama-3.3-70b-versatile', synthMessages);
+            this.extraMessagesForNextCall = null;
+            this.ui.updateThinkingStep(step2Id, 'check_circle', '✅ Resposta final consolidada');
 
-            // Tentar extrair arquivos gerados na resposta de síntese e anexá-los ao chat
+            // Tentar extrair arquivos gerados na resposta final e anexá-los ao chat
             try {
                 const parsedFiles = this.parseFilesFromText(finalResponse);
                 if (parsedFiles && parsedFiles.length > 0) {
                     this.attachGeneratedFilesToChat(parsedFiles);
-                    // remover bloco do texto para apresentação
                     finalResponse = finalResponse.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
                 }
             } catch (e) {
@@ -651,6 +666,13 @@ export class Agent {
 
             this.addToHistory('assistant', finalResponse);
             this.ui.setResponseText(finalResponse, messageContainer.responseId);
+            
+            // Mostrar botões de ação quando resposta estiver completa
+            const actionsDiv = document.getElementById(`actions_${messageContainer.container.id.replace('msg_', '')}`);
+            if (actionsDiv) {
+                actionsDiv.classList.remove('opacity-0');
+                actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
+            }
             
             // Fechar raciocínio quando terminar
             await this.ui.sleep(500);
@@ -672,15 +694,13 @@ export class Agent {
                 this.ui.saveCurrentChat();
             }
 
-            console.log('🎉 Modelo Pro concluído com sucesso!');
-
         } catch (error) {
             if (error.message === 'ABORTED') {
                 console.log('⚠️ Geração interrompida pelo usuário');
                 return;
             }
+            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem. Verifique sua API Key e tente novamente.', messageContainer.responseId);
             console.error('Erro no Modelo Pro:', error);
-            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem no modo Pro. ' + error.message, messageContainer.responseId);
         }
     }
 
@@ -894,13 +914,24 @@ export class Agent {
 
     async generateFollowUpSuggestions(userMessage, assistantResponse, responseId) {
         try {
-            const prompt = `Baseado na seguinte conversa, gere EXATAMENTE 3 sugestões de acompanhamento para a próxima pergunta do usuário. As sugestões devem ser relevantes, específicas e naturais.
+            const prompt = `Você é um assistente de IA. Baseado na conversa abaixo, gere EXATAMENTE 3 sugestões de próximas perguntas que o USUÁRIO poderia fazer para você. As sugestões devem ser:
 
-Sua pergunta: "${userMessage}"
-Minha resposta: "${assistantResponse.substring(0, 500)}..."
+- Na perspectiva do USUÁRIO falando com a IA
+- Perguntas naturais e relevantes
+- Baseadas no contexto da conversa
+- Escritas como se o usuário estivesse perguntando
+
+Conversa:
+Usuário perguntou: "${userMessage}"
+Você respondeu: "${assistantResponse.substring(0, 500)}..."
+
+Exemplos de como devem ser:
+- "Como funciona [tópico mencionado]?"
+- "Pode me explicar mais sobre [assunto]?"
+- "O que você acha de [ideia relacionada]?"
 
 Responda APENAS com um JSON array contendo 3 strings, sem texto adicional:
-["sugestão 1", "sugestão 2", "sugestão 3"]`;
+["pergunta do usuário 1", "pergunta do usuário 2", "pergunta do usuário 3"]`;
 
             const response = await this.callGroqAPI('llama-3.1-8b-instant', [
                 { role: 'system', content: 'Você é um especialista em gerar sugestões de acompanhamento relevantes e naturais para conversas. Sempre retorne exatamente 3 sugestões em formato JSON array.' },
