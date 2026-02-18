@@ -2197,17 +2197,17 @@ ${latexCode}
                 <span class="material-icons-outlined text-sm text-amber-500">lightbulb</span>
                 <h4 class="text-xs font-medium text-gray-600 dark:text-gray-400">Sugestões de acompanhamento</h4>
             </div>
-            <div class="flex flex-wrap gap-1.5">
+            <div class="flex flex-col gap-2">
                 ${suggestions.map((suggestion, index) => `
                     <button 
-                        class="follow-up-suggestion px-3 py-1.5 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-xs text-gray-700 dark:text-gray-300 rounded-full border border-gray-200 dark:border-gray-600 transition-all duration-200 ease-out hover:scale-105 hover:shadow-sm transform"
+                        class="follow-up-suggestion w-full text-left px-3 py-2 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-xs text-gray-700 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-600 transition-all duration-200 ease-out hover:scale-[1.02] hover:shadow-sm transform"
                         data-suggestion="${suggestion}"
                         onclick="window.handleFollowUpSuggestion('${suggestion.replace(/'/g, "\\'")}')"
                         style="animation-delay: ${index * 50}ms; opacity: 0; transform: translateY(4px);"
                     >
-                        <div class="flex items-center gap-1">
+                        <div class="flex items-center gap-2">
                             <span class="material-icons-outlined text-xs opacity-50">arrow_right</span>
-                            <span>${suggestion}</span>
+                            <span class="flex-1">${suggestion}</span>
                         </div>
                     </button>
                 `).join('')}
