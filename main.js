@@ -40,7 +40,8 @@ class UI {
             createButton: document.getElementById('createButton'),
             createDropdown: document.getElementById('createDropdown'),
             createButtonText: document.getElementById('createButtonText'),
-            scrollToBottomBtn: document.getElementById('scrollToBottomBtn')
+            scrollToBottomBtn: document.getElementById('scrollToBottomBtn'),
+            webSearchButton: document.getElementById('webSearchButton')
         };
 
         // Debug (somente se flag ativada)
@@ -248,6 +249,11 @@ class UI {
         this.elements.sendButton.addEventListener('click', () => this.handleSend());
 
         this.elements.newChatBtn.addEventListener('click', () => this.createNewChat());
+
+        // Botão de Pesquisa na Web
+        if (this.elements.webSearchButton) {
+            this.elements.webSearchButton.addEventListener('click', () => this.toggleWebSearch());
+        }
 
         // Anexar arquivo removido nesta versão (funcionalidade deletada a pedido) 
         
@@ -2122,6 +2128,43 @@ ${latexCode}
 
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // ==================== PESQUISA WEB ====================
+    
+    toggleWebSearch() {
+        if (this.agent && this.agent.webSearch) {
+            const isEnabled = this.agent.webSearch.toggleWebSearchMode();
+            
+            // Mostrar feedback visual
+            if (isEnabled) {
+                this.showNotification('🔍 Pesquisa na Web ATIVADA', 'success');
+            } else {
+                this.showNotification('🔍 Pesquisa na Web DESATIVADA', 'info');
+            }
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-20 right-6 z-50 px-4 py-2 rounded-lg shadow-lg animate-fadeIn pointer-events-auto`;
+        
+        // Estilos baseados no tipo
+        if (type === 'success') {
+            notification.classList.add('bg-green-500', 'text-white');
+        } else if (type === 'error') {
+            notification.classList.add('bg-red-500', 'text-white');
+        } else {
+            notification.classList.add('bg-blue-500', 'text-white');
+        }
+        
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        // Remover após 3 segundos
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
     }
 
     // ==================== CONTROLE DE PAUSA ====================

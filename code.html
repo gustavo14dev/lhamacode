@@ -196,10 +196,12 @@
 <span class="material-icons-outlined text-base">attach_file</span>
 </button>
 <input type="file" id="fileInput" class="hidden" multiple />
-<button class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-all duration-200 whitespace-nowrap" id="debugModeButton" title="Ativar modo depuração para analisar erros">
-<span class="material-icons-outlined text-base">bug_report</span>
-                        Modo Depuração
-                    </button>
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" id="webSearchButton" title="Ativar Pesquisa na Web">
+<span class="material-icons-outlined text-base">search</span>
+<span>Pesquisa na Web</span>
+</button>
+</div>
+<div class="flex items-center gap-2 ml-auto">
 <div class="relative" id="modelSelectorContainer">
 <button class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" id="modelButton">
 <span class="material-icons-outlined text-base">psychology</span>
@@ -207,11 +209,6 @@
 <span class="material-icons-outlined text-sm">expand_more</span>
 </button>
 </div>
-</div>
-<div class="flex items-center gap-2 ml-auto">
-<button class="p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 text-gray-500 dark:text-gray-400 transition-colors" title="Transcrição de áudio">
-<span class="material-icons-outlined">mic</span>
-</button>
 <button class="w-10 h-10 rounded-full bg-primary hover:bg-primary/90 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105 active:scale-95" id="sendButton">
 <span class="material-icons-outlined text-xl">arrow_upward</span>
 </button>
@@ -264,50 +261,47 @@
         
         <!-- Grid de Vídeos -->
         <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mb-6">
-            <!-- Vídeo 1 - Bilu (já existe) -->
-            <div class="flex flex-col items-center group cursor-pointer" onclick="selectBiluVideo('img/Video Project.mp4', 'Bilu')">
-                <video autoplay muted loop playsinline class="w-24 h-24 rounded-2xl object-cover shadow-lg mb-3 group-hover:scale-105 transition-transform">
+            <!-- Vídeo 1: Bilu (existente) -->
+            <div class="video-slot">
+                <video autoplay muted loop playsinline class="w-full h-32 object-cover rounded-lg cursor-pointer hover:scale-105 transition-transform" onclick="selectBiluVideo('img/Video Project.mp4', 'Bilu')">
                     <source src="img/Video Project.mp4" type="video/mp4">
                 </video>
-                <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Bilu</p>
+                <p class="text-xs text-center mt-1 text-gray-600 dark:text-gray-400">Bilu</p>
             </div>
             
-            <!-- Espaços para os outros 5 vídeos -->
-            <div class="flex flex-col items-center group cursor-pointer opacity-50" onclick="alert('Vídeo ainda não disponível')">
-                <div class="w-24 h-24 rounded-2xl bg-gray-200 dark:bg-gray-700 mb-3 flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <span class="material-icons-outlined text-3xl text-gray-400 dark:text-gray-500">video_file</span>
-                </div>
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Em breve</p>
+            <!-- Vídeo 2: Kino (novo) -->
+            <div class="video-slot">
+                <video autoplay muted loop playsinline class="w-full h-32 object-cover rounded-lg cursor-pointer hover:scale-105 transition-transform" onclick="selectBiluVideo('img/Video Project2.mp4', 'Kino')">
+                    <source src="img/Video Project2.mp4" type="video/mp4">
+                </video>
+                <p class="text-xs text-center mt-1 text-gray-600 dark:text-gray-400">Kino</p>
             </div>
             
-            <div class="flex flex-col items-center group cursor-pointer opacity-50" onclick="alert('Vídeo ainda não disponível')">
-                <div class="w-24 h-24 rounded-2xl bg-gray-200 dark:bg-gray-700 mb-3 flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <span class="material-icons-outlined text-3xl text-gray-400 dark:text-gray-500">video_file</span>
+            <!-- Vídeos 3-6: Placeholders -->
+            <div class="video-slot">
+                <div class="w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                    <span class="material-icons-outlined text-gray-400 dark:text-gray-500">add_circle_outline</span>
                 </div>
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Em breve</p>
+                <p class="text-xs text-center mt-1 text-gray-600 dark:text-gray-400">Vazio</p>
             </div>
-            
-            <div class="flex flex-col items-center group cursor-pointer opacity-50" onclick="alert('Vídeo ainda não disponível')">
-                <div class="w-24 h-24 rounded-2xl bg-gray-200 dark:bg-gray-700 mb-3 flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <span class="material-icons-outlined text-3xl text-gray-400 dark:text-gray-500">video_file</span>
+            <div class="video-slot">
+                <div class="w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                    <span class="material-icons-outlined text-gray-400 dark:text-gray-500">add_circle_outline</span>
                 </div>
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Em breve</p>
+                <p class="text-xs text-center mt-1 text-gray-600 dark:text-gray-400">Vazio</p>
             </div>
-            
-            <div class="flex flex-col items-center group cursor-pointer opacity-50" onclick="alert('Vídeo ainda não disponível')">
-                <div class="w-24 h-24 rounded-2xl bg-gray-200 dark:bg-gray-700 mb-3 flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <span class="material-icons-outlined text-3xl text-gray-400 dark:text-gray-500">video_file</span>
+            <div class="video-slot">
+                <div class="w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                    <span class="material-icons-outlined text-gray-400 dark:text-gray-500">add_circle_outline</span>
                 </div>
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Em breve</p>
+                <p class="text-xs text-center mt-1 text-gray-600 dark:text-gray-400">Vazio</p>
             </div>
-            
-            <div class="flex flex-col items-center group cursor-pointer opacity-50" onclick="alert('Vídeo ainda não disponível')">
-                <div class="w-24 h-24 rounded-2xl bg-gray-200 dark:bg-gray-700 mb-3 flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <span class="material-icons-outlined text-3xl text-gray-400 dark:text-gray-500">video_file</span>
+            <div class="video-slot">
+                <div class="w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                    <span class="material-icons-outlined text-gray-400 dark:text-gray-500">add_circle_outline</span>
                 </div>
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Em breve</p>
+                <p class="text-xs text-center mt-1 text-gray-600 dark:text-gray-400">Vazio</p>
             </div>
-        </div>
         
         <!-- Footer -->
         <div class="text-center">
@@ -318,30 +312,6 @@
     </div>
 </div>
 </main>
-
-<!-- DEBUG MODAL - Card separado FORA da conversa -->
-<div id="debugModal" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn pointer-events-none" onclick="if(event.target === this) { this.classList.add('hidden'); this.classList.add('pointer-events-none'); }">
-    <div class="bg-white dark:bg-gray-950 rounded-xl border border-gray-200 dark:border-gray-800 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-scaleIn pointer-events-auto">
-        <!-- Header -->
-        <div class="sticky top-0 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <span class="material-icons-outlined text-orange-600 dark:text-orange-400">bug_report</span>
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Modo Depuração - Análise de Erro</h2>
-            </div>
-            <button onclick="document.getElementById('debugModal').classList.add('hidden')" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                <span class="material-icons-outlined text-gray-500 dark:text-gray-400">close</span>
-            </button>
-        </div>
-        <!-- Content -->
-        <div id="debugModalContent" class="p-6">
-            <div class="text-center text-gray-500 dark:text-gray-400">
-                <span class="material-icons-outlined text-4xl mb-4">bug_report</span>
-                <p class="text-lg font-medium mb-2">Aguardando análise de erro...</p>
-                <p class="text-sm">O sistema está pronto para analisar qualquer erro que ocorrer.</p>
-            </div>
-        </div>
-    </div>
-</div>
 
 <script type="module" src="main.js" defer></script>
 <script>
@@ -459,6 +429,23 @@ window.showMemory = () => {
         console.log('🧠 Memória da Conversa:', memory.conversationMemory);
         console.log('👤 Memória do Usuário:', memory.userMemory);
         console.log('📁 Memória de Projetos:', memory.projectMemory);
+    }
+};
+
+// Sistema de Pesquisa na Web
+window.session = window.session || {};
+window.session.setTavilyKey = (apiKey) => {
+    if (window.ui && window.ui.agent && window.ui.agent.webSearch) {
+        window.ui.agent.webSearch.setTavilyApiKey(apiKey);
+        console.log('✅ API Key Tavily configurada!');
+    }
+};
+
+window.webSearchStats = () => {
+    if (window.ui && window.ui.agent && window.ui.agent.webSearch) {
+        const stats = window.ui.agent.webSearch.getSearchStats();
+        console.log('🔍 Estatísticas da Pesquisa Web:', stats);
+        return stats;
     }
 };
 

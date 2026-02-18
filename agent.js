@@ -1,4 +1,5 @@
 import { MemorySystem } from './memory-system.js';
+import { WebSearchSystem } from './web-search-system.js';
 
 export class Agent {
     constructor(ui) {
@@ -14,6 +15,9 @@ export class Agent {
         // Sistema de memória
         this.memory = new MemorySystem();
         this.memory.loadFromLocalStorage();
+        
+        // Sistema de pesquisa web
+        this.webSearch = new WebSearchSystem(ui, this);
     }
 
     setModel(model) {
@@ -71,6 +75,13 @@ export class Agent {
         // Obter contexto relevante da memória
         const relevantContext = this.memory.getRelevantContext(userMessage);
         console.log('🧠 Contexto relevante encontrado:', relevantContext.length, 'memórias');
+
+        // Verificar se está em modo de pesquisa web
+        if (this.webSearch.isWebSearchEnabled()) {
+            console.log('🔍 Processando mensagem com Pesquisa na Web');
+            await this.processWebSearchMessage(userMessage, attachedFilesFromUI);
+            return;
+        }
 
         // Verificação rápida da API desabilitada temporariamente
         // try {
@@ -142,6 +153,87 @@ export class Agent {
         
         this.isGenerating = false;
         this.ui.updateSendButtonToSend();
+    }
+
+    // ==================== PESQUISA WEB ====================
+    
+    async processWebSearchMessage(userMessage, attachedFilesFromUI = null) {
+        const messageContainer = this.ui.createAssistantMessageContainer();
+        const timestamp = Date.now();
+        
+        this.ui.setThinkingHeader('🔍 Pesquisando na web...', messageContainer.headerId);
+        this.ui.addThinkingStep('search', 'Buscando informações em fontes confiáveis', `search_${timestamp}_1`, messageContainer.stepsId);
+        
+        try {
+            // Realizar pesquisa web
+            const searchResults = await this.webSearch.processWebSearchQuery(userMessage);
+            
+            this.ui.updateThinkingStep(`search_${timestamp}_1`, 'check_circle', 'Busca concluída com sucesso');
+            this.ui.addThinkingStep('analysis', 'Analisando resultados e gerando resposta', `search_${timestamp}_2`, messageContainer.stepsId);
+            
+            // Formatar resposta com fontes
+            const formattedResponse = this.webSearch.formatWebSearchResponse(
+                searchResults.response, 
+                searchResults.sources, 
+                searchResults.query
+            );
+            
+            this.ui.updateThinkingStep(`search_${timestamp}_2`, 'check_circle', 'Resposta gerada com base nas fontes');
+            
+            // Salvar mensagem
+            this.addToHistory('assistant', formattedResponse);
+            this.memory.addConversationMemory('assistant', formattedResponse);
+            this.memory.learnFromInteraction(userMessage, formattedResponse);
+            
+            // Exibir resposta
+            this.ui.setResponseText(formattedResponse, messageContainer.responseId);
+            
+            // Salvar no chat
+            const chat = this.ui.chats.find(c => c.id === this.ui.currentChatId);
+            if (chat) {
+                if (chat.messages.length === 1) {
+                    const firstUserMessage = chat.messages[0].content;
+                    chat.title = `🔍 ${firstUserMessage.substring(0, 45)}...`;
+                }
+                chat.messages.push({ 
+                    role: 'assistant', 
+                    content: formattedResponse, 
+                    thinking: null,
+                    webSearch: {
+                        query: searchResults.query,
+                        sources: searchResults.sources,
+                        timestamp: searchResults.timestamp
+                    }
+                });
+                this.ui.saveCurrentChat();
+            }
+            
+            await this.ui.sleep(500);
+            this.ui.closeThinkingSteps(messageContainer.headerId);
+            
+        } catch (error) {
+            if (error.message === 'ABORTED') {
+                console.log('⚠️ Pesquisa web interrompida pelo usuário');
+                return;
+            }
+            
+            console.error('❌ Erro na pesquisa web:', error);
+            
+            let errorMessage = 'Desculpe, ocorreu um erro na pesquisa na web. ';
+            
+            if (error.message.includes('Nenhuma API key Tavily configurada')) {
+                errorMessage += 'Configure a API Tavily com: session.setTavilyKey("sua_chave_tavily")';
+            } else if (error.message.includes('status 401')) {
+                errorMessage += 'Verifique sua API key Tavily.';
+            } else if (error.message.includes('status 429')) {
+                errorMessage += 'Limite de requisições excedido. Tente novamente em alguns minutos.';
+            } else {
+                errorMessage += error.message;
+            }
+            
+            this.ui.setResponseText(errorMessage, messageContainer.responseId);
+            this.ui.closeThinkingSteps(messageContainer.headerId);
+        }
     }
     // ==================== MODELO MISTRAL (codestral-latest) ====================
     async processMistralModel(userMessage, relevantContext = []) {
