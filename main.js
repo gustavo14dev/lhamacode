@@ -2174,69 +2174,104 @@ ${latexCode}
     }
 
     displayFollowUpSuggestions(messageId, suggestions) {
-        // Procurar pelo elemento da mensagem usando diferentes abordagens
-        let messageElement = document.getElementById(`message_${messageId}`);
-        
-        if (!messageElement) {
-            // Tentar encontrar pelo ID de resposta
-            const responseElement = document.getElementById(`responseText_${messageId.replace('msg_', '')}`);
-            if (responseElement) {
-                messageElement = responseElement.closest('.mb-6');
-            }
-        }
-        
-        if (!messageElement) {
-            console.warn('❌ Elemento da mensagem não encontrado para sugestões:', messageId);
-            return;
+        // Remover sugestões anteriores se existirem
+        const existingContainer = document.getElementById('followUpSuggestionsContainer');
+        if (existingContainer) {
+            existingContainer.remove();
         }
 
-        // Verificar se já existe sugestões para esta mensagem
-        const existingSuggestions = messageElement.querySelector('.follow-up-suggestions');
-        if (existingSuggestions) return;
-
-        // Criar container de sugestões
+        // Criar container fixo na parte inferior (acima da caixa de envio)
         const suggestionsContainer = document.createElement('div');
-        suggestionsContainer.className = 'follow-up-suggestions mt-4 pt-4 border-t border-gray-200 dark:border-gray-700';
+        suggestionsContainer.id = 'followUpSuggestionsContainer';
+        suggestionsContainer.className = 'fixed bottom-20 left-0 right-0 mx-4 max-w-4xl translate-x-1/2 -translate-x-1/2 z-50';
         
         suggestionsContainer.innerHTML = `
-            <div class="mb-3">
-                <h4 class="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                    <span class="material-icons-outlined text-base">lightbulb</span>
-                    Sugestões de acompanhamento
-                </h4>
-            </div>
-            <div class="grid gap-2">
-                ${suggestions.map((suggestion, index) => `
-                    <button 
-                        class="follow-up-suggestion text-left p-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors group"
-                        data-suggestion="${suggestion}"
-                        onclick="window.handleFollowUpSuggestion('${suggestion.replace(/'/g, "\\'")}')"
-                    >
-                        <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 group-hover:text-primary dark:group-hover:text-primary/80">
-                            <span class="material-icons-outlined text-base opacity-50">arrow_right</span>
-                            ${suggestion}
-                        </div>
-                    </button>
-                `).join('')}
+            <div class="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 rounded-2xl shadow-2xl p-4 opacity-0 transform translate-y-4 transition-all duration-500 ease-out">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="material-icons-outlined text-base text-amber-500">lightbulb</span>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">Sugestões de acompanhamento</h4>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    ${suggestions.map((suggestion, index) => `
+                        <button 
+                            class="follow-up-suggestion px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 rounded-full transition-all duration-300 ease-out hover:scale-105 hover:shadow-md transform"
+                            data-suggestion="${suggestion}"
+                            onclick="window.handleFollowUpSuggestion('${suggestion.replace(/'/g, "\\'")}')"
+                            style="animation-delay: ${index * 100}ms; opacity: 0; transform: translateY(8px);"
+                        >
+                            <div class="flex items-center gap-2">
+                                <span class="material-icons-outlined text-xs opacity-60">arrow_right</span>
+                                <span>${suggestion}</span>
+                            </div>
+                        </button>
+                    `).join('')}
+                </div>
             </div>
         `;
 
-        // Adicionar após o conteúdo da mensagem principal
-        const messageContent = messageElement.querySelector('.bg-surface-light, .dark\\:bg-surface-dark');
-        if (messageContent) {
-            messageContent.appendChild(suggestionsContainer);
-        } else {
-            // Fallback: adicionar ao final do elemento da mensagem
-            messageElement.appendChild(suggestionsContainer);
-        }
+        // Adicionar ao body
+        document.body.appendChild(suggestionsContainer);
 
-        // Scroll suave para mostrar as sugestões
+        // Animar entrada do container
         setTimeout(() => {
-            this.scrollToBottom();
-        }, 300);
+            const innerContainer = suggestionsContainer.querySelector('.bg-white\\/95, .dark\\:bg-gray-900\\/95');
+            if (innerContainer) {
+                innerContainer.classList.remove('opacity-0', 'translate-y-4');
+                innerContainer.classList.add('opacity-100', 'translate-y-0');
+            }
+
+            // Animar cada sugestão individualmente
+            const suggestionButtons = suggestionsContainer.querySelectorAll('.follow-up-suggestion');
+            suggestionButtons.forEach((button, index) => {
+                setTimeout(() => {
+                    button.style.opacity = '1';
+                    button.style.transform = 'translateY(0)';
+                    button.style.transition = 'all 0.3s ease-out';
+                }, index * 100);
+            });
+        }, 100);
+
+        // Auto-remover após 30 segundos ou quando clicar fora
+        const autoRemove = setTimeout(() => {
+            this.removeFollowUpSuggestions();
+        }, 30000);
+
+        // Remover ao clicar fora
+        const handleClickOutside = (e) => {
+            if (!suggestionsContainer.contains(e.target)) {
+                this.removeFollowUpSuggestions();
+                document.removeEventListener('click', handleClickOutside);
+                clearTimeout(autoRemove);
+            }
+        };
+        
+        setTimeout(() => {
+            document.addEventListener('click', handleClickOutside);
+        }, 1000);
+    }
+
+    removeFollowUpSuggestions() {
+        const container = document.getElementById('followUpSuggestionsContainer');
+        if (container) {
+            const innerContainer = container.querySelector('.bg-white\\/95, .dark\\:bg-gray-900\\/95');
+            if (innerContainer) {
+                // Animar saída
+                innerContainer.classList.add('opacity-0', 'translate-y-4');
+                innerContainer.classList.remove('opacity-100', 'translate-y-0');
+                
+                setTimeout(() => {
+                    container.remove();
+                }, 300);
+            } else {
+                container.remove();
+            }
+        }
     }
 
     handleFollowUpSuggestion(suggestion) {
+        // Remover sugestões com animação suave
+        this.removeFollowUpSuggestions();
+        
         // Preencher o input com a sugestão
         this.elements.userInput.value = suggestion;
         this.elements.userInput.focus();
