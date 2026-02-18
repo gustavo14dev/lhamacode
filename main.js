@@ -1994,19 +1994,42 @@ ${latexCode}
             return;
         }
         
-        let displayedText = '';
-        for (let i = 0; i < displayText.length; i++) {
-            displayedText += displayText[i];
-            element.textContent = displayedText;
-            if (i % 2 === 0) {
-                this.scrollToBottom();
+        // ANIMAÇÃO LINHA POR LINHA JÁ FORMATADA
+        const lines = text.split('\n');
+        let displayedLines = [];
+        
+        for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+            const currentLine = lines[lineIndex];
+            let displayedLine = '';
+            
+            // Animar caractere por caractere da linha atual
+            for (let charIndex = 0; charIndex < currentLine.length; charIndex++) {
+                displayedLine += currentLine[charIndex];
+                
+                // Combinar linhas já formatadas + linha atual sendo digitada
+                const allLines = [...displayedLines, displayedLine];
+                const partialText = allLines.join('\n');
+                
+                // Formatar o texto parcial já bonito
+                const formattedPartial = this.formatResponse(partialText);
+                element.innerHTML = formattedPartial;
+                
+                if (charIndex % 3 === 0) {
+                    this.scrollToBottom();
+                }
+                await this.sleep(3); // Mais rápido: 3ms por caractere
             }
-            await this.sleep(5); // Acelerado: 5ms
+            
+            // Adicionar linha completa ao array de linhas exibidas
+            displayedLines.push(currentLine);
+            
+            // Pequena pausa entre linhas
+            await this.sleep(20);
         }
         
-        // Após animação terminar, renderizar o HTML formatado com os cards bonitos
-        const formattedHtml = this.formatResponse(text);
-        element.innerHTML = formattedHtml;
+        // Garantir formatação final completa
+        const finalFormatted = this.formatResponse(text);
+        element.innerHTML = finalFormatted;
         setTimeout(() => this.scrollToBottom(), 100);
     }
 
