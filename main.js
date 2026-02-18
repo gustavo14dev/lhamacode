@@ -2177,6 +2177,11 @@ ${latexCode}
     }
 
     displayFollowUpSuggestions(messageId, suggestions) {
+        // Garantir que welcomeScreen fique escondido
+        if (this.elements.welcomeScreen) {
+            this.elements.welcomeScreen.classList.add('hidden');
+        }
+        
         // Remover sugestões anteriores se existirem
         const existingContainer = document.getElementById('followUpSuggestionsContainer');
         if (existingContainer) {
@@ -2226,14 +2231,8 @@ ${latexCode}
             </div>
         `;
 
-        // Adicionar após o conteúdo da mensagem principal
-        const messageContent = messageElement.querySelector('.bg-surface-light, .dark\\:bg-surface-dark');
-        if (messageContent) {
-            messageContent.appendChild(suggestionsContainer);
-        } else {
-            // Fallback: adicionar ao final do elemento da mensagem
-            messageElement.appendChild(suggestionsContainer);
-        }
+        // Adicionar após o elemento da mensagem (fora do card)
+        messageElement.parentNode.insertBefore(suggestionsContainer, messageElement.nextSibling);
 
         // Animar entrada do container
         setTimeout(() => {
