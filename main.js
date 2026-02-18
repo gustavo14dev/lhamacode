@@ -2183,17 +2183,26 @@ ${latexCode}
             existingContainer.remove();
         }
 
-        // Encontrar o inputWrapper
-        const inputWrapper = document.getElementById('inputWrapper');
-        if (!inputWrapper) {
-            console.warn('❌ inputWrapper não encontrado');
+        // Procurar pelo elemento da mensagem usando diferentes abordagens
+        let messageElement = document.getElementById(`message_${messageId}`);
+        
+        if (!messageElement) {
+            // Tentar encontrar pelo ID de resposta
+            const responseElement = document.getElementById(`responseText_${messageId.replace('msg_', '')}`);
+            if (responseElement) {
+                messageElement = responseElement.closest('.mb-6');
+            }
+        }
+        
+        if (!messageElement) {
+            console.warn('❌ Elemento da mensagem não encontrado para sugestões:', messageId);
             return;
         }
 
-        // Criar container de sugestões integrado ao inputWrapper
+        // Criar container de sugestões integrado à mensagem da IA
         const suggestionsContainer = document.createElement('div');
         suggestionsContainer.id = 'followUpSuggestionsContainer';
-        suggestionsContainer.className = 'mb-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 opacity-0 transform translate-y-2 transition-all duration-300 ease-out max-w-md mx-auto';
+        suggestionsContainer.className = 'mt-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 opacity-0 transform translate-y-2 transition-all duration-300 ease-out max-w-md';
         
         suggestionsContainer.innerHTML = `
             <div class="flex items-center gap-2 mb-2">
@@ -2217,12 +2226,13 @@ ${latexCode}
             </div>
         `;
 
-        // Inserir antes do container principal do input (dentro do inputWrapper)
-        const inputContainer = inputWrapper.querySelector('.bg-surface-light, .dark\\:bg-surface-dark');
-        if (inputContainer) {
-            inputContainer.parentNode.insertBefore(suggestionsContainer, inputContainer);
+        // Adicionar após o conteúdo da mensagem principal
+        const messageContent = messageElement.querySelector('.bg-surface-light, .dark\\:bg-surface-dark');
+        if (messageContent) {
+            messageContent.appendChild(suggestionsContainer);
         } else {
-            inputWrapper.appendChild(suggestionsContainer);
+            // Fallback: adicionar ao final do elemento da mensagem
+            messageElement.appendChild(suggestionsContainer);
         }
 
         // Animar entrada do container
@@ -2261,10 +2271,9 @@ ${latexCode}
         
         // Preencher o input com a sugestão
         this.elements.userInput.value = suggestion;
-        this.elements.userInput.focus();
         
-        // Opcional: enviar automaticamente
-        // this.handleSend();
+        // Enviar automaticamente a mensagem
+        this.handleSend();
     }
 
     closeThinkingSteps(headerId) {
