@@ -2180,45 +2180,52 @@ ${latexCode}
             existingContainer.remove();
         }
 
-        // Criar container fixo na parte inferior (acima da caixa de envio)
+        // Encontrar o inputWrapper
+        const inputWrapper = document.getElementById('inputWrapper');
+        if (!inputWrapper) {
+            console.warn('❌ inputWrapper não encontrado');
+            return;
+        }
+
+        // Criar container de sugestões integrado ao inputWrapper
         const suggestionsContainer = document.createElement('div');
         suggestionsContainer.id = 'followUpSuggestionsContainer';
-        suggestionsContainer.className = 'fixed bottom-20 left-0 right-0 mx-4 max-w-4xl translate-x-1/2 -translate-x-1/2 z-50';
+        suggestionsContainer.className = 'mb-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 opacity-0 transform translate-y-2 transition-all duration-300 ease-out';
         
         suggestionsContainer.innerHTML = `
-            <div class="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 rounded-2xl shadow-2xl p-4 opacity-0 transform translate-y-4 transition-all duration-500 ease-out">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="material-icons-outlined text-base text-amber-500">lightbulb</span>
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">Sugestões de acompanhamento</h4>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    ${suggestions.map((suggestion, index) => `
-                        <button 
-                            class="follow-up-suggestion px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 rounded-full transition-all duration-300 ease-out hover:scale-105 hover:shadow-md transform"
-                            data-suggestion="${suggestion}"
-                            onclick="window.handleFollowUpSuggestion('${suggestion.replace(/'/g, "\\'")}')"
-                            style="animation-delay: ${index * 100}ms; opacity: 0; transform: translateY(8px);"
-                        >
-                            <div class="flex items-center gap-2">
-                                <span class="material-icons-outlined text-xs opacity-60">arrow_right</span>
-                                <span>${suggestion}</span>
-                            </div>
-                        </button>
-                    `).join('')}
-                </div>
+            <div class="flex items-center gap-2 mb-2">
+                <span class="material-icons-outlined text-sm text-amber-500">lightbulb</span>
+                <h4 class="text-xs font-medium text-gray-600 dark:text-gray-400">Sugestões de acompanhamento</h4>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+                ${suggestions.map((suggestion, index) => `
+                    <button 
+                        class="follow-up-suggestion px-3 py-1.5 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-xs text-gray-700 dark:text-gray-300 rounded-full border border-gray-200 dark:border-gray-600 transition-all duration-200 ease-out hover:scale-105 hover:shadow-sm transform"
+                        data-suggestion="${suggestion}"
+                        onclick="window.handleFollowUpSuggestion('${suggestion.replace(/'/g, "\\'")}')"
+                        style="animation-delay: ${index * 50}ms; opacity: 0; transform: translateY(4px);"
+                    >
+                        <div class="flex items-center gap-1">
+                            <span class="material-icons-outlined text-xs opacity-50">arrow_right</span>
+                            <span>${suggestion}</span>
+                        </div>
+                    </button>
+                `).join('')}
             </div>
         `;
 
-        // Adicionar ao body
-        document.body.appendChild(suggestionsContainer);
+        // Inserir antes do container principal do input (dentro do inputWrapper)
+        const inputContainer = inputWrapper.querySelector('.bg-surface-light, .dark\\:bg-surface-dark');
+        if (inputContainer) {
+            inputContainer.parentNode.insertBefore(suggestionsContainer, inputContainer);
+        } else {
+            inputWrapper.appendChild(suggestionsContainer);
+        }
 
         // Animar entrada do container
         setTimeout(() => {
-            const innerContainer = suggestionsContainer.querySelector('.bg-white\\/95, .dark\\:bg-gray-900\\/95');
-            if (innerContainer) {
-                innerContainer.classList.remove('opacity-0', 'translate-y-4');
-                innerContainer.classList.add('opacity-100', 'translate-y-0');
-            }
+            suggestionsContainer.classList.remove('opacity-0', 'translate-y-2');
+            suggestionsContainer.classList.add('opacity-100', 'translate-y-0');
 
             // Animar cada sugestão individualmente
             const suggestionButtons = suggestionsContainer.querySelectorAll('.follow-up-suggestion');
@@ -2226,45 +2233,38 @@ ${latexCode}
                 setTimeout(() => {
                     button.style.opacity = '1';
                     button.style.transform = 'translateY(0)';
-                    button.style.transition = 'all 0.3s ease-out';
-                }, index * 100);
+                    button.style.transition = 'all 0.2s ease-out';
+                }, index * 50);
             });
         }, 100);
 
-        // Auto-remover após 30 segundos ou quando clicar fora
+        // Auto-remover após 20 segundos
         const autoRemove = setTimeout(() => {
             this.removeFollowUpSuggestions();
-        }, 30000);
+        }, 20000);
 
-        // Remover ao clicar fora
-        const handleClickOutside = (e) => {
-            if (!suggestionsContainer.contains(e.target)) {
-                this.removeFollowUpSuggestions();
-                document.removeEventListener('click', handleClickOutside);
-                clearTimeout(autoRemove);
-            }
+        // Remover ao começar a digitar
+        const handleTyping = () => {
+            this.removeFollowUpSuggestions();
+            this.elements.userInput.removeEventListener('input', handleTyping);
+            clearTimeout(autoRemove);
         };
         
         setTimeout(() => {
-            document.addEventListener('click', handleClickOutside);
+            this.elements.userInput.addEventListener('input', handleTyping);
         }, 1000);
     }
 
     removeFollowUpSuggestions() {
         const container = document.getElementById('followUpSuggestionsContainer');
         if (container) {
-            const innerContainer = container.querySelector('.bg-white\\/95, .dark\\:bg-gray-900\\/95');
-            if (innerContainer) {
-                // Animar saída
-                innerContainer.classList.add('opacity-0', 'translate-y-4');
-                innerContainer.classList.remove('opacity-100', 'translate-y-0');
-                
-                setTimeout(() => {
-                    container.remove();
-                }, 300);
-            } else {
+            // Animar saída
+            container.classList.add('opacity-0', 'translate-y-2');
+            container.classList.remove('opacity-100', 'translate-y-0');
+            
+            setTimeout(() => {
                 container.remove();
-            }
+            }, 300);
         }
     }
 
