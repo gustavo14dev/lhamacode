@@ -6,7 +6,12 @@ class ProactiveSuggestions {
         this.agent = agent;
         this.ui = ui;
         this.suggestions = [];
-        this.enabled = JSON.parse(localStorage.getItem('proactiveSuggestionsEnabled') || 'true');
+        // Apenas usar localStorage se estiver no navegador
+        if (typeof localStorage !== 'undefined') {
+            this.enabled = JSON.parse(localStorage.getItem('proactiveSuggestionsEnabled') || 'true');
+        } else {
+            this.enabled = true;
+        }
     }
 
     // Analisar código e gerar sugestões
@@ -110,7 +115,10 @@ ${fileContent.substring(0, 2000)}
 
     toggle() {
         this.enabled = !this.enabled;
-        localStorage.setItem('proactiveSuggestionsEnabled', JSON.stringify(this.enabled));
+        // Apenas usar localStorage se estiver no navegador
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('proactiveSuggestionsEnabled', JSON.stringify(this.enabled));
+        }
         return this.enabled;
     }
 }

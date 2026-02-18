@@ -5,7 +5,12 @@
 class TimelineSystem {
     constructor(ui) {
         this.ui = ui;
-        this.snapshots = JSON.parse(localStorage.getItem('codeSnapshots') || '[]');
+        // Apenas usar localStorage se estiver no navegador
+        if (typeof localStorage !== 'undefined') {
+            this.snapshots = JSON.parse(localStorage.getItem('codeSnapshots') || '[]');
+        } else {
+            this.snapshots = [];
+        }
     }
 
     // Criar snapshot quando arquivo é adicionado/modificado
@@ -22,7 +27,10 @@ class TimelineSystem {
         };
 
         this.snapshots.push(snapshot);
-        localStorage.setItem('codeSnapshots', JSON.stringify(this.snapshots));
+        // Apenas usar localStorage se estiver no navegador
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('codeSnapshots', JSON.stringify(this.snapshots));
+        }
         return snapshot;
     }
 

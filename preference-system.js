@@ -3,7 +3,12 @@
 
 class PreferenceLearning {
     constructor() {
-        this.profile = JSON.parse(localStorage.getItem('userProfile') || JSON.stringify(this.defaultProfile()));
+        // Apenas usar localStorage se estiver no navegador
+        if (typeof localStorage !== 'undefined') {
+            this.profile = JSON.parse(localStorage.getItem('userProfile') || JSON.stringify(this.defaultProfile()));
+        } else {
+            this.profile = this.defaultProfile();
+        }
     }
 
     defaultProfile() {
@@ -138,7 +143,10 @@ ${patternHint === 'functional' ? 'Prefira programação funcional (map, filter, 
     }
 
     save() {
-        localStorage.setItem('userProfile', JSON.stringify(this.profile));
+        // Apenas usar localStorage se estiver no navegador
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('userProfile', JSON.stringify(this.profile));
+        }
     }
 }
 

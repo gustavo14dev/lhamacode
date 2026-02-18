@@ -327,11 +327,11 @@ class UI {
             const modelBtn = document.getElementById('modelButton');
             const createBtn = document.getElementById('createButton');
             
-            if (floatingDropdown && !floatingDropdown.contains(e.target) && !modelBtn.contains(e.target)) {
+            if (floatingDropdown && modelBtn && !floatingDropdown.contains(e.target) && !modelBtn.contains(e.target)) {
                 floatingDropdown.classList.add('hidden');
             }
             
-            if (floatingCreateDropdown && !floatingCreateDropdown.contains(e.target) && !createBtn.contains(e.target)) {
+            if (floatingCreateDropdown && createBtn && !floatingCreateDropdown.contains(e.target) && !createBtn.contains(e.target)) {
                 floatingCreateDropdown.classList.add('hidden');
             }
         });
@@ -1158,6 +1158,16 @@ ${latexCode}
     async handleSend() {
         const message = this.elements.userInput.value.trim();
         
+        // Resetar contador de retry ao enviar nova mensagem
+        if (window.apiRetryTimeout) {
+            clearTimeout(window.apiRetryTimeout);
+            window.apiRetryTimeout = null;
+        }
+        window.apiRetryCount = 0;
+        if (typeof window.hideApiErrorCard === 'function') {
+            window.hideApiErrorCard();
+        }
+        
         // Se modo depuração está ativo e há mensagem, analisar como erro
         if (this.debugModeActive && message) {
             await this.analyzeErrorWithDebug(message);
@@ -1718,18 +1728,7 @@ ${latexCode}
                 </div>
                 <div class="text-base leading-relaxed text-gray-700 dark:text-gray-200 min-h-4" id="responseText_${uniqueId}"></div>
                 
-                <!-- Botões de ação -->
-                <div class="flex gap-2 mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
-                    <button class="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors" id="copyBtn_${uniqueId}" title="Copiar resposta">
-                        <span class="material-icons-outlined text-sm">content_copy</span>
-                        Copiar
-                    </button>
-                    <button class="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-400 rounded transition-colors" id="regenerateBtn_${uniqueId}" title="Gerar novamente">
-                        <span class="material-icons-outlined text-sm">refresh</span>
-                        Gerar Novamente
-                    </button>
-                </div>
-                
+                                
                 <button class="hidden mt-3 text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1" id="showThinking_${uniqueId}">
                     <span class="material-icons-outlined text-sm">expand_more</span>
                     Mostrar Raciocínio
@@ -1737,6 +1736,20 @@ ${latexCode}
             </div>
         `;
         this.elements.messagesContainer.appendChild(messageDiv);
+        
+        // Adicionar flieira invisível com botões de ação
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'flex gap-2 justify-start mt-4 mb-2 px-2 opacity-60 hover:opacity-100 transition-opacity duration-200';
+        actionsDiv.innerHTML = `
+            <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors" id="copyBtn_${uniqueId}" title="Copiar resposta">
+                <span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-400">content_copy</span>
+            </button>
+            <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors" id="regenerateBtn_${uniqueId}" title="Gerar novamente">
+                <span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-400">refresh</span>
+            </button>
+        `;
+        this.elements.messagesContainer.appendChild(actionsDiv);
+        
         this.scrollToBottom();
         
         // Setup dos botões de toggle
@@ -1769,9 +1782,9 @@ ${latexCode}
             copyBtn.addEventListener('click', () => {
                 const text = responseText.textContent;
                 navigator.clipboard.writeText(text).then(() => {
-                    copyBtn.innerHTML = '<span class="material-icons-outlined text-sm">check</span> Copiado!';
+                    copyBtn.innerHTML = '<span class="material-icons-outlined text-sm text-green-600 dark:text-green-400">check</span>';
                     setTimeout(() => {
-                        copyBtn.innerHTML = '<span class="material-icons-outlined text-sm">content_copy</span> Copiar';
+                        copyBtn.innerHTML = '<span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-400">content_copy</span>';
                     }, 2000);
                 });
             });
@@ -2116,7 +2129,7 @@ ${latexCode}
         const sendBtn = this.elements.sendButton;
         if (sendBtn) {
             sendBtn.id = 'pauseButton';
-            sendBtn.innerHTML = '<span class="material-icons-outlined text-xl">pause</span>';
+            sendBtn.innerHTML = '<span style="display: inline-block; width: 20px; height: 20px; background: white; border: 2px solid white; border-radius: 4px;"></span>';
             sendBtn.title = 'Parar geração';
             sendBtn.classList.remove('w-10', 'h-10');
             sendBtn.classList.add('pause-button');
@@ -2149,7 +2162,7 @@ ${latexCode}
         messageDiv.className = 'mb-6 flex justify-start animate-slideIn';
         messageDiv.innerHTML = `
             <div class="w-full max-w-[85%] bg-yellow-50 dark:bg-yellow-950/30 rounded-2xl px-5 py-4 shadow-soft border border-yellow-200 dark:border-yellow-800 flex items-center gap-3">
-                <span class="material-icons-outlined text-yellow-600 dark:text-yellow-400 text-2xl flex-shrink-0">pause_circle</span>
+                <span style="display: inline-block; width: 32px; height: 32px; background: white; border: 2px solid white; border-radius: 50%;"></span>
                 <div>
                     <p class="font-semibold text-yellow-900 dark:text-yellow-200">Resposta interrompida</p>
                     <p class="text-sm text-yellow-800 dark:text-yellow-300 mt-1">A geração foi pausada. O conteúdo gerado até agora foi preservado.</p>
@@ -2187,7 +2200,7 @@ ${latexCode}
                 <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                     <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                         <span class="material-icons-outlined text-primary">refresh</span>
-                        Gerar Novamente
+                         Gerar novamente
                     </h3>
                     <button id="closeRegenerateModal" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors">
                         <span class="material-icons-outlined">close</span>

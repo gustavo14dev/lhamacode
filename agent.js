@@ -1,3 +1,5 @@
+import { MemorySystem } from './memory-system.js';
+
 export class Agent {
     constructor(ui) {
         this.ui = ui;
@@ -8,6 +10,10 @@ export class Agent {
         this.maxHistoryMessages = 50;
         this.abortController = null;
         this.isGenerating = false;
+        
+        // Sistema de memória
+        this.memory = new MemorySystem();
+        this.memory.loadFromLocalStorage();
     }
 
     setModel(model) {
@@ -21,9 +27,67 @@ export class Agent {
         return this.groqApiKey;
     }
 
+    // Verificação rápida de API antes de processar
+    async quickApiCheck() {
+        const apiKey = this.getGroqApiKey();
+        
+        if (!apiKey) {
+            throw new Error('Nenhuma API key configurada');
+        }
+        
+        // Fazer uma requisição rápida para testar a API
+        try {
+            const response = await fetch(this.groqUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'llama-3.1-8b-instant',
+                    messages: [{ role: 'user', content: 'test' }],
+                    max_tokens: 1
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`API retornou status ${response.status}`);
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('❌ Verificação rápida da API falhou:', error);
+            throw error;
+        }
+    }
+
     async processMessage(userMessage, attachedFilesFromUI = null) {
         console.log('📨 Mensagem para processar:', userMessage.substring(0, 100) + '...');
         console.log('📨 Tamanho total:', userMessage.length, 'caracteres');
+
+        // Adicionar mensagem à memória da conversa
+        this.memory.addConversationMemory('user', userMessage);
+
+        // Obter contexto relevante da memória
+        const relevantContext = this.memory.getRelevantContext(userMessage);
+        console.log('🧠 Contexto relevante encontrado:', relevantContext.length, 'memórias');
+
+        // Verificação rápida da API desabilitada temporariamente
+        // try {
+        //     await this.quickApiCheck();
+        //     console.log('✅ API verificada e funcionando');
+        // } catch (error) {
+        //     console.error('❌ Falha na verificação da API:', error);
+        //     
+        //     // Mostrar card de erro e agendar retry
+        //     if (typeof window.scheduleApiRetry === 'function') {
+        //         window.scheduleApiRetry(userMessage, attachedFilesFromUI);
+        //     } else {
+        //         // Fallback se a função não estiver disponível
+        //         this.ui.addAssistantMessage('❌ Erro na API. Por favor, configure sua API key.');
+        //     }
+        //     return;
+        // }
 
         // Se a UI passou arquivos explicitamente, priorizamos esses (máx 3)
         let parsedFiles = [];
@@ -65,22 +129,22 @@ export class Agent {
         this.ui.updateSendButtonToPause();
         
         if (this.currentModel === 'rapido') {
-            await this.processRapidoModel(userMessage);
+            await this.processRapidoModel(userMessage, relevantContext);
         } else if (this.currentModel === 'raciocinio') {
             if (this.useMistralForThisMessage) {
-                await this.processMistralModel(userMessage);
+                await this.processMistralModel(userMessage, relevantContext);
             } else {
-                await this.processRaciocioModel(userMessage);
+                await this.processRaciocioModel(userMessage, relevantContext);
             }
         } else if (this.currentModel === 'pro') {
-            await this.processProModel(userMessage);
+            await this.processProModel(userMessage, relevantContext);
         }
         
         this.isGenerating = false;
         this.ui.updateSendButtonToSend();
     }
     // ==================== MODELO MISTRAL (codestral-latest) ====================
-    async processMistralModel(userMessage) {
+    async processMistralModel(userMessage, relevantContext = []) {
         // Usamos proxy server-side; não é obrigatório ter chave no localStorage para o deploy no Vercel
         const messageContainer = this.ui.createAssistantMessageContainer();
         const timestamp = Date.now();
@@ -100,9 +164,19 @@ export class Agent {
                 await this.ui.sleep(200);
             }
 
+            // Construir prompt com contexto da memória
+            let memoryContext = '';
+            if (relevantContext.length > 0) {
+                memoryContext = '\n\nCONTEXTO RELEVANTE DA CONVERSA:\n';
+                relevantContext.forEach((memory, index) => {
+                    memoryContext += `${index + 1}. ${memory.role.toUpperCase()}: "${memory.content}" (Contexto: ${memory.context})\n`;
+                });
+                memoryContext += '\nUse este contexto para fornecer respostas mais personalizadas e relevantes.';
+            }
+            
             let systemPrompt = {
                 role: 'system',
-                content: 'Você é o Drekee AI 1, um assistente de código inteligente. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings, e quando apropriado use tabelas (em formato markdown), notação matemática (com $símbolos$ para inline ou $$blocos$$), e diagramas em ASCII. Evite blocos enormes de código - prefira explicações visuais. Seja técnico mas acessível.'
+                content: `Você é o Drekee AI 1, um assistente de código inteligente com memória contextual. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings, e quando apropriado use tabelas (em formato markdown), notação matemática (com $símbolos$ para inline ou $$blocos$$), e diagramas em ASCII. Evite blocos enormes de código - prefira explicações visuais. Seja técnico mas acessível.${memoryContext}`
             };
             const messages = this.extraMessagesForNextCall ? [systemPrompt, ...this.extraMessagesForNextCall, ...this.conversationHistory] : [systemPrompt, ...this.conversationHistory];
 
@@ -141,6 +215,11 @@ export class Agent {
             }
 
             this.addToHistory('assistant', response);
+            
+            // Adicionar resposta da IA à memória e aprender com a interação
+            this.memory.addConversationMemory('assistant', response);
+            this.memory.learnFromInteraction(userMessage, response);
+            
             this.ui.setResponseText(response, messageContainer.responseId);
             await this.ui.sleep(500);
             this.ui.closeThinkingSteps(messageContainer.headerId);
