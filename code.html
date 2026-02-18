@@ -133,9 +133,37 @@
         #debugModalContent::-webkit-scrollbar {
             display: none;
         }
+        
+        /* Forçar tema escuro */
+        html, body {
+            background: #0f172a !important;
+            color: #e2e8f0 !important;
+        }
+        
+        .custom-bg {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+        }
+        
+        /* Forçar cores do tema escuro */
+        .text-text-main-light {
+            color: #e2e8f0 !important;
+        }
+        
+        .bg-sidebar-light\/95 {
+            background: rgba(30, 41, 59, 0.95) !important;
+        }
+        
+        .bg-surface-light {
+            background: #1e293b !important;
+        }
+        
+        /* Remover cores do tema claro */
+        .bg-white\/5 {
+            background: rgba(255, 255, 255, 0.05) !important;
+        }
     </style>
 </head>
-<body class="custom-bg min-h-screen text-text-main-light dark:text-text-main-dark transition-colors duration-300">
+<body class="custom-bg min-h-screen text-text-main-light dark:text-text-main-dark transition-colors duration-300 dark">
 <nav class="fixed left-4 top-4 bottom-4 w-72 bg-sidebar-light/95 dark:bg-sidebar-dark/95 backdrop-blur-md rounded-[2rem] flex flex-col py-6 px-4 shadow-soft z-50 border border-white/50 dark:border-white/10 transition-colors duration-300">
 <div class="mb-8 px-2 flex items-center gap-3">
     <video autoplay muted loop playsinline class="w-8 h-8 rounded-full object-cover">
@@ -196,10 +224,6 @@
 <span class="material-icons-outlined text-base">attach_file</span>
 </button>
 <input type="file" id="fileInput" class="hidden" multiple />
-<button class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50" id="webSearchButton" title="Pesquisa na Web - Em breve">
-<span class="material-icons-outlined text-base">search</span>
-<span>Pesquisa na Web</span>
-</button>
 </div>
 <div class="flex items-center gap-2 ml-auto">
 <div class="relative" id="modelSelectorContainer">
@@ -315,6 +339,21 @@
 
 <script type="module" src="main.js" defer></script>
 <script>
+// Forçar tema escuro em qualquer computador
+document.addEventListener('DOMContentLoaded', function() {
+    // Adicionar classe 'dark' ao HTML para forçar tema escuro
+    document.documentElement.classList.add('dark');
+    
+    // Também forçar no body
+    document.body.classList.add('dark');
+    
+    // Salvar preferência no localStorage
+    localStorage.setItem('theme', 'dark');
+    
+    console.log('🌙 Tema escuro forçado com sucesso!');
+});
+</script>
+<script>
 // Variáveis globais para controle de retry
 window.apiRetryTimeout = null;
 window.apiRetryCount = 0;
@@ -429,23 +468,6 @@ window.showMemory = () => {
         console.log('🧠 Memória da Conversa:', memory.conversationMemory);
         console.log('👤 Memória do Usuário:', memory.userMemory);
         console.log('📁 Memória de Projetos:', memory.projectMemory);
-    }
-};
-
-// Sistema de Pesquisa na Web
-window.session = window.session || {};
-window.session.setTavilyKey = (apiKey) => {
-    if (window.ui && window.ui.agent && window.ui.agent.webSearch) {
-        window.ui.agent.webSearch.setTavilyApiKey(apiKey);
-        console.log('✅ API Key Tavily configurada!');
-    }
-};
-
-window.webSearchStats = () => {
-    if (window.ui && window.ui.agent && window.ui.agent.webSearch) {
-        const stats = window.ui.agent.webSearch.getSearchStats();
-        console.log('🔍 Estatísticas da Pesquisa Web:', stats);
-        return stats;
     }
 };
 

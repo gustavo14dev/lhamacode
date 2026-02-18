@@ -40,8 +40,7 @@ class UI {
             createButton: document.getElementById('createButton'),
             createDropdown: document.getElementById('createDropdown'),
             createButtonText: document.getElementById('createButtonText'),
-            scrollToBottomBtn: document.getElementById('scrollToBottomBtn'),
-            webSearchButton: document.getElementById('webSearchButton')
+            scrollToBottomBtn: document.getElementById('scrollToBottomBtn')
         };
 
         // Debug (somente se flag ativada)
@@ -249,11 +248,6 @@ class UI {
         this.elements.sendButton.addEventListener('click', () => this.handleSend());
 
         this.elements.newChatBtn.addEventListener('click', () => this.createNewChat());
-
-        // Botão de Pesquisa na Web
-        if (this.elements.webSearchButton) {
-            this.elements.webSearchButton.addEventListener('click', () => this.toggleWebSearch());
-        }
 
         // Anexar arquivo removido nesta versão (funcionalidade deletada a pedido) 
         
@@ -2130,43 +2124,6 @@ ${latexCode}
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    // ==================== PESQUISA WEB ====================
-    
-    toggleWebSearch() {
-        if (this.agent && this.agent.webSearch) {
-            const isEnabled = this.agent.webSearch.toggleWebSearchMode();
-            
-            // Mostrar feedback visual
-            if (isEnabled) {
-                this.showNotification('🔍 Pesquisa na Web ATIVADA', 'success');
-            } else {
-                this.showNotification('🔍 Pesquisa na Web DESATIVADA', 'info');
-            }
-        }
-    }
-
-    showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `fixed top-20 right-6 z-50 px-4 py-2 rounded-lg shadow-lg animate-fadeIn pointer-events-auto`;
-        
-        // Estilos baseados no tipo
-        if (type === 'success') {
-            notification.classList.add('bg-green-500', 'text-white');
-        } else if (type === 'error') {
-            notification.classList.add('bg-red-500', 'text-white');
-        } else {
-            notification.classList.add('bg-blue-500', 'text-white');
-        }
-        
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        
-        // Remover após 3 segundos
-        setTimeout(() => {
-            notification.remove();
-        }, 3000);
-    }
-
     // ==================== CONTROLE DE PAUSA ====================
     updateSendButtonToPause() {
         const sendBtn = this.elements.sendButton;
@@ -2214,6 +2171,78 @@ ${latexCode}
         `;
         this.elements.messagesContainer.appendChild(messageDiv);
         this.scrollToBottom();
+    }
+
+    displayFollowUpSuggestions(messageId, suggestions) {
+        // Procurar pelo elemento da mensagem usando diferentes abordagens
+        let messageElement = document.getElementById(`message_${messageId}`);
+        
+        if (!messageElement) {
+            // Tentar encontrar pelo ID de resposta
+            const responseElement = document.getElementById(`responseText_${messageId.replace('msg_', '')}`);
+            if (responseElement) {
+                messageElement = responseElement.closest('.mb-6');
+            }
+        }
+        
+        if (!messageElement) {
+            console.warn('❌ Elemento da mensagem não encontrado para sugestões:', messageId);
+            return;
+        }
+
+        // Verificar se já existe sugestões para esta mensagem
+        const existingSuggestions = messageElement.querySelector('.follow-up-suggestions');
+        if (existingSuggestions) return;
+
+        // Criar container de sugestões
+        const suggestionsContainer = document.createElement('div');
+        suggestionsContainer.className = 'follow-up-suggestions mt-4 pt-4 border-t border-gray-200 dark:border-gray-700';
+        
+        suggestionsContainer.innerHTML = `
+            <div class="mb-3">
+                <h4 class="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                    <span class="material-icons-outlined text-base">lightbulb</span>
+                    Sugestões de acompanhamento
+                </h4>
+            </div>
+            <div class="grid gap-2">
+                ${suggestions.map((suggestion, index) => `
+                    <button 
+                        class="follow-up-suggestion text-left p-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors group"
+                        data-suggestion="${suggestion}"
+                        onclick="window.handleFollowUpSuggestion('${suggestion.replace(/'/g, "\\'")}')"
+                    >
+                        <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 group-hover:text-primary dark:group-hover:text-primary/80">
+                            <span class="material-icons-outlined text-base opacity-50">arrow_right</span>
+                            ${suggestion}
+                        </div>
+                    </button>
+                `).join('')}
+            </div>
+        `;
+
+        // Adicionar após o conteúdo da mensagem principal
+        const messageContent = messageElement.querySelector('.bg-surface-light, .dark\\:bg-surface-dark');
+        if (messageContent) {
+            messageContent.appendChild(suggestionsContainer);
+        } else {
+            // Fallback: adicionar ao final do elemento da mensagem
+            messageElement.appendChild(suggestionsContainer);
+        }
+
+        // Scroll suave para mostrar as sugestões
+        setTimeout(() => {
+            this.scrollToBottom();
+        }, 300);
+    }
+
+    handleFollowUpSuggestion(suggestion) {
+        // Preencher o input com a sugestão
+        this.elements.userInput.value = suggestion;
+        this.elements.userInput.focus();
+        
+        // Opcional: enviar automaticamente
+        // this.handleSend();
     }
 
     closeThinkingSteps(headerId) {
@@ -2463,6 +2492,13 @@ window.downloadCode = (codeId, lang) => {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+    }
+};
+
+// Função global para lidar com sugestões de acompanhamento
+window.handleFollowUpSuggestion = (suggestion) => {
+    if (window.ui && window.ui.handleFollowUpSuggestion) {
+        window.ui.handleFollowUpSuggestion(suggestion);
     }
 };
 
