@@ -573,74 +573,95 @@ export class Agent {
     }
 
     // ==================== MODELO PRO ====================
-    // 2 chamadas para mesmo modelo + 1 análise final
+// gemma-7b-it → llama2-70b → llama2-7b (síntese)
     async processProModel(userMessage) {
-        // Usamos proxy server-side (/api/groq-proxy) que utiliza GROQ_API_KEY em Vercel.
-        // Não é necessário ter chave no localStorage para deploy em produção.
-
         const messageContainer = this.ui.createAssistantMessageContainer();
         const timestamp = Date.now();
 
-        this.ui.setThinkingHeader('🚀 Gerando múltiplas perspectivas...', messageContainer.headerId);
+        this.ui.setThinkingHeader('🚀 Análise multi-modelos...', messageContainer.headerId);
         await this.ui.sleep(800);
 
         this.addToHistory('user', userMessage);
 
         try {
-            // ========== ETAPA 1: 2 respostas do mesmo modelo ==========
-            const step1aId = `step1a_${timestamp}`;
-            this.ui.addThinkingStep('psychology', 'Gerando resposta 1/2...', step1aId, messageContainer.stepsId);
+            // ========== ETAPA 1: gemma-7b-it - primeira resposta ==========
+            const step1Id = `step1_${timestamp}`;
+            this.ui.addThinkingStep('psychology', 'Analisando com Gemma 7B...', step1Id, messageContainer.stepsId);
             
-            const step1bId = `step1b_${timestamp}`;
-            this.ui.addThinkingStep('psychology', 'Gerando resposta 2/2...', step1bId, messageContainer.stepsId);
-            
-            // Preparar mensagens para ambas chamadas (mesmo modelo)
-            const messages = this.extraMessagesForNextCall ? [
+            const messages1 = this.extraMessagesForNextCall ? [
                 { role: 'system', content: this.getSystemPrompt('pro') },
                 ...this.extraMessagesForNextCall,
-                ...this.conversationHistory
-            ] : undefined;
+                ...this.conversationHistory,
+                { role: 'user', content: userMessage }
+            ] : [
+                { role: 'system', content: this.getSystemPrompt('pro') },
+                ...this.conversationHistory,
+                { role: 'user', content: userMessage }
+            ];
             
-            // Fazer 2 chamadas em paralelo para o mesmo modelo
-            const resp1Promise = this.callGroqAPI('llama-3.3-70b-versatile', messages);
-            const resp2Promise = this.callGroqAPI('llama-3.3-70b-versatile', messages);
-            
-            // Esperar ambas respostas
-            let [resp1, resp2] = await Promise.all([resp1Promise, resp2Promise]);
+            const response1 = await this.callGroqAPI('gemma-7b-it', messages1);
             
             // Extrair arquivos se existirem
             try {
-                const parsed1 = this.parseFilesFromText(resp1);
+                const parsed1 = this.parseFilesFromText(response1);
                 if (parsed1 && parsed1.length > 0) {
                     this.attachGeneratedFilesToChat(parsed1);
-                    resp1 = resp1.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
+                    response1 = response1.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
                 }
-            } catch (e) { console.warn('⚠️ Falha parsing arquivos de resp1:', e); }
+            } catch (e) { console.warn('⚠️ Falha parsing arquivos de response1:', e); }
             
-            try {
-                const parsed2 = this.parseFilesFromText(resp2);
-                if (parsed2 && parsed2.length > 0) {
-                    this.attachGeneratedFilesToChat(parsed2);
-                    resp2 = resp2.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
-                }
-            } catch (e) { console.warn('⚠️ Falha parsing arquivos de resp2:', e); }
-            
-            this.ui.updateThinkingStep(step1aId, 'check_circle', '✅ Resposta 1 gerada');
-            this.ui.updateThinkingStep(step1bId, 'check_circle', '✅ Resposta 2 gerada');
+            this.ui.updateThinkingStep(step1Id, 'check_circle', '✅ Análise Gemma concluída');
             await this.ui.sleep(1200);
 
-            // ========== ETAPA 2: Análise e síntese final ==========
+            // ========== ETAPA 2: llama2-70b - segunda resposta ==========
             const step2Id = `step2_${timestamp}`;
-            this.ui.addThinkingStep('analytics', 'Analisando e consolidando respostas...', step2Id, messageContainer.stepsId);
+            this.ui.addThinkingStep('analytics', 'Analisando com Llama 70B...', step2Id, messageContainer.stepsId);
+            
+            const messages2 = this.extraMessagesForNextCall ? [
+                { role: 'system', content: this.getSystemPrompt('pro') },
+                ...this.extraMessagesForNextCall,
+                ...this.conversationHistory,
+                { role: 'user', content: userMessage }
+            ] : [
+                { role: 'system', content: this.getSystemPrompt('pro') },
+                ...this.conversationHistory,
+                { role: 'user', content: userMessage }
+            ];
+            
+            const response2 = await this.callGroqAPI('llama2-70b', messages2);
+            
+            // Extrair arquivos se existirem
+            try {
+                const parsed2 = this.parseFilesFromText(response2);
+                if (parsed2 && parsed2.length > 0) {
+                    this.attachGeneratedFilesToChat(parsed2);
+                    response2 = response2.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
+                }
+            } catch (e) { console.warn('⚠️ Falha parsing arquivos de response2:', e); }
+            
+            this.ui.updateThinkingStep(step2Id, 'check_circle', '✅ Análise Llama concluída');
+            await this.ui.sleep(1200);
+
+            // ========== ETAPA 3: llama2-7b - síntese final ==========
+            const step3Id = `step3_${timestamp}`;
+            this.ui.addThinkingStep('psychology', 'Sintetizando com Llama 7B...', step3Id, messageContainer.stepsId);
             
             const synthMessages = [
                 {
                     role: 'system',
-                    content: this.getSystemPrompt('pro') + ' Você é um analista especializado. Analise as duas respostas geradas e consolide-as em UMA ÚNICA resposta final superior. Inclua os melhores pontos de ambas as respostas, corrija inconsistências e crie uma resposta mais completa e equilibrada.'
+                    content: this.getSystemPrompt('pro') + ' Você é um especialista em síntese. Combine e melhore as duas respostas abaixo em uma única resposta superior. Corrija possíveis erros, melhore a clareza, e crie uma resposta final otimizada.'
                 },
                 {
                     role: 'user',
-                    content: `Pergunta original: "${userMessage}"\n\n=== RESPOSTA 1 ===\n${resp1}\n\n=== RESPOSTA 2 ===\n${resp2}\n\nAnalise ambas respostas e gere UMA resposta final consolidada que seja superior às duas individuais.`
+                    content: `Pergunta original: "${userMessage}"
+
+=== RESPOSTA 1 (Gemma 7B) ===
+${response1}
+
+=== RESPOSTA 2 (Llama 70B) ===
+${response2}
+
+Combine e melhore as duas respostas em uma única resposta coesa e superior. Corrija possíveis erros, melhore a clareza, e crie uma resposta final otimizada.`
                 }
             ];
             
@@ -649,9 +670,9 @@ export class Agent {
                 synthMessages.splice(1, 0, ...this.extraMessagesForNextCall);
             }
             
-            let finalResponse = await this.callGroqAPI('llama-3.3-70b-versatile', synthMessages);
+            let finalResponse = await this.callGroqAPI('llama2-7b', synthMessages);
             this.extraMessagesForNextCall = null;
-            this.ui.updateThinkingStep(step2Id, 'check_circle', '✅ Resposta final consolidada');
+            this.ui.updateThinkingStep(step3Id, 'check_circle', '✅ Síntese final concluída');
 
             // Tentar extrair arquivos gerados na resposta final e anexá-los ao chat
             try {
