@@ -444,7 +444,7 @@ export class Agent {
         const messageContainer = this.ui.createAssistantMessageContainer();
         const timestamp = Date.now();
 
-        this.ui.setThinkingHeader('🧭 Processando raciocínio...', messageContainer.headerId);
+        this.ui.setThinkingHeader('Processando raciocínio...', messageContainer.headerId);
         await this.ui.sleep(300);
 
         this.addToHistory('user', userMessage);
