@@ -441,112 +441,97 @@ export class Agent {
 
     // ==================== MODELO RACIOCÍNIO ====================
     async processRaciocioModel(userMessage) {
-        // Usamos proxy server-side (/api/groq-proxy) que utiliza GROQ_API_KEY em Vercel.
-        // Não é necessário ter chave no localStorage para deploy em produção.
-
         const messageContainer = this.ui.createAssistantMessageContainer();
         const timestamp = Date.now();
 
-        // PRIMEIRA ETAPA: Gerar raciocínios personalizados via IA econômica
-        console.log('🔄 Gerando raciocínios personalizados...');
-        
-        let thinkingChecks = await this.generateChecksSafely(userMessage);
-        
-        // Guardar raciocínios para mostrar depois
-        this.currentThinkingSteps = thinkingChecks;
-        
-        // Mostrar raciocínios UM POR VEZ no thinkingHeader
-        for (let i = 0; i < thinkingChecks.length; i++) {
-            const checkText = thinkingChecks[i].step;
-            
-            // Mostrar no thinkingHeader (onde fica "Mostrar Raciocínio")
-            this.ui.setThinkingHeader(checkText, messageContainer.headerId);
-            
-            // Delay para parecer natural
-            const delay = 2000 + Math.random() * 1000;
-            await this.ui.sleep(delay);
-            
-            // Limpar para o próximo raciocínio
-            if (i < thinkingChecks.length - 1) {
-                this.ui.setThinkingHeader('', messageContainer.headerId);
-                await this.ui.sleep(500);
-            }
-        }
-
-        // Limpar completamente após o último raciocínio
-        this.ui.setThinkingHeader('', messageContainer.headerId);
-        
-        // Adicionar todos os raciocínios na lista (thinkingSteps)
-        for (let i = 0; i < thinkingChecks.length; i++) {
-            const stepId = `step_${timestamp}_${i}`;
-            const checkText = thinkingChecks[i].step;
-            
-            this.ui.addThinkingStep('check_circle', checkText, stepId, messageContainer.stepsId);
-        }
-        
-        // Esconder container de raciocínio e mostrar botão "Mostrar Raciocínio" com animação suave
-        const thinkingContainer = document.getElementById(messageContainer.stepsId.replace('thinkingSteps_', 'thinkingContainer_'));
-        const showBtn = document.getElementById(messageContainer.showId);
-        const stepsDiv = document.getElementById(messageContainer.stepsId);
-        
-        if (thinkingContainer && showBtn && stepsDiv) {
-            // Adicionar animação de fade out suave
-            thinkingContainer.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
-            thinkingContainer.style.opacity = '0';
-            thinkingContainer.style.transform = 'translateY(-10px)';
-            
-            setTimeout(() => {
-                thinkingContainer.classList.add('hidden');
-                showBtn.classList.remove('hidden');
-                
-                // Resetar para próxima animação
-                thinkingContainer.style.transition = '';
-                thinkingContainer.style.opacity = '';
-                thinkingContainer.style.transform = '';
-            }, 500);
-        }
+        this.ui.setThinkingHeader('🧭 Processando raciocínio...', messageContainer.headerId);
+        await this.ui.sleep(800);
 
         this.addToHistory('user', userMessage);
 
         try {
-            // SEGUNDA ETAPA: Gerar resposta com modelo principal (Mistral - codestral-latest)
-            let systemPrompt;
-            systemPrompt = { role: 'system', content: this.getSystemPrompt(this.currentModel) };
-            const messages = this.extraMessagesForNextCall ? [systemPrompt, ...this.extraMessagesForNextCall, ...this.conversationHistory] : undefined;
-            // Usar um modelo Groq de raciocínio por padrão
-            const modelName = 'llama-3.3-70b-versatile';
-            console.log('🧭 Usando modelo Groq:', modelName);
-            let response = await this.callGroqAPI(modelName, messages);
+            // ÚNICA CHAMADA API com modelo de raciocínio
+            const systemPrompt = { 
+                role: 'system', 
+                content: this.getSystemPrompt('raciocinio') + 
+                ' Você é um modelo de raciocínio. Pense passo a passo sobre a pergunta do usuário e coloque seu raciocínio completo dentro de tags </think>...
+            
+            const messages = this.extraMessagesForNextCall ? 
+                [systemPrompt, ...this.extraMessagesForNextCall, ...this.conversationHistory] : 
+                [systemPrompt, ...this.conversationHistory];
+            
+            console.log('🧭 Usando modelo de raciocínio: qwen/qwen3-32b');
+            let fullResponse = await this.callGroqAPI('qwen/qwen3-32b', messages);
             this.extraMessagesForNextCall = null;
+            
+            // Extrair raciocínio e resposta
+            let reasoningText = '';
+            let finalResponse = fullResponse;
+            
+            // Procurar por tags </think>...</think>
+            const thinkMatch = fullResponse.match(/</think>([\s\S]*?)<\/think>/);
+            if (thinkMatch) {
+                reasoningText = thinkMatch[1].trim();
+                finalResponse = fullResponse.replace(/</think>[\s\S]*?<\/think>/, '').trim();
+            }
             
             // Tentar extrair arquivos gerados na resposta e anexá-los ao chat
             try {
-                const parsedFiles = this.parseFilesFromText(response);
+                const parsedFiles = this.parseFilesFromText(finalResponse);
                 if (parsedFiles && parsedFiles.length > 0) {
                     this.attachGeneratedFilesToChat(parsedFiles);
-                    // Remover o bloco de arquivos do texto antes de exibir para usuário
-                    response = response.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
+                    finalResponse = finalResponse.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
                 }
             } catch (e) {
-                console.warn('⚠️ Falha parsing arquivos de resposta Groq:', e);
+                console.warn('⚠️ Falha parsing arquivos de resposta (Raciocínio):', e);
             }
 
-            // Armazenar e salvar a mensagem do assistente (incluindo attachments, se houver) ANTES de renderizar para que o UI possa detectá-los
-            const chat = this.ui.chats.find(c => c.id === this.ui.currentChatId);
-            if (chat) {
-                if (chat.messages.length === 1) {
-                    const firstUserMessage = chat.messages[0].content;
-                    chat.title = firstUserMessage.substring(0, 50) + (firstUserMessage.length > 50 ? '...' : '');
+            this.addToHistory('assistant', finalResponse);
+            
+            // Mostrar resposta final
+            this.ui.setResponseText(finalResponse, messageContainer.responseId);
+            
+            // Limpar header de processamento
+            this.ui.setThinkingHeader('', messageContainer.headerId);
+            
+            // Mostrar botão "Mostrar raciocínio" se houver raciocínio
+            if (reasoningText) {
+                const showBtn = document.getElementById(messageContainer.showId);
+                if (showBtn) {
+                    showBtn.classList.remove('hidden');
+                    showBtn.innerHTML = `
+                        <span class="material-icons-outlined text-sm">expand_more</span>
+                        Mostrar raciocínio
+                    `;
+                    
+                    // Adicionar evento para mostrar/ocultar raciocínio
+                    showBtn.onclick = () => {
+                        const stepsDiv = document.getElementById(messageContainer.stepsId);
+                        if (stepsDiv) {
+                            if (stepsDiv.classList.contains('hidden')) {
+                                // Mostrar raciocínio
+                                stepsDiv.classList.remove('hidden');
+                                stepsDiv.innerHTML = `
+                                    <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                                        <div class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">${reasoningText}</div>
+                                    </div>
+                                `;
+                                showBtn.innerHTML = `
+                                    <span class="material-icons-outlined text-sm">expand_less</span>
+                                    Ocultar raciocínio
+                                `;
+                            } else {
+                                // Ocultar raciocínio
+                                stepsDiv.classList.add('hidden');
+                                showBtn.innerHTML = `
+                                    <span class="material-icons-outlined text-sm">expand_more</span>
+                                    Mostrar raciocínio
+                                `;
+                            }
+                        }
+                    };
                 }
-                const toPush = { role: 'assistant', content: response, thinking: null };
-                const parsedFiles = this.parseFilesFromText(response);
-                if (parsedFiles && parsedFiles.length > 0) toPush.attachments = parsedFiles;
-                chat.messages.push(toPush);
-                this.ui.saveCurrentChat();
             }
-
-            this.addToHistory('assistant', response);
-            this.ui.setResponseText(response, messageContainer.responseId);
             
             // Mostrar botões de ação quando resposta estiver completa
             const actionsDiv = document.getElementById(`actions_${messageContainer.container.id.replace('msg_', '')}`);
@@ -555,12 +540,8 @@ export class Agent {
                 actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
             }
             
-            // Fechar raciocínio quando terminar
-            await this.ui.sleep(500);
-            this.ui.closeThinkingSteps(messageContainer.headerId);
-            
             // Gerar sugestões de acompanhamento
-            await this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
+            await this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);
 
         } catch (error) {
             if (error.message === 'ABORTED') {
