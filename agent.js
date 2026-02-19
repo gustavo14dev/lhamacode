@@ -445,7 +445,7 @@ export class Agent {
         const timestamp = Date.now();
 
         this.ui.setThinkingHeader('🧭 Processando raciocínio...', messageContainer.headerId);
-        await this.ui.sleep(800);
+        await this.ui.sleep(300);
 
         this.addToHistory('user', userMessage);
 

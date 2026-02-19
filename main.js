@@ -1734,12 +1734,13 @@ ${latexCode}
                     <div class="flex items-start mb-4" id="thinkingContainer_${uniqueId}">
                         <div class="flex flex-col gap-2 flex-1" id="thinkingSteps_${uniqueId}"></div>
                     </div>
-                    <div class="text-base leading-relaxed text-gray-700 dark:text-gray-200 min-h-4" id="responseText_${uniqueId}"></div>
                     
-                    <button class="hidden mt-3 text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1" id="showThinking_${uniqueId}">
+                    <button class="hidden mt-2 mb-3 text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1" id="showThinking_${uniqueId}">
                         <span class="material-icons-outlined text-sm">expand_more</span>
-                        Mostrar Raciocínio
+                        Mostrar raciocínio
                     </button>
+                    
+                    <div class="text-base leading-relaxed text-gray-700 dark:text-gray-200 min-h-4" id="responseText_${uniqueId}"></div>
                 </div>
             </div>
         `;
@@ -2072,6 +2073,9 @@ ${latexCode}
         
         // Processar sublinhado
         formatted = formatted.replace(/<u>([^<]+)<\/u>/g, '<u class="underline decoration-2 decoration-blue-500">$1</u>');
+        
+        // Remover símbolos estranhos e caracteres especiais indesejados
+        formatted = formatted.replace(/[^\x20-\x7E\n\r\t]/g, '');
         
         // Processar expressões matemáticas LaTeX (inline e bloco) com suporte completo
         formatted = formatted.replace(/\$([^$\n]+)\$/g, '<span class="inline-block font-mono text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 math-inline">$1</span>');
