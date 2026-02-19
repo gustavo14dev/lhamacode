@@ -1959,7 +1959,7 @@ ${latexCode}
         }
     }
 
-    setResponseText(text, responseId) {
+    setResponseText(text, responseId, callback) {
         const responseDiv = document.getElementById(responseId);
         if (responseDiv) {
             // Limpar e colocar vazio enquanto anima
@@ -1970,28 +1970,21 @@ ${latexCode}
             let safeText = (text == null || String(text).trim().length === 0) ? '[Erro: resposta vazia do servidor. Verifique /api/status e suas Environment Variables.]' : String(text);
 
             // Executar typewriter effect com o texto bruto ANTES de formatar
-            this.typewriterEffect(safeText, responseDiv);
+            this.typewriterEffect(safeText, responseDiv, callback);
         }
         this.scrollToBottom();
     }
 
-    async typewriterEffect(text, element) {
+    async typewriterEffect(text, element, callback) {
         // Garantir que temos string
         text = (text == null) ? '' : String(text);
 
-        // Ocultar blocos de código durante a digitação, mostrando "Gerando código..."
-        const hasCode = /```[\s\S]*?```/.test(text);
-        
-        let displayText = text;
-        if (hasCode) {
-            displayText = text.replace(/```[\s\S]*?```/g, '\n📝 Gerando código...\n');
-        }
-
-        if (!displayText || displayText.length === 0) {
+        if (!text || text.length === 0) {
             // Sem animação; renderizar direto
             const formattedHtml = this.formatResponse(text);
             element.innerHTML = formattedHtml;
             setTimeout(() => this.scrollToBottom(), 100);
+            if (callback) callback();
             return;
         }
         
@@ -2018,20 +2011,23 @@ ${latexCode}
                 if (charIndex % 3 === 0) {
                     this.scrollToBottom();
                 }
-                await this.sleep(3); // Mais rápido: 3ms por caractere
+                await this.sleep(1); // Mais rápido: 1ms por caractere
             }
             
             // Adicionar linha completa ao array de linhas exibidas
             displayedLines.push(currentLine);
             
             // Pequena pausa entre linhas
-            await this.sleep(20);
+            await this.sleep(5); // Mais rápido entre linhas
         }
         
         // Garantir formatação final completa
         const finalFormatted = this.formatResponse(text);
         element.innerHTML = finalFormatted;
         setTimeout(() => this.scrollToBottom(), 100);
+        
+        // Executar callback no final da animação
+        if (callback) callback();
     }
 
     formatResponse(text) {
@@ -2064,8 +2060,11 @@ ${latexCode}
             return `<ol class="list-decimal pl-6 mt-2 mb-2 text-gray-700 dark:text-gray-200">${items.map(i => `<li>${i}</li>`).join('')}</ol>`;
         });
 
-        // Processar inline code (monospace)
-        formatted = formatted.replace(/`([^`]+)`/g, '<code class="bg-gray-800 dark:bg-gray-900 px-2.5 py-1 rounded text-sm font-mono text-orange-400 border border-gray-700">$1</code>');
+        // Remover completamente blocos de código
+        formatted = formatted.replace(/```[\s\S]*?```/g, '');
+        
+        // Remover código inline
+        formatted = formatted.replace(/`([^`]+)`/g, '$1');
         
         // Processar bold e italic
         formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-bold text-gray-900 dark:text-gray-100">$1</strong>');

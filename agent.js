@@ -222,10 +222,11 @@ export class Agent {
             
             this.ui.setResponseText(response, messageContainer.responseId);
             await this.ui.sleep(500);
+            this.ui.setResponseText(response, messageContainer.responseId, () => {
+                // Gerar sugestões de acompanhamento só quando resposta estiver completa
+                this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
+            });
             this.ui.closeThinkingSteps(messageContainer.headerId);
-            
-            // Gerar sugestões de acompanhamento
-            await this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
         } catch (error) {
             if (error.message === 'ABORTED') {
                 console.log('⚠️ Geração interrompida pelo usuário');
@@ -416,9 +417,6 @@ export class Agent {
                 }
             }, 100);
             
-            // Gerar sugestões de acompanhamento
-            await this.generateFollowUpSuggestions(userMessage, response, `responseText_${messageContainer}`);
-
             const chat = this.ui.chats.find(c => c.id === this.ui.currentChatId);
             if (chat) {
                 if (chat.messages.length === 1) {
@@ -490,7 +488,10 @@ export class Agent {
             this.addToHistory('assistant', finalResponse);
             
             // Mostrar resposta final
-            this.ui.setResponseText(finalResponse, messageContainer.responseId);
+            this.ui.setResponseText(finalResponse, messageContainer.responseId, () => {
+                // Gerar sugestões de acompanhamento só quando resposta estiver completa
+                this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);
+            });
             
             // Limpar header de processamento
             this.ui.setThinkingHeader('', messageContainer.headerId);
@@ -540,9 +541,6 @@ export class Agent {
                 actionsDiv.classList.remove('opacity-0');
                 actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
             }
-            
-            // Gerar sugestões de acompanhamento
-            await this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);
 
         } catch (error) {
             if (error.message === 'ABORTED') {
