@@ -72,6 +72,16 @@ export class Agent {
         const relevantContext = this.memory.getRelevantContext(userMessage);
         console.log('🧠 Contexto relevante encontrado:', relevantContext.length, 'memórias');
 
+        // Verificar se há imagens nos anexos
+        const hasImages = attachedFilesFromUI && attachedFilesFromUI.some(f => f.type === 'image');
+        
+        // Se há imagens, usar modelo multimodal
+        if (hasImages) {
+            console.log('🖼️ Imagens detectadas, usando modelo multimodal');
+            await this.processImageModel(userMessage, attachedFilesFromUI, relevantContext);
+            return;
+        }
+
         // Verificação rápida da API desabilitada temporariamente
         // try {
         //     await this.quickApiCheck();
@@ -143,6 +153,107 @@ export class Agent {
         this.isGenerating = false;
         this.ui.updateSendButtonToSend();
     }
+    // ==================== MODELO MULTIMODAL (IMAGENS) ====================
+    async processImageModel(userMessage, attachedFiles, relevantContext = []) {
+        const messageContainer = this.ui.createAssistantMessageContainer();
+        const timestamp = Date.now();
+        
+        this.ui.setThinkingHeader('🖼️ Processando imagem...', messageContainer.headerId);
+        await this.ui.sleep(800);
+        this.addToHistory('user', userMessage);
+        
+        try {
+            // Preparar mensagens para API multimodal
+            const messages = [];
+            
+            // Adicionar contexto da memória se houver
+            if (relevantContext.length > 0) {
+                let memoryContext = '\n\nCONTEXTO RELEVANTE DA CONVERSA:\n';
+                relevantContext.forEach((memory, index) => {
+                    memoryContext += `${index + 1}. ${memory.role.toUpperCase()}: "${memory.content}" (Contexto: ${memory.context})\n`;
+                });
+                memoryContext += '\nUse este contexto para fornecer respostas mais personalizadas e relevantes.';
+                
+                messages.push({
+                    role: 'system',
+                    content: `Você é o Drekee AI 1, um assistente de código inteligente com capacidade de analisar imagens. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings. Seja técnico mas acessível.${memoryContext}`
+                });
+            } else {
+                messages.push({
+                    role: 'system',
+                    content: 'Você é o Drekee AI 1, um assistente de código inteligente com capacidade de analisar imagens. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings. Seja técnico mas acessível.'
+                });
+            }
+            
+            // Adicionar mensagens anteriores
+            messages.push(...this.conversationHistory);
+            
+            // Adicionar mensagem atual com imagens
+            const userMessageWithImages = {
+                role: 'user',
+                content: userMessage,
+                images: attachedFiles.filter(f => f.type === 'image').map(f => ({
+                    type: 'image_url',
+                    image_url: {
+                        url: `data:${f.mime};base64,${f.content}`
+                    }
+                }))
+            };
+            
+            messages.push(userMessageWithImages);
+            
+            console.log('🖼️ Enviando para API multimodal:', messages.length, 'mensagens');
+            console.log('🖼️ Imagens:', userMessageWithImages.images.length, 'imagens');
+            
+            // Chamar API Groq com modelo multimodal
+            const response = await this.callGroqAPI('meta-llama/llama-4-scout-17b-16e-instruct', messages);
+            
+            if (!response || typeof response !== 'string') {
+                throw new Error('Resposta vazia ou inválida do modelo multimodal');
+            }
+            
+            // Armazenar e salvar a mensagem do assistente
+            const chat = this.ui.chats.find(c => c.id === this.ui.currentChatId);
+            if (chat) {
+                if (chat.messages.length === 1) {
+                    const firstUserMessage = chat.messages[0].content;
+                    chat.title = firstUserMessage.substring(0, 50) + (firstUserMessage.length > 50 ? '...' : '');
+                }
+                chat.messages.push({ role: 'assistant', content: response, thinking: null });
+                this.ui.saveCurrentChat();
+            }
+            
+            this.addToHistory('assistant', response);
+            
+            // Adicionar resposta da IA à memória e aprender com a interação
+            this.memory.addConversationMemory('assistant', response);
+            this.memory.learnFromInteraction(userMessage, response);
+            
+            // Mostrar resposta
+            this.ui.setResponseText(response, messageContainer.responseId, () => {
+                // Gerar sugestões de acompanhamento só quando resposta estiver completa
+                this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
+            });
+            
+            this.ui.setThinkingHeader('', messageContainer.headerId);
+            
+            // Mostrar botões de ação quando resposta estiver completa
+            const actionsDiv = document.getElementById(`actions_${messageContainer.container.id.replace('msg_', '')}`);
+            if (actionsDiv) {
+                actionsDiv.classList.remove('opacity-0');
+                actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
+            }
+            
+        } catch (error) {
+            if (error.message === 'ABORTED') {
+                console.log('⚠️ Geração interrompida pelo usuário');
+                return;
+            }
+            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua imagem. ' + error.message, messageContainer.responseId);
+            console.error('Erro no Modelo Multimodal:', error);
+        }
+    }
+
     // ==================== MODELO MISTRAL (codestral-latest) ====================
     async processMistralModel(userMessage, relevantContext = []) {
         // Usamos proxy server-side; não é obrigatório ter chave no localStorage para o deploy no Vercel
@@ -176,7 +287,7 @@ export class Agent {
             
             let systemPrompt = {
                 role: 'system',
-                content: `Você é o Drekee AI 1, um assistente de código inteligente com memória contextual. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings, e quando apropriado use tabelas (em formato markdown), notação matemática (com $símbolos$ para inline ou $$blocos$$), e diagramas em ASCII. Evite blocos enormes de código - prefira explicações visuais. Seja técnico mas acessível.${memoryContext}`
+                content: `Você é o Drekee AI 1, um assistente de código inteligente com memória contextual. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings. Seja técnico mas acessível.${memoryContext}`
             };
             const messages = this.extraMessagesForNextCall ? [systemPrompt, ...this.extraMessagesForNextCall, ...this.conversationHistory] : [systemPrompt, ...this.conversationHistory];
 
@@ -716,25 +827,16 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
         console.log('📋 Mensagens customizadas:', customMessages ? 'SIM' : 'NÃO');
         console.log('📋 Histórico atual:', this.conversationHistory.length, 'mensagens');
         
-        // Not required to have a client-side Groq API key when using server-side proxy
-        // The proxy will use GROQ_API_KEY from environment variables on Vercel
+        // Não é necessário ter chave no localStorage quando usando proxy server-side
+        // O proxy usará GROQ_API_KEY das environment variables no Vercel
         
-        // System prompts diferenciados por modelo
-        let systemPrompt;
-        if (this.currentModel === 'rapido') {
-            systemPrompt = {
-                role: 'system',
-                content: 'Você é o Drekee AI 1, um assistente de código rápido e direto. Mantenha as respostas BREVES e CONCISAS - máximo 2-3 parágrafos. Evite elaborações desnecessárias. Vá direto ao ponto.'
-            };
-        } else {
-            // Raciocínio e Pro - respostas ricas
-            systemPrompt = {
-                role: 'system',
-                content: 'Você é o Drekee AI 1, um assistente de código inteligente. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings, e quando apropriado use tabelas (em formato markdown), notação matemática (com $símbolos$ para inline ou $$blocos$$), e diagramas em ASCII. Evite blocos enormes de código - prefira explicações visuais. Seja técnico mas acessível.'
-            };
-        }
-
-        const messages = customMessages || [systemPrompt, ...this.conversationHistory];
+        const messages = customMessages || [
+            { 
+                role: 'system', 
+                content: 'Você é o Drekee AI 1, um assistente de código inteligente com capacidade de analisar imagens. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings, e quando apropriado use tabelas (em formato markdown), notação matemática (com $símbolos$ para inline ou $$blocos$$). Seja técnico mas acessível.'
+            }, 
+            ...this.conversationHistory
+        ];
         
         console.log('📤 Mensagens finais para API:', messages.length, 'mensagens');
         console.log('📤 Primeira mensagem:', messages[0]?.content?.substring(0, 100) + '...');

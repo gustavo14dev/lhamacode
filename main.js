@@ -17,16 +17,10 @@ class UI {
         this.chats = this.loadChats();
         this.currentChatId = null;
         this.currentModel = 'raciocinio';
-        
-        // Inicializar sistemas de melhoria
-        this.timeline = new TimelineSystem(this);
-        this.suggestions = new ProactiveSuggestions(this.agent, this);
-        this.preferences = new PreferenceLearning();
+        this.isGenerating = false;
+        this.debugMode = false;
         
         this.elements = {
-            welcomeScreen: document.getElementById('welcomeScreen'),
-            titleSection: document.getElementById('titleSection'),
-            chatArea: document.getElementById('chatArea'),
             messagesContainer: document.getElementById('messagesContainer'),
             userInput: document.getElementById('userInput'),
             sendButton: document.getElementById('sendButton'),
@@ -35,12 +29,11 @@ class UI {
             newChatBtn: document.getElementById('newChatBtn'),
             chatHistoryList: document.getElementById('chatHistoryList'),
             modelButton: document.getElementById('modelButton'),
-            modelDropdown: document.getElementById('modelDropdown'),
-            modelButtonText: document.getElementById('modelButtonText'),
-            createButton: document.getElementById('createButton'),
-            createDropdown: document.getElementById('createDropdown'),
-            createButtonText: document.getElementById('createButtonText'),
-            scrollToBottomBtn: document.getElementById('scrollToBottomBtn')
+            chatArea: document.getElementById('chatArea'),
+            scrollToBottomBtn: document.getElementById('scrollToBottomBtn'),
+            welcomeScreen: document.getElementById('welcomeScreen'),
+            titleSection: document.getElementById('titleSection'),
+            inputWrapper: document.getElementById('inputWrapper')
         };
 
         // Debug (somente se flag ativada)
@@ -257,40 +250,52 @@ class UI {
             debugBtn.addEventListener('click', () => this.toggleDebugMode());
         }
 
-        // Botão de anexar arquivo (ícone apenas)
+        // Botão de anexar arquivo (seletor dropdown)
         const attachBtn = document.getElementById('attachFileBtn');
-        const chatFileInput = document.getElementById('fileInput');
-        if (attachBtn && chatFileInput) {
-            attachBtn.addEventListener('click', () => chatFileInput.click());
-            chatFileInput.addEventListener('change', (e) => {
-                const rawFiles = Array.from(e.target.files || []);
-                if (rawFiles.length === 0) return;
-                const limited = rawFiles.slice(0, 3);
-                let anyAdded = false;
-                const MAX_SIZE = 32 * 1024; // 32 KB por arquivo
-                limited.forEach(f => {
-                    if (f.size > MAX_SIZE) {
-                        this.addAssistantMessage(`❗ O arquivo ${f.name} excede o limite de 32 KB e não será anexado.`);
-                        return;
-                    }
-                    if (f.type.startsWith('text') || f.name.match(/\.html?$|\.js$|\.py$|\.css$|\.json$|\.md$|\.txt$/i)) {
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                            this.attachedFiles.push({ name: f.name, content: String(reader.result), mime: f.type });
-                            this.renderAttachedFiles();
-                            console.log('📎 Arquivo anexado (UI):', f.name, '(', (reader.result||'').length, 'chars)');
-                            this.addAssistantMessage(`📎 ${this.attachedFiles.length} arquivo(s) anexado(s). Ao enviar, será usado automaticamente o modelo 'codestral-latest' (Mistral) quando houver anexos.`);
-                        };
-                        reader.readAsText(f);
-                        anyAdded = true;
-                    } else {
-                        this.addAssistantMessage(`❗ Tipo não suportado para leitura direta: ${f.name}. Apenas arquivos de texto/código são processados.`);
-                    }
+        const attachDropdown = document.getElementById('attachDropdown');
+        const attachCodeBtn = document.getElementById('attachCodeBtn');
+        const attachImageBtn = document.getElementById('attachImageBtn');
+        const codeFileInput = document.getElementById('codeFileInput');
+        const imageFileInput = document.getElementById('imageFileInput');
+        
+        if (attachBtn && attachDropdown) {
+            // Toggle dropdown
+            attachBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                attachDropdown.classList.toggle('hidden');
+            });
+            
+            // Anexar Código
+            if (attachCodeBtn && codeFileInput) {
+                attachCodeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    attachDropdown.classList.add('hidden');
+                    codeFileInput.click();
                 });
-                if (!anyAdded && rawFiles.length > 0) {
-                    this.addAssistantMessage('❗ Nenhum arquivo de texto foi anexado. Use arquivos .txt/.md/.js/.py/.json/.html/.css');
+                
+                codeFileInput.addEventListener('change', (e) => {
+                    this.handleFileSelect(e.target.files, 'code');
+                });
+            }
+            
+            // Anexar Imagem
+            if (attachImageBtn && imageFileInput) {
+                attachImageBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    attachDropdown.classList.add('hidden');
+                    imageFileInput.click();
+                });
+                
+                imageFileInput.addEventListener('change', (e) => {
+                    this.handleFileSelect(e.target.files, 'image');
+                });
+            }
+            
+            // Fechar dropdown ao clicar fora
+            document.addEventListener('click', (e) => {
+                if (!attachDropdown.contains(e.target) && e.target !== attachBtn) {
+                    attachDropdown.classList.add('hidden');
                 }
-                e.target.value = null;
             });
         }
         
@@ -1274,11 +1279,29 @@ ${latexCode}
         this.elements.attachedFilesContainer.classList.remove('hidden');
         this.attachedFiles.forEach((file, index) => {
             const fileCard = document.createElement('div');
-            fileCard.className = 'inline-flex items-center gap-2 px-3 py-2 bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-600 rounded-lg text-sm';
+            
+            // Ícone baseado no tipo
+            let icon = 'insert_drive_file';
+            let iconColor = 'text-gray-500';
+            let bgColor = 'bg-gray-100 dark:bg-gray-800';
+            
+            if (file.type === 'code') {
+                icon = 'code';
+                iconColor = 'text-blue-500';
+                bgColor = 'bg-blue-100 dark:bg-blue-900/50';
+            } else if (file.type === 'image') {
+                icon = 'image';
+                iconColor = 'text-green-500';
+                bgColor = 'bg-green-100 dark:bg-green-900/50';
+            }
+            
+            fileCard.className = `inline-flex items-center gap-2 px-3 py-2 ${bgColor} border border-gray-200 dark:border-gray-600 rounded-lg text-sm`;
             fileCard.innerHTML = `
-                <span class="material-icons-outlined text-primary text-base">${this.getFileIcon(file.name)}</span>
-                <span class="font-medium text-gray-700 dark:text-gray-200 truncate max-w-[180px]">${this.escapeHtml(file.name)}</span>
-                <button class="material-icons-outlined text-gray-500 hover:text-red-500 text-sm" aria-label="Remover" data-index="${index}">close</button>
+                <span class="material-icons-outlined text-base ${iconColor}">${icon}</span>
+                <span class="text-gray-700 dark:text-gray-200 font-medium">${file.name}</span>
+                <button class="ml-1 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors" title="Remover">
+                    <span class="material-icons-outlined text-xs text-gray-500">close</span>
+                </button>
             `;
             const btn = fileCard.querySelector('button');
             btn.addEventListener('click', (e) => {
@@ -1601,11 +1624,23 @@ ${latexCode}
             inner.className = 'max-w-[80%] flex gap-2 items-center bg-surface-light dark:bg-surface-dark rounded-xl px-3 py-2 border border-gray-100 dark:border-gray-700';
             files.forEach((f, idx) => {
                 const fileCard = document.createElement('div');
-                fileCard.className = 'inline-flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg text-sm';
-                fileCard.innerHTML = `
-                    <span class="material-icons-outlined text-primary text-base">${this.getFileIcon(f.name)}</span>
-                    <span class="font-medium text-gray-700 dark:text-gray-200 truncate max-w-[140px]">${this.escapeHtml(f.name)}</span>
-                `;
+                
+                // Verificar se é imagem para mostrar preview
+                if (f.mime && f.mime.startsWith('image/')) {
+                    fileCard.className = 'inline-flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg text-sm cursor-pointer hover:bg-white/10 transition-colors';
+                    fileCard.innerHTML = `
+                        <img src="data:${f.mime};base64,${f.content}" alt="${f.name}" class="w-8 h-8 rounded object-cover" />
+                        <span class="font-medium text-gray-700 dark:text-gray-200 truncate max-w-[120px]">${this.escapeHtml(f.name)}</span>
+                    `;
+                } else {
+                    // Arquivo de código
+                    fileCard.className = 'inline-flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg text-sm';
+                    fileCard.innerHTML = `
+                        <span class="material-icons-outlined text-blue-500 text-base">code</span>
+                        <span class="font-medium text-gray-700 dark:text-gray-200 truncate max-w-[140px]">${this.escapeHtml(f.name)}</span>
+                    `;
+                }
+                
                 // Tornar clicável para visualizar o arquivo
                 fileCard.style.cursor = 'pointer';
                 fileCard.addEventListener('click', (e) => {
