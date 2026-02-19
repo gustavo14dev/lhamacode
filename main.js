@@ -2070,6 +2070,43 @@ ${latexCode}
         formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-bold text-gray-900 dark:text-gray-100">$1</strong>');
         formatted = formatted.replace(/\*([^*]+)\*/g, '<em class="italic text-gray-800 dark:text-gray-200">$1</em>');
         
+        // Processar sublinhado
+        formatted = formatted.replace(/<u>([^<]+)<\/u>/g, '<u class="underline decoration-2 decoration-blue-500">$1</u>');
+        
+        // Processar expressões matemáticas LaTeX (inline e bloco)
+        formatted = formatted.replace(/\$([^$\n]+)\$/g, '<span class="inline-block font-mono text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600">$1</span>');
+        formatted = formatted.replace(/\$\$([^$\n]+)\$\$/g, '<div class="block my-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><span class="block font-mono text-base text-center text-gray-900 dark:text-gray-100">$1</span></div>');
+        
+        // Processar tabelas markdown simples
+        formatted = formatted.replace(/\|(.+)\|\n\|[-\s|]+\|\n((?:\|.+\|\n?)+)/g, (match, header, rows) => {
+            const headers = header.split('|').map(h => h.trim()).filter(h => h);
+            const bodyRows = rows.trim().split('\n').map(row => 
+                row.split('|').map(cell => cell.trim()).filter(cell => cell)
+            );
+            
+            let table = '<div class="overflow-x-auto my-4"><table class="min-w-full border-collapse border border-gray-300 dark:border-gray-600">';
+            
+            // Header
+            table += '<thead><tr class="bg-gray-100 dark:bg-gray-800">';
+            headers.forEach(h => {
+                table += `<th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left font-semibold text-gray-900 dark:text-gray-100">${h}</th>`;
+            });
+            table += '</tr></thead>';
+            
+            // Body
+            table += '<tbody>';
+            bodyRows.forEach((row, i) => {
+                table += `<tr class="${i % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800'}">`;
+                row.forEach(cell => {
+                    table += `<td class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-gray-700 dark:text-gray-200">${cell}</td>`;
+                });
+                table += '</tr>';
+            });
+            table += '</tbody></table></div>';
+            
+            return table;
+        });
+        
         // Processar quebras de linha (duas quebras iniciam novo parágrafo)
         formatted = formatted.replace(/\n\n+/g, '</p><p class="mt-3 text-gray-700 dark:text-gray-200">');
         formatted = formatted.replace(/\n/g, '<br>');
