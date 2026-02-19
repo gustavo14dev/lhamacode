@@ -2074,8 +2074,8 @@ ${latexCode}
         // Processar sublinhado
         formatted = formatted.replace(/<u>([^<]+)<\/u>/g, '<u class="underline decoration-2 decoration-blue-500">$1</u>');
         
-        // Remover símbolos estranhos e caracteres especiais indesejados
-        formatted = formatted.replace(/[^\x20-\x7E\n\r\t]/g, '');
+        // Remover apenas caracteres realmente problemáticos, mantendo formatação HTML e símbolos matemáticos
+        formatted = formatted.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
         
         // Processar expressões matemáticas LaTeX (inline e bloco) com suporte completo
         formatted = formatted.replace(/\$([^$\n]+)\$/g, '<span class="inline-block font-mono text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 math-inline">$1</span>');
