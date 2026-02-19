@@ -573,7 +573,7 @@ export class Agent {
     }
 
     // ==================== MODELO PRO ====================
-// gemma-7b-it → llama2-70b → llama2-7b (síntese)
+// llama-3.1-8b-instant → llama2-70b → llama2-7b (síntese)
     async processProModel(userMessage) {
         const messageContainer = this.ui.createAssistantMessageContainer();
         const timestamp = Date.now();
@@ -584,9 +584,9 @@ export class Agent {
         this.addToHistory('user', userMessage);
 
         try {
-            // ========== ETAPA 1: gemma-7b-it - primeira resposta ==========
+            // ========== ETAPA 1: llama-3.1-8b-instant - primeira resposta ==========
             const step1Id = `step1_${timestamp}`;
-            this.ui.addThinkingStep('psychology', 'Analisando com Gemma 7B...', step1Id, messageContainer.stepsId);
+            this.ui.addThinkingStep('psychology', 'Analisando com Llama 8B...', step1Id, messageContainer.stepsId);
             
             const messages1 = this.extraMessagesForNextCall ? [
                 { role: 'system', content: this.getSystemPrompt('pro') },
@@ -599,7 +599,7 @@ export class Agent {
                 { role: 'user', content: userMessage }
             ];
             
-            const response1 = await this.callGroqAPI('gemma-7b-it', messages1);
+            const response1 = await this.callGroqAPI('llama-3.1-8b-instant', messages1);
             
             // Extrair arquivos se existirem
             try {
@@ -610,7 +610,7 @@ export class Agent {
                 }
             } catch (e) { console.warn('⚠️ Falha parsing arquivos de response1:', e); }
             
-            this.ui.updateThinkingStep(step1Id, 'check_circle', '✅ Análise Gemma concluída');
+            this.ui.updateThinkingStep(step1Id, 'check_circle', '✅ Análise Llama 8B concluída');
             await this.ui.sleep(1200);
 
             // ========== ETAPA 2: llama2-70b - segunda resposta ==========
@@ -639,7 +639,7 @@ export class Agent {
                 }
             } catch (e) { console.warn('⚠️ Falha parsing arquivos de response2:', e); }
             
-            this.ui.updateThinkingStep(step2Id, 'check_circle', '✅ Análise Llama concluída');
+            this.ui.updateThinkingStep(step2Id, 'check_circle', '✅ Análise Llama 70B concluída');
             await this.ui.sleep(1200);
 
             // ========== ETAPA 3: llama2-7b - síntese final ==========
@@ -655,7 +655,7 @@ export class Agent {
                     role: 'user',
                     content: `Pergunta original: "${userMessage}"
 
-=== RESPOSTA 1 (Gemma 7B) ===
+=== RESPOSTA 1 (Llama 8B) ===
 ${response1}
 
 === RESPOSTA 2 (Llama 70B) ===
