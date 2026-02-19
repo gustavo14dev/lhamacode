@@ -454,7 +454,8 @@ export class Agent {
             const systemPrompt = { 
                 role: 'system', 
                 content: this.getSystemPrompt('raciocinio') + 
-                ' Você é um modelo de raciocínio. Pense passo a passo sobre a pergunta do usuário e coloque seu raciocínio completo dentro de tags </think>...
+                ' Você é um modelo de raciocínio. Pense passo a passo sobre a pergunta do usuário e coloque seu raciocínio completo dentro de tags <think>...</think>. Depois do raciocínio, forneça a resposta final.'
+            };
             
             const messages = this.extraMessagesForNextCall ? 
                 [systemPrompt, ...this.extraMessagesForNextCall, ...this.conversationHistory] : 
@@ -468,11 +469,11 @@ export class Agent {
             let reasoningText = '';
             let finalResponse = fullResponse;
             
-            // Procurar por tags </think>...</think>
-            const thinkMatch = fullResponse.match(/</think>([\s\S]*?)<\/think>/);
+            // Procurar por tags <think>...</think>
+            const thinkMatch = fullResponse.match(/<think>([\s\S]*?)<\/think>/);
             if (thinkMatch) {
                 reasoningText = thinkMatch[1].trim();
-                finalResponse = fullResponse.replace(/</think>[\s\S]*?<\/think>/, '').trim();
+                finalResponse = fullResponse.replace(/<think>[\s\S]*?<\/think>/, '').trim();
             }
             
             // Tentar extrair arquivos gerados na resposta e anexá-los ao chat
