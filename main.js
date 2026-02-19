@@ -17,10 +17,16 @@ class UI {
         this.chats = this.loadChats();
         this.currentChatId = null;
         this.currentModel = 'raciocinio';
-        this.isGenerating = false;
-        this.debugMode = false;
+        
+        // Inicializar sistemas de melhoria
+        this.timeline = new TimelineSystem(this);
+        this.suggestions = new ProactiveSuggestions(this.agent, this);
+        this.preferences = new PreferenceLearning();
         
         this.elements = {
+            welcomeScreen: document.getElementById('welcomeScreen'),
+            titleSection: document.getElementById('titleSection'),
+            chatArea: document.getElementById('chatArea'),
             messagesContainer: document.getElementById('messagesContainer'),
             userInput: document.getElementById('userInput'),
             sendButton: document.getElementById('sendButton'),
@@ -29,11 +35,12 @@ class UI {
             newChatBtn: document.getElementById('newChatBtn'),
             chatHistoryList: document.getElementById('chatHistoryList'),
             modelButton: document.getElementById('modelButton'),
-            chatArea: document.getElementById('chatArea'),
-            scrollToBottomBtn: document.getElementById('scrollToBottomBtn'),
-            welcomeScreen: document.getElementById('welcomeScreen'),
-            titleSection: document.getElementById('titleSection'),
-            inputWrapper: document.getElementById('inputWrapper')
+            modelDropdown: document.getElementById('modelDropdown'),
+            modelButtonText: document.getElementById('modelButtonText'),
+            createButton: document.getElementById('createButton'),
+            createDropdown: document.getElementById('createDropdown'),
+            createButtonText: document.getElementById('createButtonText'),
+            scrollToBottomBtn: document.getElementById('scrollToBottomBtn')
         };
 
         // Debug (somente se flag ativada)
@@ -250,7 +257,7 @@ class UI {
             debugBtn.addEventListener('click', () => this.toggleDebugMode());
         }
 
-        // Botão de anexar arquivo (seletor dropdown)
+        // Botão de anexar arquivo com dropdown seletor
         const attachBtn = document.getElementById('attachFileBtn');
         const attachDropdown = document.getElementById('attachDropdown');
         const attachCodeBtn = document.getElementById('attachCodeBtn');
@@ -258,93 +265,114 @@ class UI {
         const codeFileInput = document.getElementById('codeFileInput');
         const imageFileInput = document.getElementById('imageFileInput');
         
-        console.log('🔍 Elementos do seletor de anexos:', {
-            attachBtn: !!attachBtn,
-            attachDropdown: !!attachDropdown,
-            attachCodeBtn: !!attachCodeBtn,
-            attachImageBtn: !!attachImageBtn,
-            codeFileInput: !!codeFileInput,
-            imageFileInput: !!imageFileInput
-        });
-        
-        // Teste: mostrar dropdown por 2 segundos ao carregar
-        if (attachDropdown) {
-            setTimeout(() => {
-                console.log('🧪 Teste: Mostrando dropdown...');
-                attachDropdown.classList.remove('hidden');
-                attachDropdown.style.display = 'block';
-                attachDropdown.style.visibility = 'visible';
-                attachDropdown.style.opacity = '1';
-                
-                setTimeout(() => {
-                    console.log('🧪 Teste: Escondendo dropdown...');
-                    attachDropdown.classList.add('hidden');
-                    attachDropdown.style.display = '';
-                    attachDropdown.style.visibility = '';
-                    attachDropdown.style.opacity = '';
-                }, 2000);
-            }, 1000);
-        }
-        
         if (attachBtn && attachDropdown) {
             // Toggle dropdown
             attachBtn.addEventListener('click', (e) => {
-                console.log('🔘 Botão de anexo clicado!');
-                console.log('🔘 Dropdown antes:', attachDropdown.classList.contains('hidden'));
                 e.stopPropagation();
-                
-                // Forçar mostrar o dropdown
-                attachDropdown.classList.remove('hidden');
-                attachDropdown.style.display = 'block';
-                attachDropdown.style.visibility = 'visible';
-                attachDropdown.style.opacity = '1';
-                
-                console.log('🔘 Dropdown depois:', attachDropdown.classList.contains('hidden'));
-                console.log('🔘 Dropdown visibility:', window.getComputedStyle(attachDropdown).visibility);
-                console.log('🔘 Dropdown display:', window.getComputedStyle(attachDropdown).display);
-                console.log('🔘 Dropdown opacity:', window.getComputedStyle(attachDropdown).opacity);
+                attachDropdown.classList.toggle('hidden');
             });
             
-            // Anexar Código
-            if (attachCodeBtn && codeFileInput) {
-                attachCodeBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    attachDropdown.classList.add('hidden');
-                    attachDropdown.style.display = '';
-                    attachDropdown.style.visibility = '';
-                    attachDropdown.style.opacity = '';
-                    codeFileInput.click();
-                });
-                
-                codeFileInput.addEventListener('change', (e) => {
-                    this.handleFileSelect(e.target.files, 'code');
-                });
-            }
+            // Anexar código
+            attachCodeBtn?.addEventListener('click', () => {
+                attachDropdown.classList.add('hidden');
+                codeFileInput.click();
+            });
             
-            // Anexar Imagem
-            if (attachImageBtn && imageFileInput) {
-                attachImageBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    attachDropdown.classList.add('hidden');
-                    attachDropdown.style.display = '';
-                    attachDropdown.style.visibility = '';
-                    attachDropdown.style.opacity = '';
-                    imageFileInput.click();
-                });
-                
-                imageFileInput.addEventListener('change', (e) => {
-                    this.handleFileSelect(e.target.files, 'image');
-                });
-            }
+            // Anexar imagem
+            attachImageBtn?.addEventListener('click', () => {
+                attachDropdown.classList.add('hidden');
+                imageFileInput.click();
+            });
             
             // Fechar dropdown ao clicar fora
             document.addEventListener('click', (e) => {
-                if (!attachDropdown.contains(e.target) && e.target !== attachBtn) {
+                if (!attachBtn.contains(e.target) && !attachDropdown.contains(e.target)) {
                     attachDropdown.classList.add('hidden');
-                    attachDropdown.style.display = '';
-                    attachDropdown.style.visibility = '';
-                    attachDropdown.style.opacity = '';
                 }
+            });
+        }
+        
+        // Processar arquivos de código
+        if (codeFileInput) {
+            codeFileInput.addEventListener('change', (e) => {
+                const rawFiles = Array.from(e.target.files || []);
+                if (rawFiles.length === 0) return;
+                const limited = rawFiles.slice(0, 3);
+                let anyAdded = false;
+                const MAX_SIZE = 32 * 1024; // 32 KB por arquivo
+                
+                limited.forEach(f => {
+                    if (f.size > MAX_SIZE) {
+                        this.addAssistantMessage(`❗ O arquivo ${f.name} excede o limite de 32 KB e não será anexado.`);
+                        return;
+                    }
+                    if (f.type.startsWith('text') || f.name.match(/\.html?$|\.js$|\.py$|\.css$|\.json$|\.md$|\.txt$/i)) {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            this.attachedFiles.push({ 
+                                name: f.name, 
+                                content: String(reader.result), 
+                                mime: f.type,
+                                type: 'code'
+                            });
+                            this.renderAttachedFiles();
+                            console.log('📎 Código anexado:', f.name, '(', (reader.result||'').length, 'chars)');
+                            this.addAssistantMessage(`📎 ${this.attachedFiles.length} arquivo(s) de código anexado(s). Ao enviar, será usado o modelo 'codestral-latest' (Mistral).`);
+                        };
+                        reader.readAsText(f);
+                        anyAdded = true;
+                    } else {
+                        this.addAssistantMessage(`❗ Tipo não suportado para código: ${f.name}. Use arquivos .txt/.md/.js/.py/.json/.html/.css`);
+                    }
+                });
+                if (!anyAdded && rawFiles.length > 0) {
+                    this.addAssistantMessage('❗ Nenhum arquivo de código foi anexado.');
+                }
+                e.target.value = null;
+            });
+        }
+        
+        // Processar arquivos de imagem
+        if (imageFileInput) {
+            imageFileInput.addEventListener('change', (e) => {
+                const rawFiles = Array.from(e.target.files || []);
+                if (rawFiles.length === 0) return;
+                const limited = rawFiles.slice(0, 5); // Máximo 5 imagens
+                
+                limited.forEach(f => {
+                    if (!f.type.startsWith('image/')) {
+                        this.addAssistantMessage(`❗ ${f.name} não é uma imagem válida.`);
+                        return;
+                    }
+                    
+                    // Verificar tamanho (máximo 4MB para base64)
+                    const MAX_SIZE = 4 * 1024 * 1024; // 4MB
+                    if (f.size > MAX_SIZE) {
+                        this.addAssistantMessage(`❗ A imagem ${f.name} excede o limite de 4MB e não será anexada.`);
+                        return;
+                    }
+                    
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const base64 = String(reader.result);
+                        this.attachedFiles.push({ 
+                            name: f.name, 
+                            content: base64,
+                            mime: f.type,
+                            type: 'image',
+                            size: f.size
+                        });
+                        this.renderAttachedFiles();
+                        console.log('🖼️ Imagem anexada:', f.name, '(', f.size, 'bytes)');
+                        this.addAssistantMessage(`🖼️ ${this.attachedFiles.length} imagem(ns) anexada(s). Ao enviar, será usado o modelo 'meta-llama/llama-4-scout-17b-16e-instruct'.`);
+                    };
+                    reader.readAsDataURL(f);
+                });
+                
+                if (limited.length === 0) {
+                    this.addAssistantMessage('❗ Nenhuma imagem foi anexada.');
+                }
+                e.target.value = null;
             });
         }
         
@@ -1256,13 +1284,27 @@ ${latexCode}
         let sendFiles = null;
         let attachmentsSnapshot = null;
         if (this.attachedFiles && this.attachedFiles.length > 0) {
-            // Garantir máximo 3
-            this.attachedFiles = this.attachedFiles.slice(0, 3);
-            finalMessage = this.buildMessageWithFiles(message);
-            sendFiles = this.attachedFiles.map(f => ({ name: f.name, content: f.content }));
-            // Snapshot reduzido para a UI (não incluir conteúdo completo no DOM)
-            attachmentsSnapshot = this.attachedFiles.map(f => ({ name: f.name, mime: f.mime }));
-            this.addAssistantMessage(`📎 ${this.attachedFiles.length} arquivo(s) anexado(s). A IA irá ler o conteúdo dos arquivos (máx 3).`);
+            // Garantir máximo 3 para código, 5 para imagens
+            const codeFiles = this.attachedFiles.filter(f => f.type === 'code').slice(0, 3);
+            const imageFiles = this.attachedFiles.filter(f => f.type === 'image').slice(0, 5);
+            this.attachedFiles = [...codeFiles, ...imageFiles];
+            
+            sendFiles = this.attachedFiles.map(f => ({ 
+                name: f.name, 
+                content: f.content,
+                type: f.type,
+                mime: f.mime
+            }));
+            
+            // Snapshot para a UI (não incluir conteúdo completo no DOM para imagens)
+            attachmentsSnapshot = this.attachedFiles.map(f => ({ 
+                name: f.name, 
+                mime: f.mime,
+                type: f.type
+            }));
+            
+            const fileTypes = this.attachedFiles.map(f => f.type === 'image' ? 'imagem' : 'código').join(' e ');
+            this.addAssistantMessage(`📎 ${this.attachedFiles.length} arquivo(s) de ${fileTypes} anexado(s). A IA irá processar os arquivos.`);
         }
 
         // Adicionar mensagem do usuário (incluindo visualização dos anexos, se houver)
@@ -1282,22 +1324,6 @@ ${latexCode}
         // Limpar anexos após envio
         this.attachedFiles = [];
         this.renderAttachedFiles();
-    }
-
-    buildMessageWithFiles(userMessage) {
-        const MAX_PER_FILE = 8000;
-        const normalized = (this.attachedFiles || []).slice(0, 3).map(f => {
-            let content = String(f.content || '');
-            let truncated = false;
-            if (content.length > MAX_PER_FILE) {
-                content = content.slice(0, MAX_PER_FILE);
-                truncated = true;
-            }
-            return { name: f.name, content, truncated };
-        });
-        const jsonBlock = '\n---FILES-JSON---\n' + JSON.stringify({ files: normalized }) + '\n---END-FILES-JSON---\n';
-        return userMessage + jsonBlock;
-    }
 
 
 
@@ -1329,29 +1355,26 @@ ${latexCode}
         this.attachedFiles.forEach((file, index) => {
             const fileCard = document.createElement('div');
             
-            // Ícone baseado no tipo
-            let icon = 'insert_drive_file';
-            let iconColor = 'text-gray-500';
-            let bgColor = 'bg-gray-100 dark:bg-gray-800';
-            
-            if (file.type === 'code') {
-                icon = 'code';
-                iconColor = 'text-blue-500';
-                bgColor = 'bg-blue-100 dark:bg-blue-900/50';
-            } else if (file.type === 'image') {
-                icon = 'image';
-                iconColor = 'text-green-500';
-                bgColor = 'bg-green-100 dark:bg-green-900/50';
+            if (file.type === 'image') {
+                // Renderizar imagem visualmente
+                fileCard.className = 'inline-flex items-center gap-2 px-3 py-2 bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-600 rounded-lg text-sm relative group';
+                fileCard.innerHTML = `
+                    <div class="w-8 h-8 rounded overflow-hidden flex-shrink-0">
+                        <img src="${file.content}" alt="${this.escapeHtml(file.name)}" class="w-full h-full object-cover" />
+                    </div>
+                    <span class="font-medium text-gray-700 dark:text-gray-200 truncate max-w-[120px]">${this.escapeHtml(file.name)}</span>
+                    <button class="material-icons-outlined text-gray-500 hover:text-red-500 text-sm opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Remover" data-index="${index}">close</button>
+                `;
+            } else {
+                // Renderizar arquivo de código
+                fileCard.className = 'inline-flex items-center gap-2 px-3 py-2 bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-600 rounded-lg text-sm relative group';
+                fileCard.innerHTML = `
+                    <span class="material-icons-outlined text-primary text-base">${this.getFileIcon(file.name)}</span>
+                    <span class="font-medium text-gray-700 dark:text-gray-200 truncate max-w-[180px]">${this.escapeHtml(file.name)}</span>
+                    <button class="material-icons-outlined text-gray-500 hover:text-red-500 text-sm opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Remover" data-index="${index}">close</button>
+                `;
             }
             
-            fileCard.className = `inline-flex items-center gap-2 px-3 py-2 ${bgColor} border border-gray-200 dark:border-gray-600 rounded-lg text-sm`;
-            fileCard.innerHTML = `
-                <span class="material-icons-outlined text-base ${iconColor}">${icon}</span>
-                <span class="text-gray-700 dark:text-gray-200 font-medium">${file.name}</span>
-                <button class="ml-1 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors" title="Remover">
-                    <span class="material-icons-outlined text-xs text-gray-500">close</span>
-                </button>
-            `;
             const btn = fileCard.querySelector('button');
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1673,23 +1696,11 @@ ${latexCode}
             inner.className = 'max-w-[80%] flex gap-2 items-center bg-surface-light dark:bg-surface-dark rounded-xl px-3 py-2 border border-gray-100 dark:border-gray-700';
             files.forEach((f, idx) => {
                 const fileCard = document.createElement('div');
-                
-                // Verificar se é imagem para mostrar preview
-                if (f.mime && f.mime.startsWith('image/')) {
-                    fileCard.className = 'inline-flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg text-sm cursor-pointer hover:bg-white/10 transition-colors';
-                    fileCard.innerHTML = `
-                        <img src="data:${f.mime};base64,${f.content}" alt="${f.name}" class="w-8 h-8 rounded object-cover" />
-                        <span class="font-medium text-gray-700 dark:text-gray-200 truncate max-w-[120px]">${this.escapeHtml(f.name)}</span>
-                    `;
-                } else {
-                    // Arquivo de código
-                    fileCard.className = 'inline-flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg text-sm';
-                    fileCard.innerHTML = `
-                        <span class="material-icons-outlined text-blue-500 text-base">code</span>
-                        <span class="font-medium text-gray-700 dark:text-gray-200 truncate max-w-[140px]">${this.escapeHtml(f.name)}</span>
-                    `;
-                }
-                
+                fileCard.className = 'inline-flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg text-sm';
+                fileCard.innerHTML = `
+                    <span class="material-icons-outlined text-primary text-base">${this.getFileIcon(f.name)}</span>
+                    <span class="font-medium text-gray-700 dark:text-gray-200 truncate max-w-[140px]">${this.escapeHtml(f.name)}</span>
+                `;
                 // Tornar clicável para visualizar o arquivo
                 fileCard.style.cursor = 'pointer';
                 fileCard.addEventListener('click', (e) => {

@@ -230,44 +230,31 @@
 <video id="inputVideo" autoplay muted loop playsinline class="w-10 h-10 rounded-lg object-cover hidden cursor-pointer hover:scale-105 transition-transform" style="display: none;" onclick="showBiluCard()" title="Clique para ver a família Bilu">
     <source src="img/Video Project.mp4" type="video/mp4">
 </video>
+<button id="attachFileBtn" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300 transition-colors" title="Anexar arquivo">
+<span class="material-icons-outlined text-base">attach_file</span>
+</button>
 
-<!-- Seletor de Anexos -->
-<div class="relative" id="attachSelectorContainer">
-    <button id="attachFileBtn" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300 transition-colors" title="Anexar arquivo">
-        <span class="material-icons-outlined text-base">attach_file</span>
-    </button>
-    
-    <!-- Dropdown de opções de anexo -->
-    <div id="attachDropdown" class="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 hidden" style="z-index: 9999; position: absolute;">
-        <div class="p-2">
-            <!-- Opção: Anexar Código -->
-            <button id="attachCodeBtn" class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-3">
-                <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                    <span class="material-icons-outlined text-lg text-blue-600 dark:text-blue-400">code</span>
-                </div>
-                <div class="flex-1">
-                    <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">Anexar Código</div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">.py, .js, .html, .css, .java, .cpp, .c, .go, .rs, .php, .rb, .swift, .kt, .ts, .jsx, .tsx, .vue, .sql, .sh, .yaml, .yml, .json, .xml, .md, .txt</div>
-                </div>
-            </button>
-            
-            <!-- Opção: Anexar Imagem -->
-            <button id="attachImageBtn" class="w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-3 mt-2">
-                <div class="w-10 h-10 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center">
-                    <span class="material-icons-outlined text-lg text-green-600 dark:text-green-400">image</span>
-                </div>
-                <div class="flex-1">
-                    <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">Anexar Imagem</div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">.jpg, .jpeg, .png, .gif, .bmp, .webp, .svg, .tiff, .ico, .heic, .heif (máx. 20MB)</div>
-                </div>
-            </button>
+<!-- Dropdown de seleção de anexos -->
+<div id="attachDropdown" class="hidden absolute bottom-full left-0 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-soft border border-gray-200 dark:border-gray-700 overflow-hidden min-w-[200px] z-50">
+    <button id="attachCodeBtn" class="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3">
+        <span class="material-icons-outlined text-sm text-blue-500">code</span>
+        <div class="flex-1">
+            <div class="text-sm font-medium text-gray-900 dark:text-gray-100">Anexar Código</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">(.js, .py, .html, .css, .md, .txt, .json)</div>
         </div>
-    </div>
+    </button>
+    <button id="attachImageBtn" class="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-3">
+        <span class="material-icons-outlined text-sm text-green-500">image</span>
+        <div class="flex-1">
+            <div class="text-sm font-medium text-gray-900 dark:text-gray-100">Anexar Imagem</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">(.jpg, .png, .gif, .webp)</div>
+        </div>
+    </button>
 </div>
 
-<!-- Inputs de arquivo (escondidos) -->
-<input type="file" id="codeFileInput" class="hidden" multiple accept=".py,.js,.html,.css,.java,.cpp,.c,.go,.rs,.php,.rb,.swift,.kt,.ts,.jsx,.tsx,.vue,.sql,.sh,.yaml,.yml,.json,.xml,.md,.txt" />
-<input type="file" id="imageFileInput" class="hidden" multiple accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,.tiff,.ico,.heic,.heif" />
+<!-- Inputs ocultos -->
+<input type="file" id="codeFileInput" class="hidden" multiple accept=".js,.py,.html,.htm,.css,.md,.txt,.json" />
+<input type="file" id="imageFileInput" class="hidden" multiple accept=".jpg,.jpeg,.png,.gif,.webp" />
 </div>
 <div class="flex items-center gap-2 ml-auto">
 <div class="relative" id="modelSelectorContainer">

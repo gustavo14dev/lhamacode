@@ -74,53 +74,60 @@ export class Agent {
 
         // Verificar se há imagens nos anexos
         const hasImages = attachedFilesFromUI && attachedFilesFromUI.some(f => f.type === 'image');
-        
-        // Se há imagens, usar modelo multimodal
-        if (hasImages) {
-            console.log('🖼️ Imagens detectadas, usando modelo multimodal');
-            await this.processImageModel(userMessage, attachedFilesFromUI, relevantContext);
-            return;
-        }
+        const hasCodeFiles = attachedFilesFromUI && attachedFilesFromUI.some(f => f.type === 'code');
 
-        // Verificação rápida da API desabilitada temporariamente
-        // try {
-        //     await this.quickApiCheck();
-        //     console.log('✅ API verificada e funcionando');
-        // } catch (error) {
-        //     console.error('❌ Falha na verificação da API:', error);
-        //     
-        //     // Mostrar card de erro e agendar retry
-        //     if (typeof window.scheduleApiRetry === 'function') {
-        //         window.scheduleApiRetry(userMessage, attachedFilesFromUI);
-        //     } else {
-        //         // Fallback se a função não estiver disponível
-        //         this.ui.addAssistantMessage('❌ Erro na API. Por favor, configure sua API key.');
-        //     }
-        //     return;
-        // }
-
-        // Se a UI passou arquivos explicitamente, priorizamos esses (máx 3)
+        // Se a UI passou arquivos explicitamente, priorizamos esses (máx 3 para código, 5 para imagens)
         let parsedFiles = [];
         if (attachedFilesFromUI && Array.isArray(attachedFilesFromUI) && attachedFilesFromUI.length > 0) {
-            parsedFiles = attachedFilesFromUI.slice(0, 3).map(f => ({ name: f.name, content: (f.content == null) ? '' : String(f.content) }));
-            console.log('📁 Arquivos recebidos diretamente da UI:', parsedFiles.map(f => `${f.name} (${(f.content||'').length} chars)`));
-            const emptyFiles = parsedFiles.filter(f => !f.content || f.content.trim().length === 0);
-            if (emptyFiles.length > 0) {
-                const names = emptyFiles.map(f => f.name).join(', ');
-                const warning = `❗ Alguns arquivos anexados estão vazios ou não foram salvos corretamente: ${names}. Por favor, verifique os arquivos.`;
-                console.warn(warning);
-                this.ui.addAssistantMessage(warning);
-                return; // Bloquear processamento
-            }
+            parsedFiles = attachedFilesFromUI.map(f => ({ 
+                name: f.name, 
+                content: (f.content == null) ? '' : String(f.content),
+                type: f.type || 'code',
+                mime: f.mime || ''
+            }));
+            console.log('� Arquivos recebidos diretamente da UI:', parsedFiles.map(f => `${f.name} (${f.type})`));
+            
             // Preparar blocos para envio ao modelo
             this.lastParsedFiles = parsedFiles;
-            this.extraMessagesForNextCall = [{ role: 'system', content: parsedFiles.map(f => `---FILE: ${f.name}---\n${f.content}\n---END FILE---`).join('\n\n') }];
-            console.log('➡️ Arquivos anexados preparados para envio:', parsedFiles.map(f => f.name).join(', '));
-            this.useMistralForThisMessage = true;
+            
+            if (hasImages) {
+                // Para imagens: converter para formato da API Groq
+                const imageMessages = parsedFiles
+                    .filter(f => f.type === 'image')
+                    .map(f => ({
+                        type: "image_url",
+                        image_url: {
+                            url: f.content // Base64 já vem com data:image/...;base64,
+                        }
+                    }));
+                
+                this.extraMessagesForNextCall = [{
+                    role: 'user',
+                    content: [
+                        {
+                            type: "text",
+                            text: userMessage
+                        },
+                        ...imageMessages
+                    ]
+                }];
+                
+                console.log('🖼️ Imagens preparadas para envio:', imageMessages.length, 'imagens');
+                this.useImageModelForThisMessage = true;
+            } else if (hasCodeFiles) {
+                // Para código: usar formato atual
+                this.extraMessagesForNextCall = [{ 
+                    role: 'system', 
+                    content: parsedFiles.map(f => `---FILE: ${f.name}---\n${f.content}\n---END FILE---`).join('\n\n') 
+                }];
+                console.log('📁 Arquivos de código anexados preparados para envio:', parsedFiles.map(f => f.name).join(', '));
+                this.useMistralForThisMessage = true;
+            }
         } else {
             this.lastParsedFiles = [];
             this.extraMessagesForNextCall = null;
             this.useMistralForThisMessage = false;
+            this.useImageModelForThisMessage = false;
 
             // Se não há anexos do usuário, verificar se o chat tem arquivos gerados anteriormente pelo assistente (para reutilização)
             try {
@@ -138,14 +145,14 @@ export class Agent {
         this.isGenerating = true;
         this.ui.updateSendButtonToPause();
         
-        if (this.currentModel === 'rapido') {
+        if (this.useImageModelForThisMessage) {
+            await this.processImageModel(userMessage, relevantContext);
+        } else if (this.useMistralForThisMessage) {
+            await this.processMistralModel(userMessage, relevantContext);
+        } else if (this.currentModel === 'rapido') {
             await this.processRapidoModel(userMessage, relevantContext);
         } else if (this.currentModel === 'raciocinio') {
-            if (this.useMistralForThisMessage) {
-                await this.processMistralModel(userMessage, relevantContext);
-            } else {
-                await this.processRaciocioModel(userMessage, relevantContext);
-            }
+            await this.processRaciocioModel(userMessage, relevantContext);
         } else if (this.currentModel === 'pro') {
             await this.processProModel(userMessage, relevantContext);
         }
@@ -153,63 +160,41 @@ export class Agent {
         this.isGenerating = false;
         this.ui.updateSendButtonToSend();
     }
-    // ==================== MODELO MULTIMODAL (IMAGENS) ====================
-    async processImageModel(userMessage, attachedFiles, relevantContext = []) {
+    // ==================== MODELO DE IMAGEM (meta-llama/llama-4-scout-17b-16e-instruct) ====================
+    async processImageModel(userMessage, relevantContext = []) {
         const messageContainer = this.ui.createAssistantMessageContainer();
         const timestamp = Date.now();
         
-        this.ui.setThinkingHeader('🖼️ Processando imagem...', messageContainer.headerId);
+        this.ui.setThinkingHeader('🖼️ Analisando imagem...', messageContainer.headerId);
         await this.ui.sleep(800);
+        
         this.addToHistory('user', userMessage);
         
         try {
-            // Preparar mensagens para API multimodal
-            const messages = [];
-            
-            // Adicionar contexto da memória se houver
+            // Construir prompt com contexto da memória
+            let memoryContext = '';
             if (relevantContext.length > 0) {
-                let memoryContext = '\n\nCONTEXTO RELEVANTE DA CONVERSA:\n';
+                memoryContext = '\n\nCONTEXTO RELEVANTE DA CONVERSA:\n';
                 relevantContext.forEach((memory, index) => {
                     memoryContext += `${index + 1}. ${memory.role.toUpperCase()}: "${memory.content}" (Contexto: ${memory.context})\n`;
                 });
                 memoryContext += '\nUse este contexto para fornecer respostas mais personalizadas e relevantes.';
-                
-                messages.push({
-                    role: 'system',
-                    content: `Você é o Drekee AI 1, um assistente de código inteligente com capacidade de analisar imagens. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings. Seja técnico mas acessível.${memoryContext}`
-                });
-            } else {
-                messages.push({
-                    role: 'system',
-                    content: 'Você é o Drekee AI 1, um assistente de código inteligente com capacidade de analisar imagens. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings. Seja técnico mas acessível.'
-                });
             }
             
-            // Adicionar mensagens anteriores
-            messages.push(...this.conversationHistory);
-            
-            // Adicionar mensagem atual com imagens
-            const userMessageWithImages = {
-                role: 'user',
-                content: userMessage,
-                images: attachedFiles.filter(f => f.type === 'image').map(f => ({
-                    type: 'image_url',
-                    image_url: {
-                        url: `data:${f.mime};base64,${f.content}`
-                    }
-                }))
+            const systemPrompt = {
+                role: 'system',
+                content: `Você é o Drekee AI 1, um assistente de IA multimodal especializado em analisar imagens. Você é capaz de processar tanto texto quanto imagens e suporta conversas multilíngues. Forneça respostas detalhadas sobre as imagens, incluindo: descrição visual, identificação de elementos, análise de conteúdo, e respostas a perguntas sobre as imagens. Seja preciso e útil em suas análises.${memoryContext}`
             };
             
-            messages.push(userMessageWithImages);
+            // Combinar system prompt com as mensagens de imagem
+            const messages = [systemPrompt, ...this.extraMessagesForNextCall];
             
-            console.log('🖼️ Enviando para API multimodal:', messages.length, 'mensagens');
-            console.log('🖼️ Imagens:', userMessageWithImages.images.length, 'imagens');
-            
-            // Chamar API Groq com modelo multimodal
-            const response = await this.callGroqAPI('meta-llama/llama-4-scout-17b-16e-instruct', messages);
+            console.log('🖼️ Usando modelo de imagem: meta-llama/llama-4-scout-17b-16e-instruct');
+            let response = await this.callGroqAPI('meta-llama/llama-4-scout-17b-16e-instruct', messages);
+            this.extraMessagesForNextCall = null;
             
             if (!response || typeof response !== 'string') {
-                throw new Error('Resposta vazia ou inválida do modelo multimodal');
+                throw new Error('Resposta vazia ou inválida do servidor de imagem');
             }
             
             // Armazenar e salvar a mensagem do assistente
@@ -229,20 +214,11 @@ export class Agent {
             this.memory.addConversationMemory('assistant', response);
             this.memory.learnFromInteraction(userMessage, response);
             
-            // Mostrar resposta
             this.ui.setResponseText(response, messageContainer.responseId, () => {
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
             });
-            
-            this.ui.setThinkingHeader('', messageContainer.headerId);
-            
-            // Mostrar botões de ação quando resposta estiver completa
-            const actionsDiv = document.getElementById(`actions_${messageContainer.container.id.replace('msg_', '')}`);
-            if (actionsDiv) {
-                actionsDiv.classList.remove('opacity-0');
-                actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
-            }
+            this.ui.closeThinkingSteps(messageContainer.headerId);
             
         } catch (error) {
             if (error.message === 'ABORTED') {
@@ -250,7 +226,7 @@ export class Agent {
                 return;
             }
             this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua imagem. ' + error.message, messageContainer.responseId);
-            console.error('Erro no Modelo Multimodal:', error);
+            console.error('Erro no Modelo de Imagem:', error);
         }
     }
 
@@ -287,7 +263,7 @@ export class Agent {
             
             let systemPrompt = {
                 role: 'system',
-                content: `Você é o Drekee AI 1, um assistente de código inteligente com memória contextual. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings. Seja técnico mas acessível.${memoryContext}`
+                content: `Você é o Drekee AI 1, um assistente de código inteligente com memória contextual. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings, e quando apropriado use tabelas (em formato markdown), notação matemática (com $símbolos$ para inline ou $$blocos$$), e diagramas em ASCII. Evite blocos enormes de código - prefira explicações visuais. Seja técnico mas acessível.${memoryContext}`
             };
             const messages = this.extraMessagesForNextCall ? [systemPrompt, ...this.extraMessagesForNextCall, ...this.conversationHistory] : [systemPrompt, ...this.conversationHistory];
 
@@ -827,16 +803,18 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
         console.log('📋 Mensagens customizadas:', customMessages ? 'SIM' : 'NÃO');
         console.log('📋 Histórico atual:', this.conversationHistory.length, 'mensagens');
         
-        // Não é necessário ter chave no localStorage quando usando proxy server-side
-        // O proxy usará GROQ_API_KEY das environment variables no Vercel
+        // Not required to have a client-side Groq API key when using server-side proxy
+        // The proxy will use GROQ_API_KEY from environment variables on Vercel
         
-        const messages = customMessages || [
-            { 
-                role: 'system', 
-                content: 'Você é o Drekee AI 1, um assistente de código inteligente com capacidade de analisar imagens. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings, e quando apropriado use tabelas (em formato markdown), notação matemática (com $símbolos$ para inline ou $$blocos$$). Seja técnico mas acessível.'
-            }, 
-            ...this.conversationHistory
-        ];
+        // System prompts diferenciados por modelo
+        const prompts = {
+            rapido: `Você é o Drekee AI 1, um assistente de código inteligente. Responda de forma clara, direta e útil. Use formatação markdown quando apropriado: **negrito**, *itálico*, listas, etc. Seja conciso mas completo.`,
+            raciocinio: `Você é o Drekee AI 1, um assistente de IA especializado em raciocínio profundo. Forneça respostas bem estruturadas com múltiplos parágrafos, **conceitos em negrito**, listas organizadas, e quando apropriado use notação matemática ($símbolos$ inline ou $$blocos$$). Seja analítico e detalhado.`,
+            pro: `Você é o Drekee AI 1, um assistente de código avançado. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings, e quando apropriado use tabelas (em formato markdown) e notação matemática. Evite blocos enormes de código - prefira explicações visuais. Seja técnico mas acessível.`
+        };
+        const systemPrompt = prompts[model] || prompts.rapido;
+        
+        const messages = customMessages || [systemPrompt, ...this.conversationHistory];
         
         console.log('📤 Mensagens finais para API:', messages.length, 'mensagens');
         console.log('📤 Primeira mensagem:', messages[0]?.content?.substring(0, 100) + '...');
@@ -945,9 +923,9 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
             case 'rapido':
                 return 'Você é o Drekee AI 1, um assistente gentil, adorável e otimista 😊. Use um tom caloroso e amigável, inclua emojis com leveza para reforçar emoções, e mantenha as respostas BREVES e objetivas (2-3 parágrafos máximo). Seja educado, encorajador e prático. Use formatação livre: **negrito**, *itálico*, títulos, listas, etc.';
             case 'raciocinio':
-                return 'Você é o Drekee AI 1, um assistente técnico e claro 🙂. Use emojis de forma moderada para tornar o texto mais acessível. Forneça respostas COMPLETAS e ESTRUTURADAS com exemplos e explicações claras. Sinta-se LIVRE para usar: **negrito**, *itálico*, <u>sublinhado</u>, títulos (# ## ###), parágrafos bem organizados, listas (• ou números), tabelas markdown, expressões matemáticas LaTeX ($inline$ ou $$bloco$$), diagramas ASCII, e qualquer outro elemento que torne a resposta mais clara e profissional. Escolha criativamente o melhor formato para cada tipo de conteúdo! **IMPORTANTE:** Quando pedir gráficos, CRIE o gráfico visualmente usando ASCII art, barras com caracteres, ou elementos visuais - não apenas descreva o gráfico. **MATEMÁTICA:** Use TODOS os símbolos matemáticos possíveis: frações (1/2), equações LaTeX ($E=mc^2$), símbolos Unicode (α, β, γ, ∑, ∫, ∂, ∇, ±, ×, ÷, ≈, ≠, ≤, ≥, ∞, √), letras gregas (α, β, γ, δ, ε, θ, λ, μ, π, σ, τ, φ, χ, ψ, ω), conjuntos (∈, ∉, ⊂, ⊃, ⊆, ⊇, ∪, ∩, ∅), lógica (∀, ∃, ¬, ∧, ∨, →, ←, ↔, ⇒, ⇐, ⇔), setas (→, ←, ↔, ⇒, ⇐, ⇔), operadores (⊕, ⊗, ⊙, ⊥), graus (°), primos (′, ″, ‴), sobrescritos (^2, ^3) e subscritos (_1, _2). Renderize TUDO perfeitamente!';
+                return 'Você é o Drekee AI 1, um assistente técnico e claro 🙂. Use emojis de forma moderada para tornar o texto mais acessível. Forneça respostas COMPLETAS e ESTRUTURADAS com exemplos e explicações claras. Sinta-se LIVRE para usar: **negrito**, *itálico*, <u>sublinhado</u>, títulos (# ## ###), parágrafos bem organizados, listas (• ou números), tabelas markdown, expressões matemáticas LaTeX ($inline$ ou $$bloco$$), diagramas ASCII, e qualquer outro elemento que torne a resposta mais clara e profissional. Escolha criativamente o melhor formato para cada tipo de conteúdo! **MATEMÁTICA:** Use TODOS os símbolos matemáticos possíveis: frações (1/2), equações LaTeX ($E=mc^2$), símbolos Unicode (α, β, γ, ∑, ∫, ∂, ∇, ±, ×, ÷, ≈, ≠, ≤, ≥, ∞, √), letras gregas (α, β, γ, δ, ε, θ, λ, μ, π, σ, τ, φ, χ, ψ, ω), conjuntos (∈, ∉, ⊂, ⊃, ⊆, ⊇, ∪, ∩, ∅), lógica (∀, ∃, ¬, ∧, ∨, →, ←, ↔, ⇒, ⇐, ⇔), setas (→, ←, ↔, ⇒, ⇐, ⇔), operadores (⊕, ⊗, ⊙, ⊥), graus (°), primos (′, ″, ‴), sobrescritos (^2, ^3) e subscritos (_1, _2). Renderize TUDO perfeitamente!';
             case 'pro':
-                return 'Você é o Drekee AI 1, um assistente profissional e formal 🧑‍💼. Use linguagem precisa e formal; inclua emojis pontualmente para dar tom (com parcimônia). Forneça análises detalhadas, recomendações e justificativas bem fundamentadas. Tenha TOTAL LIBERDADE criativa na formatação: use **negrito estratégico**, *itálico para ênfase*, <u>sublinhado</u>, títulos hierárquicos, parágrafos estruturados, listas numeradas e com marcadores, tabelas profissionais, expressões matemáticas LaTeX ($fórmulas$ e $$blocos$$), gráficos ASCII, e qualquer elemento que melhore a comunicação. Adapte o formato ao conteúdo de forma inteligente! **IMPORTANTE:** Quando pedir gráficos, CRIE o gráfico visualmente usando ASCII art, barras com caracteres, ou elementos visuais - não apenas descreva o gráfico. **MATEMÁTICA:** Use TODOS os símbolos matemáticos possíveis: frações (1/2), equações LaTeX ($E=mc^2$), símbolos Unicode (α, β, γ, ∑, ∫, ∂, ∇, ±, ×, ÷, ≈, ≠, ≤, ≥, ∞, √), letras gregas (α, β, γ, δ, ε, θ, λ, μ, π, σ, τ, φ, χ, ψ, ω), conjuntos (∈, ∉, ⊂, ⊃, ⊆, ⊇, ∪, ∩, ∅), lógica (∀, ∃, ¬, ∧, ∨, →, ←, ↔, ⇒, ⇐, ⇔), setas (→, ←, ↔, ⇒, ⇐, ⇔), operadores (⊕, ⊗, ⊙, ⊥), graus (°), primos (′, ″, ‴), sobrescritos (^2, ^3) e subscritos (_1, _2). Renderize TUDO perfeitamente!';
+                return 'Você é o Drekee AI 1, um assistente profissional e formal 🧑‍💼. Use linguagem precisa e formal; inclua emojis pontualmente para dar tom (com parcimônia). Forneça análises detalhadas, recomendações e justificativas bem fundamentadas. Tenha TOTAL LIBERDADE criativa na formatação: use **negrito estratégico**, *itálico para ênfase*, <u>sublinhado</u>, títulos hierárquicos, parágrafos estruturados, listas numeradas e com marcadores, tabelas profissionais, expressões matemáticas LaTeX ($fórmulas$ e $$blocos$$), e qualquer elemento que melhore a comunicação. Adapte o formato ao conteúdo de forma inteligente! **MATEMÁTICA:** Use TODOS os símbolos matemáticos possíveis: frações (1/2), equações LaTeX ($E=mc^2$), símbolos Unicode (α, β, γ, ∑, ∫, ∂, ∇, ±, ×, ÷, ≈, ≠, ≤, ≥, ∞, √), letras gregas (α, β, γ, δ, ε, θ, λ, μ, π, σ, τ, φ, χ, ψ, ω), conjuntos (∈, ∉, ⊂, ⊃, ⊆, ⊇, ∪, ∩, ∅), lógica (∀, ∃, ¬, ∧, ∨, →, ←, ↔, ⇒, ⇐, ⇔), setas (→, ←, ↔, ⇒, ⇐, ⇔), operadores (⊕, ⊗, ⊙, ⊥), graus (°), primos (′, ″, ‴), sobrescritos (^2, ^3) e subscritos (_1, _2). Renderize TUDO perfeitamente!';
             default:
                 return 'Você é o Drekee AI 1, um assistente de código. Forneça respostas claras e úteis, com boa estrutura e exemplos quando adequado. Use formatação rica: **negrito**, *itálico*, títulos, listas, tabelas, LaTeX, etc.';
         }
