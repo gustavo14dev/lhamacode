@@ -2610,6 +2610,7 @@ if (typeof window !== 'undefined' && !window.openCodeModal) {
 }
 
 const ui = new UI();
+window.ui = ui;
 window.agent = ui.agent;
 window.timelineSystem = ui.timeline;
 window.suggestionSystem = ui.suggestions;
@@ -2681,7 +2682,7 @@ window.downloadCode = (codeId, lang) => {
 
 // Função global para lidar com sugestões de acompanhamento
 window.handleFollowUpSuggestion = (suggestion) => {
-    if (window.ui && window.ui.handleFollowUpSuggestion) {
+    if (window.ui) {
         window.ui.handleFollowUpSuggestion(suggestion);
     }
 };
