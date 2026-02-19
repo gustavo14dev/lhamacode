@@ -2049,7 +2049,7 @@ ${latexCode}
         let formatted = this.escapeHtml(cleanText);
         
         // HEADINGS: transformar linhas que começam com # em headings (## ou #)
-        formatted = formatted.replace(/^#{1,6}\s*(.+)$/gm, (m, title) => `<h3 class="text-sm font-semibold mb-1 text-gray-900 dark:text-gray-100">${title}</h3>`);
+        formatted = formatted.replace(/^#{1,6}\s*(.+)$/gm, (m, title) => `<h3 class="text-base font-bold mb-2 text-gray-900 dark:text-gray-100">${title}</h3>`);
 
         // LISTAS (unordered) - agrupar linhas iniciadas por - ou * em <ul>
         formatted = formatted.replace(/(^((?:\s*[-*]\s+.+\n?)+))/gm, (m) => {
@@ -2361,7 +2361,7 @@ ${latexCode}
         // Criar container de sugestões integrado à mensagem da IA
         const suggestionsContainer = document.createElement('div');
         suggestionsContainer.id = 'followUpSuggestionsContainer';
-        suggestionsContainer.className = 'mt-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 opacity-0 transform translate-y-2 transition-all duration-300 ease-out max-w-md';
+        suggestionsContainer.className = 'mt-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 opacity-0 transform translate-y-2 transition-all duration-300 ease-out max-w-lg';
         
         suggestionsContainer.innerHTML = `
             <div class="flex items-center gap-2 mb-2">
