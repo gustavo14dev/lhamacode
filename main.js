@@ -2073,9 +2073,42 @@ ${latexCode}
         // Processar sublinhado
         formatted = formatted.replace(/<u>([^<]+)<\/u>/g, '<u class="underline decoration-2 decoration-blue-500">$1</u>');
         
-        // Processar expressões matemáticas LaTeX (inline e bloco)
-        formatted = formatted.replace(/\$([^$\n]+)\$/g, '<span class="inline-block font-mono text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600">$1</span>');
-        formatted = formatted.replace(/\$\$([^$\n]+)\$\$/g, '<div class="block my-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><span class="block font-mono text-base text-center text-gray-900 dark:text-gray-100">$1</span></div>');
+        // Processar expressões matemáticas LaTeX (inline e bloco) com suporte completo
+        formatted = formatted.replace(/\$([^$\n]+)\$/g, '<span class="inline-block font-mono text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 math-inline">$1</span>');
+        formatted = formatted.replace(/\$\$([^$\n]+)\$\$/g, '<div class="block my-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><span class="block font-mono text-base text-center text-gray-900 dark:text-gray-100 math-block">$1</span></div>');
+        
+        // Processar símbolos matemáticos Unicode com fontes apropriadas
+        const mathSymbols = {
+            '∑': '∑', '∏': '∏', '∫': '∫', '∂': '∂', '∇': '∇', '∆': '∆',
+            '±': '±', '∓': '∓', '×': '×', '÷': '÷', '≈': '≈', '≠': '≠',
+            '≤': '≤', '≥': '≥', '∞': '∞', '√': '√', '∛': '∛', '∜': '∜',
+            'α': 'α', 'β': 'β', 'γ': 'γ', 'δ': 'δ', 'ε': 'ε', 'θ': 'θ',
+            'λ': 'λ', 'μ': 'μ', 'π': 'π', 'σ': 'σ', 'τ': 'τ', 'φ': 'φ',
+            'χ': 'χ', 'ψ': 'ψ', 'ω': 'ω', 'Α': 'Α', 'Β': 'Β', 'Γ': 'Γ',
+            'Δ': 'Δ', 'Ε': 'Ε', 'Θ': 'Θ', 'Λ': 'Λ', 'Μ': 'Μ', 'Π': 'Π',
+            'Σ': 'Σ', 'Τ': 'Τ', 'Φ': 'Φ', 'Χ': 'Χ', 'Ψ': 'Ψ', 'Ω': 'Ω',
+            '∈': '∈', '∉': '∉', '⊂': '⊂', '⊃': '⊃', '⊆': '⊆', '⊇': '⊇',
+            '∪': '∪', '∩': '∩', '∅': '∅', '∀': '∀', '∃': '∃', '¬': '¬',
+            '∧': '∧', '∨': '∨', '→': '→', '←': '←', '↔': '↔', '⇒': '⇒',
+            '⇐': '⇐', '⇔': '⇔', '⊕': '⊕', '⊗': '⊗', '⊙': '⊙', '⊥': '⊥',
+            '°': '°', '′': '′', '″': '″', '‴': '‴', '⁰': '⁰', '¹': '¹',
+            '²': '²', '³': '³', '⁴': '⁴', '⁵': '⁵', '⁶': '⁶', '⁷': '⁷',
+            '⁸': '⁸', '⁹': '⁹', '₀': '₀', '₁': '₁', '₂': '₂', '₃': '₃',
+            '₄': '₄', '₅': '₅', '₆': '₆', '₇': '₇', '₈': '₈', '₉': '₉'
+        };
+        
+        // Substituir símbolos matemáticos com spans estilizados
+        Object.entries(mathSymbols).forEach(([symbol, unicode]) => {
+            const regex = new RegExp(`\\${symbol}`, 'g');
+            formatted = formatted.replace(regex, `<span class="math-symbol text-purple-600 dark:text-purple-400 font-medium">${unicode}</span>`);
+        });
+        
+        // Processar frações simples (a/b)
+        formatted = formatted.replace(/(\d+)\/(\d+)/g, '<span class="inline-block text-center"><span class="block text-xs">$1</span><span class="block border-t border-gray-400 dark:border-gray-600">—</span><span class="block text-xs">$2</span></span>');
+        
+        // Processar subscritos e sobrescritos
+        formatted = formatted.replace(/\^(\w+)/g, '<sup class="text-xs align-super">$1</sup>');
+        formatted = formatted.replace(/_(\w+)/g, '<sub class="text-xs align-sub">$1</sub>');
         
         // Processar tabelas markdown simples
         formatted = formatted.replace(/\|(.+)\|\n\|[-\s|]+\|\n((?:\|.+\|\n?)+)/g, (match, header, rows) => {
