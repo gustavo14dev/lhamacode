@@ -258,11 +258,51 @@ class UI {
         const codeFileInput = document.getElementById('codeFileInput');
         const imageFileInput = document.getElementById('imageFileInput');
         
+        console.log('🔍 Elementos do seletor de anexos:', {
+            attachBtn: !!attachBtn,
+            attachDropdown: !!attachDropdown,
+            attachCodeBtn: !!attachCodeBtn,
+            attachImageBtn: !!attachImageBtn,
+            codeFileInput: !!codeFileInput,
+            imageFileInput: !!imageFileInput
+        });
+        
+        // Teste: mostrar dropdown por 2 segundos ao carregar
+        if (attachDropdown) {
+            setTimeout(() => {
+                console.log('🧪 Teste: Mostrando dropdown...');
+                attachDropdown.classList.remove('hidden');
+                attachDropdown.style.display = 'block';
+                attachDropdown.style.visibility = 'visible';
+                attachDropdown.style.opacity = '1';
+                
+                setTimeout(() => {
+                    console.log('🧪 Teste: Escondendo dropdown...');
+                    attachDropdown.classList.add('hidden');
+                    attachDropdown.style.display = '';
+                    attachDropdown.style.visibility = '';
+                    attachDropdown.style.opacity = '';
+                }, 2000);
+            }, 1000);
+        }
+        
         if (attachBtn && attachDropdown) {
             // Toggle dropdown
             attachBtn.addEventListener('click', (e) => {
+                console.log('🔘 Botão de anexo clicado!');
+                console.log('🔘 Dropdown antes:', attachDropdown.classList.contains('hidden'));
                 e.stopPropagation();
-                attachDropdown.classList.toggle('hidden');
+                
+                // Forçar mostrar o dropdown
+                attachDropdown.classList.remove('hidden');
+                attachDropdown.style.display = 'block';
+                attachDropdown.style.visibility = 'visible';
+                attachDropdown.style.opacity = '1';
+                
+                console.log('🔘 Dropdown depois:', attachDropdown.classList.contains('hidden'));
+                console.log('🔘 Dropdown visibility:', window.getComputedStyle(attachDropdown).visibility);
+                console.log('🔘 Dropdown display:', window.getComputedStyle(attachDropdown).display);
+                console.log('🔘 Dropdown opacity:', window.getComputedStyle(attachDropdown).opacity);
             });
             
             // Anexar Código
@@ -270,6 +310,9 @@ class UI {
                 attachCodeBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     attachDropdown.classList.add('hidden');
+                    attachDropdown.style.display = '';
+                    attachDropdown.style.visibility = '';
+                    attachDropdown.style.opacity = '';
                     codeFileInput.click();
                 });
                 
@@ -283,6 +326,9 @@ class UI {
                 attachImageBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     attachDropdown.classList.add('hidden');
+                    attachDropdown.style.display = '';
+                    attachDropdown.style.visibility = '';
+                    attachDropdown.style.opacity = '';
                     imageFileInput.click();
                 });
                 
@@ -295,6 +341,9 @@ class UI {
             document.addEventListener('click', (e) => {
                 if (!attachDropdown.contains(e.target) && e.target !== attachBtn) {
                     attachDropdown.classList.add('hidden');
+                    attachDropdown.style.display = '';
+                    attachDropdown.style.visibility = '';
+                    attachDropdown.style.opacity = '';
                 }
             });
         }
