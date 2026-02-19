@@ -573,20 +573,23 @@ export class Agent {
     }
 
     // ==================== MODELO PRO ====================
-// llama-3.1-8b-instant → llama2-70b → llama2-7b (síntese)
+// 3x llama-3.1-8b-instant (análise 1 → análise 2 → síntese)
     async processProModel(userMessage) {
         const messageContainer = this.ui.createAssistantMessageContainer();
         const timestamp = Date.now();
 
-        this.ui.setThinkingHeader('🚀 Análise multi-modelos...', messageContainer.headerId);
+        this.ui.setThinkingHeader('🚀 Análise multi-perspectivas...', messageContainer.headerId);
         await this.ui.sleep(800);
 
         this.addToHistory('user', userMessage);
 
         try {
-            // ========== ETAPA 1: llama-3.1-8b-instant - primeira resposta ==========
-            const step1Id = `step1_${timestamp}`;
-            this.ui.addThinkingStep('psychology', 'Analisando com Llama 8B...', step1Id, messageContainer.stepsId);
+            // ========== ETAPA 1: Primeira análise ==========
+            const step1Text = 'Analisando perspectiva 1...';
+            this.ui.setThinkingHeader(step1Text, messageContainer.headerId);
+            await this.ui.sleep(2000);
+            this.ui.setThinkingHeader('', messageContainer.headerId);
+            await this.ui.sleep(500);
             
             const messages1 = this.extraMessagesForNextCall ? [
                 { role: 'system', content: this.getSystemPrompt('pro') },
@@ -609,13 +612,13 @@ export class Agent {
                     response1 = response1.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
                 }
             } catch (e) { console.warn('⚠️ Falha parsing arquivos de response1:', e); }
-            
-            this.ui.updateThinkingStep(step1Id, 'check_circle', '✅ Análise Llama 8B concluída');
-            await this.ui.sleep(1200);
 
-            // ========== ETAPA 2: llama2-70b - segunda resposta ==========
-            const step2Id = `step2_${timestamp}`;
-            this.ui.addThinkingStep('analytics', 'Analisando com Llama 70B...', step2Id, messageContainer.stepsId);
+            // ========== ETAPA 2: Segunda análise ==========
+            const step2Text = 'Analisando perspectiva 2...';
+            this.ui.setThinkingHeader(step2Text, messageContainer.headerId);
+            await this.ui.sleep(2000);
+            this.ui.setThinkingHeader('', messageContainer.headerId);
+            await this.ui.sleep(500);
             
             const messages2 = this.extraMessagesForNextCall ? [
                 { role: 'system', content: this.getSystemPrompt('pro') },
@@ -628,7 +631,7 @@ export class Agent {
                 { role: 'user', content: userMessage }
             ];
             
-            const response2 = await this.callGroqAPI('llama2-70b', messages2);
+            const response2 = await this.callGroqAPI('llama-3.1-8b-instant', messages2);
             
             // Extrair arquivos se existirem
             try {
@@ -638,13 +641,13 @@ export class Agent {
                     response2 = response2.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
                 }
             } catch (e) { console.warn('⚠️ Falha parsing arquivos de response2:', e); }
-            
-            this.ui.updateThinkingStep(step2Id, 'check_circle', '✅ Análise Llama 70B concluída');
-            await this.ui.sleep(1200);
 
-            // ========== ETAPA 3: llama2-7b - síntese final ==========
-            const step3Id = `step3_${timestamp}`;
-            this.ui.addThinkingStep('psychology', 'Sintetizando com Llama 7B...', step3Id, messageContainer.stepsId);
+            // ========== ETAPA 3: Síntese final ==========
+            const step3Text = 'Sintetizando análises...';
+            this.ui.setThinkingHeader(step3Text, messageContainer.headerId);
+            await this.ui.sleep(2000);
+            this.ui.setThinkingHeader('', messageContainer.headerId);
+            await this.ui.sleep(500);
             
             const synthMessages = [
                 {
@@ -655,10 +658,10 @@ export class Agent {
                     role: 'user',
                     content: `Pergunta original: "${userMessage}"
 
-=== RESPOSTA 1 (Llama 8B) ===
+=== RESPOSTA 1 (Perspectiva 1) ===
 ${response1}
 
-=== RESPOSTA 2 (Llama 70B) ===
+=== RESPOSTA 2 (Perspectiva 2) ===
 ${response2}
 
 Combine e melhore as duas respostas em uma única resposta coesa e superior. Corrija possíveis erros, melhore a clareza, e crie uma resposta final otimizada.`
@@ -670,9 +673,8 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
                 synthMessages.splice(1, 0, ...this.extraMessagesForNextCall);
             }
             
-            let finalResponse = await this.callGroqAPI('llama2-7b', synthMessages);
+            let finalResponse = await this.callGroqAPI('llama-3.1-8b-instant', synthMessages);
             this.extraMessagesForNextCall = null;
-            this.ui.updateThinkingStep(step3Id, 'check_circle', '✅ Síntese final concluída');
 
             // Tentar extrair arquivos gerados na resposta final e anexá-los ao chat
             try {
