@@ -397,26 +397,18 @@ class WebSearchUI {
                         <div class="message-content text-text-main-light dark:text-text-main-dark">${content}</div>
                     </div>
                     
-                    <!-- Fontes organizadas em cards -->
+                    <!-- Fontes como botões -->
                     ${sources.length > 0 ? `
                         <div class="sources-container">
                             <div class="sources-header">
                                 <span class="material-icons-outlined text-sm">source</span>
-                                <span>Fontes da Pesquisa</span>
+                                <span>Fontes:</span>
                             </div>
-                            <div class="space-y-3">
-                                ${sources.map((source, index) => `
-                                    <div class="source-card">
-                                        <a href="https://www.google.com/search?q=${encodeURIComponent(source)}" target="_blank" class="source-link">
-                                            <div class="source-icon">
-                                                <span class="material-icons-outlined">open_in_new</span>
-                                            </div>
-                                            <div class="source-content">
-                                                <div class="source-title">${source}</div>
-                                                <div class="source-description">Clique para verificar a informação original</div>
-                                            </div>
-                                        </a>
-                                    </div>
+                            <div class="flex flex-wrap gap-2">
+                                ${sources.map(source => `
+                                    <a href="https://www.google.com/search?q=${encodeURIComponent(source)}" target="_blank" class="source-button">
+                                        ${source}
+                                    </a>
                                 `).join('')}
                             </div>
                         </div>
@@ -467,9 +459,9 @@ class WebSearchUI {
     markdownToHtml(text) {
         return text
             // Títulos (H1, H2, H3)
-            .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mb-4 text-primary">$1</h1>')
-            .replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mb-3 text-primary">$1</h2>')
-            .replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold mb-2 text-primary">$1</h3>')
+            .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mb-4">$1</h1>')
+            .replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mb-3">$1</h2>')
+            .replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold mb-2">$1</h3>')
             
             // Cards de destaque
             .replace(/\[destaque:\s*([^\]]+)\]/gi, '<span class="inline-block bg-gradient-to-r from-primary to-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg">$1</span>')

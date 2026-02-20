@@ -62,7 +62,69 @@ Você perguntou: "${message}"
 [fonte: Documentação Drekee AI]`;
     }
 
-    console.log('🔍 Iniciando chamada para Groq API...');
+    // Verificar se é uma pergunta de acompanhamento (não precisa pesquisar)
+    const isFollowUp = messages.length > 2 && 
+                     (message.toLowerCase().includes('explique mais') || 
+                      message.toLowerCase().includes('detalhe') ||
+                      message.toLowerCase().includes('fale sobre') ||
+                      message.toLowerCase().includes('o que é') ||
+                      message.toLowerCase().includes('como funciona') ||
+                      message.toLowerCase().includes('por que') ||
+                      message.toLowerCase().includes('qual a') ||
+                      message.toLowerCase().includes('pode falar') ||
+                      message.toLowerCase().includes('me diga') ||
+                      message.toLowerCase().includes('conte mais'));
+
+    if (isFollowUp) {
+        // Responder sem pesquisa web
+        const followUpPrompt = {
+            role: 'system',
+            content: `Você é o Drekee AI 1, um assistente inteligente brasileiro. O usuário está pedindo para explicar mais sobre um tema que foi mencionado anteriormente na conversa.
+
+REGRAS:
+1. RESPONDA SEMPRE EM PORTUGUÊS BRASILEIRO
+2. Use linguagem natural e informal
+3. Seja direto e claro
+4. Use formatação: **negrito**, *itálico*, listas
+5. NÃO pesquise na web - use seu conhecimento
+6. Mantenha o contexto da conversa anterior
+7. Seja útil e informativo
+
+Responda à pergunta do usuário baseando-se no contexto da conversa.`
+        };
+
+        const followUpMessages = [
+            followUpPrompt,
+            ...messages.slice(-2) // Pega as últimas 2 mensagens para contexto
+        ];
+
+        try {
+            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${GROQ_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'llama-3.1-8b-instant',
+                    messages: followUpMessages,
+                    temperature: 0.7,
+                    max_tokens: 2048,
+                    stream: false
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erro HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.choices[0].message.content;
+        } catch (error) {
+            console.error('❌ Erro na resposta de acompanhamento:', error);
+            return 'Desculpe, não consegui processar sua pergunta. Poderia reformular?';
+        }
+    }
 
     const systemPrompt = {
         role: 'system',
