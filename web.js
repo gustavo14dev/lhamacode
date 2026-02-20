@@ -510,7 +510,7 @@ class WebSearchUI {
             .replace(/`([^`]+)`/g, '<code class="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm font-mono">$1</code>')
             
             // Linhas horizontais
-            .replace(/^---$/gim, '<hr class="my-4 border-gray-300 dark:border-gray-600">');
+            .replace(/^---$/gim, '<hr class="my-4 border-gray-300 dark:border-gray-600">')
             .replace(/^/, '<p class="mb-3">')
             .replace(/$/, '</p>');
     }
