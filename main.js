@@ -1525,61 +1525,36 @@ class UI {
         
 
         const createIcons = {
-
             'slides': 'slideshow',
-
             'document': 'description',
-
             'table': 'table_chart'
-
         };
 
         
 
         const createColors = {
-
             'slides': 'text-green-400',
-
             'document': 'text-blue-400',
-
             'table': 'text-purple-400'
-
         };
-
-
-
-        // Atualizar botão principal
-
-        const createBtn = document.getElementById('createButton');
-
-        if (createBtn) {
-
-            const icon = createBtn.querySelector('.material-icons-outlined:first-child');
-
-            const text = document.getElementById('createButtonText');
-
-            
-
-            if (icon) {
-
-                icon.textContent = createIcons[createType];
-
-                icon.className = `material-icons-outlined text-base ${createColors[createType]}`;
-
-            }
-
-            if (text) {
-
-                text.textContent = createNames[createType];
-
-            }
-
-        }
-
         
-
+        // Atualizar botão principal
+        const createBtn = document.getElementById('createButton');
+        if (createBtn) {
+            const icon = createBtn.querySelector('.material-icons-outlined:first-child');
+            const text = document.getElementById('createButtonText');
+            
+            if (icon) {
+                icon.textContent = createIcons[createType];
+                icon.className = `material-icons-outlined text-base ${createColors[createType]}`;
+            }
+            
+            if (text) {
+                text.textContent = createLabels[createType];
+            }
+        }
+        
         // Atualizar indicador visual do dropdown
-
         const buttons = document.querySelectorAll('#floatingCreateDropdown button[data-create]');
 
         buttons.forEach(btn => {

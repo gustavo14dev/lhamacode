@@ -817,9 +817,10 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
         const messages = customMessages || [systemPrompt, ...this.conversationHistory];
         
         console.log('📤 Mensagens finais para API:', messages.length, 'mensagens');
-        console.log('📤 Primeira mensagem:', messages[0]?.content?.substring(0, 100) + '...');
+        console.log('📤 Primeira mensagem:', messages[0]?.content ? messages[0].content.substring(0, 100) + '...' : 'SEM CONTEÚDO');
         if (messages.length > 1) {
-            console.log('📤 Última mensagem:', messages[messages.length - 1]?.content?.substring(0, 100) + '...');
+            const lastMessage = messages[messages.length - 1];
+            console.log('📤 Última mensagem:', lastMessage?.content ? lastMessage.content.substring(0, 100) + '...' : 'SEM CONTEÚDO');
         }
 
         // Criar novo AbortController para cada requisição
