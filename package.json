@@ -4,6 +4,7 @@
   "description": "Chat with AI code assistant",
   "type": "module",
   "scripts": {
+    "start": "node server.js",
     "lint": "eslint *.js",
     "lint:fix": "eslint *.js --fix",
     "format": "prettier --write *.js",
