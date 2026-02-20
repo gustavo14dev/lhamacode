@@ -817,10 +817,25 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
         const messages = customMessages || [systemPrompt, ...this.conversationHistory];
         
         console.log('📤 Mensagens finais para API:', messages.length, 'mensagens');
-        console.log('📤 Primeira mensagem:', messages[0]?.content ? messages[0].content.substring(0, 100) + '...' : 'SEM CONTEÚDO');
+        console.log('📤 Primeira mensagem:', messages[0]?.content ? (typeof messages[0].content === 'string' ? messages[0].content.substring(0, 100) + '...' : 'CONTEÚDO MULTIMÍDIA') : 'SEM CONTEÚDO');
         if (messages.length > 1) {
             const lastMessage = messages[messages.length - 1];
-            console.log('📤 Última mensagem:', lastMessage?.content ? lastMessage.content.substring(0, 100) + '...' : 'SEM CONTEÚDO');
+            let contentPreview = 'SEM CONTEÚDO';
+            if (lastMessage?.content) {
+                if (typeof lastMessage.content === 'string') {
+                    contentPreview = lastMessage.content.substring(0, 100) + '...';
+                } else if (Array.isArray(lastMessage.content)) {
+                    const textPart = lastMessage.content.find(item => item.type === 'text')?.text;
+                    if (textPart) {
+                        contentPreview = textPart.substring(0, 100) + '...';
+                    } else {
+                        contentPreview = 'CONTEÚDO MULTIMÍDIA (IMAGENS)';
+                    }
+                } else {
+                    contentPreview = 'CONTEÚDO MULTIMÍDIA';
+                }
+            }
+            console.log('📤 Última mensagem:', contentPreview);
         }
 
         // Criar novo AbortController para cada requisição
