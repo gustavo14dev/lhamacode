@@ -126,6 +126,8 @@ Responda à pergunta do usuário baseando-se no contexto da conversa.`
         }
     }
 
+    console.log('🔍 Iniciando chamada para Groq API...');
+
     const systemPrompt = {
         role: 'system',
         content: `Você é o Drekee AI 1, um assistente de pesquisa inteligente brasileiro com acesso à web em tempo real. Sua especialidade é encontrar informações atuais e apresentá-las de forma clara, objetiva e visualmente organizada para usuários brasileiros.
@@ -186,7 +188,7 @@ MANTENHA AS RESPOSTAS VISUALMENTE ORGANIZADAS E FÁCEIS DE LER!`
         console.log('⚠️ Modelo principal falhou, tentando fallback:', error.message);
         try {
             console.log('📡 Tentando modelo fallback: llama-3.1-8b-instant');
-            return await callWithFallbackModel(message, systemPrompt);
+            return await callWithSmallerModel(message, systemPrompt);
         } catch (fallbackError) {
             console.log('❌ Todos os modelos falharam:', fallbackError.message);
             throw new Error(`Todos os modelos de pesquisa falharam: ${fallbackError.message}`);
