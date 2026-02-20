@@ -847,6 +847,15 @@ class UI {
         // Criar dropdown flutuante
 
         this.createFloatingDropdown();
+        
+        // Event listener para o botão de Pesquisa na Web
+        const webSearchBtn = document.getElementById('webSearchBtn');
+        if (webSearchBtn) {
+            webSearchBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.handleWebSearch();
+            });
+        }
 
         
 
@@ -1144,17 +1153,17 @@ class UI {
 
                 </button>
 
-                <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-primary/20 dark:bg-primary/20 hover:bg-primary/30 dark:hover:bg-primary/30 transition-colors flex items-center gap-2" data-model="raciocinio">
+                <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2" data-model="raciocinio">
 
-                    <span class="material-icons-outlined text-base text-primary">check_circle</span>
+                    <span class="material-icons-outlined text-base text-orange-500">psychology</span>
 
-                    Raciocínio (atual)
+                    Raciocínio
 
                 </button>
 
-                <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2 last:rounded-b-lg" data-model="pro">
+                <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2" data-model="pro">
 
-                    <span class="material-icons-outlined text-base text-purple-400">diamond</span>
+                    <span class="material-icons-outlined text-base text-purple-500">workspace_premium</span>
 
                     Pro
 
@@ -1269,39 +1278,24 @@ class UI {
         this.currentModel = model;
 
         const modelNames = {
-
             'rapido': 'Rápido',
-
             'raciocinio': 'Raciocínio',
-
             'pro': 'Pro'
-
         };
-
         
-
+        
         const modelIcons = {
-
             'rapido': 'flash_on',
-
             'raciocinio': 'psychology',
-
             'pro': 'diamond'
-
         };
-
         
-
+        
         const modelColors = {
-
             'rapido': 'text-blue-400',
-
             'raciocinio': 'text-orange-500',
-
             'pro': 'text-purple-400'
-
         };
-
 
 
         // Atualizar botão principal
@@ -1583,13 +1577,45 @@ class UI {
 
 
 
-    async handleCreateRequest(message) {
+    async handleWebSearch() {
+        const message = this.elements.userInput.value.trim();
+        if (!message) {
+            this.addAssistantMessage('Por favor, digite o que você deseja pesquisar na web.');
+            return;
+        }
+        
+        console.log('🔍 Iniciando pesquisa na web:', message);
+        
+        // Ativar modo pesquisa (mudar cor do botão)
+        this.setWebSearchMode(true);
+        
+        // Limpar input
+        this.elements.userInput.value = '';
+        
+        // Processar usando o modelo de pesquisa
+        this.agent.processWebSearch(message);
+    }
+
+    setWebSearchMode(isActive) {
+        const webSearchBtn = document.getElementById('webSearchBtn');
+        if (!webSearchBtn) return;
+        
+        if (isActive) {
+            // Modo pesquisa ativo - cor verde
+            webSearchBtn.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full border border-green-200 dark:border-green-700 text-sm font-medium text-green-600 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors';
+        } else {
+            // Modo pesquisa inativo - cor neutra
+            webSearchBtn.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors';
+        }
+    }
+
+    handleCreateRequest(message) {
 
         if (!this.isTransitioned) {
 
             this.createNewChat();
 
-            await this.sleep(300);
+            this.sleep(300);
 
         }
 
@@ -1617,7 +1643,7 @@ class UI {
 
         // Aguardar um pouco para o DOM ser atualizado
 
-        await this.sleep(100);
+        this.sleep(100);
 
         
 
@@ -1633,7 +1659,7 @@ class UI {
 
             console.log('🚀 Iniciando geração LaTeX para:', this.currentCreateType, '-', message);
 
-            const latexCode = await this.generateLatexContent(message, this.currentCreateType);
+            const latexCode = this.generateLatexContent(message, this.currentCreateType);
 
             console.log('✅ LaTeX gerado, iniciando compilação...');
 
@@ -1641,7 +1667,7 @@ class UI {
 
             // Compilar LaTeX para PDF (usando renderização direta)
 
-            const compiledData = await this.compileLatexToPDF(latexCode, processingId);
+            const compiledData = this.compileLatexToPDF(latexCode, processingId);
 
             console.log('✅ Compilação concluída, exibindo resultado...');
 
