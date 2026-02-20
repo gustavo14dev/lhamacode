@@ -1593,18 +1593,31 @@ class UI {
         this.elements.userInput.value = '';
         
         // Processar usando o modelo de pesquisa
-        this.agent.processWebSearch(message);
+        if (this.agent && typeof this.agent.processWebSearch === 'function') {
+            this.agent.processWebSearch(message);
+        } else {
+            console.error('❌ Método processWebSearch não encontrado no agent');
+            this.addAssistantMessage('Erro: modo de pesquisa não disponível.');
+            this.setWebSearchMode(false);
+        }
     }
 
     setWebSearchMode(isActive) {
         const webSearchBtn = document.getElementById('webSearchBtn');
-        if (!webSearchBtn) return;
+        console.log('🔍 setWebSearchMode chamado com:', isActive, 'botão encontrado:', !!webSearchBtn);
+        
+        if (!webSearchBtn) {
+            console.error('❌ Botão de pesquisa não encontrado!');
+            return;
+        }
         
         if (isActive) {
             // Modo pesquisa ativo - cor verde
+            console.log('✅ Ativando modo pesquisa (cor verde)');
             webSearchBtn.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full border border-green-200 dark:border-green-700 text-sm font-medium text-green-600 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors';
         } else {
             // Modo pesquisa inativo - cor neutra
+            console.log('⚪ Desativando modo pesquisa (cor neutra)');
             webSearchBtn.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors';
         }
     }

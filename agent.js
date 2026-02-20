@@ -932,8 +932,12 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
                 
                 // Desativar modo pesquisa quando terminar
-                if (typeof this.ui.setWebSearchMode === 'function') {
-                    this.ui.setWebSearchMode(false);
+                try {
+                    if (this.ui && typeof this.ui.setWebSearchMode === 'function') {
+                        this.ui.setWebSearchMode(false);
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Erro ao desativar modo pesquisa:', error);
                 }
             });
             this.ui.closeThinkingSteps(messageContainer.headerId);
