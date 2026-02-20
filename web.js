@@ -397,19 +397,24 @@ class WebSearchUI {
                         <div class="message-content text-text-main-light dark:text-text-main-dark">${content}</div>
                     </div>
                     
-                    <!-- Fontes organizadas -->
+                    <!-- Fontes organizadas em cards -->
                     ${sources.length > 0 ? `
                         <div class="sources-container">
                             <div class="sources-header">
                                 <span class="material-icons-outlined text-sm">source</span>
-                                <span>Fontes:</span>
+                                <span>Fontes da Pesquisa</span>
                             </div>
-                            <div class="space-y-2">
-                                ${sources.map(source => `
-                                    <div class="source-box">
-                                        <a href="https://www.google.com/search?q=${encodeURIComponent(source)}" target="_blank" class="flex items-center gap-2">
-                                            <span class="material-icons-outlined text-xs">open_in_new</span>
-                                            ${source}
+                            <div class="space-y-3">
+                                ${sources.map((source, index) => `
+                                    <div class="source-card">
+                                        <a href="https://www.google.com/search?q=${encodeURIComponent(source)}" target="_blank" class="source-link">
+                                            <div class="source-icon">
+                                                <span class="material-icons-outlined">open_in_new</span>
+                                            </div>
+                                            <div class="source-content">
+                                                <div class="source-title">${source}</div>
+                                                <div class="source-description">Clique para verificar a informação original</div>
+                                            </div>
                                         </a>
                                     </div>
                                 `).join('')}
@@ -461,21 +466,51 @@ class WebSearchUI {
 
     markdownToHtml(text) {
         return text
+            // Títulos (H1, H2, H3)
+            .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mb-4 text-primary">$1</h1>')
+            .replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mb-3 text-primary">$1</h2>')
+            .replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold mb-2 text-primary">$1</h3>')
+            
+            // Cards de destaque
+            .replace(/\[destaque:\s*([^\]]+)\]/gi, '<span class="inline-block bg-gradient-to-r from-primary to-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg">$1</span>')
+            .replace(/\[card:\s*([^\]]+)\]/gi, '<div class="inline-block bg-surface-light dark:bg-surface-dark border border-primary/20 rounded-lg px-4 py-2 m-1 shadow-md"><span class="text-primary font-semibold">$1</span></div>')
+            
             // Negrito
-            .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-primary">$1</strong>')
+            
             // Itálico
             .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+            
+            // Sublinhado
+            .replace(/__(.*?)__/g, '<u class="underline">$1</u>')
+            
+            // Listas numeradas
+            .replace(/^\d+\.\s+(.*$)/gim, '<li class="ml-4 mb-2 list-decimal">$1</li>')
+            
+            // Listas com marcadores
+            .replace(/^[-*]\s+(.*$)/gim, '<li class="ml-4 mb-2 list-disc">$1</li>')
+            
+            // Parágrafos (quebras de linha)
+            .replace(/\n\n/g, '</p><p class="mb-4 leading-relaxed">')
+            
+            // Quebras de linha simples
+            .replace(/\n/g, '<br class="mb-2">')
+            
+            // Emojis (simples)
+            .replace(/:rocket:/g, '🚀')
+            .replace(/:fire:/g, '🔥')
+            .replace(/:star:/g, '⭐')
+            .replace(/:check:/g, '✅')
+            .replace(/:warning:/g, '⚠️')
+            
             // Links
-            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-primary hover:text-blue-700 underline">$1</a>')
-            // Headers
-            .replace(/^### (.*$)/gm, '<h3 class="text-lg font-bold mb-2 mt-4">$1</h3>')
-            .replace(/^## (.*$)/gm, '<h2 class="text-xl font-bold mb-3 mt-4">$1</h2>')
-            .replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mb-4 mt-4">$1</h1>')
-            // Listas
-            .replace(/^\* (.+)$/gm, '<li class="mb-1">$1</li>')
-            .replace(/(<li>.*<\/li>)/s, '<ul class="list-disc pl-6 mb-3 space-y-1">$1</ul>')
-            // Parágrafos
-            .replace(/\n\n/g, '</p><p class="mb-3">')
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-primary hover:text-blue-700 underline transition-colors">$1</a>')
+            
+            // Código inline
+            .replace(/`([^`]+)`/g, '<code class="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm font-mono">$1</code>')
+            
+            // Linhas horizontais
+            .replace(/^---$/gim, '<hr class="my-4 border-gray-300 dark:border-gray-600">');
             .replace(/^/, '<p class="mb-3">')
             .replace(/$/, '</p>');
     }
