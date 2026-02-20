@@ -25,6 +25,23 @@ const mimeTypes = {
   '.wasm': 'application/wasm'
 };
 
+// Parse JSON body
+function parseBody(req) {
+  return new Promise((resolve) => {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+    req.on('end', () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch {
+        resolve({});
+      }
+    });
+  });
+}
+
 const server = createServer(async (req, res) => {
   console.log(`${req.method} ${req.url}`);
 
@@ -42,6 +59,9 @@ const server = createServer(async (req, res) => {
   // Handle API routes
   if (req.url.startsWith('/api/')) {
     try {
+      const body = await parseBody(req);
+      req.body = body;
+      
       const apiModule = await import(`.${req.url}.js`);
       const handler = apiModule.default;
       await handler(req, res);

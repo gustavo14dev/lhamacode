@@ -6,18 +6,18 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
-        return res.status(200).end();
+        return res.writeHead(200).end();
     }
 
     if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
+        return res.writeHead(405, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Method not allowed' }));
     }
 
     try {
         const { message } = req.body;
 
         if (!message) {
-            return res.status(400).json({ error: 'Message is required' });
+            return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Message is required' }));
         }
 
         console.log('🔍 Recebida requisição de pesquisa:', message);
@@ -27,17 +27,17 @@ export default async function handler(req, res) {
 
         console.log('✅ Resposta da pesquisa gerada');
 
-        return res.status(200).json({
+        return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
             response: response,
             timestamp: new Date().toISOString()
-        });
+        }));
 
     } catch (error) {
         console.error('❌ Erro na API de pesquisa:', error);
-        return res.status(500).json({ 
+        return res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ 
             error: 'Internal server error',
             message: error.message 
-        });
+        }));
     }
 }
 
