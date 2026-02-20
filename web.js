@@ -148,30 +148,35 @@ class WebSearchUI {
     }
 
     async callWebSearchAPI(message) {
-        console.log('📡 Chamando API de pesquisa na web...');
-        
-        const response = await fetch('/api/web-search', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                message: message
-            })
-        });
+        try {
+            // Obter histórico da conversa atual
+            const conversationHistory = this.chats.find(c => c.id === this.currentChatId).messages.map(msg => ({
+                role: msg.role,
+                content: msg.content
+            }));
 
-        if (!response.ok) {
-            throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
+            const response = await fetch('/api/web-search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    message,
+                    conversationHistory
+                }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Erro HTTP ${response.status}: ${errorText}`);
+            }
+
+            const data = await response.json();
+            return data.response;
+        } catch (error) {
+            console.error('❌ Erro na pesquisa:', error);
+            throw error;
         }
-
-        const data = await response.json();
-        
-        if (!data.response) {
-            throw new Error('Resposta vazia da API');
-        }
-
-        console.log('✅ Resposta recebida:', data.response);
-        return data.response;
     }
 
     createNewChat() {
@@ -404,7 +409,7 @@ class WebSearchUI {
                                 <span class="material-icons-outlined text-sm">source</span>
                                 <span>Fontes:</span>
                             </div>
-                            <div class="flex flex-wrap gap-2">
+                            <div>
                                 ${sources.map(source => `
                                     <a href="https://www.google.com/search?q=${encodeURIComponent(source)}" target="_blank" class="source-button">
                                         ${source}

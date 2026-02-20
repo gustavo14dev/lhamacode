@@ -6,18 +6,18 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
-        return res.writeHead(200).end();
+        return res.status(200).end();
     }
 
     if (req.method !== 'POST') {
-        return res.writeHead(405, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Method not allowed' }));
+        return res.status(405).json({ error: 'Method not allowed' });
     }
 
     try {
         const { message } = req.body;
 
         if (!message) {
-            return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Message is required' }));
+            return res.status(400).json({ error: 'Message is required' });
         }
 
         console.log('🔍 Recebida requisição de pesquisa:', message);
@@ -27,21 +27,21 @@ export default async function handler(req, res) {
 
         console.log('✅ Resposta da pesquisa gerada');
 
-        return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
+        return res.status(200).json({
             response: response,
             timestamp: new Date().toISOString()
-        }));
+        });
 
     } catch (error) {
         console.error('❌ Erro na API de pesquisa:', error);
-        return res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ 
+        return res.status(500).json({ 
             error: 'Internal server error',
             message: error.message 
-        }));
+        });
     }
 }
 
-async function callGroqWithBrowserSearch(message) {
+async function callGroqWithBrowserSearch(message, conversationHistory) {
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
     
     if (!GROQ_API_KEY) {
@@ -62,75 +62,43 @@ Você perguntou: "${message}"
 [fonte: Documentação Drekee AI]`;
     }
 
-    // Verificar se é uma pergunta de acompanhamento (não precisa pesquisar)
-    const isFollowUp = messages.length > 2 && 
-                     (message.toLowerCase().includes('explique mais') || 
-                      message.toLowerCase().includes('detalhe') ||
-                      message.toLowerCase().includes('fale sobre') ||
-                      message.toLowerCase().includes('o que é') ||
-                      message.toLowerCase().includes('como funciona') ||
-                      message.toLowerCase().includes('por que') ||
-                      message.toLowerCase().includes('qual a') ||
-                      message.toLowerCase().includes('pode falar') ||
-                      message.toLowerCase().includes('me diga') ||
-                      message.toLowerCase().includes('conte mais'));
+    console.log('🔍 Iniciando chamada para Groq API...');
+
+    // Verificar se é uma pergunta de acompanhamento
+    const isFollowUp = conversationHistory.length > 0 && (
+        message.toLowerCase().includes('explique mais') ||
+        message.toLowerCase().includes('detalhe') ||
+        message.toLowerCase().includes('pode falar mais') ||
+        message.toLowerCase().includes('me diga mais') ||
+        message.toLowerCase().includes('amplie') ||
+        message.toLowerCase().includes('aprofunde')
+    );
+
+    let systemPrompt;
 
     if (isFollowUp) {
-        // Responder sem pesquisa web
-        const followUpPrompt = {
+        // Modo de conversação (sem pesquisa)
+        systemPrompt = {
             role: 'system',
-            content: `Você é o Drekee AI 1, um assistente inteligente brasileiro. O usuário está pedindo para explicar mais sobre um tema que foi mencionado anteriormente na conversa.
+            content: `Você é o Drekee AI 1, um assistente inteligente brasileiro. Continue a conversa baseado no contexto anterior.
 
 REGRAS:
 1. RESPONDA SEMPRE EM PORTUGUÊS BRASILEIRO
 2. Use linguagem natural e informal
 3. Seja direto e claro
-4. Use formatação: **negrito**, *itálico*, listas
-5. NÃO pesquise na web - use seu conhecimento
+4. Use formatação simples: **negrito**, *itálico*, listas
+5. NÃO pesquise na web - use apenas seu conhecimento
 6. Mantenha o contexto da conversa anterior
-7. Seja útil e informativo
+7. Não adicione fontes (não há pesquisa nova)
 
-Responda à pergunta do usuário baseando-se no contexto da conversa.`
+CONTEXTO ANTERIOR:
+${conversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n\n')}`
         };
-
-        const followUpMessages = [
-            followUpPrompt,
-            ...messages.slice(-2) // Pega as últimas 2 mensagens para contexto
-        ];
-
-        try {
-            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${GROQ_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: 'llama-3.1-8b-instant',
-                    messages: followUpMessages,
-                    temperature: 0.7,
-                    max_tokens: 2048,
-                    stream: false
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`Erro HTTP ${response.status}`);
-            }
-
-            const data = await response.json();
-            return data.choices[0].message.content;
-        } catch (error) {
-            console.error('❌ Erro na resposta de acompanhamento:', error);
-            return 'Desculpe, não consegui processar sua pergunta. Poderia reformular?';
-        }
-    }
-
-    console.log('🔍 Iniciando chamada para Groq API...');
-
-    const systemPrompt = {
-        role: 'system',
-        content: `Você é o Drekee AI 1, um assistente de pesquisa inteligente brasileiro com acesso à web em tempo real. Sua especialidade é encontrar informações atuais e apresentá-las de forma clara, objetiva e visualmente organizada para usuários brasileiros.
+    } else {
+        // Modo de pesquisa web
+        systemPrompt = {
+            role: 'system',
+            content: `Você é o Drekee AI 1, um assistente de pesquisa inteligente brasileiro com acesso à web em tempo real. Sua especialidade é encontrar informações atuais e apresentá-las de forma clara, objetiva e visualmente organizada para usuários brasileiros.
 
 REGRAS ESTRITAS DE FORMATAÇÃO:
 1. RESPONDA SEMPRE EM PORTUGUÊS BRASILEIRO
@@ -170,10 +138,13 @@ Fonte: G1 – "Título da notícia" (09/02/2026)
 Fonte: UOL – "Outra notícia importante" (08/02/2026)
 
 MANTENHA AS RESPOSTAS VISUALMENTE ORGANIZADAS E FÁCEIS DE LER!`
-    };
+        };
+    }
 
+    // Construir mensagens com histórico
     const messages = [
         systemPrompt,
+        ...conversationHistory.slice(-4), // Últimas 4 mensagens para contexto
         {
             role: 'user',
             content: message
@@ -188,7 +159,7 @@ MANTENHA AS RESPOSTAS VISUALMENTE ORGANIZADAS E FÁCEIS DE LER!`
         console.log('⚠️ Modelo principal falhou, tentando fallback:', error.message);
         try {
             console.log('📡 Tentando modelo fallback: llama-3.1-8b-instant');
-            return await callWithSmallerModel(message, systemPrompt);
+            return await callWithFallbackModel(message, systemPrompt);
         } catch (fallbackError) {
             console.log('❌ Todos os modelos falharam:', fallbackError.message);
             throw new Error(`Todos os modelos de pesquisa falharam: ${fallbackError.message}`);
