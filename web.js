@@ -1,8 +1,10 @@
 // Classe principal para a página de pesquisa na web
 class WebSearchUI {
     constructor() {
-        this.messages = [];
+        this.chats = [];
+        this.currentChatId = null;
         this.isGenerating = false;
+        this.agent = null;
         this.init();
     }
 
@@ -13,17 +15,37 @@ class WebSearchUI {
         this.elements = {
             messagesContainer: document.getElementById('messagesContainer'),
             userInput: document.getElementById('userInput'),
-            sendButton: document.getElementById('sendButton')
+            sendButton: document.getElementById('sendButton'),
+            welcomeScreen: document.getElementById('welcomeScreen'),
+            chatHistoryList: document.getElementById('chatHistoryList'),
+            newChatBtn: document.getElementById('newChatBtn'),
+            sidebar: document.getElementById('sidebar'),
+            sidebarToggle: document.getElementById('sidebarToggle')
         };
 
+        // Inicializar agente
+        this.initializeAgent();
+        
         // Configurar event listeners
         this.setupEventListeners();
         
         // Configurar textarea para auto-resize
         this.setupTextareaAutoResize();
         
+        // Carregar chats salvos
+        this.loadChats();
+        
         // Focar no input
         this.elements.userInput.focus();
+    }
+
+    initializeAgent() {
+        // Importar o agente do main.js
+        if (typeof Agent !== 'undefined') {
+            this.agent = new Agent(this);
+        } else {
+            console.warn('⚠️ Classe Agent não encontrada, usando API direta');
+        }
     }
 
     setupEventListeners() {
@@ -40,10 +62,24 @@ class WebSearchUI {
             }
         });
 
+        // Event listener para o botão Nova Pesquisa
+        if (this.elements.newChatBtn) {
+            this.elements.newChatBtn.addEventListener('click', () => {
+                this.createNewChat();
+            });
+        }
+
         // Auto-resize do textarea
         this.elements.userInput.addEventListener('input', () => {
             this.autoResizeTextarea();
         });
+
+        // Toggle do sidebar em mobile
+        if (this.elements.sidebarToggle) {
+            this.elements.sidebarToggle.addEventListener('click', () => {
+                this.elements.sidebar.classList.toggle('hidden');
+            });
+        }
     }
 
     setupTextareaAutoResize() {
@@ -69,6 +105,11 @@ class WebSearchUI {
 
         console.log('🔍 Enviando pesquisa:', message);
 
+        // Criar novo chat se necessário
+        if (!this.currentChatId) {
+            this.createNewChat();
+        }
+
         // Adicionar mensagem do usuário
         this.addUserMessage(message);
         
@@ -91,6 +132,9 @@ class WebSearchUI {
             
             // Adicionar resposta do assistente
             this.addAssistantMessage(response);
+            
+            // Salvar chat
+            this.saveCurrentChat();
             
         } catch (error) {
             console.error('❌ Erro na pesquisa:', error);
@@ -130,13 +174,191 @@ class WebSearchUI {
         return data.response;
     }
 
-    addUserMessage(message) {
+    createNewChat() {
+        const chatId = 'chat_' + Date.now();
+        const chat = {
+            id: chatId,
+            title: 'Nova pesquisa',
+            messages: [],
+            createdAt: new Date().toISOString()
+        };
+        
+        this.chats.unshift(chat);
+        this.currentChatId = chatId;
+        
+        // Esconder welcome screen
+        if (this.elements.welcomeScreen) {
+            this.elements.welcomeScreen.style.display = 'none';
+        }
+        
+        // Limpar mensagens
+        if (this.elements.messagesContainer) {
+            this.elements.messagesContainer.innerHTML = '';
+        }
+        
+        // Mover input para baixo
+        this.moveInputToBottom();
+        
+        this.updateChatHistory();
+        this.saveChats();
+    }
+
+    moveInputToBottom() {
+        const inputWrapper = document.getElementById('inputWrapper');
+        if (inputWrapper) {
+            inputWrapper.classList.remove('input-wrapper-center');
+            inputWrapper.classList.add('input-wrapper-bottom');
+        }
+    }
+
+    moveInputToCenter() {
+        const inputWrapper = document.getElementById('inputWrapper');
+        if (inputWrapper) {
+            inputWrapper.classList.remove('input-wrapper-bottom');
+            inputWrapper.classList.add('input-wrapper-center');
+        }
+    }
+
+    loadChats() {
+        const saved = localStorage.getItem('webSearchChats');
+        if (saved) {
+            try {
+                this.chats = JSON.parse(saved);
+                this.updateChatHistory();
+            } catch (error) {
+                console.error('❌ Erro ao carregar chats:', error);
+                this.chats = [];
+            }
+        }
+    }
+
+    saveChats() {
+        try {
+            localStorage.setItem('webSearchChats', JSON.stringify(this.chats));
+        } catch (error) {
+            console.error('❌ Erro ao salvar chats:', error);
+        }
+    }
+
+    saveCurrentChat() {
+        if (!this.currentChatId) return;
+        
+        const chat = this.chats.find(c => c.id === this.currentChatId);
+        if (chat) {
+            // Atualizar título com a primeira mensagem
+            if (chat.messages.length > 0 && chat.title === 'Nova pesquisa') {
+                const firstMessage = chat.messages[0].content;
+                chat.title = firstMessage.substring(0, 50) + (firstMessage.length > 50 ? '...' : '');
+            }
+            this.saveChats();
+            this.updateChatHistory();
+        }
+    }
+
+    updateChatHistory() {
+        if (!this.elements.chatHistoryList) return;
+        
+        this.elements.chatHistoryList.innerHTML = this.chats.map(chat => `
+            <div class="p-3 rounded-lg cursor-pointer transition-colors ${
+                chat.id === this.currentChatId 
+                    ? 'bg-primary/10 border border-primary/20' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+            }" onclick="window.webSearchUI.loadChat('${chat.id}')">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-medium text-sm text-text-main-light dark:text-text-main-dark truncate">${chat.title}</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">${this.formatDate(chat.createdAt)}</p>
+                    </div>
+                    <button onclick="event.stopPropagation(); window.webSearchUI.deleteChat('${chat.id}')" class="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20">
+                        <span class="material-icons-outlined text-sm text-red-500">delete</span>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    loadChat(chatId) {
+        const chat = this.chats.find(c => c.id === chatId);
+        if (!chat) return;
+        
+        this.currentChatId = chatId;
+        
+        // Esconder welcome screen
+        if (this.elements.welcomeScreen) {
+            this.elements.welcomeScreen.style.display = 'none';
+        }
+        
+        // Limpar mensagens
+        if (this.elements.messagesContainer) {
+            this.elements.messagesContainer.innerHTML = '';
+        }
+        
+        // Carregar mensagens
+        chat.messages.forEach(msg => {
+            if (msg.role === 'user') {
+                this.addUserMessage(msg.content, false);
+            } else {
+                this.addAssistantMessage(msg.content, false);
+            }
+        });
+        
+        // Mover input para baixo
+        this.moveInputToBottom();
+        
+        this.updateChatHistory();
+    }
+
+    deleteChat(chatId) {
+        if (!confirm('Tem certeza que deseja excluir esta pesquisa?')) return;
+        
+        this.chats = this.chats.filter(c => c.id !== chatId);
+        
+        if (this.currentChatId === chatId) {
+            this.currentChatId = null;
+            if (this.elements.welcomeScreen) {
+                this.elements.welcomeScreen.style.display = 'flex';
+            }
+            if (this.elements.messagesContainer) {
+                this.elements.messagesContainer.innerHTML = '';
+            }
+            // Voltar input para o centro
+            this.moveInputToCenter();
+        }
+        
+        this.saveChats();
+        this.updateChatHistory();
+    }
+
+    formatDate(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+        
+        if (diffMins < 1) return 'Agora';
+        if (diffMins < 60) return `${diffMins} min atrás`;
+        if (diffHours < 24) return `${diffHours}h atrás`;
+        if (diffDays < 7) return `${diffDays} dias atrás`;
+        
+        return date.toLocaleDateString('pt-BR');
+    }
+
+    addUserMessage(message, save = true) {
+        if (save && this.currentChatId) {
+            const chat = this.chats.find(c => c.id === this.currentChatId);
+            if (chat) {
+                chat.messages.push({ role: 'user', content: message });
+            }
+        }
+
         const messageDiv = document.createElement('div');
         messageDiv.className = 'flex justify-end mb-6 animate-slideIn';
         
         messageDiv.innerHTML = `
             <div class="flex items-start gap-3 max-w-[70%]">
-                <div class="flex-1 px-5 py-4 bg-primary text-white rounded-2xl rounded-br-none">
+                <div class="flex-1 px-5 py-4 bg-primary text-white rounded-2xl rounded-br-none shadow-lg">
                     <p class="text-base leading-relaxed">${this.escapeHtml(message)}</p>
                 </div>
             </div>
@@ -146,25 +368,52 @@ class WebSearchUI {
         this.scrollToBottom();
     }
 
-    addAssistantMessage(message) {
+    addAssistantMessage(message, save = true) {
+        if (save && this.currentChatId) {
+            const chat = this.chats.find(c => c.id === this.currentChatId);
+            if (chat) {
+                chat.messages.push({ role: 'assistant', content: message });
+            }
+        }
+
         const messageDiv = document.createElement('div');
         messageDiv.className = 'flex justify-start mb-6 animate-slideIn';
         
-        // Processar mensagem para adicionar links das fontes
-        const processedMessage = this.processMessageWithSources(message);
+        // Processar mensagem para extrair fontes
+        const { content, sources } = this.processMessageWithSources(message);
         
         messageDiv.innerHTML = `
             <div class="flex items-start gap-3 max-w-[85%]">
                 <!-- Ícone do assistente -->
                 <div class="flex-shrink-0 mt-1">
-                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-lg">
                         <span class="material-icons-outlined text-white text-lg">travel_explore</span>
                     </div>
                 </div>
                 
                 <!-- Conteúdo da mensagem -->
-                <div class="flex-1 px-5 py-4 bg-white dark:bg-gray-800 rounded-2xl rounded-bl-none border border-gray-200 dark:border-gray-700">
-                    <div class="message-content">${processedMessage}</div>
+                <div class="flex-1">
+                    <div class="px-5 py-4 bg-surface-light dark:bg-surface-dark rounded-2xl rounded-bl-none border border-gray-200 dark:border-gray-700 shadow-lg">
+                        <div class="message-content text-text-main-light dark:text-text-main-dark">${content}</div>
+                    </div>
+                    
+                    <!-- Fontes -->
+                    ${sources.length > 0 ? `
+                        <div class="mt-3 space-y-2">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="material-icons-outlined text-primary text-sm">source</span>
+                                <span class="text-sm font-medium text-text-main-light dark:text-text-main-dark">Fontes:</span>
+                            </div>
+                            ${sources.map(source => `
+                                <div class="source-box p-3 rounded-lg">
+                                    <a href="https://www.google.com/search?q=${encodeURIComponent(source)}" target="_blank" class="text-sm text-primary hover:text-blue-700 underline flex items-center gap-2">
+                                        <span class="material-icons-outlined text-xs">open_in_new</span>
+                                        ${source}
+                                    </a>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -174,50 +423,45 @@ class WebSearchUI {
     }
 
     processMessageWithSources(message) {
-        // Adicionar links para fontes citadas na resposta
-        let processedMessage = message;
+        let content = message;
+        const sources = [];
         
-        // Procurar por padrões de citação e adicionar links
-        processedMessage = processedMessage.replace(
-            /\[fonte:\s*([^\]]+)\]/gi,
-            (match, source) => {
-                const cleanSource = source.trim();
-                const searchQuery = encodeURIComponent(cleanSource);
-                return `<div class="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="material-icons-outlined text-blue-600 text-sm">source</span>
-                        <span class="text-sm font-medium text-blue-600">Fonte:</span>
-                    </div>
-                    <a href="https://www.google.com/search?q=${searchQuery}" target="_blank" class="source-link">${cleanSource}</a>
-                </div>`;
+        // Extrair fontes no formato [fonte: nome]
+        const sourceRegex = /\[fonte:\s*([^\]]+)\]/gi;
+        let match;
+        
+        while ((match = sourceRegex.exec(message)) !== null) {
+            const source = match[1].trim();
+            if (!sources.includes(source)) {
+                sources.push(source);
             }
-        );
+            content = content.replace(match[0], '');
+        }
         
         // Converter markdown para HTML
-        processedMessage = this.markdownToHtml(processedMessage);
+        content = this.markdownToHtml(content);
         
-        return processedMessage;
+        return { content, sources };
     }
 
     markdownToHtml(text) {
-        // Conversão simples de markdown para HTML
         return text
             // Negrito
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
             // Itálico
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
             // Links
-            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-blue-600 hover:text-blue-800 underline">$1</a>')
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-primary hover:text-blue-700 underline">$1</a>')
             // Headers
-            .replace(/^### (.*$)/gm, '<h3 class="text-lg font-bold mb-2">$1</h3>')
-            .replace(/^## (.*$)/gm, '<h2 class="text-xl font-bold mb-3">$1</h2>')
-            .replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mb-4">$1</h1>')
+            .replace(/^### (.*$)/gm, '<h3 class="text-lg font-bold mb-2 mt-4">$1</h3>')
+            .replace(/^## (.*$)/gm, '<h2 class="text-xl font-bold mb-3 mt-4">$1</h2>')
+            .replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mb-4 mt-4">$1</h1>')
             // Listas
-            .replace(/^\* (.+)$/gm, '<li>$1</li>')
-            .replace(/(<li>.*<\/li>)/s, '<ul class="list-disc pl-6 mb-2">$1</ul>')
+            .replace(/^\* (.+)$/gm, '<li class="mb-1">$1</li>')
+            .replace(/(<li>.*<\/li>)/s, '<ul class="list-disc pl-6 mb-3 space-y-1">$1</ul>')
             // Parágrafos
-            .replace(/\n\n/g, '</p><p>')
-            .replace(/^/, '<p>')
+            .replace(/\n\n/g, '</p><p class="mb-3">')
+            .replace(/^/, '<p class="mb-3">')
             .replace(/$/, '</p>');
     }
 
@@ -235,12 +479,12 @@ class WebSearchUI {
         typingDiv.innerHTML = `
             <div class="flex items-start gap-3 max-w-[85%]">
                 <div class="flex-shrink-0 mt-1">
-                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-lg">
                         <span class="material-icons-outlined text-white text-lg">travel_explore</span>
                     </div>
                 </div>
-                <div class="flex-1 px-5 py-4 bg-white dark:bg-gray-800 rounded-2xl rounded-bl-none border border-gray-200 dark:border-gray-700">
-                    <div class="typing-indicator text-gray-600 dark:text-gray-300">Pesquisando</div>
+                <div class="px-5 py-4 bg-surface-light dark:bg-surface-dark rounded-2xl rounded-bl-none border border-gray-200 dark:border-gray-700 shadow-lg">
+                    <div class="typing-indicator text-text-main-light dark:text-text-main-dark">Pesquisando</div>
                 </div>
             </div>
         `;
@@ -259,21 +503,23 @@ class WebSearchUI {
     updateSendButton() {
         if (this.isGenerating) {
             this.elements.sendButton.disabled = true;
-            this.elements.sendButton.innerHTML = '<span class="material-icons-outlined text-xl">hourglass_empty</span>';
+            this.elements.sendButton.innerHTML = '<span class="material-icons-outlined text-sm">hourglass_empty</span>';
         } else {
             this.elements.sendButton.disabled = false;
-            this.elements.sendButton.innerHTML = '<span class="material-icons-outlined text-xl">arrow_upward</span>';
+            this.elements.sendButton.innerHTML = '<span class="material-icons-outlined text-sm">arrow_upward</span>';
         }
     }
 
     scrollToBottom() {
         setTimeout(() => {
-            this.elements.messagesContainer.scrollTop = this.elements.messagesContainer.scrollHeight;
+            if (this.elements.messagesContainer) {
+                this.elements.messagesContainer.scrollTop = this.elements.messagesContainer.scrollHeight;
+            }
         }, 100);
     }
 }
 
 // Inicializar a aplicação quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', () => {
-    new WebSearchUI();
+    window.webSearchUI = new WebSearchUI();
 });
