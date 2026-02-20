@@ -180,6 +180,7 @@
             padding: 0.75rem;
             margin-top: 0.5rem;
             transition: all 0.2s ease;
+            margin-bottom: 0.5rem;
         }
         .dark .source-box {
             background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
@@ -211,6 +212,83 @@
         }
         .dark .source-box a:hover {
             color: #93c5fd !important;
+        }
+        
+        /* Container de fontes */
+        .sources-container {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(59, 130, 246, 0.05);
+            border-radius: 0.75rem;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+        }
+        .dark .sources-container {
+            background: rgba(96, 165, 250, 0.05);
+            border: 1px solid rgba(96, 165, 250, 0.1);
+        }
+        .sources-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .dark .sources-header {
+            color: #f8fafc;
+        }
+        
+        /* Animação dos pontinhos */
+        .typing-dots {
+            display: inline-flex;
+            gap: 0.25rem;
+            margin-left: 0.5rem;
+        }
+        .typing-dots span {
+            width: 6px;
+            height: 6px;
+            background: currentColor;
+            border-radius: 50%;
+            animation: typingDot 1.4s infinite ease-in-out;
+        }
+        .typing-dots span:nth-child(1) {
+            animation-delay: 0s;
+        }
+        .typing-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes typingDot {
+            0%, 60%, 100% {
+                opacity: 0.3;
+                transform: scale(0.8);
+            }
+            30% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        /* Tempo estimado */
+        .estimated-time {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            z-index: 50;
+            animation: fadeIn 0.3s ease;
+        }
+        .dark .estimated-time {
+            background: rgba(96, 165, 250, 0.1);
+            color: #60a5fa;
         }
     </style>
 </head>

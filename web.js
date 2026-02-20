@@ -397,21 +397,23 @@ class WebSearchUI {
                         <div class="message-content text-text-main-light dark:text-text-main-dark">${content}</div>
                     </div>
                     
-                    <!-- Fontes -->
+                    <!-- Fontes organizadas -->
                     ${sources.length > 0 ? `
-                        <div class="mt-3 space-y-2">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="material-icons-outlined text-primary text-sm">source</span>
-                                <span class="text-sm font-medium text-text-main-light dark:text-text-main-dark">Fontes:</span>
+                        <div class="sources-container">
+                            <div class="sources-header">
+                                <span class="material-icons-outlined text-sm">source</span>
+                                <span>Fontes:</span>
                             </div>
-                            ${sources.map(source => `
-                                <div class="source-box p-3 rounded-lg">
-                                    <a href="https://www.google.com/search?q=${encodeURIComponent(source)}" target="_blank" class="text-sm text-primary hover:text-blue-700 underline flex items-center gap-2">
-                                        <span class="material-icons-outlined text-xs">open_in_new</span>
-                                        ${source}
-                                    </a>
-                                </div>
-                            `).join('')}
+                            <div class="space-y-2">
+                                ${sources.map(source => `
+                                    <div class="source-box">
+                                        <a href="https://www.google.com/search?q=${encodeURIComponent(source)}" target="_blank" class="flex items-center gap-2">
+                                            <span class="material-icons-outlined text-xs">open_in_new</span>
+                                            ${source}
+                                        </a>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
                     ` : ''}
                 </div>
@@ -484,13 +486,43 @@ class WebSearchUI {
                     </div>
                 </div>
                 <div class="px-5 py-4 bg-surface-light dark:bg-surface-dark rounded-2xl rounded-bl-none border border-gray-200 dark:border-gray-700 shadow-lg">
-                    <div class="typing-indicator text-text-main-light dark:text-text-main-dark">Pesquisando</div>
+                    <div class="typing-indicator text-text-main-light dark:text-text-main-dark flex items-center">
+                        Pesquisando
+                        <div class="typing-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
 
         this.elements.messagesContainer.appendChild(typingDiv);
+        
+        // Adicionar tempo estimado
+        this.showEstimatedTime();
+        
         this.scrollToBottom();
+    }
+
+    showEstimatedTime() {
+        const existingTime = document.querySelector('.estimated-time');
+        if (existingTime) {
+            existingTime.remove();
+        }
+        
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'estimated-time';
+        timeDiv.textContent = 'Tempo estimado: 30 segundos';
+        document.body.appendChild(timeDiv);
+    }
+
+    hideEstimatedTime() {
+        const timeDiv = document.querySelector('.estimated-time');
+        if (timeDiv) {
+            timeDiv.remove();
+        }
     }
 
     hideTypingIndicator() {
@@ -498,6 +530,8 @@ class WebSearchUI {
         if (typingIndicator) {
             typingIndicator.remove();
         }
+        // Esconder tempo estimado
+        this.hideEstimatedTime();
     }
 
     updateSendButton() {
