@@ -62,6 +62,8 @@ Você perguntou: "${message}"
 [fonte: Documentação Drekee AI]`;
     }
 
+    console.log('🔍 Iniciando chamada para Groq API...');
+
     const systemPrompt = {
         role: 'system',
         content: `Você é o Drekee AI 1, um assistente de pesquisa inteligente brasileiro com acesso à web em tempo real. Sua especialidade é encontrar informações atuais e apresentá-las de forma clara, objetiva e útil para usuários brasileiros.
@@ -70,27 +72,15 @@ REGRAS ESTRITAS:
 1. RESPONDA SEMPRE EM PORTUGUÊS BRASILEIRO
 2. Use linguagem natural e informal, como um brasileiro falaria
 3. Seja direto, claro e objetivo
-4. Foque em informações relevantes e recentes
-5. Use formatação markdown simples: **negrito** para destacar, listas para organizar
-6. NUNCA use jargões técnicos desnecessários
-7. Adapte o tom para o contexto da pergunta
+4. Use formatação markdown quando apropriado: **negrito**, *itálico*, listas, etc.
+5. No final da resposta, adicione as fontes no formato exato:
+   Fonte: Nome do Site – "Título da Matéria" (data)
+6. Use o browser search para encontrar informações atuais e confiáveis
+7. Cite as fontes de forma clara e precisa
 
-CITAÇÃO DE FONTES:
-- SEMPRE cite as fontes no final da resposta
-- Formato: [fonte: nome do site/veículo]
-- Seja específico: "G1", "UOL", "BBC Brasil", "Folha de S.Paulo", etc.
-- Para dados técnicos: cite a fonte original
-
-EXEMPLOS DE RESPOSTAS:
-- Para notícias: "Segundo o G1, o evento aconteceu..." [fonte: G1]
-- Para clima: "De acordo com o Weather Channel..." [fonte: Weather Channel]
-- Para dados: "Conforme o IBGE..." [fonte: IBGE]
-
-IMPORTANTE:
-- Pesquise informações REAIS e ATUAIS
-- Verifique a credibilidade das fontes
-- Se não encontrar informação relevante, diga honestamente
-- Mantenha as respostas concisas mas completas`
+EXEMPLO DE FORMATO DE FONTE:
+Fonte: G1 – "Título da notícia" (09/02/2026)
+Fonte: UOL – "Outra notícia importante" (08/02/2026)`
     };
 
     const messages = [
@@ -101,7 +91,25 @@ IMPORTANTE:
         }
     ];
 
-    // Usar modelo com browser search
+    // Tentar com modelo principal
+    try {
+        console.log('📡 Tentando modelo principal: openai/gpt-oss-120b');
+        return await callWithMainModel(message, systemPrompt, messages);
+    } catch (error) {
+        console.log('⚠️ Modelo principal falhou, tentando fallback:', error.message);
+        try {
+            console.log('📡 Tentando modelo fallback: llama-3.1-8b-instant');
+            return await callWithFallbackModel(message, systemPrompt);
+        } catch (fallbackError) {
+            console.log('❌ Todos os modelos falharam:', fallbackError.message);
+            throw new Error(`Todos os modelos de pesquisa falharam: ${fallbackError.message}`);
+        }
+    }
+}
+
+async function callWithMainModel(message, systemPrompt, messages) {
+    const GROQ_API_KEY = process.env.GROQ_API_KEY;
+    
     const requestBody = {
         model: 'openai/gpt-oss-120b',
         messages: messages,
@@ -157,7 +165,7 @@ async function callWithSmallerModel(message, systemPrompt) {
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
     
     const requestBody = {
-        model: 'openai/gpt-oss-120b',
+        model: 'llama-3.1-8b-instant',
         messages: [
             systemPrompt,
             { role: 'user', content: message }
@@ -174,6 +182,8 @@ async function callWithSmallerModel(message, systemPrompt) {
         ]
     };
 
+    console.log('📡 Enviando requisição para Groq com modelo fallback...');
+
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -185,6 +195,7 @@ async function callWithSmallerModel(message, systemPrompt) {
 
     if (!response.ok) {
         const errorText = await response.text();
+        console.error('❌ Erro na API Groq (fallback):', response.status, errorText);
         throw new Error(`Groq API error (fallback): ${response.status} - ${errorText}`);
     }
 
@@ -194,5 +205,6 @@ async function callWithSmallerModel(message, systemPrompt) {
         throw new Error('Resposta inválida da API Groq (fallback)');
     }
 
+    console.log('✅ Resposta recebida do modelo fallback');
     return data.choices[0].message.content;
 }
