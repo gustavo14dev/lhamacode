@@ -45,7 +45,21 @@ async function callGroqWithBrowserSearch(message) {
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
     
     if (!GROQ_API_KEY) {
-        throw new Error('GROQ_API_KEY não está configurada');
+        // Fallback quando não há API key
+        return `🔍 **Pesquisa Simulada**
+
+Você perguntou: "${message}"
+
+[fonte: Simulação Local]
+
+*Esta é uma resposta simulada porque a API Groq não está configurada. Para testar com pesquisa real, configure a GROQ_API_KEY no ambiente.*
+
+**Como configurar:**
+1. Obtenha uma chave em https://console.groq.com
+2. Adicione GROQ_API_KEY= sua_chave ao ambiente
+3. Reinicie o servidor
+
+[fonte: Documentação Drekee AI]`;
     }
 
     const systemPrompt = {
@@ -87,9 +101,9 @@ IMPORTANTE:
         }
     ];
 
-    // Usar o modelo mais capaz para pesquisa
+    // Usar modelo com browser search
     const requestBody = {
-        model: 'llama-3.1-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         messages: messages,
         temperature: 0.3, // Menos criatividade, mais precisão
         max_tokens: 4096,
@@ -143,7 +157,7 @@ async function callWithSmallerModel(message, systemPrompt) {
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
     
     const requestBody = {
-        model: 'llama-3.1-8b-instant',
+        model: 'openai/gpt-oss-120b',
         messages: [
             systemPrompt,
             { role: 'user', content: message }
