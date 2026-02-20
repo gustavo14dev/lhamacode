@@ -428,17 +428,30 @@ class WebSearchUI {
         let content = message;
         const sources = [];
         
-        // Extrair fontes no formato [fonte: nome]
-        const sourceRegex = /\[fonte:\s*([^\]]+)\]/gi;
+        // Extrair fontes no formato: Fonte: G1 – "Título" (data)【1†L10-L18】
+        const sourceRegex = /Fonte:\s*([^–]+)\s*–\s*"([^"]+)"/g;
         let match;
         
         while ((match = sourceRegex.exec(message)) !== null) {
-            const source = match[1].trim();
-            if (!sources.includes(source)) {
-                sources.push(source);
-            }
-            content = content.replace(match[0], '');
+            const sourceName = match[1].trim();
+            const title = match[2].trim();
+            
+            sources.push(sourceName);
+            
+            // Remover a linha inteira da fonte do conteúdo
+            const fullSourceLine = match[0];
+            const fullLineRegex = new RegExp(fullSourceLine + '[^\\n]*', 'g');
+            content = content.replace(fullLineRegex, '');
         }
+        
+        // Remover todas as citações estranhas 【1†L30-L38】【1†L48-L52】
+        content = content.replace(/【\d+†[L\d0-9-]+】/g, '');
+        
+        // Remover linhas vazias extras
+        content = content.replace(/\n\s*\n/g, '\n');
+        
+        // Limpar espaços extras
+        content = content.trim();
         
         // Converter markdown para HTML
         content = this.markdownToHtml(content);
