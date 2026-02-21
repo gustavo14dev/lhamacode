@@ -13,17 +13,26 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
+    const { message, conversationHistory = [] } = req.body;
+
+    // Validações seguras
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+        return res.status(400).json({ error: 'Message is required and must be a non-empty string' });
+    }
+
+    // Validar conversationHistory
+    if (!Array.isArray(conversationHistory)) {
+        console.warn('⚠️ conversationHistory não é um array, usando array vazio');
+        req.body.conversationHistory = [];
+    }
+
+    console.log('🔍 Recebida requisição de pesquisa:', { 
+        message: message?.substring(0, 100) + '...', 
+        historyLength: conversationHistory?.length || 0 
+    });
+
     try {
-        const { message } = req.body;
-
-        if (!message) {
-            return res.status(400).json({ error: 'Message is required' });
-        }
-
-        console.log('🔍 Recebida requisição de pesquisa:', message);
-
-        // Chamar a API do Groq com browser search
-        const response = await callGroqWithBrowserSearch(message);
+        const response = await callGroqWithBrowserSearch(message, conversationHistory);
 
         console.log('✅ Resposta da pesquisa gerada');
 
@@ -65,13 +74,13 @@ Você perguntou: "${message}"
     console.log('🔍 Iniciando chamada para Groq API...');
 
     // Verificar se é uma pergunta de acompanhamento
-    const isFollowUp = conversationHistory.length > 0 && (
-        message.toLowerCase().includes('explique mais') ||
-        message.toLowerCase().includes('detalhe') ||
-        message.toLowerCase().includes('pode falar mais') ||
-        message.toLowerCase().includes('me diga mais') ||
-        message.toLowerCase().includes('amplie') ||
-        message.toLowerCase().includes('aprofunde')
+    const isFollowUp = conversationHistory?.length > 0 && (
+        message?.toLowerCase()?.includes('explique mais') ||
+        message?.toLowerCase()?.includes('detalhe') ||
+        message?.toLowerCase()?.includes('pode falar mais') ||
+        message?.toLowerCase()?.includes('me diga mais') ||
+        message?.toLowerCase()?.includes('amplie') ||
+        message?.toLowerCase()?.includes('aprofunde')
     );
 
     let systemPrompt;
@@ -92,7 +101,7 @@ REGRAS:
 7. Não adicione fontes (não há pesquisa nova)
 
 CONTEXTO ANTERIOR:
-${conversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n\n')}`
+${conversationHistory?.map(msg => `${msg?.role}: ${msg?.content}`)?.filter(Boolean)?.join('\n\n') || 'Nenhum contexto anterior.'}`
         };
     } else {
         // Modo de pesquisa web
