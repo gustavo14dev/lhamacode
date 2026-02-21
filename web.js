@@ -150,10 +150,11 @@ class WebSearchUI {
     async callWebSearchAPI(message) {
         try {
             // Obter histórico da conversa atual
-            const conversationHistory = this.chats.find(c => c.id === this.currentChatId).messages.map(msg => ({
-                role: msg.role,
-                content: msg.content
-            }));
+            const currentChat = this.chats.find(c => c.id === this.currentChatId);
+            const conversationHistory = currentChat ? currentChat.messages.map(msg => ({
+                role: msg.isUser ? 'user' : 'assistant',
+                content: msg.isUser ? msg.text : msg.content
+            })) : [];
 
             const response = await fetch('/api/web-search', {
                 method: 'POST',
