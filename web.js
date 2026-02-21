@@ -469,9 +469,80 @@ class WebSearchUI {
             .replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mb-3">$1</h2>')
             .replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold mb-2">$1</h3>')
             
+            // Tabelas comparativas
+            .replace(/\| (.+) \| (.+) \| (.+) \|\n\| :--- \| :--- \| :--- \|\n((?:\| (.+) \| (.+) \| (.+) \|\n?)+)/g, (match, header1, header2, header3, rows) => {
+                const rowLines = rows.trim().split('\n');
+                const tableRows = rowLines.map(row => {
+                    const cols = row.split('|').map(col => col.trim()).filter(col => col);
+                    return `
+                        <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                            <td class="px-4 py-3 font-medium">${cols[0] || ''}</td>
+                            <td class="px-4 py-3">${cols[1] || ''}</td>
+                            <td class="px-4 py-3">${cols[2] || ''}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                return `
+                    <div class="overflow-x-auto my-4">
+                        <table class="w-full border-collapse border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden shadow-lg">
+                            <thead class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700">
+                                <tr>
+                                    <th class="px-4 py-3 text-left font-bold text-gray-900 dark:text-white border-r border-gray-300 dark:border-gray-600">${header1}</th>
+                                    <th class="px-4 py-3 text-left font-bold text-gray-900 dark:text-white border-r border-gray-300 dark:border-gray-600">${header2}</th>
+                                    <th class="px-4 py-3 text-left font-bold text-gray-900 dark:text-white">${header3}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white dark:bg-gray-900">
+                                ${tableRows}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            })
+            
+            // Cards de informação rápida
+            .replace(/\[info:\s*([^\]]+)\]/gi, '<div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 my-3 rounded-r-lg shadow-md"><div class="flex items-start"><span class="material-icons-outlined text-blue-500 mr-3 mt-0.5">info</span><div><p class="text-blue-900 dark:text-blue-100 font-medium">$1</p></div></div></div>')
+            .replace(/\[warning:\s*([^\]]+)\]/gi, '<div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 my-3 rounded-r-lg shadow-md"><div class="flex items-start"><span class="material-icons-outlined text-yellow-600 mr-3 mt-0.5">warning</span><div><p class="text-yellow-900 dark:text-yellow-100 font-medium">$1</p></div></div></div>')
+            .replace(/\[success:\s*([^\]]+)\]/gi, '<div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 my-3 rounded-r-lg shadow-md"><div class="flex items-start"><span class="material-icons-outlined text-green-600 mr-3 mt-0.5">check_circle</span><div><p class="text-green-900 dark:text-green-100 font-medium">$1</p></div></div></div>')
+            .replace(/\[error:\s*([^\]]+)\]/gi, '<div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 my-3 rounded-r-lg shadow-md"><div class="flex items-start"><span class="material-icons-outlined text-red-600 mr-3 mt-0.5">error</span><div><p class="text-red-900 dark:text-red-100 font-medium">$1</p></div></div></div>')
+            
             // Cards de destaque
             .replace(/\[destaque:\s*([^\]]+)\]/gi, '<span class="inline-block bg-gradient-to-r from-primary to-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg">$1</span>')
             .replace(/\[card:\s*([^\]]+)\]/gi, '<div class="inline-block bg-surface-light dark:bg-surface-dark border border-primary/20 rounded-lg px-4 py-2 m-1 shadow-md"><span class="text-primary font-semibold">$1</span></div>')
+            
+            // Cards de dados importantes
+            .replace(/\[data:\s*([^\]]+)\s*\|\s*([^\]]+)\]/gi, '<div class="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-200 dark:border-indigo-700 rounded-lg p-4 my-3 shadow-lg"><div class="flex items-center justify-between"><div><h4 class="font-bold text-indigo-900 dark:text-indigo-100 text-sm uppercase tracking-wide">$1</h4><p class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">$2</p></div><span class="material-icons-outlined text-indigo-500 text-3xl">analytics</span></div></div>')
+            
+            // Listas interativas
+            .replace(/^\d+\.\s+\*\*([^\*]+)\*\*\s*:\s*(.*$)/gim, '<li class="ml-4 mb-3 list-decimal"><div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border-l-4 border-primary"><span class="font-bold text-primary">$1:</span> $2</div></li>')
+            .replace(/^[-*]\s+\*\*([^\*]+)\*\*\s*:\s*(.*$)/gim, '<li class="ml-4 mb-3 list-disc"><div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border-l-4 border-blue-500"><span class="font-bold text-blue-600 dark:text-blue-400">$1:</span> $2</div></li>')
+            
+            // Listas numeradas normais
+            .replace(/^\d+\.\s+(.*$)/gim, '<li class="ml-4 mb-2 list-decimal">$1</li>')
+            
+            // Listas com marcadores normais
+            .replace(/^[-*]\s+(.*$)/gim, '<li class="ml-4 mb-2 list-disc">$1</li>')
+            
+            // Progress bars
+            .replace(/\[progress:\s*(\d+)%\s*\|\s*([^\]]+)\]/gi, (match, percent, label) => {
+                const color = percent >= 80 ? 'green' : percent >= 50 ? 'yellow' : 'red';
+                return `
+                    <div class="my-3">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">${label}</span>
+                            <span class="text-sm font-bold text-${color}-600 dark:text-${color}-400">${percent}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                            <div class="bg-${color}-500 h-2 rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                `;
+            })
+            
+            // Badges e tags
+            .replace(/\[tag:\s*([^\]]+)\]/gi, '<span class="inline-block bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs px-2 py-1 rounded-full font-medium mr-1 mb-1">$1</span>')
+            .replace(/\[badge:\s*([^\]]+)\]/gi, '<span class="inline-block bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-md">$1</span>')
             
             // Negrito
             .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-primary">$1</strong>')
@@ -481,12 +552,6 @@ class WebSearchUI {
             
             // Sublinhado
             .replace(/__(.*?)__/g, '<u class="underline">$1</u>')
-            
-            // Listas numeradas
-            .replace(/^\d+\.\s+(.*$)/gim, '<li class="ml-4 mb-2 list-decimal">$1</li>')
-            
-            // Listas com marcadores
-            .replace(/^[-*]\s+(.*$)/gim, '<li class="ml-4 mb-2 list-disc">$1</li>')
             
             // Parágrafos (quebras de linha)
             .replace(/\n\n/g, '</p><p class="mb-4 leading-relaxed">')
@@ -500,6 +565,11 @@ class WebSearchUI {
             .replace(/:star:/g, '⭐')
             .replace(/:check:/g, '✅')
             .replace(/:warning:/g, '⚠️')
+            .replace(/:info:/g, 'ℹ️')
+            .replace(/:error:/g, '❌')
+            .replace(/:success:/g, '✅')
+            .replace(/:chart:/g, '📊')
+            .replace(/:trophy:/g, '🏆')
             
             // Links
             .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-primary hover:text-blue-700 underline transition-colors">$1</a>')
