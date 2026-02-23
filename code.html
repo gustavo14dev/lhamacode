@@ -171,6 +171,20 @@
         .bg-white\/5 {
             background: rgba(255, 255, 255, 0.05) !important;
         }
+        
+        /* Botão de pesquisa web ativo */
+        #webSearchToggle.active {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+            border-color: #3b82f6 !important;
+            color: white !important;
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        #webSearchToggle.active:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+            transform: scale(1.08);
+        }
     </style>
 </head>
 <body class="custom-bg min-h-screen text-text-main-light dark:text-text-main-dark transition-colors duration-300 dark">
@@ -233,10 +247,6 @@
 <button id="attachFileBtn" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300 transition-colors" title="Anexar arquivo">
 <span class="material-icons-outlined text-base">attach_file</span>
 </button>
-<button id="webSearchBtn" class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" title="Pesquisa na Web" onclick="window.location.href='web.html'">
-<span class="material-icons-outlined text-base">travel_explore</span>
-<span class="hidden sm:inline">Pesquisa na Web</span>
-</button>
 
 <!-- Dropdown de seleção de anexos -->
 <div id="attachDropdown" class="hidden absolute bottom-full left-0 mb-3 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden min-w-[280px] z-50 backdrop-blur-sm">
@@ -268,6 +278,13 @@
         </button>
     </div>
 </div>
+
+<!-- Botão de Pesquisa Web -->
+<button id="webSearchToggle" class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-all duration-200" onclick="toggleWebSearch()">
+<span class="material-icons-outlined text-base">search</span>
+<span id="webSearchText">Pesquisa Web</span>
+<span class="material-icons-outlined text-sm hidden" id="webSearchClose">close</span>
+</button>
 
 <!-- Inputs ocultos -->
 <input type="file" id="codeFileInput" class="hidden" multiple accept=".js,.py,.html,.htm,.css,.md,.txt,.json" />
@@ -400,6 +417,51 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('🌙 Tema escuro forçado com sucesso!');
 });
+
+// Controle do modo de pesquisa web
+let isWebSearchMode = false;
+
+function toggleWebSearch() {
+    const toggle = document.getElementById('webSearchToggle');
+    const searchText = document.getElementById('webSearchText');
+    const closeIcon = document.getElementById('webSearchClose');
+    const searchIcon = toggle.querySelector('.material-icons-outlined.text-base');
+    
+    isWebSearchMode = !isWebSearchMode;
+    
+    if (isWebSearchMode) {
+        // Ativar modo pesquisa
+        toggle.classList.add('active');
+        searchText.textContent = 'Pesquisando';
+        closeIcon.classList.remove('hidden');
+        searchIcon.textContent = 'search';
+        
+        // Mudar placeholder do input
+        const userInput = document.getElementById('userInput');
+        if (userInput) {
+            userInput.placeholder = 'O que você quer pesquisar na web?';
+        }
+        
+        console.log('🔍 Modo pesquisa web ATIVADO');
+    } else {
+        // Desativar modo pesquisa
+        toggle.classList.remove('active');
+        searchText.textContent = 'Pesquisa Web';
+        closeIcon.classList.add('hidden');
+        searchIcon.textContent = 'search';
+        
+        // Restaurar placeholder do input
+        const userInput = document.getElementById('userInput');
+        if (userInput) {
+            userInput.placeholder = 'Digite sua mensagem...';
+        }
+        
+        console.log('💬 Modo chat normal ATIVADO');
+    }
+}
+
+// Expor função globalmente
+window.toggleWebSearch = toggleWebSearch;
 </script>
 <script>
 // Variáveis globais para controle de retry

@@ -847,15 +847,6 @@ class UI {
         // Criar dropdown flutuante
 
         this.createFloatingDropdown();
-        
-        // Event listener para o botão de Pesquisa na Web
-        const webSearchBtn = document.getElementById('webSearchBtn');
-        if (webSearchBtn) {
-            webSearchBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.handleWebSearch();
-            });
-        }
 
         
 
@@ -1577,50 +1568,8 @@ class UI {
 
 
 
-    async handleWebSearch() {
-        const message = this.elements.userInput.value.trim();
-        if (!message) {
-            this.addAssistantMessage('Por favor, digite o que você deseja pesquisar na web.');
-            return;
-        }
-        
-        console.log('🔍 Iniciando pesquisa na web:', message);
-        
-        // Ativar modo pesquisa (mudar cor do botão)
-        this.setWebSearchMode(true);
-        
-        // Limpar input
-        this.elements.userInput.value = '';
-        
-        // Processar usando o modelo de pesquisa
-        if (this.agent && typeof this.agent.processWebSearch === 'function') {
-            this.agent.processWebSearch(message);
-        } else {
-            console.error('❌ Método processWebSearch não encontrado no agent');
-            this.addAssistantMessage('Erro: modo de pesquisa não disponível.');
-            this.setWebSearchMode(false);
-        }
-    }
+    
 
-    setWebSearchMode(isActive) {
-        const webSearchBtn = document.getElementById('webSearchBtn');
-        console.log('🔍 setWebSearchMode chamado com:', isActive, 'botão encontrado:', !!webSearchBtn);
-        
-        if (!webSearchBtn) {
-            console.error('❌ Botão de pesquisa não encontrado!');
-            return;
-        }
-        
-        if (isActive) {
-            // Modo pesquisa ativo - cor verde
-            console.log('✅ Ativando modo pesquisa (cor verde)');
-            webSearchBtn.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full border border-green-200 dark:border-green-700 text-sm font-medium text-green-600 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors';
-        } else {
-            // Modo pesquisa inativo - cor neutra
-            console.log('⚪ Desativando modo pesquisa (cor neutra)');
-            webSearchBtn.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors';
-        }
-    }
 
     handleCreateRequest(message) {
 
@@ -2746,6 +2695,12 @@ ${latexCode}
 
         await this.agent.processMessage(finalMessage, sendFiles);
 
+        // Verificar se está em modo de pesquisa web e chamar API Tavily
+        if (window.isWebSearchMode && !sendFiles) {
+            console.log('🔍 Modo pesquisa web detectado, chamando API Tavily...');
+            await this.callTavilySearch(message);
+        }
+
 
 
         // Limpar anexos após envio
@@ -3568,7 +3523,7 @@ ${latexCode}
 
 
 
-    addAssistantMessage(text, thinking = null) {
+    addAssistantMessage(text, sources = null) {
 
         const messageDiv = document.createElement('div');
 
@@ -3576,12 +3531,30 @@ ${latexCode}
 
         const uniqueId = 'msg_' + Date.now();
 
+        let sourcesHtml = '';
+        
+        // Adicionar fontes se existirem
+        if (sources && sources.length > 0) {
+            sourcesHtml = `
+                <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div class="flex flex-wrap gap-2">
+                        ${sources.map(source => `
+                            <a href="https://www.google.com/search?q=${encodeURIComponent(source)}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-sm rounded-full border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors">
+                                <span class="material-icons-outlined text-xs">source</span>
+                                ${source}
+                            </a>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
         messageDiv.innerHTML = `
 
             <div class="w-full max-w-[85%] bg-surface-light dark:bg-surface-dark rounded-2xl px-5 py-4 shadow-soft border border-gray-100 dark:border-gray-700">
 
                 <div class="text-base leading-relaxed text-gray-700 dark:text-gray-200" id="responseText_${uniqueId}"></div>
-
+                ${sourcesHtml}
             </div>
 
         `;
@@ -5414,6 +5387,47 @@ ${latexCode}
 
     }
 
+    // Método para chamada da API Tavily Search
+    async callTavilySearch(message) {
+        try {
+            console.log('🔍 Chamando API Tavily Search...');
+            
+            // Obter histórico da conversa atual
+            const currentChat = this.chats.find(c => c.id === this.currentChatId);
+            const conversationHistory = currentChat ? currentChat.messages.map(msg => ({
+                role: msg.role,
+                content: msg.content
+            })) : [];
+
+            const response = await fetch('/api/tavily-search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    message,
+                    conversationHistory
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Erro HTTP ${response.status}: ${errorData.message || errorData.error || 'Erro desconhecido'}`);
+            }
+
+            const data = await response.json();
+            
+            // Adicionar resposta da IA com fontes
+            this.addAssistantMessage(data.response, data.sources || []);
+
+            console.log('✅ Pesquisa Tavily concluída com sucesso');
+
+        } catch (error) {
+            console.error('❌ Erro na pesquisa Tavily:', error);
+            this.addErrorMessage(`Erro na pesquisa: ${error.message}`);
+        }
+    }
+
 }
 
 
@@ -5910,7 +5924,7 @@ window.downloadGeneratedContent = (url, filename) => {
 
     }
 
-};
+}
 
 
 
