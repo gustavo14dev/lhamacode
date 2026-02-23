@@ -2694,10 +2694,15 @@ ${latexCode}
 
 
         // Verificar se está em modo de pesquisa web e chamar API Tavily
-        if (window.isWebSearchMode && !sendFiles) {
-            console.log('🔍 Modo pesquisa web detectado, chamando API Tavily...');
+        if (typeof isWebSearchMode !== 'undefined' && isWebSearchMode && !sendFiles) {
+            console.log('🔍 [DEBUG] Modo pesquisa web ATIVADO! Chamando API Tavily...');
+            console.log('🔍 [DEBUG] isWebSearchMode:', isWebSearchMode);
+            console.log('🔍 [DEBUG] sendFiles:', sendFiles);
+            console.log('🔍 [DEBUG] message:', message);
             await this.callTavilySearch(message);
         } else {
+            console.log('🔍 [DEBUG] Modo NORMAL. Chamando agent.processMessage...');
+            console.log('🔍 [DEBUG] isWebSearchMode:', isWebSearchMode);
             // Modo normal - chamar agent.processMessage
             await this.agent.processMessage(finalMessage, sendFiles);
         }

@@ -253,17 +253,20 @@ ${searchContext}
         throw new Error('GROQ_API_KEY não configurada. Configure a variável de ambiente.');
     }
 
-    // Tentar com modelo principal
+    // MODO PESQUISA WEB: Usar SEMPRE o modelo mais econômico (Llama 3.1 8B)
+    console.log('� [MODO PESQUISA] Usando modelo econômico: llama-3.1-8b-instant');
+    
     try {
-        console.log('🚀 Tentando modelo principal: openai/gpt-oss-120b');
-        const response = await callWithMainModel(messages);
-        console.log('✅ Modelo principal funcionou!');
-        return response;
+        const response = await callWithEconomicModel(messages);
+        return {
+            response: response.content,
+            sources: tavilyData.results || [],
+            model: 'llama-3.1-8b-instant (econômico)',
+            mode: 'web-search'
+        };
     } catch (error) {
-        console.warn('⚠️ Modelo principal falhou, tentando fallback:', error.message);
-        const fallbackResponse = await callWithFallbackModel(messages);
-        console.log('✅ Modelo fallback funcionou!');
-        return fallbackResponse;
+        console.error('❌ Erro no modelo econômico:', error);
+        throw new Error(`Erro no modelo de pesquisa: ${error.message}`);
     }
 }
 
