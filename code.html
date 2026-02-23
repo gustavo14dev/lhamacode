@@ -419,17 +419,21 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Controle do modo de pesquisa web
-let isWebSearchMode = false;
+window.isWebSearchMode = false;
 
 function toggleWebSearch() {
+    console.log('🔍 [TOGGLE] toggleWebSearch chamada!');
+    
     const toggle = document.getElementById('webSearchToggle');
     const searchText = document.getElementById('webSearchText');
     const closeIcon = document.getElementById('webSearchClose');
     const searchIcon = toggle.querySelector('.material-icons-outlined.text-base');
     
-    isWebSearchMode = !isWebSearchMode;
+    console.log('🔍 [TOGGLE] window.isWebSearchMode antes:', window.isWebSearchMode);
+    window.isWebSearchMode = !window.isWebSearchMode;
+    console.log('🔍 [TOGGLE] window.isWebSearchMode depois:', window.isWebSearchMode);
     
-    if (isWebSearchMode) {
+    if (window.isWebSearchMode) {
         // Ativar modo pesquisa
         toggle.classList.add('active');
         searchText.textContent = 'Pesquisando';
@@ -439,10 +443,11 @@ function toggleWebSearch() {
         // Mudar placeholder do input
         const userInput = document.getElementById('userInput');
         if (userInput) {
-            userInput.placeholder = 'O que você quer pesquisar na web?';
+            userInput.placeholder = 'Digite sua pergunta para pesquisar na web...';
         }
         
-        console.log('🔍 Modo pesquisa web ATIVADO');
+        console.log('✅ Modo pesquisa WEB ATIVADO');
+        
     } else {
         // Desativar modo pesquisa
         toggle.classList.remove('active');
@@ -450,13 +455,13 @@ function toggleWebSearch() {
         closeIcon.classList.add('hidden');
         searchIcon.textContent = 'search';
         
-        // Restaurar placeholder do input
+        // Voltar placeholder original
         const userInput = document.getElementById('userInput');
         if (userInput) {
-            userInput.placeholder = 'Digite sua mensagem...';
+            userInput.placeholder = 'Como posso ajudar com seu código hoje?';
         }
         
-        console.log('💬 Modo chat normal ATIVADO');
+        console.log('❌ Modo pesquisa WEB DESATIVADO');
     }
 }
 

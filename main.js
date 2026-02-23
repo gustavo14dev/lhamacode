@@ -2694,15 +2694,15 @@ ${latexCode}
 
 
         // Verificar se está em modo de pesquisa web e chamar API Tavily
-        if (typeof isWebSearchMode !== 'undefined' && isWebSearchMode && !sendFiles) {
+        if (window.isWebSearchMode && !sendFiles) {
             console.log('🔍 [DEBUG] Modo pesquisa web ATIVADO! Chamando API Tavily...');
-            console.log('🔍 [DEBUG] isWebSearchMode:', isWebSearchMode);
+            console.log('🔍 [DEBUG] window.isWebSearchMode:', window.isWebSearchMode);
             console.log('🔍 [DEBUG] sendFiles:', sendFiles);
             console.log('🔍 [DEBUG] message:', message);
             await this.callTavilySearch(message);
         } else {
             console.log('🔍 [DEBUG] Modo NORMAL. Chamando agent.processMessage...');
-            console.log('🔍 [DEBUG] isWebSearchMode:', isWebSearchMode);
+            console.log('🔍 [DEBUG] window.isWebSearchMode:', window.isWebSearchMode);
             // Modo normal - chamar agent.processMessage
             await this.agent.processMessage(finalMessage, sendFiles);
         }
@@ -5396,10 +5396,11 @@ ${latexCode}
     // Método para chamada da API Tavily Search
     async callTavilySearch(message) {
         try {
+            console.log('🚀 [CALL TAVILY] FUNÇÃO callTavilySearch EXECUTADA!');
             console.log('🔍 [TAVILY DEBUG] Iniciando chamada API Tavily Search...');
             console.log('🔍 [TAVILY DEBUG] Mensagem:', message);
-            console.log('🔍 [TAVILY DEBUG] isWebSearchMode:', window.isWebSearchMode);
-            
+            console.log('🔍 [TAVILY DEBUG] isWebSearchMode:', typeof isWebSearchMode !== 'undefined' ? isWebSearchMode : 'UNDEFINED');
+                
             // Obter histórico da conversa atual
             const currentChat = this.chats.find(c => c.id === this.currentChatId);
             const conversationHistory = currentChat ? currentChat.messages.map(msg => ({
