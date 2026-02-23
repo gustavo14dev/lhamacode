@@ -156,7 +156,7 @@ class WebSearchUI {
                 content: msg.isUser ? msg.text : msg.content
             })) : [];
 
-            const response = await fetch('/api/web-search', {
+            const response = await fetch('/api/tavily-search', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -168,8 +168,8 @@ class WebSearchUI {
             });
 
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Erro HTTP ${response.status}: ${errorText}`);
+                const errorData = await response.json();
+                throw new Error(`Erro HTTP ${response.status}: ${errorData.message || errorData.error || 'Erro desconhecido'}`);
             }
 
             const data = await response.json();
