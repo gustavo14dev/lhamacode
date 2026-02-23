@@ -25,12 +25,30 @@ export default async function handler(req, res) {
         req.body.conversationHistory = [];
     }
 
+    // 🔍 VERIFICAÇÃO DE APIs CONFIGURADAS
+    console.log('🔍 === VERIFICAÇÃO DE CONFIGURAÇÃO ===');
+    console.log('🔑 TAVILY_API_KEY:', process.env.TAVILY_API_KEY ? '✅ Configurada' : '❌ Não configurada');
+    console.log('🔑 GROQ_API_KEY:', process.env.GROQ_API_KEY ? '✅ Configurada' : '❌ Não configurada');
+    console.log('🤖 Modelo Principal: openai/gpt-oss-120b');
+    console.log('🔄 Modelo Fallback: llama-3.1-8b-instant');
+    console.log('🔍 Engine de Pesquisa: Tavily AI');
+    console.log('=====================================');
+
     // Verificar se a API key do Tavily está configurada
     if (!process.env.TAVILY_API_KEY) {
         console.error('❌ TAVILY_API_KEY não configurada');
         return res.status(500).json({ 
             error: 'Tavily API not configured',
             message: 'Configure TAVILY_API_KEY nas variáveis de ambiente'
+        });
+    }
+
+    // Verificar se a API key do Groq está configurada
+    if (!process.env.GROQ_API_KEY) {
+        console.error('❌ GROQ_API_KEY não configurada');
+        return res.status(500).json({ 
+            error: 'Groq API not configured',
+            message: 'Configure GROQ_API_KEY nas variáveis de ambiente'
         });
     }
 
@@ -41,17 +59,27 @@ export default async function handler(req, res) {
 
     try {
         // Fazer pesquisa com Tavily
+        console.log('🔍 Iniciando pesquisa com Tavily AI...');
         const searchResponse = await callTavilySearch(message);
         
         // Construir prompt com resultados da pesquisa
+        console.log('🤖 Enviando resultados para Groq API...');
         const response = await callGroqWithTavilyResults(message, searchResponse, conversationHistory);
 
-        console.log('✅ Resposta da pesquisa Tavily gerada');
+        console.log('✅ Resposta da pesquisa Tavily gerada com sucesso');
 
         return res.status(200).json({
             response: response,
             timestamp: new Date().toISOString(),
-            sources: searchResponse.sources
+            sources: searchResponse.sources,
+            api_info: {
+                search_engine: 'Tavily AI',
+                model_used: 'openai/gpt-oss-120b',
+                apis_configured: {
+                    tavily: true,
+                    groq: true
+                }
+            }
         });
 
     } catch (error) {
@@ -64,7 +92,9 @@ export default async function handler(req, res) {
 }
 
 async function callTavilySearch(query) {
-    console.log('🔍 Fazendo pesquisa com Tavily API...');
+    console.log('🔍 === CHAMADA TAVILY AI ===');
+    console.log('🔍 Query:', query);
+    console.log('🔑 API Key Status:', process.env.TAVILY_API_KEY ? 'Presente' : 'Ausente');
     
     const response = await fetch('https://api.tavily.com/search', {
         method: 'POST',
@@ -85,17 +115,23 @@ async function callTavilySearch(query) {
     });
 
     if (!response.ok) {
+        console.error('❌ Erro Tavily API:', response.status, response.statusText);
         throw new Error(`Tavily API error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
     console.log('✅ Pesquisa Tavily concluída:', data.results?.length || 0, 'resultados');
+    console.log('📄 Fontes encontradas:', data.sources?.length || 0);
+    console.log('=============================');
     
     return data;
 }
 
 async function callGroqWithTavilyResults(message, searchResults, conversationHistory) {
-    console.log('🤖 Enviando resultados para Groq API...');
+    console.log('🤖 === CHAMADA GROQ API ===');
+    console.log('📝 Message:', message?.substring(0, 50) + '...');
+    console.log('📚 Search Results:', searchResults.results?.length || 0, 'items');
+    console.log('💬 Conversation History:', conversationHistory?.length || 0, 'messages');
 
     // Verificar se é uma pergunta de acompanhamento
     const isFollowUp = conversationHistory?.length > 0 && (
@@ -106,6 +142,9 @@ async function callGroqWithTavilyResults(message, searchResults, conversationHis
         message?.toLowerCase()?.includes('amplie') ||
         message?.toLowerCase()?.includes('aprofunde')
     );
+
+    console.log('🔄 Is Follow-up:', isFollowUp ? 'Yes' : 'No');
+    console.log('🤖 Mode:', isFollowUp ? 'Conversation' : 'Search + AI');
 
     let systemPrompt;
 
@@ -209,17 +248,23 @@ ${searchContext}
 
     // Tentar com modelo principal
     try {
+        console.log('🚀 Tentando modelo principal: openai/gpt-oss-120b');
         const response = await callWithMainModel(messages);
+        console.log('✅ Modelo principal funcionou!');
         return response;
     } catch (error) {
         console.warn('⚠️ Modelo principal falhou, tentando fallback:', error.message);
         const fallbackResponse = await callWithFallbackModel(messages);
+        console.log('✅ Modelo fallback funcionou!');
         return fallbackResponse;
     }
 }
 
 async function callWithMainModel(messages) {
-    console.log('🚀 Tentando modelo principal: openai/gpt-oss-120b');
+    console.log('🚀 === MODELO PRINCIPAL ===');
+    console.log('🤖 Modelo: openai/gpt-oss-120b');
+    console.log('📝 Messages:', messages.length, 'items');
+    console.log('🔑 API Key Status:', process.env.GROQ_API_KEY ? 'Presente' : 'Ausente');
     
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
@@ -238,15 +283,21 @@ async function callWithMainModel(messages) {
     });
 
     if (!response.ok) {
+        console.error('❌ Erro modelo principal:', response.status, response.statusText);
         throw new Error(`Groq API error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log('✅ Modelo principal concluído');
+    console.log('📄 Tokens usados:', data.usage?.total_tokens || 'N/A');
+    console.log('========================');
     return data.choices[0].message.content;
 }
 
 async function callWithFallbackModel(messages) {
-    console.log('🔄 Usando modelo fallback: llama-3.1-8b-instant');
+    console.log('🔄 === MODELO FALLBACK ===');
+    console.log('🤖 Modelo: llama-3.1-8b-instant');
+    console.log('📝 Messages:', messages.length, 'items');
     
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
@@ -265,9 +316,13 @@ async function callWithFallbackModel(messages) {
     });
 
     if (!response.ok) {
+        console.error('❌ Erro modelo fallback:', response.status, response.statusText);
         throw new Error(`Fallback model also failed: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log('✅ Modelo fallback concluído');
+    console.log('📄 Tokens usados:', data.usage?.total_tokens || 'N/A');
+    console.log('========================');
     return data.choices[0].message.content;
 }
