@@ -304,6 +304,39 @@ async function callWithMainModel(messages) {
     return data.choices[0].message.content;
 }
 
+async function callWithEconomicModel(messages) {
+    console.log('💰 === MODELO ECONÔMICO ===');
+    console.log('🤖 Modelo: llama-3.1-8b-instant');
+    console.log('📝 Messages:', messages.length, 'items');
+    console.log('🔑 API Key Status:', process.env.GROQ_API_KEY ? 'Presente' : 'Ausente');
+    
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: 'llama-3.1-8b-instant',
+            messages: messages,
+            max_tokens: 2000,
+            temperature: 0.7,
+            top_p: 0.9,
+            stream: false
+        })
+    });
+
+    if (!response.ok) {
+        console.error('❌ Erro modelo econômico:', response.status, response.statusText);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Erro modelo econômico: ${response.status} - ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Modelo econômico funcionou! Tokens usados:', data.usage?.total_tokens || 'N/A');
+    return data.choices[0].message.content;
+}
+
 async function callWithFallbackModel(messages) {
     console.log('🔄 === MODELO FALLBACK ===');
     console.log('🤖 Modelo: llama-3.1-8b-instant');

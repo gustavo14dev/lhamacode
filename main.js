@@ -3529,6 +3529,36 @@ ${latexCode}
 
 
 
+    addErrorMessage(text) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'mb-6 flex justify-start animate-slideIn';
+        
+        const uniqueId = 'msg_' + Date.now();
+        messageDiv.id = uniqueId;
+        
+        messageDiv.innerHTML = `
+            <div class="max-w-3xl">
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 shadow-sm">
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center flex-shrink-0">
+                            <span class="material-icons-outlined text-red-600 dark:text-red-400 text-sm">error</span>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-red-800 dark:text-red-200 mb-1">Erro</div>
+                            <div class="text-red-700 dark:text-red-300 text-sm">${text}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const messagesContainer = this.elements.messagesContainer;
+        if (messagesContainer) {
+            messagesContainer.appendChild(messageDiv);
+            this.scrollToBottom();
+        }
+    }
+
     addAssistantMessage(text, sources = null) {
 
         const messageDiv = document.createElement('div');
