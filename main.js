@@ -3559,7 +3559,7 @@ ${latexCode}
         }
     }
 
-    addAssistantMessage(text, sources = null) {
+    addAssistantMessage(text, sources = null, thinking = null) {
 
         const messageDiv = document.createElement('div');
 
@@ -5465,7 +5465,7 @@ ${latexCode}
             console.log('✅ [TAVILY DEBUG] Fontes encontradas:', data.sources?.length || 0);
             
             // Adicionar resposta da IA com fontes
-            this.addAssistantMessage(data.response, data.sources || []);
+            this.addAssistantMessage(data.response, data.sources || [], null);
 
             console.log('✅ [TAVILY DEBUG] Pesquisa Tavily concluída com sucesso');
 
