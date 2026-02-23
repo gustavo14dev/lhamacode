@@ -2693,12 +2693,13 @@ ${latexCode}
 
 
 
-        await this.agent.processMessage(finalMessage, sendFiles);
-
         // Verificar se está em modo de pesquisa web e chamar API Tavily
         if (window.isWebSearchMode && !sendFiles) {
             console.log('🔍 Modo pesquisa web detectado, chamando API Tavily...');
             await this.callTavilySearch(message);
+        } else {
+            // Modo normal - chamar agent.processMessage
+            await this.agent.processMessage(finalMessage, sendFiles);
         }
 
 
@@ -5390,7 +5391,9 @@ ${latexCode}
     // Método para chamada da API Tavily Search
     async callTavilySearch(message) {
         try {
-            console.log('🔍 Chamando API Tavily Search...');
+            console.log('🔍 [TAVILY DEBUG] Iniciando chamada API Tavily Search...');
+            console.log('🔍 [TAVILY DEBUG] Mensagem:', message);
+            console.log('🔍 [TAVILY DEBUG] isWebSearchMode:', window.isWebSearchMode);
             
             // Obter histórico da conversa atual
             const currentChat = this.chats.find(c => c.id === this.currentChatId);
@@ -5398,6 +5401,9 @@ ${latexCode}
                 role: msg.role,
                 content: msg.content
             })) : [];
+            
+            console.log('🔍 [TAVILY DEBUG] Histórico da conversa:', conversationHistory.length, 'mensagens');
+            console.log('🔍 [TAVILY DEBUG] Enviando requisição para /api/tavily-search...');
 
             const response = await fetch('/api/tavily-search', {
                 method: 'POST',
@@ -5411,19 +5417,25 @@ ${latexCode}
             });
 
             if (!response.ok) {
+                console.error('❌ [TAVILY DEBUG] Erro na resposta:', response.status, response.statusText);
                 const errorData = await response.json();
+                console.error('❌ [TAVILY DEBUG] Dados do erro:', errorData);
                 throw new Error(`Erro HTTP ${response.status}: ${errorData.message || errorData.error || 'Erro desconhecido'}`);
             }
 
+            console.log('✅ [TAVILY DEBUG] Resposta recebida com sucesso');
             const data = await response.json();
+            console.log('✅ [TAVILY DEBUG] Dados da resposta:', data);
+            console.log('✅ [TAVILY DEBUG] Fontes encontradas:', data.sources?.length || 0);
             
             // Adicionar resposta da IA com fontes
             this.addAssistantMessage(data.response, data.sources || []);
 
-            console.log('✅ Pesquisa Tavily concluída com sucesso');
+            console.log('✅ [TAVILY DEBUG] Pesquisa Tavily concluída com sucesso');
 
         } catch (error) {
-            console.error('❌ Erro na pesquisa Tavily:', error);
+            console.error('❌ [TAVILY DEBUG] Erro geral na pesquisa Tavily:', error);
+            console.error('❌ [TAVILY DEBUG] Stack trace:', error.stack);
             this.addErrorMessage(`Erro na pesquisa: ${error.message}`);
         }
     }

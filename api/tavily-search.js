@@ -1,18 +1,25 @@
 export default async function handler(req, res) {
+    console.log('🔍 [TAVILY API] Requisição recebida:', req.method);
+    console.log('🔍 [TAVILY API] Body:', req.body);
+    
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
+        console.log('🔍 [TAVILY API] Resposta OPTIONS enviada');
         return res.status(200).end();
     }
 
     if (req.method !== 'POST') {
+        console.error('❌ [TAVILY API] Método não permitido:', req.method);
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
     const { message, conversationHistory = [] } = req.body;
+    console.log('🔍 [TAVILY API] Mensagem:', message);
+    console.log('🔍 [TAVILY API] Histórico:', conversationHistory.length, 'mensagens');
 
     // Validações seguras
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
