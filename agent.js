@@ -1216,13 +1216,28 @@ Use imagens para documentação arquitetural, protótipos visuais, ou qualquer c
     // ==================== PROCESSAMENTO DE IMAGENS ====================
     async processImagesInContent(content) {
         console.log('🖼️ [PROCESS IMAGES] Iniciando processamento de imagens...');
+        console.log('🖼️ [PROCESS IMAGES] Conteúdo recebido:', content.substring(0, 300) + '...');
         
         // Encontrar todos os marcadores de imagem (formato específico: 🖼️[IMAGEM]🖼️)
         const imageMarkerRegex = /🖼️\[([^\]]+)\]🖼️/g;
         const matches = [...content.matchAll(imageMarkerRegex)];
         
+        console.log('🖼️ [PROCESS IMAGES] Matches encontrados:', matches.length);
+        matches.forEach((match, index) => {
+            console.log(`🖼️ [PROCESS IMAGES] Match ${index}: "${match[0]}" -> tema: "${match[1]}"`);
+        });
+        
         if (matches.length === 0) {
             console.log('🖼️ [PROCESS IMAGES] Nenhuma imagem encontrada');
+            
+            // Teste manual para verificar se a regex funciona
+            const testContent = "Este é um teste 🖼️[Computador]🖼️ de imagem";
+            const testMatches = [...testContent.matchAll(imageMarkerRegex)];
+            console.log('🖼️ [PROCESS IMAGES] TESTE MANUAL - Matches no teste:', testMatches.length);
+            testMatches.forEach((match, index) => {
+                console.log(`🖼️ [PROCESS IMAGES] TESTE MANUAL - Match ${index}: "${match[0]}" -> tema: "${match[1]}"`);
+            });
+            
             return content;
         }
         
