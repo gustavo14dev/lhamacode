@@ -4176,9 +4176,9 @@ ${latexCode}
 
         
 
-        // Processar marcadores de imagem [IMAGEM] - renderizar como placeholders que serão substituídos
+        // Processar marcadores de imagem 🖼️[IMAGEM]🖼️ - renderizar como placeholders que serão substituídos
 
-        formatted = formatted.replace(/\[([^\]]+)\]/g, (match, imageTheme) => {
+        formatted = formatted.replace(/🖼️\[([^\]]+)\]🖼️/g, (match, imageTheme) => {
 
             return `<div class="ai-image-placeholder" data-theme="${this.escapeHtml(imageTheme)}" style="margin: 16px 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; text-align: center; color: white; position: relative; overflow: hidden;">
 
