@@ -3628,16 +3628,18 @@ ${latexCode}
 
             // Se o texto começa com <div (HTML), renderiza direto. Senão, formata como markdown
 
-            // Verificar se o conteúdo contém HTML de imagens processadas
-            if (text.trim().startsWith('<') || text.includes('<div style="margin: 16px 0; text-align: center;">')) {
-                // Conteúdo HTML com imagens - usar sanitizeHtml para renderizar corretamente
-                responseDiv.innerHTML = this.sanitizeHtml(text);
-            } else if (text.trim().startsWith('<')) {
+            if (text.trim().startsWith('<')) {
+
                 // Texto HTML vindo de fontes internas ou widgets. Sanitizar antes de inserir.
+
                 responseDiv.innerHTML = this.sanitizeHtml(text);
+
             } else {
+
                 // Texto normal - formatar
+
                 responseDiv.innerHTML = this.formatResponse(text);
+
             }
 
             // Adicionar indicador de thinking se houver

@@ -1080,21 +1080,9 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
         
         // System prompts diferenciados por modelo
         const prompts = {
-            rapido: `Olá! 😊 Eu sou a Drekee AI, sua assistente de código amigável! Estou aqui para te ajudar com programação de forma leve, divertida e super útil. Vou responder com clareza, usar emojis pra deixar tudo mais agradável 🚀 e ser bem natural na conversa. Adoro ajudar com código, debugging e explicações técnicas! Seja concisa mas completa, e sempre com um toque especial! ✨💻
-
-IMPORTANTE: Quando apropriado para enriquecer sua resposta, inclua imagens relevantes usando o formato: 🖼️[TEMA DA IMAGEM]🖼️
-Exemplos: 🖼️[Macarrão]🖼️ ou 🖼️[Código JavaScript]🖼️ ou 🖼️[Segunda Guerra Mundial]🖼️
-Use imagens para ilustrar conceitos, mostrar exemplos visuais ou tornar a explicação mais clara. Não abuse, mas use quando agregar valor real!`,
-            raciocinio: `Você é o Drekee AI 1, um assistente de IA especializado em raciocínio profundo. Forneça respostas bem estruturadas com múltiplos parágrafos, **conceitos em negrito**, listas organizadas, e quando apropriado use notação matemática ($símbolos$ inline ou $$blocos$$). Seja analítico e detalhado.
-
-IMPORTANTE: Quando apropriado para enriquecer sua resposta, inclua imagens relevantes usando o formato: 🖼️[TEMA DA IMAGEM]🖼️
-Exemplos: 🖼️[Arquitetura de Software]🖼️ ou 🖼️[Algoritmo de Ordenação]🖼️ ou 🖼️[Diagrama de Fluxo]🖼️
-Use imagens para ilustrar conceitos complexos, diagramas ou fluxos que beneficiem de representação visual.`,
-            pro: `Você é o Drekee AI 1, um assistente de código avançado. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings, e quando apropriado use tabelas (em formato markdown) e notação matemática. Evite blocos enormes de código - prefira explicações visuais. Seja técnico mas acessível.
-
-IMPORTANTE: Quando apropriado para enriquecer sua resposta, inclua imagens relevantes usando o formato: 🖼️[TEMA DA IMAGEM]🖼️
-Exemplos: 🖼️[Diagrama de Sistema]🖼️ ou 🖼️[Interface de Usuário]🖼️ ou 🖼️[Protótipo]🖼️
-Use imagens para documentação arquitetural, protótipos visuais, ou qualquer conceito que se beneficie de representação gráfica profissional.`
+            rapido: `Olá! 😊 Eu sou a Drekee AI, sua assistente de código amigável! Estou aqui para te ajudar com programação de forma leve, divertida e super útil. Vou responder com clareza, usar emojis pra deixar tudo mais agradável 🚀 e ser bem natural na conversa. Adoro ajudar com código, debugging e explicações técnicas! Seja concisa mas completa, e sempre com um toque especial! ✨💻`,
+            raciocinio: `Você é o Drekee AI 1, um assistente de IA especializado em raciocínio profundo. Forneça respostas bem estruturadas com múltiplos parágrafos, **conceitos em negrito**, listas organizadas, e quando apropriado use notação matemática ($símbolos$ inline ou $$blocos$$). Seja analítico e detalhado.`,
+            pro: `Você é o Drekee AI 1, um assistente de código avançado. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings, e quando apropriado use tabelas (em formato markdown) e notação matemática. Evite blocos enormes de código - prefira explicações visuais. Seja técnico mas acessível.`
         };
         const systemPrompt = prompts[model] || prompts.rapido;
         
@@ -1197,12 +1185,8 @@ Use imagens para documentação arquitetural, protótipos visuais, ou qualquer c
                 throw new Error('Resposta vazia ou formato inesperado do proxy Groq');
             }
 
-            // Processar imagens na resposta
-            const processedContent = await this.processImagesInContent(content);
-            console.log('🖼️ Conteúdo processado com imagens:', processedContent ? processedContent.substring(0, 200) + '...' : 'NULO');
-
-            console.log('✅ callGroqAPI concluído com sucesso');
-            return processedContent;
+        console.log('✅ callGroqAPI concluído com sucesso');
+        return content;
         } catch (error) {
             console.error('❌ Erro em callGroqAPI:', error);
             if (error.name === 'AbortError') {
@@ -1210,99 +1194,6 @@ Use imagens para documentação arquitetural, protótipos visuais, ou qualquer c
                 throw new Error('ABORTED');
             }
             throw error;
-        }
-    }
-
-    // ==================== PROCESSAMENTO DE IMAGENS ====================
-    async processImagesInContent(content) {
-        console.log('🖼️ [PROCESS IMAGES] Iniciando processamento de imagens...');
-        console.log('🖼️ [PROCESS IMAGES] Conteúdo recebido:', content.substring(0, 300) + '...');
-        
-        // Encontrar todos os marcadores de imagem (formato específico: 🖼️[IMAGEM]🖼️)
-        const imageMarkerRegex = /🖼️\[([^\]]+)\]🖼️/g;
-        const matches = [...content.matchAll(imageMarkerRegex)];
-        
-        console.log('🖼️ [PROCESS IMAGES] Matches encontrados:', matches.length);
-        matches.forEach((match, index) => {
-            console.log(`🖼️ [PROCESS IMAGES] Match ${index}: "${match[0]}" -> tema: "${match[1]}"`);
-        });
-        
-        if (matches.length === 0) {
-            console.log('🖼️ [PROCESS IMAGES] Nenhuma imagem encontrada');
-            return content;
-        }
-        
-        console.log(`🖼️ [PROCESS IMAGES] Encontradas ${matches.length} imagens para processar`);
-        
-        let processedContent = content;
-        
-        // Processar cada imagem encontrada
-        for (let i = 0; i < matches.length; i++) {
-            const match = matches[i];
-            const fullMatch = match[0];
-            const imageTheme = match[1].trim();
-            
-            console.log(`🖼️ [PROCESS IMAGES] Processando imagem ${i + 1}/${matches.length}: "${imageTheme}"`);
-            
-            try {
-                // Buscar imagem na API Pexels
-                const imageData = await this.searchImage(imageTheme);
-                
-                if (imageData) {
-                    // Renderizar imagem diretamente no HTML
-                    const imageHtml = `
-                        <div style="margin: 16px 0; text-align: center;">
-                            <img src="${imageData.url}" alt="${imageTheme}" 
-                                 style="width: 100%; max-width: 500px; height: auto; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);"
-                                 onerror="this.outerHTML='<div style=\\"padding: 20px; text-align: center; color: #666; background: #f5f5f5; border-radius: 8px;\\">❌ Falha ao carregar imagem</div>'" />
-                            <div style="margin-top: 8px; font-size: 12px; color: #666; font-style: italic;">
-                                � Fonte: Pexels - ${imageData.photographer || 'Desconhecido'}
-                            </div>
-                        </div>
-                    `;
-                    processedContent = processedContent.replace(fullMatch, imageHtml);
-                    
-                    console.log(`✅ [PROCESS IMAGES] Imagem "${imageTheme}" renderizada diretamente`);
-                } else {
-                    // Se não encontrar imagem, remover marcador
-                    processedContent = processedContent.replace(fullMatch, '');
-                    console.log(`⚠️ [PROCESS IMAGES] Imagem "${imageTheme}" não encontrada, marcador removido`);
-                }
-            } catch (error) {
-                console.error(`❌ [PROCESS IMAGES] Erro ao buscar imagem "${imageTheme}":`, error);
-                // Remover marcador em caso de erro
-                processedContent = processedContent.replace(fullMatch, '');
-            }
-        }
-        
-        return processedContent;
-    }
-
-    async searchImage(query) {
-        console.log(`🔍 [SEARCH IMAGE] Buscando imagem: "${query}"`);
-        
-        try {
-            const response = await fetch('/api/pexels-search', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ query: query })
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                console.error('❌ [SEARCH IMAGE] Erro na API Pexels:', errorData);
-                return null;
-            }
-            
-            const imageData = await response.json();
-            console.log('✅ [SEARCH IMAGE] Imagem encontrada:', imageData.url);
-            return imageData;
-            
-        } catch (error) {
-            console.error('❌ [SEARCH IMAGE] Erro ao buscar imagem:', error);
-            return null;
         }
     }
 
