@@ -3638,68 +3638,7 @@ ${latexCode}
 
                 responseDiv.innerHTML = this.formatResponse(text);
 
-            // Se o assistant retornou attachments embutidos no chat, renderizar acima do responseDiv
-            try {
-
-                const msgObjIndex = this.elements.messagesContainer.querySelectorAll('.mb-6').length - 1;
-
-                if (msgObjIndex >= 0 && msg.attachments && msg.attachments.length > 0) {
-
-                    const msgObj = this.elements.messagesContainer.querySelectorAll('.mb-6')[msgObjIndex];
-
-                    if (msgObj) {
-
-                        const attachmentsHtml = msg.attachments.map(att => {
-
-                            const fileIcon = this.getFileIcon(att.name);
-
-                            return `
-
-                                <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm text-gray-700 dark:text-gray-300 mb-2">
-
-                                    <span class="material-icons-outlined text-base">${fileIcon}</span>
-
-                                    <span class="font-medium">${att.name}</span>
-
-                                    <span class="text-xs text-gray-500 dark:text-gray-400">(${this.formatFileSize(att.size)})</span>
-
-                                </div>
-
-                                <span class="font-medium text-gray-700 dark:text-gray-200 truncate max-w-[160px]">${this.escapeHtml(f.name)}</span>
-
-                            `;
-
-                            // Tornar o card clicável para abrir visualizador de arquivo
-
-                            fileCard.style.cursor = 'pointer';
-
-                            fileCard.addEventListener('click', (e) => {
-
-                                e.stopPropagation();
-
-                                try { this.viewFileModal(f); } catch (err) { console.warn('Erro abrindo arquivo:', err); }
-
-                            });
-
-                            inner.appendChild(fileCard);
-
-                        });
-
-                        attachWrap.appendChild(inner);
-
-                        messageDiv.insertBefore(attachWrap, responseDiv);
-
-                    }
-
-                }
-
-            } catch (attachErr) {
-
-                console.warn('Erro ao renderizar attachments:', attachErr);
-
             }
-
-
 
             // Adicionar indicador de thinking se houver
 
@@ -3723,251 +3662,17 @@ ${latexCode}
 
         const chat = this.chats.find(c => c.id === this.currentChatId);
 
-        if (chat) {
+                if (chat) {
 
-            const msgObj = { role: 'assistant', content: text };
+                    const msgObj = { role: 'assistant', content: text };
 
-            if (thinking) msgObj.thinking = thinking;
+                    if (thinking) msgObj.thinking = thinking;
 
-            chat.messages.push(msgObj);
-
-            this.saveCurrentChat();
-
-        }
-
-
-
-        // RETORNAR O ID PARA USO FUTURO
-
-        return uniqueId;
-
-    }
-
-
-
-    async createAssistantMessageContainer() {
-
-        const messageDiv = document.createElement('div');
-
-        messageDiv.className = 'mb-6 flex justify-start animate-slideIn';
-
-        const uniqueId = 'msg_' + Date.now();
-
-        messageDiv.innerHTML = `
-
-            <div class="flex items-start gap-3">
-
-                <!-- Vídeo animado ao lado esquerdo da resposta -->
-
-                <div class="flex-shrink-0 mt-1">
-
-                    <video autoplay muted loop playsinline class="w-8 h-8 rounded-full object-cover shadow-sm" style="filter: brightness(1.1) contrast(1.1);">
-
-                        <source src="img/Video Project.mp4" type="video/mp4">
-
-                    </video>
-
-                </div>
-
-                
-
-                <div class="flex-1 max-w-[85%] px-5 py-4">
-
-                    <div class="text-base leading-relaxed text-gray-600 dark:text-gray-300 mb-2" id="thinkingHeader_${uniqueId}"></div>
-
-                    <div class="flex items-start mb-4" id="thinkingContainer_${uniqueId}">
-
-                        <div class="flex flex-col gap-2 flex-1" id="thinkingSteps_${uniqueId}"></div>
-
-                    </div>
-
-                    
-
-                    <button class="hidden mt-2 mb-3 text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1" id="showThinking_${uniqueId}">
-
-                        <span class="material-icons-outlined text-sm">expand_more</span>
-
-                        Mostrar raciocínio
-
-                    </button>
-
-                    
-
-                    <div class="text-base leading-relaxed text-gray-700 dark:text-gray-200 min-h-4" id="responseText_${uniqueId}"></div>
-
-                </div>
-
-            </div>
-
-        `;
-
-        this.elements.messagesContainer.appendChild(messageDiv);
-
-        
-
-        // Adicionar flieira invisível com botões de ação
-
-        const actionsDiv = document.createElement('div');
-
-        actionsDiv.className = 'flex gap-2 justify-start mt-4 mb-2 px-2 opacity-0 transition-opacity duration-300';
-
-        actionsDiv.innerHTML = `
-
-            <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors" id="copyBtn_${uniqueId}" title="Copiar resposta">
-
-                <span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-400">content_copy</span>
-
-            </button>
-
-            <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors" id="regenerateBtn_${uniqueId}" title="Gerar novamente">
-
-                <span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-400">refresh</span>
-
-            </button>
-
-        `;
-
-        this.elements.messagesContainer.appendChild(actionsDiv);
-
-        
-
-        this.scrollToBottom();
-
-        
-
-        // Setup dos botões de ação
-
-        const copyBtn = document.getElementById(`copyBtn_${uniqueId}`);
-
-        const regenerateBtn = document.getElementById(`regenerateBtn_${uniqueId}`);
-
-        const showBtn = document.getElementById(`showThinking_${uniqueId}`);
-
-        
-
-        // Setup do botão "Mostrar Raciocínio"
-
-        if (showBtn) {
-
-            showBtn.addEventListener('click', (e) => {
-
-                e.preventDefault();
-
-                const stepsDiv = document.getElementById(messageContainer.stepsId);
-
-                if (stepsDiv) {
-
-                    // Animar aparecimento dos raciocínios
-
-                    stepsDiv.classList.remove('hidden');
-
-                    stepsDiv.style.transition = 'opacity 0.5s ease-in, transform 0.5s ease-in';
-
-                    stepsDiv.style.opacity = '0';
-
-                    stepsDiv.style.transform = 'translateY(10px)';
-
-                    
-
-                    setTimeout(() => {
-
-                        stepsDiv.style.opacity = '1';
-
-                        stepsDiv.style.transform = 'translateY(0)';
-
-                    }, 50);
-
-                    
-
-                    showBtn.classList.add('hidden');
-
-                    
-
-                    // Resetar após animação
-
-                    setTimeout(() => {
-
-                        stepsDiv.style.transition = '';
-
-                        stepsDiv.style.opacity = '';
-
-                        stepsDiv.style.transform = '';
-
-                    }, 550);
+                    chat.messages.push(msgObj);
 
                 }
 
-            });
-
-        }
-
-        
-
-        // Setup dos botões de ação
-
-        if (copyBtn) {
-
-            copyBtn.addEventListener('click', () => {
-
-                const responseText = document.getElementById(`responseText_${uniqueId}`);
-
-                if (responseText) {
-
-                    navigator.clipboard.writeText(responseText.textContent).then(() => {
-
-                        copyBtn.innerHTML = '<span class="material-icons-outlined text-sm text-green-600">check</span>';
-
-                        setTimeout(() => {
-
-                            copyBtn.innerHTML = '<span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-400">content_copy</span>';
-
-                        }, 2000);
-
-                    });
-
-                }
-
-            });
-
-        }
-
-        
-
-        if (regenerateBtn) {
-
-            regenerateBtn.addEventListener('click', () => {
-
-                if (window.agent) {
-
-                    window.agent.regenerateLastResponse();
-
-                }
-
-            });
-
-        }
-
-        
-
-        // RETORNAR O ID PARA USO FUTURO
-
-        return {
-
-            container: messageDiv,
-
-            headerId: `thinkingHeader_${uniqueId}`,
-
-            stepsId: `thinkingSteps_${uniqueId}`,
-
-            responseId: `responseText_${uniqueId}`,
-
-            toggleId: `toggleThinking_${uniqueId}`,
-
-            showId: `showThinking_${uniqueId}`
-
-        };
-
-    }
+            }
 
 
 
@@ -5479,16 +5184,16 @@ ${latexCode}
             console.error('❌ [TAVILY DEBUG] Erro geral na pesquisa Tavily:', error);
             console.error('❌ [TAVILY DEBUG] Stack trace:', error.stack);
             this.addErrorMessage(`Erro na pesquisa: ${error.message}`);
-        console.log("Teste rápido no navegador: anexe até 3 arquivos de texto no chat e envie uma mensagem — quando houver anexos, o sistema tentará usar 'codestral-latest' via Groq.");
-
-        console.log("Teste via Node (recomendado): node code/test_codestral.js SUA_CHAVE_GROQ");
-
+        }
     }
 }
 
+console.log("Teste rápido no navegador: anexe até 3 arquivos de texto no chat e envie uma mensagem — quando houver anexos, o sistema tentará usar 'codestral-latest' via Groq.");
+console.log("Teste via Node (recomendado): node code/test_codestral.js SUA_CHAVE_GROQ");
+
 // Inicialização do app
 document.addEventListener('DOMContentLoaded', () => {
-    new ChatApp();
+    new UI();
 });
 
 
