@@ -198,7 +198,7 @@ async function callWithEconomicModel(messages) {
         body: JSON.stringify({
             model: 'llama-3.1-8b-instant',
             messages: messages,
-            max_tokens: 2000,
+            max_tokens: 4000,
             temperature: 0.7,
             top_p: 0.9,
             stream: false
