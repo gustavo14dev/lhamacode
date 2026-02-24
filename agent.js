@@ -1229,7 +1229,6 @@ Use imagens para documentação arquitetural, protótipos visuais, ou qualquer c
         console.log(`🖼️ [PROCESS IMAGES] Encontradas ${matches.length} imagens para processar`);
         
         let processedContent = content;
-        const imageDataArray = [];
         
         // Processar cada imagem encontrada
         for (let i = 0; i < matches.length; i++) {
@@ -1244,17 +1243,20 @@ Use imagens para documentação arquitetural, protótipos visuais, ou qualquer c
                 const imageData = await this.searchImage(imageTheme);
                 
                 if (imageData) {
-                    // Adicionar ao array de dados da imagem
-                    imageDataArray.push({
-                        theme: imageTheme,
-                        ...imageData
-                    });
+                    // Renderizar imagem diretamente no HTML
+                    const imageHtml = `
+                        <div style="margin: 16px 0; text-align: center;">
+                            <img src="${imageData.url}" alt="${imageTheme}" 
+                                 style="width: 100%; max-width: 500px; height: auto; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);"
+                                 onerror="this.outerHTML='<div style=\\"padding: 20px; text-align: center; color: #666; background: #f5f5f5; border-radius: 8px;\\">❌ Falha ao carregar imagem</div>'" />
+                            <div style="margin-top: 8px; font-size: 12px; color: #666; font-style: italic;">
+                                � Fonte: Pexels - ${imageData.photographer || 'Desconhecido'}
+                            </div>
+                        </div>
+                    `;
+                    processedContent = processedContent.replace(fullMatch, imageHtml);
                     
-                    // Substituir marcador por placeholder HTML
-                    const imagePlaceholder = `<div class="ai-image-placeholder" data-image-index="${i}">🖼️ Carregando imagem: ${imageTheme}...</div>`;
-                    processedContent = processedContent.replace(fullMatch, imagePlaceholder);
-                    
-                    console.log(`✅ [PROCESS IMAGES] Imagem "${imageTheme}" encontrada e substituída`);
+                    console.log(`✅ [PROCESS IMAGES] Imagem "${imageTheme}" renderizada diretamente`);
                 } else {
                     // Se não encontrar imagem, remover marcador
                     processedContent = processedContent.replace(fullMatch, '');
@@ -1265,12 +1267,6 @@ Use imagens para documentação arquitetural, protótipos visuais, ou qualquer c
                 // Remover marcador em caso de erro
                 processedContent = processedContent.replace(fullMatch, '');
             }
-        }
-        
-        // Adicionar dados das imagens ao conteúdo para processamento posterior
-        if (imageDataArray.length > 0) {
-            processedContent = `<div class="ai-images-container" data-images='${JSON.stringify(imageDataArray)}'>${processedContent}</div>`;
-            console.log(`🖼️ [PROCESS IMAGES] ${imageDataArray.length} imagens processadas com sucesso`);
         }
         
         return processedContent;
