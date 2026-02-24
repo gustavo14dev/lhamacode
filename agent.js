@@ -1229,15 +1229,6 @@ Use imagens para documentação arquitetural, protótipos visuais, ou qualquer c
         
         if (matches.length === 0) {
             console.log('🖼️ [PROCESS IMAGES] Nenhuma imagem encontrada');
-            
-            // Teste manual para verificar se a regex funciona
-            const testContent = "Este é um teste 🖼️[Computador]🖼️ de imagem";
-            const testMatches = [...testContent.matchAll(imageMarkerRegex)];
-            console.log('🖼️ [PROCESS IMAGES] TESTE MANUAL - Matches no teste:', testMatches.length);
-            testMatches.forEach((match, index) => {
-                console.log(`🖼️ [PROCESS IMAGES] TESTE MANUAL - Match ${index}: "${match[0]}" -> tema: "${match[1]}"`);
-            });
-            
             return content;
         }
         
