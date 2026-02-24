@@ -1086,7 +1086,7 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
         };
         const systemPrompt = prompts[model] || prompts.rapido;
         
-        const messages = customMessages || [systemPrompt, ...this.conversationHistory];
+        const messages = customMessages || [{ role: 'system', content: systemPrompt }, ...this.conversationHistory];
         
         console.log('📤 Mensagens finais para API:', messages.length, 'mensagens');
         console.log('📤 Primeira mensagem:', messages[0]?.content ? (typeof messages[0].content === 'string' ? messages[0].content.substring(0, 100) + '...' : 'CONTEÚDO MULTIMÍDIA') : 'SEM CONTEÚDO');
