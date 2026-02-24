@@ -3745,7 +3745,7 @@ ${latexCode}
 
 
 
-    createAssistantMessageContainer() {
+    async createAssistantMessageContainer() {
 
         const messageDiv = document.createElement('div');
 
