@@ -3654,6 +3654,12 @@ ${latexCode}
 
             }
 
+            
+
+            // Processar imagens após renderizar o texto
+
+            this.renderAIImages(responseDiv);
+
         }
 
 
@@ -4167,6 +4173,30 @@ ${latexCode}
         // Remover apenas caracteres realmente problemáticos, mantendo formatação HTML e símbolos matemáticos
 
         formatted = formatted.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+
+        
+
+        // Processar marcadores de imagem [IMAGEM] - renderizar como placeholders que serão substituídos
+
+        formatted = formatted.replace(/\[([^\]]+)\]/g, (match, imageTheme) => {
+
+            return `<div class="ai-image-placeholder" data-theme="${this.escapeHtml(imageTheme)}" style="margin: 16px 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; text-align: center; color: white; position: relative; overflow: hidden;">
+
+                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);"></div>
+
+                <div style="position: relative; z-index: 1;">
+
+                    <div style="font-size: 48px; margin-bottom: 12px;">🖼️</div>
+
+                    <div style="font-weight: bold; font-size: 18px; margin-bottom: 8px;">Carregando imagem...</div>
+
+                    <div style="font-size: 14px; opacity: 0.9;">${this.escapeHtml(imageTheme)}</div>
+
+                </div>
+
+            </div>`;
+
+        });
 
         
 
@@ -5185,6 +5215,74 @@ ${latexCode}
             console.error('❌ [TAVILY DEBUG] Stack trace:', error.stack);
             this.addErrorMessage(`Erro na pesquisa: ${error.message}`);
         }
+    }
+
+    // Método para renderizar imagens da IA usando Pexels
+    async renderAIImages(container) {
+        const placeholders = container.querySelectorAll('.ai-image-placeholder');
+        
+        if (placeholders.length === 0) return;
+        
+        console.log(`🖼️ [RENDER IMAGES] Processando ${placeholders.length} placeholders de imagem...`);
+        
+        for (let i = 0; i < placeholders.length; i++) {
+            const placeholder = placeholders[i];
+            const imageTheme = placeholder.dataset.theme;
+            
+            if (!imageTheme) continue;
+            
+            try {
+                // Atualizar placeholder para estado "buscando"
+                placeholder.innerHTML = `
+                    <div style="position: relative; z-index: 1;">
+                        <div style="font-size: 32px; margin-bottom: 8px;">🔍</div>
+                        <div style="font-weight: bold; font-size: 16px; margin-bottom: 4px;">Buscando imagem...</div>
+                        <div style="font-size: 12px; opacity: 0.9;">${this.escapeHtml(imageTheme)}</div>
+                    </div>
+                `;
+                
+                // Chamar API Pexels
+                const response = await fetch('/api/pexels-search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: imageTheme })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro na API Pexels');
+                }
+                
+                const imageData = await response.json();
+                
+                if (imageData && imageData.url) {
+                    // Renderizar imagem encontrada
+                    placeholder.innerHTML = `
+                        <img src="${imageData.url}" alt="${this.escapeHtml(imageTheme)}" 
+                             style="width: 100%; height: auto; max-height: 400px; object-fit: cover; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"
+                             onerror="this.parentElement.innerHTML='<div style=\\"padding: 20px; text-align: center; color: #666;\\">❌ Falha ao carregar imagem</div>'" />
+                        <div style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.7); color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px;">
+                            📸 Pexels
+                        </div>
+                    `;
+                } else {
+                    throw new Error('Nenhuma imagem encontrada');
+                }
+                
+            } catch (error) {
+                console.warn(`⚠️ [RENDER IMAGES] Erro ao buscar imagem "${imageTheme}":`, error);
+                
+                // Mostrar erro no placeholder
+                placeholder.innerHTML = `
+                    <div style="position: relative; z-index: 1;">
+                        <div style="font-size: 32px; margin-bottom: 8px;">❌</div>
+                        <div style="font-weight: bold; font-size: 16px; margin-bottom: 4px;">Imagem não encontrada</div>
+                        <div style="font-size: 12px; opacity: 0.9;">${this.escapeHtml(imageTheme)}</div>
+                    </div>
+                `;
+            }
+        }
+        
+        console.log('✅ [RENDER IMAGES] Processamento de imagens concluído');
     }
 }
 
