@@ -874,6 +874,12 @@ class UI {
 
         
 
+        // Inicializar o botão de modelo com o padrão "Rápido"
+
+        this.setModel(this.currentModel);
+
+        
+
         // Configurar botão de criar com verificação
 
         const createBtn = document.getElementById('createButton');

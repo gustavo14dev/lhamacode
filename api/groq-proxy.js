@@ -4,6 +4,12 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Verificar configuração das 3 APIs
+  console.log('🔑 === VERIFICAÇÃO DE APIs GROQ ===');
+  console.log('🔑 GROQ_API_KEY:', process.env.GROQ_API_KEY ? '✅ Configurada' : '❌ Não configurada');
+  console.log('🔑 GROQ_API_KEY_2:', process.env.GROQ_API_KEY_2 ? '✅ Configurada' : '❌ Não configurada');
+  console.log('🔑 GROQ_API_KEY_3:', process.env.GROQ_API_KEY_3 ? '✅ Configurada' : '❌ Não configurada');
+  
   // Array com as 3 chaves API em ordem de prioridade
   const apiKeys = [
     process.env.GROQ_API_KEY,
@@ -11,13 +17,23 @@ export default async function handler(req, res) {
     process.env.GROQ_API_KEY_3
   ].filter(key => key); // Remove chaves vazias/nulas
 
-  console.log('🔑 [GROQ PROXY] Chaves disponíveis:', apiKeys.length);
+  console.log('🔑 [GROQ PROXY] Chaves disponíveis:', apiKeys.length, '/ 3');
   
   if (apiKeys.length === 0) {
+    console.log('❌ NENHUMA API GROQ CONFIGURADA!');
     return res.status(500).json({ 
       error: 'Nenhuma GROQ_API_KEY configurada no ambiente' 
     });
   }
+  
+  if (apiKeys.length === 1) {
+    console.log('⚠️ APENAS 1 API GROQ CONFIGURADA (recomendado: 3)');
+  } else if (apiKeys.length === 2) {
+    console.log('⚠️ APENAS 2 APIs GROQ CONFIGURADAS (recomendado: 3)');
+  } else {
+    console.log('✅ TODAS AS 3 APIs GROQ CONFIGURADAS! Sistema com máxima redundância.');
+  }
+  console.log('=====================================');
 
   // Tentar cada chave API em sequência
   for (let i = 0; i < apiKeys.length; i++) {
@@ -39,7 +55,7 @@ export default async function handler(req, res) {
       const data = await response.json();
       
       if (response.ok) {
-        console.log(`✅ [GROQ PROXY] Chave ${keyNumber} funcionou!`);
+        console.log(`✅ [GROQ PROXY] Chave ${keyNumber} funcionou! Resposta gerada com sucesso.`);
         return res.status(200).json(data);
       } else {
         // Verificar se é erro de limite de taxa
@@ -67,7 +83,7 @@ export default async function handler(req, res) {
   }
 
   // Se chegou aqui, todas as chaves falharam
-  console.log('❌ [GROQ PROXY] Todas as chaves falharam!');
+  console.log('❌ [GROQ PROXY] Todas as chaves falharam! Sistema sem APIs disponíveis.');
   return res.status(500).json({ 
     error: 'Todas as APIs Groq estão indisponíveis no momento. Tente novamente em alguns minutos.',
     friendly_message: 'Ops! Parece que nossos servidores estão muito ocupados agora. Por favor, tente novamente em alguns minutos. 🚀'
