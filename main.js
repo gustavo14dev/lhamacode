@@ -34,7 +34,7 @@ class UI {
 
         this.currentChatId = null;
 
-        this.currentModel = 'raciocinio';
+        this.currentModel = 'rapido';
 
         
 

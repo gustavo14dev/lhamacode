@@ -1142,17 +1142,22 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
 
             if (!response.ok) {
                 const status = response.status;
-                const text = await response.text().catch(() => null);
-                console.error('❌ Erro na resposta:', status, text);
+                const errorData = await response.json().catch(() => null);
+                console.error('❌ Erro na resposta:', status, errorData);
+                
+                // Verificar se é mensagem amigável do fallback
+                if (errorData?.friendly_message) {
+                    throw new Error(errorData.friendly_message);
+                }
                 
                 // Mensagens amigáveis para erros comuns
-                if (status === 500 && text && text.includes('GROQ_API_KEY is not configured')) {
+                if (status === 500 && errorData && errorData.error && errorData.error.includes('GROQ_API_KEY')) {
                     throw new Error('GROQ API Key não está configurada no servidor. Adicione GROQ_API_KEY nas Environment Variables do Vercel.');
                 }
                 if (status === 401) {
                     throw new Error('Invalid API Key: Verifique sua chave no Vercel para GROQ_API_KEY.');
                 }
-                throw new Error(text || `Erro HTTP ${status}`);
+                throw new Error(errorData?.error || `Erro HTTP ${status}`);
             }
 
             const data = await response.json().catch(() => ({}));
