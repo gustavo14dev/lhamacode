@@ -563,8 +563,16 @@ export class Agent {
             // limpar extras para próxima chamada
             this.extraMessagesForNextCall = null;
 
-            this.addToHistory('assistant', response);
-            this.ui.setResponseText(response, `responseText_${messageContainer}`);
+            // Buscar imagens relevantes com base na resposta da IA
+            const images = await this.searchPexelsImages(response);
+            const responseWithImages = {
+                text: response,
+                images: images
+            };
+
+            // Adicionar a resposta (texto + imagens) ao histórico e exibir na UI
+            this.addToHistory('assistant', responseWithImages);
+            this.ui.setResponseTextWithImages(responseWithImages, `responseText_${messageContainer}`);
             
             // Mostrar botões de ação quando resposta estiver completa
             const actionsDiv = document.getElementById(`actions_${messageContainer}`);
@@ -1200,28 +1208,29 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
     }
 
     async searchPexelsImages(query) {
-        const apiKey = process.env.PEXELS_API_KEY;
-        if (!apiKey) {
-            console.warn('PEXELS_API_KEY não está configurada no ambiente.');
-            return [];
-        }
-        const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=3`;
+        // Chamar o proxy server-side para a API do Pexels
+        const proxyUrl = '/api/pexels-proxy';
 
         try {
-            const response = await fetch(url, {
+            const response = await fetch(proxyUrl, {
+                method: 'POST',
                 headers: {
-                    'Authorization': apiKey
-                }
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ query: query })
             });
+
             if (!response.ok) {
-                console.error('Erro ao buscar imagens do Pexels:', response.status, response.statusText);
+                const errorData = await response.json();
+                console.error('Erro ao buscar imagens do Pexels via proxy:', response.status, errorData.error || response.statusText);
                 return [];
             }
             const data = await response.json();
             if (data.photos && Array.isArray(data.photos)) {
                 return data.photos.map(photo => ({
                     src: photo.src.medium,
-                    alt: photo.alt
+                    // Limitar o texto alt para evitar descrições muito longas na UI
+                    alt: photo.alt ? photo.alt.substring(0, 100) : 'Imagem do Pexels'
                 }));
             }
             return [];
@@ -1230,41 +1239,6 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
             return [];
         }
     }
-
-    async processMessageWithImages(userMessage) {
-        const messageContainer = this.ui.createAssistantMessageContainer();
-        this.addToHistory('user', userMessage);
-
-        try {
-            let response = await this.callGroqAPI('llama-3.1-8b-instant', [
-                { role: 'system', content: this.getSystemPrompt('rapido') },
-                ...this.conversationHistory
-            ]);
-
-            const images = await this.searchPexelsImages(response);
-            const responseWithImages = {
-                text: response,
-                images: images
-            };
-
-            this.addToHistory('assistant', responseWithImages);
-            this.ui.setResponseTextWithImages(responseWithImages, `responseText_${messageContainer}`);
-
-            const actionsDiv = document.getElementById(`actions_${messageContainer}`);
-            if (actionsDiv) {
-                actionsDiv.classList.remove('opacity-0');
-                actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
-            }
-        } catch (error) {
-            if (error.message === 'ABORTED') {
-                console.log('⚠️ Geração interrompida pelo usuário');
-                return;
-            }
-            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem. ' + error.message, `responseText_${messageContainer}`);
-            console.error('Erro no Modelo Rápido:', error);
-        }
-    }
-
     // ==================== UTILITIES ====================
     addToHistory(role, content) {
         this.conversationHistory.push({
