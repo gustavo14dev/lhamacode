@@ -4378,7 +4378,7 @@ ${latexCode}
 
     }
 
-    // Método para adicionar carrossel de imagens (estilo ChatGPT - carrossel verdadeiro)
+    // Método para adicionar carrossel de imagens (minimalista invisível)
     appendImagesToMessage(responseId, images) {
         console.log('🎯 [APPEND] Método chamado com responseId:', responseId);
         console.log('🎯 [APPEND] Images:', images);
@@ -4393,45 +4393,19 @@ ${latexCode}
         
         console.log(`🖼️ [CARROSSEL] Adicionando ${images.length} imagens DEPOIS da resposta ${responseId}`);
         
-        // Criar carrossel verdadeiro com navegação
-        const carouselId = `carousel_${Date.now()}`;
+        // Criar carrossel minimalista - invisível, sem texto, 3 imagens visíveis
         const carouselHtml = `
-            <div style="margin-top: 20px; padding: 16px; background: #f8f9fa; border-radius: 12px; border: 1px solid #e9ecef;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                    <span style="font-size: 14px; font-weight: 600; color: #495057;">📸 Imagens relacionadas</span>
-                    <div style="display: flex; gap: 8px;">
-                        <button onclick="document.getElementById('${carouselId}').scrollLeft -= 220;" 
-                                style="width: 32px; height: 32px; border-radius: 50%; border: 1px solid #dee2e6; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; transition: all 0.2s;"
-                                onmouseover="this.style.background='#f1f3f4'; this.style.borderColor='#adb5bd';"
-                                onmouseout="this.style.background='white'; this.style.borderColor='#dee2e6';">
-                            ◀
-                        </button>
-                        <button onclick="document.getElementById('${carouselId}').scrollLeft += 220;" 
-                                style="width: 32px; height: 32px; border-radius: 50%; border: 1px solid #dee2e6; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; transition: all 0.2s;"
-                                onmouseover="this.style.background='#f1f3f4'; this.style.borderColor='#adb5bd';"
-                                onmouseout="this.style.background='white'; this.style.borderColor='#dee2e6';">
-                            ▶
-                        </button>
+            <div style="margin-top: 20px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                ${images.map((img, index) => `
+                    <div style="flex-shrink: 0; width: 200px; height: 150px; border-radius: 8px; overflow: hidden; cursor: pointer;"
+                         onclick="window.open('${img.src}', '_blank')"
+                         onmouseover="this.style.transform='scale(1.05)'; this.style.transition='transform 0.2s ease';"
+                         onmouseout="this.style.transform='scale(1)';">
+                        <img src="${img.src}" alt="" 
+                             style="width: 100%; height: 100%; object-fit: cover; display: block;"
+                             onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'display: flex; align-items: center; justify-content: center; height: 100%; color: #999; font-size: 12px;\\'>❌</div>'" />
                     </div>
-                </div>
-                <div id="${carouselId}" style="display: flex; gap: 12px; overflow-x: auto; scroll-behavior: smooth; padding: 8px 0; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: #dee2e6 transparent;">
-                    ${images.map((img, index) => `
-                        <div style="flex-shrink: 0; width: 200px; height: 150px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.3s ease; cursor: pointer; background: white; border: 1px solid #e9ecef;"
-                             onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 4px 16px rgba(0,0,0,0.15)';"
-                             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)';"
-                             onclick="window.open('${img.src}', '_blank')">
-                            <img src="${img.src}" alt="${img.alt}" 
-                                 style="width: 100%; height: 100%; object-fit: cover; display: block;"
-                                 onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'display: flex; align-items: center; justify-content: center; height: 100%; color: #6c757d; font-size: 14px;\\'>❌ Imagem não disponível</div>'" />
-                            <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); color: white; padding: 12px 8px 8px; font-size: 12px; line-height: 1.3;">
-                                ${img.alt.length > 50 ? img.alt.substring(0, 50) + '...' : img.alt}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                <div style="margin-top: 8px; text-align: center; font-size: 11px; color: #6c757d;">
-                    Clique na imagem para ampliar • Use as setas para navegar
-                </div>
+                `).join('')}
             </div>
         `;
         
@@ -4440,7 +4414,7 @@ ${latexCode}
         // Inserir DEPOIS do conteúdo existente
         responseDiv.insertAdjacentHTML('beforeend', carouselHtml);
         
-        console.log('✅ [CARROSSEL] Carrossel profissional adicionado DEPOIS da resposta!');
+        console.log('✅ [CARROSSEL] Carrossel minimalista adicionado DEPOIS da resposta!');
     }
 
 

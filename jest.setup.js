@@ -17,13 +17,29 @@ document.body.innerHTML = `
 `;
 
 // Mock localStorage
-const localStorageMock = {
-  getItem: jest.fn(() => null),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn()
-};
-global.localStorage = localStorageMock;
+const localStorageMock = (function() {
+    let store = {};
+    return {
+        getItem: function(key) {
+            return store[key] || null;
+        },
+        setItem: function(key, value) {
+            store[key] = value.toString();
+        },
+        removeItem: function(key) {
+            delete store[key];
+        },
+        clear: function() {
+            store = {};
+        }
+    };
+})();
+Object.defineProperty(window, 'localStorage', {
+    value: localStorageMock
+});
+
+// Mock scrollTo
+window.HTMLElement.prototype.scrollTo = jest.fn();
 
 // Mock hljs
 global.hljs = {
