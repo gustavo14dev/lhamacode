@@ -314,6 +314,10 @@ export class Agent {
         this.ui.setThinkingHeader('Processando com Mistral (codestral-latest)...', messageContainer.headerId);
         await this.ui.sleep(800);
         this.addToHistory('user', userMessage);
+        
+        // Iniciar busca de imagens em paralelo
+        const imagesPromise = this.searchPexelsImages(userMessage);
+
         try {
             // Gerar checks antes da chamada Mistral para mostrar raciocínio também neste fluxo
             const thinkingChecks = await this.generateChecksSafely(userMessage);
@@ -385,7 +389,8 @@ export class Agent {
             
             this.ui.setResponseText(response, messageContainer.responseId);
             await this.ui.sleep(500);
-            this.ui.setResponseText(response, messageContainer.responseId, () => {
+            this.ui.setResponseText(response, messageContainer.responseId, async () => {
+                await this.displayImagesIfAvailable(imagesPromise, messageContainer.container.id.replace('msg_', ''));
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
             });
@@ -518,6 +523,18 @@ export class Agent {
         }
     }
 
+    // Helper para exibir imagens se disponíveis (usado por todos os modelos)
+    async displayImagesIfAvailable(imagesPromise, messageId) {
+        try {
+            const images = await imagesPromise;
+            if (images && images.length > 0) {
+                this.ui.appendImagesToMessage(`responseText_msg_${messageId}`, images);
+            }
+        } catch (e) {
+            console.error('Erro ao carregar imagens:', e);
+        }
+    }
+
     // Anexa arquivos parseados ao objeto de chat para reutilização em chamadas futuras
     attachGeneratedFilesToChat(files) {
         try {
@@ -571,15 +588,9 @@ export class Agent {
             
             // Exibir na UI usando o método padrão que suporta HTML
             this.ui.setResponseText(response, `responseText_${messageContainer}`, async () => {
-                // Callback executado após o texto terminar de ser digitado
-                try {
-                    const images = await imagesPromise;
-                    if (images && images.length > 0) {
-                        this.ui.appendImagesToMessage(`responseText_${messageContainer}`, images);
-                    }
-                } catch (e) {
-                    console.error('Erro ao carregar imagens:', e);
-                }
+                // Exibir imagens (agora usando o helper padronizado)
+                // Nota: messageContainer aqui já é o ID (ex: msg_123)
+                await this.displayImagesIfAvailable(imagesPromise, messageContainer.replace('msg_', ''));
 
                 // Mostrar botões de ação quando resposta estiver completa
                 const actionsDiv = document.getElementById(`actions_${messageContainer}`);
@@ -625,6 +636,9 @@ export class Agent {
         await this.ui.sleep(300);
 
         this.addToHistory('user', userMessage);
+        
+        // Iniciar busca de imagens em paralelo
+        const imagesPromise = this.searchPexelsImages(userMessage);
 
         try {
             // ÚNICA CHAMADA API com modelo de raciocínio
@@ -667,7 +681,8 @@ export class Agent {
             this.addToHistory('assistant', finalResponse);
             
             // Mostrar resposta final
-            this.ui.setResponseText(finalResponse, messageContainer.responseId, () => {
+            this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
+                await this.displayImagesIfAvailable(imagesPromise, messageContainer.container.id.replace('msg_', ''));
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);
             });
@@ -741,6 +756,9 @@ export class Agent {
         await this.ui.sleep(800);
 
         this.addToHistory('user', userMessage);
+        
+        // Iniciar busca de imagens em paralelo
+        const imagesPromise = this.searchPexelsImages(userMessage);
 
         try {
             // ========== ETAPA 1: Primeira análise ==========
@@ -859,6 +877,9 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
             // Fechar raciocínio quando terminar
             await this.ui.sleep(500);
             this.ui.closeThinkingSteps(messageContainer.headerId);
+            
+            // Exibir imagens
+            await this.displayImagesIfAvailable(imagesPromise, messageContainer.container.id.replace('msg_', ''));
             
             // Gerar sugestões de acompanhamento
             await this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);
