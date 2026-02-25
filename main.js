@@ -4378,7 +4378,7 @@ ${latexCode}
 
     }
 
-    // Método para adicionar carrossel de imagens (estilo ChatGPT - antes da resposta)
+    // Método para adicionar carrossel de imagens (estilo ChatGPT - depois da resposta)
     appendImagesToMessage(responseId, images) {
         console.log('🎯 [APPEND] Método chamado com responseId:', responseId);
         console.log('🎯 [APPEND] Images:', images);
@@ -4391,11 +4391,11 @@ ${latexCode}
             return;
         }
         
-        console.log(`🖼️ [CARROSSEL] Adicionando ${images.length} imagens ANTES da resposta ${responseId}`);
+        console.log(`🖼️ [CARROSSEL] Adicionando ${images.length} imagens DEPOIS da resposta ${responseId}`);
         
         // Criar carrossel exatamente como ChatGPT - pequeno e elegante
         const carouselHtml = `
-            <div class="image-gallery" style="margin-bottom: 16px; display: flex; gap: 8px; overflow-x: auto; padding: 4px 0;">
+            <div class="image-gallery" style="margin-top: 16px; display: flex; gap: 8px; overflow-x: auto; padding: 4px 0;">
                 ${images.map((img, index) => `
                     <div style="flex-shrink: 0; width: 80px; height: 80px; border-radius: 6px; overflow: hidden; cursor: pointer; border: 1px solid #e5e7eb;">
                         <img src="${img.src}" alt="${img.alt}" 
@@ -4409,10 +4409,10 @@ ${latexCode}
         
         console.log('🎨 [APPEND] HTML gerado:', carouselHtml);
         
-        // Inserir ANTES do conteúdo existente
-        responseDiv.insertAdjacentHTML('afterbegin', carouselHtml);
+        // Inserir DEPOIS do conteúdo existente
+        responseDiv.insertAdjacentHTML('beforeend', carouselHtml);
         
-        console.log('✅ [CARROSSEL] Carrossel ChatGPT adicionado ANTES da resposta!');
+        console.log('✅ [CARROSSEL] Carrossel ChatGPT adicionado DEPOIS da resposta!');
     }
 
 
