@@ -565,14 +565,28 @@ export class Agent {
 
             // Buscar imagens relevantes com base na resposta da IA
             const images = await this.searchPexelsImages(response);
-            const responseWithImages = {
-                text: response,
-                images: images
-            };
+            
+            // Preparar conteúdo para exibição (Texto + HTML das imagens)
+            let displayContent = response;
+            
+            if (images && images.length > 0) {
+                const imagesHtml = images.map(img => 
+                    `<div class="relative group overflow-hidden rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 mt-2">
+                        <img src="${img.src}" alt="${img.alt}" class="w-full h-48 object-cover transform transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                            <p class="text-white text-xs font-medium truncate w-full">${img.alt}</p>
+                        </div>
+                    </div>`
+                ).join('');
+                
+                displayContent += `\n\n<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6 border-t border-gray-100 dark:border-gray-700 pt-4">${imagesHtml}</div>`;
+            }
 
-            // Adicionar a resposta (texto + imagens) ao histórico e exibir na UI
-            this.addToHistory('assistant', responseWithImages);
-            this.ui.setResponseTextWithImages(responseWithImages, `responseText_${messageContainer}`);
+            // Adicionar apenas o texto ao histórico para manter consistência
+            this.addToHistory('assistant', response);
+            
+            // Exibir na UI usando o método padrão que suporta HTML
+            this.ui.setResponseText(displayContent, `responseText_${messageContainer}`);
             
             // Mostrar botões de ação quando resposta estiver completa
             const actionsDiv = document.getElementById(`actions_${messageContainer}`);
@@ -1209,7 +1223,8 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
 
     async searchPexelsImages(query) {
         // Chamar o proxy server-side para a API do Pexels
-        const proxyUrl = '/api/pexels-proxy';
+        // CORREÇÃO: Apontar para o arquivo correto em api/pexels-search.js
+        const proxyUrl = '/api/pexels-search';
 
         try {
             const response = await fetch(proxyUrl, {
@@ -1220,11 +1235,12 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
                 body: JSON.stringify({ query: query })
             });
 
+            // Verificar se a resposta é válida antes de tentar ler JSON
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Erro ao buscar imagens do Pexels via proxy:', response.status, errorData.error || response.statusText);
+                console.error('Erro ao buscar imagens do Pexels via proxy:', response.status, response.statusText);
                 return [];
             }
+            
             const data = await response.json();
             if (data.photos && Array.isArray(data.photos)) {
                 return data.photos.map(photo => ({

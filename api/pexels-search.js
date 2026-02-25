@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
   try {
     // Fazer requisição para API Pexels
-    const searchUrl = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`;
+    const searchUrl = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=3&orientation=landscape`;
     
     console.log('🔍 Buscando imagem:', searchUrl);
 
@@ -58,9 +58,8 @@ export default async function handler(req, res) {
       });
     }
 
-    // Retornar a primeira imagem encontrada
-    const photo = data.photos[0];
-    const imageData = {
+    // Mapear e retornar as imagens encontradas
+    const images = data.photos.map(photo => ({
       url: photo.url,
       photographer: photo.photographer,
       photographer_url: photo.photographer_url,
@@ -70,10 +69,10 @@ export default async function handler(req, res) {
         small: photo.src.small
       },
       alt: photo.alt || query
-    };
+    }));
 
-    console.log('✅ Imagem encontrada com sucesso!');
-    return res.status(200).json(imageData);
+    console.log(`✅ ${images.length} imagens encontradas!`);
+    return res.status(200).json({ photos: images });
 
   } catch (error) {
     console.log('❌ Erro ao buscar imagem:', error.message);
