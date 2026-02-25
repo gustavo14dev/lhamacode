@@ -563,37 +563,31 @@ export class Agent {
             // limpar extras para próxima chamada
             this.extraMessagesForNextCall = null;
 
-            // Buscar imagens relevantes com base na resposta da IA
-            const images = await this.searchPexelsImages(response);
-            
-            // Preparar conteúdo para exibição (Texto + HTML das imagens)
-            let displayContent = response;
-            
-            if (images && images.length > 0) {
-                const imagesHtml = images.map(img => 
-                    `<div class="relative group overflow-hidden rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 mt-2">
-                        <img src="${img.src}" alt="${img.alt}" class="w-full h-48 object-cover transform transition-transform duration-700 group-hover:scale-110" loading="lazy" />
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
-                            <p class="text-white text-xs font-medium truncate w-full">${img.alt}</p>
-                        </div>
-                    </div>`
-                ).join('');
-                
-                displayContent += `\n\n<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6 border-t border-gray-100 dark:border-gray-700 pt-4">${imagesHtml}</div>`;
-            }
+            // Iniciar busca de imagens em paralelo (usando a mensagem do usuário para melhor contexto)
+            const imagesPromise = this.searchPexelsImages(userMessage);
 
             // Adicionar apenas o texto ao histórico para manter consistência
             this.addToHistory('assistant', response);
             
             // Exibir na UI usando o método padrão que suporta HTML
-            this.ui.setResponseText(displayContent, `responseText_${messageContainer}`);
-            
-            // Mostrar botões de ação quando resposta estiver completa
-            const actionsDiv = document.getElementById(`actions_${messageContainer}`);
-            if (actionsDiv) {
-                actionsDiv.classList.remove('opacity-0');
-                actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
-            }
+            this.ui.setResponseText(response, `responseText_${messageContainer}`, async () => {
+                // Callback executado após o texto terminar de ser digitado
+                try {
+                    const images = await imagesPromise;
+                    if (images && images.length > 0) {
+                        this.ui.appendImagesToMessage(`responseText_${messageContainer}`, images);
+                    }
+                } catch (e) {
+                    console.error('Erro ao carregar imagens:', e);
+                }
+
+                // Mostrar botões de ação quando resposta estiver completa
+                const actionsDiv = document.getElementById(`actions_${messageContainer}`);
+                if (actionsDiv) {
+                    actionsDiv.classList.remove('opacity-0');
+                    actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
+                }
+            });
             
             // Limpar texto de carregamento após um pequeno delay
             setTimeout(() => {
