@@ -4378,7 +4378,7 @@ ${latexCode}
 
     }
 
-    // Método para adicionar carrossel de imagens (botões bonitos, sem scroll)
+    // Método para adicionar carrossel de imagens (efeito vidro fosco, antes da resposta)
     appendImagesToMessage(responseId, images) {
         console.log('🎯 [APPEND] Método chamado com responseId:', responseId);
         console.log('🎯 [APPEND] Images:', images);
@@ -4391,17 +4391,17 @@ ${latexCode}
             return;
         }
         
-        console.log(`🖼️ [CARROSSEL] Adicionando ${images.length} imagens DEPOIS da resposta ${responseId}`);
+        console.log(`🖼️ [CARROSSEL] Adicionando ${images.length} imagens ANTES da resposta ${responseId}`);
         
-        // Criar carrossel com botões bonitos e sem scroll
+        // Criar carrossel com efeito vidro fosco
         const carouselId = `carousel_${Date.now()}`;
         const carouselHtml = `
-            <div style="margin-top: 20px; display: flex; align-items: center; gap: 12px;">
+            <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
                 ${images.length > 3 ? `
                 <button onclick="document.getElementById('${carouselId}').scrollLeft -= 636;" 
-                        style="width: 40px; height: 40px; border-radius: 50%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; transition: all 0.3s ease; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);"
-                        onmouseover="this.style.background='rgba(0, 0, 0, 0.8)'; this.style.transform='scale(1.1)';"
-                        onmouseout="this.style.background='rgba(0, 0, 0, 0.6)'; this.style.transform='scale(1)';">
+                        style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 2px solid rgba(255, 255, 255, 0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; transition: all 0.3s ease; flex-shrink: 0; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.1);"
+                        onmouseover="this.style.background='rgba(255, 255, 255, 0.15)'; this.style.transform='scale(1.05)';"
+                        onmouseout="this.style.background='rgba(255, 255, 255, 0.08)'; this.style.transform='scale(1)';">
                     ←
                 </button>
                 ` : ''}
@@ -4421,9 +4421,9 @@ ${latexCode}
                 
                 ${images.length > 3 ? `
                 <button onclick="document.getElementById('${carouselId}').scrollLeft += 636;" 
-                        style="width: 40px; height: 40px; border-radius: 50%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; transition: all 0.3s ease; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);"
-                        onmouseover="this.style.background='rgba(0, 0, 0, 0.8)'; this.style.transform='scale(1.1)';"
-                        onmouseout="this.style.background='rgba(0, 0, 0, 0.6)'; this.style.transform='scale(1)';">
+                        style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 2px solid rgba(255, 255, 255, 0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; transition: all 0.3s ease; flex-shrink: 0; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.1);"
+                        onmouseover="this.style.background='rgba(255, 255, 255, 0.15)'; this.style.transform='scale(1.05)';"
+                        onmouseout="this.style.background='rgba(255, 255, 255, 0.08)'; this.style.transform='scale(1)';">
                     →
                 </button>
                 ` : ''}
@@ -4437,10 +4437,10 @@ ${latexCode}
         
         console.log('🎨 [APPEND] HTML gerado:', carouselHtml);
         
-        // Inserir DEPOIS do conteúdo existente
-        responseDiv.insertAdjacentHTML('beforeend', carouselHtml);
+        // Inserir ANTES do conteúdo existente
+        responseDiv.insertAdjacentHTML('afterbegin', carouselHtml);
         
-        console.log('✅ [CARROSSEL] Carrossel com botões bonitos adicionado!');
+        console.log('✅ [CARROSSEL] Carrossel de vidro fosco adicionado ANTES da resposta!');
     }
 
 
