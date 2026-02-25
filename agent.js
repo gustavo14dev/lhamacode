@@ -1,6 +1,7 @@
 import { MemorySystem } from './memory-system.js';
 
 export class Agent {
+
     constructor(ui) {
         this.ui = ui;
         this.groqApiKey = null;
@@ -10,7 +11,7 @@ export class Agent {
         this.maxHistoryMessages = 50;
         this.abortController = null;
         this.isGenerating = false;
-        
+
         // Sistema de memória
         this.memory = new MemorySystem();
         this.memory.loadFromLocalStorage();
@@ -30,17 +31,17 @@ export class Agent {
     // Verificação rápida de API antes de processar
     async quickApiCheck() {
         const apiKey = this.getGroqApiKey();
-        
+
         if (!apiKey) {
             throw new Error('Nenhuma API key configurada');
         }
-        
+
         // Fazer uma requisição rápida para testar a API
         try {
             const response = await fetch(this.groqUrl, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${apiKey}`,
+                    'Authorization': `Bearer ${ apiKey }`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
@@ -49,11 +50,11 @@ export class Agent {
                     max_tokens: 1
                 })
             });
-            
+
             if (!response.ok) {
                 throw new Error(`API retornou status ${response.status}`);
             }
-            
+
             return true;
         } catch (error) {
             console.error('❌ Verificação rápida da API falhou:', error);
@@ -67,7 +68,7 @@ export class Agent {
 
         // Adicionar mensagem à memória da conversa
         this.memory.addConversationMemory('user', userMessage);
-
+    
         // Obter contexto relevante da memória
         const relevantContext = this.memory.getRelevantContext(userMessage);
         console.log('🧠 Contexto relevante encontrado:', relevantContext.length, 'memórias');
@@ -79,10 +80,10 @@ export class Agent {
         // Se a UI passou arquivos explicitamente, priorizamos esses (máx 3 para código, 5 para imagens)
         let parsedFiles = [];
         if (attachedFilesFromUI && Array.isArray(attachedFilesFromUI) && attachedFilesFromUI.length > 0) {
-            parsedFiles = attachedFilesFromUI.map(f => ({ 
-                name: f.name, 
+            parsedFiles = attachedFilesFromUI.map(f => ({
+                name: f.name,
                 content: (f.content == null) ? '' : String(f.content),
-                type: f.type || 'code',
+                type: f.type                                      || 'code',
                 mime: f.mime || ''
             }));
             console.log('� Arquivos recebidos diretamente da UI:', parsedFiles.map(f => `${f.name} (${f.type})`));
@@ -170,6 +171,7 @@ export class Agent {
         
         this.addToHistory('user', userMessage);
         
+
         try {
             // Construir prompt com contexto da memória
             let memoryContext = '';
@@ -193,9 +195,9 @@ export class Agent {
                     content: userMessage
                 }
             ];
-            
+
             console.log('🔍 Usando modelo de pesquisa: openai/gpt-oss-20b');
-            let response = await this.callGroqAPIWithBrowserSearch('openai/gpt-oss-20b', messages);
+            let response = await this.callGroqAPIWithBrowserSearch('openai/gpt-oss-20b', messages);    
             
             if (!response || typeof response !== 'string') {
                 throw new Error('Resposta vazia ou inválida do servidor de pesquisa');
@@ -219,7 +221,7 @@ export class Agent {
             this.memory.learnFromInteraction(userMessage, response);
             
             this.ui.setResponseText(response, messageContainer.responseId, () => {
-                // Gerar sugestões de acompanhamento só quando resposta estiver completa
+              // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
             });
             this.ui.closeThinkingSteps(messageContainer.headerId);
@@ -229,7 +231,7 @@ export class Agent {
                 console.log('⚠️ Geração interrompida pelo usuário');
                 return;
             }
-            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua pesquisa. ' + error.message, messageContainer.responseId);
+          this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua pesquisa. ' + error.message, messageContainer.responseId);
             console.error('Erro no Modelo de Pesquisa:', error);
         }
     }
@@ -1067,7 +1069,7 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
     }
 
     // ==================== APIS ====================
-    // Gemini API methods removed (attachments/Gemini integration disabled)
+
 
     async callGroqAPI(model, customMessages = null) {
         console.log('🚀 callGroqAPI iniciado');
@@ -1194,6 +1196,72 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
                 throw new Error('ABORTED');
             }
             throw error;
+        }
+    }
+
+    async searchPexelsImages(query) {
+        const apiKey = process.env.PEXELS_API_KEY;
+        if (!apiKey) {
+            console.warn('PEXELS_API_KEY não está configurada no ambiente.');
+            return [];
+        }
+        const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=3`;
+
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': apiKey
+                }
+            });
+            if (!response.ok) {
+                console.error('Erro ao buscar imagens do Pexels:', response.status, response.statusText);
+                return [];
+            }
+            const data = await response.json();
+            if (data.photos && Array.isArray(data.photos)) {
+                return data.photos.map(photo => ({
+                    src: photo.src.medium,
+                    alt: photo.alt
+                }));
+            }
+            return [];
+        } catch (error) {
+            console.error('Erro ao buscar imagens do Pexels:', error);
+            return [];
+        }
+    }
+
+    async processMessageWithImages(userMessage) {
+        const messageContainer = this.ui.createAssistantMessageContainer();
+        this.addToHistory('user', userMessage);
+
+        try {
+            let response = await this.callGroqAPI('llama-3.1-8b-instant', [
+                { role: 'system', content: this.getSystemPrompt('rapido') },
+                ...this.conversationHistory
+            ]);
+
+            const images = await this.searchPexelsImages(response);
+            const responseWithImages = {
+                text: response,
+                images: images
+            };
+
+            this.addToHistory('assistant', responseWithImages);
+            this.ui.setResponseTextWithImages(responseWithImages, `responseText_${messageContainer}`);
+
+            const actionsDiv = document.getElementById(`actions_${messageContainer}`);
+            if (actionsDiv) {
+                actionsDiv.classList.remove('opacity-0');
+                actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
+            }
+        } catch (error) {
+            if (error.message === 'ABORTED') {
+                console.log('⚠️ Geração interrompida pelo usuário');
+                return;
+            }
+            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem. ' + error.message, `responseText_${messageContainer}`);
+            console.error('Erro no Modelo Rápido:', error);
         }
     }
 
