@@ -223,9 +223,15 @@ export class Agent {
             this.memory.learnFromInteraction(userMessage, response);
             
             // Esperar imagens e adicionar ANTES da resposta
+            console.log('🔄 [DEBUG] Esperando imagens...');
             const images = await imagesPromise;
+            console.log('📦 [DEBUG] Imagens recebidas:', images);
+            
             if (images && images.length > 0) {
+                console.log('✅ [DEBUG] Adicionando imagens ANTES da resposta');
                 this.ui.appendImagesToMessage(messageContainer.responseId, images);
+            } else {
+                console.log('❌ [DEBUG] Nenhuma imagem encontrada ou array vazio');
             }
             
             this.ui.setResponseText(response, messageContainer.responseId, async () => {
@@ -300,9 +306,15 @@ export class Agent {
             this.memory.learnFromInteraction(userMessage, response);
             
             // Esperar imagens e adicionar ANTES da resposta
+            console.log('🔄 [DEBUG] Esperando imagens...');
             const images = await imagesPromise;
+            console.log('📦 [DEBUG] Imagens recebidas:', images);
+            
             if (images && images.length > 0) {
+                console.log('✅ [DEBUG] Adicionando imagens ANTES da resposta');
                 this.ui.appendImagesToMessage(messageContainer.responseId, images);
+            } else {
+                console.log('❌ [DEBUG] Nenhuma imagem encontrada ou array vazio');
             }
             
             this.ui.setResponseText(response, messageContainer.responseId, async () => {
@@ -603,13 +615,19 @@ export class Agent {
             const imagesPromise = this.searchPexelsImages(userMessage);
 
             // Esperar imagens e adicionar ANTES da resposta
+            console.log('🔄 [DEBUG-RAPIDO] Esperando imagens...');
             const images = await imagesPromise;
+            console.log('📦 [DEBUG-RAPIDO] Imagens recebidas:', images);
+            
             if (images && images.length > 0) {
+                console.log('✅ [DEBUG-RAPIDO] Adicionando imagens ANTES da resposta');
                 // Adicionar imagens ANTES de renderizar o texto
                 const tempDiv = document.createElement('div');
                 tempDiv.id = `responseText_${messageContainer}`;
                 tempDiv.innerHTML = ''; // Conteúdo vazio por enquanto
                 this.ui.appendImagesToMessage(`responseText_${messageContainer}`, images);
+            } else {
+                console.log('❌ [DEBUG-RAPIDO] Nenhuma imagem encontrada ou array vazio');
             }
 
             // Adicionar apenas o texto ao histórico para manter consistência

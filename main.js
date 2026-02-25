@@ -4380,8 +4380,16 @@ ${latexCode}
 
     // Método para adicionar carrossel de imagens (estilo ChatGPT - antes da resposta)
     appendImagesToMessage(responseId, images) {
+        console.log('🎯 [APPEND] Método chamado com responseId:', responseId);
+        console.log('🎯 [APPEND] Images:', images);
+        
         const responseDiv = document.getElementById(responseId);
-        if (!responseDiv || !images || images.length === 0) return;
+        console.log('🎯 [APPEND] Elemento encontrado:', responseDiv);
+        
+        if (!responseDiv || !images || images.length === 0) {
+            console.log('❌ [APPEND] Saindo - responseDiv ou images inválidos');
+            return;
+        }
         
         console.log(`🖼️ [CARROSSEL] Adicionando ${images.length} imagens ANTES da resposta ${responseId}`);
         
@@ -4398,6 +4406,8 @@ ${latexCode}
                 `).join('')}
             </div>
         `;
+        
+        console.log('🎨 [APPEND] HTML gerado:', carouselHtml);
         
         // Inserir ANTES do conteúdo existente
         responseDiv.insertAdjacentHTML('afterbegin', carouselHtml);
