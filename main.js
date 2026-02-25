@@ -4378,7 +4378,7 @@ ${latexCode}
 
     }
 
-    // Método para adicionar carrossel de imagens (3 visíveis, navegação discreta)
+    // Método para adicionar carrossel de imagens (botões bonitos, sem scroll)
     appendImagesToMessage(responseId, images) {
         console.log('🎯 [APPEND] Método chamado com responseId:', responseId);
         console.log('🎯 [APPEND] Images:', images);
@@ -4393,11 +4393,20 @@ ${latexCode}
         
         console.log(`🖼️ [CARROSSEL] Adicionando ${images.length} imagens DEPOIS da resposta ${responseId}`);
         
-        // Criar carrossel compacto - apenas 3 imagens visíveis
+        // Criar carrossel com botões bonitos e sem scroll
         const carouselId = `carousel_${Date.now()}`;
         const carouselHtml = `
-            <div style="margin-top: 20px; display: flex; align-items: center; gap: 8px;">
-                <div id="${carouselId}" style="display: flex; gap: 8px; overflow-x: hidden; scroll-behavior: smooth; max-width: 636px; flex: 1;">
+            <div style="margin-top: 20px; display: flex; align-items: center; gap: 12px;">
+                ${images.length > 3 ? `
+                <button onclick="document.getElementById('${carouselId}').scrollLeft -= 636;" 
+                        style="width: 40px; height: 40px; border-radius: 50%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; transition: all 0.3s ease; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);"
+                        onmouseover="this.style.background='rgba(0, 0, 0, 0.8)'; this.style.transform='scale(1.1)';"
+                        onmouseout="this.style.background='rgba(0, 0, 0, 0.6)'; this.style.transform='scale(1)';">
+                    ←
+                </button>
+                ` : ''}
+                
+                <div id="${carouselId}" style="display: flex; gap: 8px; overflow-x: hidden; scroll-behavior: smooth; max-width: 636px; flex: 1; scrollbar-width: none; -ms-overflow-style: none;">
                     ${images.map((img, index) => `
                         <div style="flex-shrink: 0; width: 200px; height: 150px; border-radius: 8px; overflow: hidden; cursor: pointer;"
                              onclick="window.open('${img.src}', '_blank')"
@@ -4412,13 +4421,18 @@ ${latexCode}
                 
                 ${images.length > 3 ? `
                 <button onclick="document.getElementById('${carouselId}').scrollLeft += 636;" 
-                        style="width: 32px; height: 32px; border-radius: 50%; background: white; border: 1px solid #e5e7eb; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #6b7280; transition: all 0.2s; flex-shrink: 0;"
-                        onmouseover="this.style.background='#f9fafb'; this.style.borderColor='#d1d5db';"
-                        onmouseout="this.style.background='white'; this.style.borderColor='#e5e7eb';">
-                    >
+                        style="width: 40px; height: 40px; border-radius: 50%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; transition: all 0.3s ease; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);"
+                        onmouseover="this.style.background='rgba(0, 0, 0, 0.8)'; this.style.transform='scale(1.1)';"
+                        onmouseout="this.style.background='rgba(0, 0, 0, 0.6)'; this.style.transform='scale(1)';">
+                    →
                 </button>
                 ` : ''}
             </div>
+            <style>
+                #${carouselId}::-webkit-scrollbar {
+                    display: none;
+                }
+            </style>
         `;
         
         console.log('🎨 [APPEND] HTML gerado:', carouselHtml);
@@ -4426,7 +4440,7 @@ ${latexCode}
         // Inserir DEPOIS do conteúdo existente
         responseDiv.insertAdjacentHTML('beforeend', carouselHtml);
         
-        console.log('✅ [CARROSSEL] Carrossel compacto adicionado!');
+        console.log('✅ [CARROSSEL] Carrossel com botões bonitos adicionado!');
     }
 
 
