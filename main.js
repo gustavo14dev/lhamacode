@@ -4378,6 +4378,54 @@ ${latexCode}
 
     }
 
+    // Método para adicionar carrossel de imagens a uma mensagem
+    appendImagesToMessage(responseId, images) {
+        const responseDiv = document.getElementById(responseId);
+        if (!responseDiv || !images || images.length === 0) return;
+        
+        console.log(`🖼️ [CARROSSEL] Adicionando ${images.length} imagens à mensagem ${responseId}`);
+        
+        // Criar carrossel de imagens
+        const carouselHtml = `
+            <div class="images-carousel" style="margin-top: 20px; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; position: relative;">
+                <div style="color: white; font-size: 14px; font-weight: bold; margin-bottom: 12px; text-align: center;">
+                    🖼️ Imagens relacionadas
+                </div>
+                <div class="carousel-container" style="display: flex; gap: 12px; overflow-x: auto; padding: 8px 0; scroll-behavior: smooth;">
+                    ${images.map((img, index) => `
+                        <div class="carousel-item" style="flex-shrink: 0; width: 200px; text-align: center;">
+                            <img src="${img.src}" alt="${img.alt}" 
+                                 style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); cursor: pointer;"
+                                 onclick="window.open('${img.src}', '_blank')"
+                                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDIwMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIiBmaWxsPSIjZTVlN2ViIi8+Cjx0ZXh0IHg9IjEwMCIgeT0iNjAiIGZpbGw9IiM5Y2EzYWYiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+SW1hZ2VtIG5hbyBjYXJyZWdhZGE8L3RleHQ+Cjwvc3ZnPg=='" />
+                            <div style="margin-top: 8px; font-size: 11px; color: rgba(255,255,255,0.8); line-height: 1.2;">
+                                ${img.alt.length > 30 ? img.alt.substring(0, 30) + '...' : img.alt}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div style="margin-top: 12px; text-align: center;">
+                    <button onclick="this.parentElement.parentElement.querySelector('.carousel-container').scrollLeft -= 220;" 
+                            style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; margin-right: 8px;">
+                        ◀ Anterior
+                    </button>
+                    <button onclick="this.parentElement.parentElement.querySelector('.carousel-container').scrollLeft += 220;" 
+                            style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">
+                        Próximo ▶
+                    </button>
+                </div>
+                <div style="margin-top: 8px; text-align: center; font-size: 10px; color: rgba(255,255,255,0.6);">
+                    📸 Imagens via Pexels API
+                </div>
+            </div>
+        `;
+        
+        // Adicionar carrossel ao final da resposta
+        responseDiv.insertAdjacentHTML('beforeend', carouselHtml);
+        
+        console.log('✅ [CARROSSEL] Carrossel de imagens adicionado com sucesso!');
+    }
+
 
 
     escapeHtml(text) {

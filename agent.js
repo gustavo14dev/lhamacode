@@ -171,6 +171,8 @@ export class Agent {
         
         this.addToHistory('user', userMessage);
         
+        // Iniciar busca de imagens em paralelo
+        const imagesPromise = this.searchPexelsImages(userMessage);
 
         try {
             // Construir prompt com contexto da memória
@@ -220,7 +222,9 @@ export class Agent {
             this.memory.addConversationMemory('assistant', response);
             this.memory.learnFromInteraction(userMessage, response);
             
-            this.ui.setResponseText(response, messageContainer.responseId, () => {
+            this.ui.setResponseText(response, messageContainer.responseId, async () => {
+              // Exibir imagens do carrossel
+              await this.displayImagesIfAvailable(imagesPromise, messageContainer.container.id.replace('msg_', ''));
               // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
             });
@@ -290,7 +294,9 @@ export class Agent {
             this.memory.addConversationMemory('assistant', response);
             this.memory.learnFromInteraction(userMessage, response);
             
-            this.ui.setResponseText(response, messageContainer.responseId, () => {
+            this.ui.setResponseText(response, messageContainer.responseId, async () => {
+                // Exibir imagens do carrossel
+                await this.displayImagesIfAvailable(imagesPromise, messageContainer.container.id.replace('msg_', ''));
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
             });
@@ -569,6 +575,9 @@ export class Agent {
         }
 
         this.addToHistory('user', userMessage);
+        
+        // Iniciar busca de imagens em paralelo
+        const imagesPromise = this.searchPexelsImages(userMessage);
 
         try {
             const messages = this.extraMessagesForNextCall ? [
@@ -1237,6 +1246,8 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
     }
 
     async searchPexelsImages(query) {
+        console.log(`🔍 [PEXELS] Buscando imagens para: "${query}"`);
+        
         // Chamar o proxy server-side para a API do Pexels
         // CORREÇÃO: Apontar para o arquivo correto em api/pexels-search.js
         const proxyUrl = '/api/pexels-search';
@@ -1250,6 +1261,8 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
                 body: JSON.stringify({ query: query })
             });
 
+            console.log(`📡 [PEXELS] Resposta status: ${response.status}`);
+
             // Verificar se a resposta é válida antes de tentar ler JSON
             if (!response.ok) {
                 console.error('Erro ao buscar imagens do Pexels via proxy:', response.status, response.statusText);
@@ -1257,13 +1270,18 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
             }
             
             const data = await response.json();
+            console.log(`📦 [PEXELS] Dados recebidos:`, data);
+            
             if (data.photos && Array.isArray(data.photos)) {
-                return data.photos.map(photo => ({
+                const images = data.photos.map(photo => ({
                     src: photo.src.medium,
                     // Limitar o texto alt para evitar descrições muito longas na UI
                     alt: photo.alt ? photo.alt.substring(0, 100) : 'Imagem do Pexels'
                 }));
+                console.log(`✅ [PEXELS] ${images.length} imagens processadas`);
+                return images;
             }
+            console.log(`⚠️ [PEXELS] Nenhuma imagem encontrada`);
             return [];
         } catch (error) {
             console.error('Erro ao buscar imagens do Pexels:', error);
