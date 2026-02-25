@@ -222,9 +222,14 @@ export class Agent {
             this.memory.addConversationMemory('assistant', response);
             this.memory.learnFromInteraction(userMessage, response);
             
+            // Esperar imagens e adicionar ANTES da resposta
+            const images = await imagesPromise;
+            if (images && images.length > 0) {
+                this.ui.appendImagesToMessage(messageContainer.responseId, images);
+            }
+            
             this.ui.setResponseText(response, messageContainer.responseId, async () => {
-              // Exibir imagens do carrossel
-              await this.displayImagesIfAvailable(imagesPromise, messageContainer.container.id.replace('msg_', ''));
+              // Imagens já foram adicionadas antes
               // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
             });
@@ -294,9 +299,14 @@ export class Agent {
             this.memory.addConversationMemory('assistant', response);
             this.memory.learnFromInteraction(userMessage, response);
             
+            // Esperar imagens e adicionar ANTES da resposta
+            const images = await imagesPromise;
+            if (images && images.length > 0) {
+                this.ui.appendImagesToMessage(messageContainer.responseId, images);
+            }
+            
             this.ui.setResponseText(response, messageContainer.responseId, async () => {
-                // Exibir imagens do carrossel
-                await this.displayImagesIfAvailable(imagesPromise, messageContainer.container.id.replace('msg_', ''));
+                // Imagens já foram adicionadas antes
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
             });
@@ -592,14 +602,22 @@ export class Agent {
             // Iniciar busca de imagens em paralelo (usando a mensagem do usuário para melhor contexto)
             const imagesPromise = this.searchPexelsImages(userMessage);
 
+            // Esperar imagens e adicionar ANTES da resposta
+            const images = await imagesPromise;
+            if (images && images.length > 0) {
+                // Adicionar imagens ANTES de renderizar o texto
+                const tempDiv = document.createElement('div');
+                tempDiv.id = `responseText_${messageContainer}`;
+                tempDiv.innerHTML = ''; // Conteúdo vazio por enquanto
+                this.ui.appendImagesToMessage(`responseText_${messageContainer}`, images);
+            }
+
             // Adicionar apenas o texto ao histórico para manter consistência
             this.addToHistory('assistant', response);
             
             // Exibir na UI usando o método padrão que suporta HTML
             this.ui.setResponseText(response, `responseText_${messageContainer}`, async () => {
-                // Exibir imagens (agora usando o helper padronizado)
-                // Nota: messageContainer aqui já é o ID (ex: msg_123)
-                await this.displayImagesIfAvailable(imagesPromise, messageContainer.replace('msg_', ''));
+                // Imagens já foram adicionadas antes
 
                 // Mostrar botões de ação quando resposta estiver completa
                 const actionsDiv = document.getElementById(`actions_${messageContainer}`);

@@ -4378,43 +4378,31 @@ ${latexCode}
 
     }
 
-    // Método para adicionar carrossel de imagens a uma mensagem (estilo ChatGPT)
+    // Método para adicionar carrossel de imagens (estilo ChatGPT - antes da resposta)
     appendImagesToMessage(responseId, images) {
         const responseDiv = document.getElementById(responseId);
         if (!responseDiv || !images || images.length === 0) return;
         
-        console.log(`🖼️ [CARROSSEL] Adicionando ${images.length} imagens à mensagem ${responseId}`);
+        console.log(`🖼️ [CARROSSEL] Adicionando ${images.length} imagens ANTES da resposta ${responseId}`);
         
-        // Criar carrossel estilo ChatGPT - limpo e minimalista
+        // Criar carrossel exatamente como ChatGPT - pequeno e elegante
         const carouselHtml = `
-            <div class="images-gallery" style="margin-top: 24px; padding: 16px 0; border-top: 1px solid #e5e5e5; dark:border-gray-600;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; max-width: 100%;">
-                    ${images.map((img, index) => `
-                        <div class="image-item" style="position: relative; group cursor-pointer; border-radius: 8px; overflow: hidden; aspect-ratio: 1; background: #f8f9fa; dark:bg-gray-800;">
-                            <img src="${img.src}" alt="${img.alt}" 
-                                 style="width: 100%; height: 100%; object-fit: cover; transition: all 0.2s ease;"
-                                 onclick="window.open('${img.src}', '_blank')"
-                                 onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'"
-                                 onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'"
-                                 onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\"display: flex; align-items: center; justify-content: center; height: 100%; color: #999; font-size: 12px;\\">❌ Imagem não disponível</div>'" />
-                            <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); color: white; padding: 8px; font-size: 11px; opacity: 0; transition: opacity 0.2s ease;"
-                                 onmouseover="this.parentElement.style.opacity='1'"
-                                 onmouseout="this.parentElement.style.opacity='0'">
-                                ${img.alt.length > 40 ? img.alt.substring(0, 40) + '...' : img.alt}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                <div style="margin-top: 12px; text-align: center; font-size: 11px; color: #999; dark:color-gray-500;">
-                    Imagens geradas por IA • Clique para ampliar
-                </div>
+            <div class="image-gallery" style="margin-bottom: 16px; display: flex; gap: 8px; overflow-x: auto; padding: 4px 0;">
+                ${images.map((img, index) => `
+                    <div style="flex-shrink: 0; width: 80px; height: 80px; border-radius: 6px; overflow: hidden; cursor: pointer; border: 1px solid #e5e7eb;">
+                        <img src="${img.src}" alt="${img.alt}" 
+                             style="width: 100%; height: 100%; object-fit: cover; display: block;"
+                             onclick="window.open('${img.src}', '_blank')"
+                             onerror="this.style.display='none'; this.parentElement.style.background='#f3f4f6'; this.parentElement.innerHTML='<div style=\\"display: flex; align-items: center; justify-content: center; height: 100%; font-size: 10px; color: #9ca3af;\\">❌</div>'" />
+                    </div>
+                `).join('')}
             </div>
         `;
         
-        // Adicionar carrossel ao final da resposta
-        responseDiv.insertAdjacentHTML('beforeend', carouselHtml);
+        // Inserir ANTES do conteúdo existente
+        responseDiv.insertAdjacentHTML('afterbegin', carouselHtml);
         
-        console.log('✅ [CARROSSEL] Carrossel estilo ChatGPT adicionado com sucesso!');
+        console.log('✅ [CARROSSEL] Carrossel ChatGPT adicionado ANTES da resposta!');
     }
 
 
