@@ -4378,7 +4378,7 @@ ${latexCode}
 
     }
 
-    // Método para adicionar carrossel de imagens (minimalista invisível)
+    // Método para adicionar carrossel de imagens (6 imagens com navegação)
     appendImagesToMessage(responseId, images) {
         console.log('🎯 [APPEND] Método chamado com responseId:', responseId);
         console.log('🎯 [APPEND] Images:', images);
@@ -4393,19 +4393,36 @@ ${latexCode}
         
         console.log(`🖼️ [CARROSSEL] Adicionando ${images.length} imagens DEPOIS da resposta ${responseId}`);
         
-        // Criar carrossel minimalista - invisível, sem texto, 3 imagens visíveis
+        // Criar carrossel com 6 imagens e navegação
+        const carouselId = `carousel_${Date.now()}`;
         const carouselHtml = `
-            <div style="margin-top: 20px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-                ${images.map((img, index) => `
-                    <div style="flex-shrink: 0; width: 200px; height: 150px; border-radius: 8px; overflow: hidden; cursor: pointer;"
-                         onclick="window.open('${img.src}', '_blank')"
-                         onmouseover="this.style.transform='scale(1.05)'; this.style.transition='transform 0.2s ease';"
-                         onmouseout="this.style.transform='scale(1)';">
-                        <img src="${img.src}" alt="" 
-                             style="width: 100%; height: 100%; object-fit: cover; display: block;"
-                             onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'display: flex; align-items: center; justify-content: center; height: 100%; color: #999; font-size: 12px;\\'>❌</div>'" />
-                    </div>
-                `).join('')}
+            <div style="margin-top: 20px; display: flex; align-items: center; gap: 12px;">
+                <button onclick="document.getElementById('${carouselId}').scrollLeft -= 220;" 
+                        style="width: 36px; height: 36px; border-radius: 50%; background: white; border: 1px solid #e5e7eb; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #6b7280; transition: all 0.2s; flex-shrink: 0;"
+                        onmouseover="this.style.background='#f9fafb'; this.style.borderColor='#d1d5db';"
+                        onmouseout="this.style.background='white'; this.style.borderColor='#e5e7eb';">
+                    <
+                </button>
+                
+                <div id="${carouselId}" style="display: flex; gap: 12px; overflow-x: hidden; scroll-behavior: smooth; max-width: 100%;">
+                    ${images.map((img, index) => `
+                        <div style="flex-shrink: 0; width: 200px; height: 150px; border-radius: 8px; overflow: hidden; cursor: pointer;"
+                             onclick="window.open('${img.src}', '_blank')"
+                             onmouseover="this.style.transform='scale(1.05)'; this.style.transition='transform 0.2s ease';"
+                             onmouseout="this.style.transform='scale(1)';">
+                            <img src="${img.src}" alt="" 
+                                 style="width: 100%; height: 100%; object-fit: cover; display: block;"
+                                 onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'display: flex; align-items: center; justify-content: center; height: 100%; color: #999; font-size: 12px;\\'>❌</div>'" />
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <button onclick="document.getElementById('${carouselId}').scrollLeft += 220;" 
+                        style="width: 36px; height: 36px; border-radius: 50%; background: white; border: 1px solid #e5e7eb; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #6b7280; transition: all 0.2s; flex-shrink: 0;"
+                        onmouseover="this.style.background='#f9fafb'; this.style.borderColor='#d1d5db';"
+                        onmouseout="this.style.background='white'; this.style.borderColor='#e5e7eb';">
+                    >
+                </button>
             </div>
         `;
         
@@ -4414,7 +4431,7 @@ ${latexCode}
         // Inserir DEPOIS do conteúdo existente
         responseDiv.insertAdjacentHTML('beforeend', carouselHtml);
         
-        console.log('✅ [CARROSSEL] Carrossel minimalista adicionado DEPOIS da resposta!');
+        console.log('✅ [CARROSSEL] Carrossel com 6 imagens e navegação adicionado!');
     }
 
 

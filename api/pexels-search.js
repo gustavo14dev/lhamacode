@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
   try {
     // Fazer requisição para API Pexels
-    const searchUrl = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=3&orientation=landscape`;
+    const searchUrl = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=6&orientation=landscape`;
     
     console.log('🔍 Buscando imagem:', searchUrl);
 
