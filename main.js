@@ -3950,8 +3950,11 @@ ${latexCode}
             responseDiv.style.minHeight = '20px';
 
             // Salvar as imagens existentes antes de limpar
-            const existingImages = responseDiv.querySelectorAll('div[style*="flex: 1; height: 200px"]');
+            const existingImages = responseDiv.querySelectorAll('div[style*="flex: 1"]');
             const imagesHtml = Array.from(existingImages).map(img => img.outerHTML).join('');
+            
+            console.log('🔍 [SAVE] Imagens encontradas:', existingImages.length);
+            console.log('🔍 [SAVE] HTML salvo:', imagesHtml.substring(0, 200));
             
             // Forçar texto seguro (string) e mensagem amigável para respostas vazias
             let safeText = (text == null || String(text).trim().length === 0) ? '[Erro: resposta vazia do servidor. Verifique /api/status e suas Environment Variables.]' : String(text);
@@ -3973,6 +3976,9 @@ ${latexCode}
 
         text = (text == null) ? '' : String(text);
 
+        console.log('🔍 [TYPE] Iniciando typewriter com imagesHtml length:', imagesHtml.length);
+        console.log('🔍 [TYPE] ImagesHtml preview:', imagesHtml.substring(0, 100));
+
 
 
         if (!text || text.length === 0) {
@@ -3983,6 +3989,8 @@ ${latexCode}
             
             // Combinar imagens + texto
             element.innerHTML = imagesHtml + formattedHtml;
+            
+            console.log('🔍 [TYPE] Renderizado direto com imagens + texto');
 
             setTimeout(() => this.scrollToBottom(), 100);
 
@@ -4032,6 +4040,11 @@ ${latexCode}
 
                 // Combinar imagens + texto durante animação
                 element.innerHTML = imagesHtml + formattedPartial;
+                
+                // Log a cada 10 caracteres para não poluir muito
+                if (charIndex % 10 === 0) {
+                    console.log('🔍 [TYPE] Animando char', charIndex, 'com imagesHtml length:', imagesHtml.length);
+                }
 
                 
 
@@ -4067,6 +4080,9 @@ ${latexCode}
 
         // Combinar imagens + texto final
         element.innerHTML = imagesHtml + finalFormatted;
+        
+        console.log('🔍 [TYPE] Renderizado final com imagesHtml length:', imagesHtml.length);
+        console.log('🔍 [TYPE] Final HTML preview:', (imagesHtml + finalFormatted).substring(0, 200));
 
         setTimeout(() => this.scrollToBottom(), 100);
 
