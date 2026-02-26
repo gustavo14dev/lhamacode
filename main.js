@@ -3939,53 +3939,36 @@ ${latexCode}
 
 
     setResponseText(text, responseId, callback) {
-
         const responseDiv = document.getElementById(responseId);
 
         if (responseDiv) {
-
-            // NÃO LIMPAR o innerHTML para preservar as imagens!
-            // Apenas garantir que tenha altura mínima
-            
+            // NÃO LIMPAR innerHTML NUNCA! Apenas adicionar texto após imagens existentes
             responseDiv.style.minHeight = '20px';
 
-            // Salvar as imagens existentes antes de limpar
-            const existingImages = responseDiv.querySelectorAll('div[style*="flex: 1"]');
-            const shadowContainers = responseDiv.querySelectorAll('div[id*="shadow-"]');
-            const allContainers = responseDiv.querySelectorAll('div[id*="carousel_"], div[class*="carousel"]');
-            
-            let imagesHtml = '';
-            
-            // Salvar imagens normais
-            Array.from(existingImages).forEach(img => {
-                imagesHtml += img.outerHTML;
-            });
-            
-            // Salvar Shadow DOM containers
-            Array.from(shadowContainers).forEach(container => {
-                imagesHtml += container.outerHTML;
-            });
-            
-            // Salvar outros containers de carousel
-            Array.from(allContainers).forEach(container => {
-                imagesHtml += container.outerHTML;
-            });
-            
-            console.log('🔍 [SAVE] Imagens normais encontradas:', existingImages.length);
-            console.log('🔍 [SAVE] Shadow containers encontrados:', shadowContainers.length);
-            console.log('🔍 [SAVE] Outros containers encontrados:', allContainers.length);
-            console.log('🔍 [SAVE] HTML salvo length:', imagesHtml.length);
-            
             // Forçar texto seguro (string) e mensagem amigável para respostas vazias
             let safeText = (text == null || String(text).trim().length === 0) ? '[Erro: resposta vazia do servidor. Verifique /api/status e suas Environment Variables.]' : String(text);
 
-            // Executar typewriter effect com o texto bruto ANTES de formatar
-            this.typewriterEffect(safeText, responseDiv, callback, imagesHtml);
+            // Verificar se já existem imagens no elemento
+            const hasImages = responseDiv.querySelectorAll('div[style*="flex: 1"], div[id*="shadow-"], div[id*="carousel_"]').length > 0;
+            console.log('🔍 [SET] Já existem imagens no elemento:', hasImages);
 
+            if (hasImages) {
+                // APENAS ADICIONAR TEXTO APÓS AS IMAGENS - NÃO SOBRESCREVER!
+                const responseTextDiv = document.createElement('div');
+                responseTextDiv.id = `response-text-${responseId}`;
+                responseTextDiv.style.marginTop = '15px';
+                responseDiv.appendChild(responseTextDiv);
+
+                console.log('🔍 [SET] Adicionando texto após imagens existentes');
+                this.typewriterEffect(safeText, responseTextDiv, callback, '');
+            } else {
+                // Sem imagens, usar o método normal
+                console.log('🔍 [SET] Sem imagens, usando método normal');
+                this.typewriterEffect(safeText, responseDiv, callback, '');
+            }
         }
 
         this.scrollToBottom();
-
     }
 
 
