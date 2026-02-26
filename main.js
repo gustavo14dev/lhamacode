@@ -4396,14 +4396,14 @@ ${latexCode}
         // Criar layout de 3 imagens grandes que preenchem a largura
         const carouselId = `carousel_${Date.now()}`;
         const carouselHtml = `
-            <div style="margin-bottom: 20px; display: flex; gap: 8px; width: 100%; justify-content: space-between;">
+            <div style="margin-bottom: 20px; display: flex !important; flex-direction: row !important; gap: 8px; width: 100%; justify-content: space-between; align-items: stretch;">
                 ${images.slice(0, 3).map((img, index) => `
-                    <div style="flex: 1; height: 200px; border-radius: 12px; overflow: hidden; cursor: pointer; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;"
+                    <div style="flex: 1 !important; min-width: 0; height: 200px; border-radius: 12px; overflow: hidden; cursor: pointer; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); transition: all 0.3s ease; display: block !important;"
                          onclick="window.open('${img.src}', '_blank')"
                          onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 8px 30px rgba(0, 0, 0, 0.15)';"
                          onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 20px rgba(0, 0, 0, 0.1)';">
                         <img src="${img.src}" alt="${img.alt || ''}" 
-                             style="width: 100%; height: 100%; object-fit: cover; display: block;"
+                             style="width: 100% !important; height: 100% !important; object-fit: cover; display: block !important; max-width: none !important;"
                              crossorigin="anonymous"
                              referrerpolicy="no-referrer"
                              onerror="
@@ -4426,6 +4426,11 @@ ${latexCode}
                     </div>
                 `).join('')}
             </div>
+            <style>
+                #${carouselId} { display: flex !important; flex-direction: row !important; }
+                #${carouselId} > div { flex: 1 !important; display: block !important; }
+                #${carouselId} > div > img { width: 100% !important; height: 100% !important; display: block !important; }
+            </style>
         `;
         
         console.log('🎨 [APPEND] HTML gerado:', carouselHtml);

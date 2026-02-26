@@ -32,23 +32,31 @@ export default async function handler(req, res) {
     
     // Se for um conceito abstrato ou pessoa famosa, adicionar contexto
     if (query.toLowerCase().includes('monalisa') || query.toLowerCase().includes('mona lisa')) {
-      improvedQuery = 'mona lisa painting portrait art louvre masterpiece';
+      improvedQuery = 'mona lisa painting portrait art louvre masterpiece renaissance';
     } else if (query.toLowerCase().includes('einstein')) {
-      improvedQuery = 'albert einstein scientist portrait physics nobel';
+      improvedQuery = 'albert einstein scientist portrait physics nobel genius';
     } else if (query.toLowerCase().includes('picasso')) {
-      improvedQuery = 'pablo picasso painting art abstract cubism';
+      improvedQuery = 'pablo picasso painting art abstract cubism artist';
     } else if (query.toLowerCase().includes('davinci')) {
-      improvedQuery = 'leonardo da vinci painting art renaissance inventor';
+      improvedQuery = 'leonardo da vinci painting art renaissance inventor artist';
     } else if (query.toLowerCase().includes('beatles')) {
-      improvedQuery = 'beatles band music concert abbey road';
+      improvedQuery = 'beatles band music concert abbey road classic rock';
     } else if (query.toLowerCase().includes('disney')) {
-      improvedQuery = 'walt disney castle magic kingdom fantasy';
+      improvedQuery = 'walt disney castle magic kingdom fantasy movies';
     } else if (query.toLowerCase().includes('natureza')) {
-      improvedQuery = 'beautiful nature landscape forest mountains';
+      improvedQuery = 'beautiful nature landscape forest mountains scenic';
     } else if (query.toLowerCase().includes('carro')) {
-      improvedQuery = 'luxury sports car automotive speed';
+      improvedQuery = 'luxury sports car automotive speed vehicle';
     } else if (query.toLowerCase().includes('comida')) {
-      improvedQuery = 'delicious gourmet food restaurant cuisine';
+      improvedQuery = 'delicious gourmet food restaurant cuisine meal';
+    } else if (query.toLowerCase().includes('gato')) {
+      improvedQuery = 'cute cat kitten pet animal feline';
+    } else if (query.toLowerCase().includes('cachorro') || query.toLowerCase().includes('dog')) {
+      improvedQuery = 'cute dog puppy pet animal canine';
+    } else if (query.toLowerCase().includes('cidade')) {
+      improvedQuery = 'city skyline urban architecture buildings';
+    } else if (query.toLowerCase().includes('mar') || query.toLowerCase().includes('praia')) {
+      improvedQuery = 'ocean sea beach waves water coastal';
     } else if (query.length < 4) {
       // Para queries muito curtas, adicionar contexto
       improvedQuery = query + ' professional high quality';
