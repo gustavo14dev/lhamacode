@@ -4411,10 +4411,11 @@ ${latexCode}
         
         // Criar layout de 3 imagens grandes que preenchem a largura
         const carouselId = `carousel_${Date.now()}`;
+        const carouselClass = `fixed-carousel-${Date.now()}`;
         const carouselHtml = `
-            <div style="margin-bottom: 20px; display: flex !important; flex-direction: row !important; gap: 8px; width: 100%; justify-content: space-between; align-items: stretch;">
+            <div id="${carouselId}" class="${carouselClass}" style="margin-bottom: 20px; display: flex !important; flex-direction: row !important; gap: 8px; width: 100%; justify-content: space-between; align-items: stretch;">
                 ${images.slice(0, 3).map((img, index) => `
-                    <div style="flex: 1 !important; min-width: 0; height: 200px; border-radius: 12px; overflow: hidden; cursor: pointer; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); display: block !important;"
+                    <div class="carousel-img-${index}" style="flex: 1 !important; min-width: 0; height: 200px; border-radius: 12px; overflow: hidden; cursor: pointer; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); display: block !important;"
                          onclick="window.open('${img.src}', '_blank')">
                         <img src="${img.src}" alt="${img.alt || ''}" 
                              style="width: 100% !important; height: 100% !important; object-fit: cover; display: block !important; max-width: none !important;"
@@ -4441,10 +4442,59 @@ ${latexCode}
                 `).join('')}
             </div>
             <style>
-                #${carouselId} { display: flex !important; flex-direction: row !important; }
-                #${carouselId} > div { flex: 1 !important; display: block !important; transition: none !important; animation: none !important; }
-                #${carouselId} > div > img { width: 100% !important; height: 100% !important; display: block !important; transition: none !important; animation: none !important; }
-                #${carouselId} > div:hover { transform: none !important; transition: none !important; }
+                #${carouselId}.${carouselClass} { 
+                    display: flex !important; 
+                    flex-direction: row !important; 
+                    flex-wrap: nowrap !important;
+                    align-items: stretch !important;
+                    justify-content: space-between !important;
+                    gap: 8px !important;
+                    width: 100% !important;
+                    margin-bottom: 20px !important;
+                }
+                #${carouselId}.${carouselClass} > div { 
+                    flex: 1 !important; 
+                    display: block !important; 
+                    min-width: 0 !important;
+                    max-width: none !important;
+                    width: auto !important;
+                    height: 200px !important;
+                    transition: none !important; 
+                    animation: none !important;
+                    transform: none !important;
+                    position: static !important;
+                    float: none !important;
+                    clear: none !important;
+                    vertical-align: top !important;
+                }
+                #${carouselId}.${carouselClass} > div > img { 
+                    width: 100% !important; 
+                    height: 100% !important; 
+                    display: block !important; 
+                    transition: none !important; 
+                    animation: none !important;
+                    transform: none !important;
+                    position: static !important;
+                    float: none !important;
+                    clear: none !important;
+                }
+                #${carouselId}.${carouselClass} > div:hover { 
+                    transform: none !important; 
+                    transition: none !important;
+                }
+                /* Super específico para bloquear qualquer coisa */
+                div[id*="carousel_"][class*="fixed-carousel"] {
+                    display: flex !important;
+                    flex-direction: row !important;
+                }
+                div[id*="carousel_"][class*="fixed-carousel"] > div {
+                    flex: 1 !important;
+                    display: block !important;
+                }
+                /* Bloquear classes do Tailwind que possam interferir */
+                #${carouselId} .flex-col { flex-direction: row !important; }
+                #${carouselId} .block { display: block !important; }
+                #${carouselId} .w-full { width: auto !important; flex: 1 !important; }
             </style>
         `;
         
