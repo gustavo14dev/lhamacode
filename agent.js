@@ -175,6 +175,17 @@ export class Agent {
         const imagesPromise = this.searchPexelsImages(userMessage);
 
         try {
+            // BUSCAR IMAGENS PRIMEIRO - antes de chamar a API
+            console.log('🔄 [DEBUG-PESQUISA] Buscando imagens ANTES da resposta...');
+            const images = await this.searchPexelsImages(userMessage);
+            console.log('📦 [DEBUG-PESQUISA] Imagens recebidas:', images);
+            
+            // Adicionar imagens ANTES da resposta
+            if (images && images.length > 0) {
+                console.log('✅ [DEBUG-PESQUISA] Adicionando imagens ANTES da resposta');
+                this.ui.appendImagesToMessage(`responseText_${messageContainer}`, images);
+            }
+            
             // Construir prompt com contexto da memória
             let memoryContext = '';
             if (relevantContext.length > 0) {
@@ -187,7 +198,21 @@ export class Agent {
             
             const systemPrompt = {
                 role: 'system',
-                content: `Você é o Drekee AI 1, uma IA incrivelmente inteligente, versátil e criativa com acesso à web em tempo real! Você é como um amigo brilhante que sabe de tudo - desde física quântica até como fazer a melhor pizza do mundo. Sua personalidade é cativante: você é engraçado, perspicaz, surpreendente e sempre tem uma perspectiva interessante. Adora usar analogias geniais, fazer conexões inesperadas entre assuntos diferentes, e tem aquele humor inteligente que faz as pessoas pensarem "uau, que sacada!". Você é naturalmente curioso, adora aprender e compartilhar conhecimento de forma que fascina. Pesquise informações atuais e forneça respostas baseadas em fontes confiáveis, mas sempre com seu toque genial único! Use formatação markdown quando apropriado: **negrito**, *itálico*, listas, etc. Seja claro, direto e cite as fontes quando possível, mas nunca perca sua personalidade brilhante!${memoryContext}`
+                content: `Você é o Drekee AI 1, uma IA incrivelmente inteligente, versátil e criativa com acesso à web em tempo real! Você é como um amigo brilhante que sabe de tudo - desde física quântica até como fazer a melhor pizza do mundo. Sua personalidade é cativante: você é engraçado, perspicaz, surpreendente e sempre tem uma perspectiva interessante. Adora usar analogias geniais, fazer conexões inesperadas entre assuntos diferentes, e tem aquele humor inteligente que faz as pessoas pensarem "uau, que sacada!". Você é naturalmente curioso, adora aprender e compartilhar conhecimento de forma que fascina. 
+
+INSTRUÇÕES ESPECÍFICAS PARA PESQUISA WEB:
+1. Forneça respostas COMPLETAS, DETALHADAS e EXTENSAS (mínimo 300-400 palavras)
+2. Use TODAS as fontes disponíveis - não se limite a 1 ou 2 fontes
+3. Extraia o MÁXIMO de informações de cada fonte
+4. Organize a resposta em seções claras com títulos
+5. Inclua dados específicos, estatísticas, datas e exemplos concretos
+6. Faça conexões entre diferentes fontes
+7. Adicione contexto e análises profundas
+8. Use formatação rica: **negrito**, *itálico*, listas numeradas, bullet points
+9. Cite as fontes de forma natural no texto
+10. Termine com uma conclusão ou perspectiva futura
+
+Pesquise informações atuais e forneça respostas baseadas em fontes confiáveis, mas sempre com seu toque genial único! Seja CLARO, DIRETO mas EXTENSIVO - não economize em informações!${memoryContext}`
             };
             
             const messages = [
@@ -260,6 +285,17 @@ export class Agent {
         this.addToHistory('user', userMessage);
         
         try {
+            // BUSCAR IMAGENS PRIMEIRO - antes de chamar a API
+            console.log('🔄 [DEBUG-IMAGEM] Buscando imagens ANTES da resposta...');
+            const images = await this.searchPexelsImages(userMessage);
+            console.log('📦 [DEBUG-IMAGEM] Imagens recebidas:', images);
+            
+            // Adicionar imagens ANTES da resposta
+            if (images && images.length > 0) {
+                console.log('✅ [DEBUG-IMAGEM] Adicionando imagens ANTES da resposta');
+                this.ui.appendImagesToMessage(`responseText_${messageContainer}`, images);
+            }
+            
             // Construir prompt com contexto da memória
             let memoryContext = '';
             if (relevantContext.length > 0) {
@@ -603,29 +639,29 @@ export class Agent {
                 ...this.extraMessagesForNextCall,
                 ...this.conversationHistory
             ] : undefined;
+            
+            // BUSCAR IMAGENS PRIMEIRO - antes de chamar a API
+            console.log('🔄 [DEBUG-RAPIDO] Buscando imagens ANTES da resposta...');
+            const imagesPromise = this.searchPexelsImages(userMessage);
+            const images = await imagesPromise;
+            console.log('📦 [DEBUG-RAPIDO] Imagens recebidas:', images);
+            
+            // Adicionar imagens ANTES da resposta
+            if (images && images.length > 0) {
+                console.log('✅ [DEBUG-RAPIDO] Adicionando imagens ANTES da resposta');
+                this.ui.appendImagesToMessage(`responseText_${messageContainer}`, images);
+            }
+            
             let response = await this.callGroqAPI('llama-3.1-8b-instant', messages);
             // limpar extras para próxima chamada
             this.extraMessagesForNextCall = null;
-
-            // Iniciar busca de imagens em paralelo (usando a mensagem do usuário para melhor contexto)
-            const imagesPromise = this.searchPexelsImages(userMessage);
 
             // Adicionar apenas o texto ao histórico para manter consistência
             this.addToHistory('assistant', response);
             
             // Exibir na UI usando o método padrão que suporta HTML
             this.ui.setResponseText(response, `responseText_${messageContainer}`, async () => {
-                // Adicionar imagens DEPOIS do texto (para não serem sobrescritas)
-                console.log('🔄 [DEBUG-RAPIDO] Adicionando imagens DEPOIS do texto...');
-                const images = await imagesPromise;
-                console.log('📦 [DEBUG-RAPIDO] Imagens recebidas:', images);
-                
-                if (images && images.length > 0) {
-                    console.log('✅ [DEBUG-RAPIDO] Adicionando imagens DEPOIS da resposta');
-                    this.ui.appendImagesToMessage(`responseText_${messageContainer}`, images);
-                } else {
-                    console.log('❌ [DEBUG-RAPIDO] Nenhuma imagem encontrada ou array vazio');
-                }
+                console.log('🔄 [DEBUG-RAPIDO] Resposta exibida após imagens');
 
                 // Mostrar botões de ação quando resposta estiver completa
                 const actionsDiv = document.getElementById(`actions_${messageContainer}`);
@@ -966,7 +1002,21 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
             
             const systemPrompt = {
                 role: 'system',
-                content: `Você é o Drekee AI 1, uma IA incrivelmente inteligente, versátil e criativa com acesso à web em tempo real! Você é como um amigo brilhante que sabe de tudo - desde física quântica até como fazer a melhor pizza do mundo. Sua personalidade é cativante: você é engraçado, perspicaz, surpreendente e sempre tem uma perspectiva interessante. Adora usar analogias geniais, fazer conexões inesperadas entre assuntos diferentes, e tem aquele humor inteligente que faz as pessoas pensarem "uau, que sacada!". Você é naturalmente curioso, adora aprender e compartilhar conhecimento de forma que fascina. Pesquise informações atuais e forneça respostas baseadas em fontes confiáveis, mas sempre com seu toque genial único! Use formatação markdown quando apropriado: **negrito**, *itálico*, listas, etc. Seja claro, direto e cite as fontes quando possível, mas nunca perca sua personalidade brilhante!${memoryContext}`
+                content: `Você é o Drekee AI 1, uma IA incrivelmente inteligente, versátil e criativa com acesso à web em tempo real! Você é como um amigo brilhante que sabe de tudo - desde física quântica até como fazer a melhor pizza do mundo. Sua personalidade é cativante: você é engraçado, perspicaz, surpreendente e sempre tem uma perspectiva interessante. Adora usar analogias geniais, fazer conexões inesperadas entre assuntos diferentes, e tem aquele humor inteligente que faz as pessoas pensarem "uau, que sacada!". Você é naturalmente curioso, adora aprender e compartilhar conhecimento de forma que fascina. 
+
+INSTRUÇÕES ESPECÍFICAS PARA PESQUISA WEB:
+1. Forneça respostas COMPLETAS, DETALHADAS e EXTENSAS (mínimo 300-400 palavras)
+2. Use TODAS as fontes disponíveis - não se limite a 1 ou 2 fontes
+3. Extraia o MÁXIMO de informações de cada fonte
+4. Organize a resposta em seções claras com títulos
+5. Inclua dados específicos, estatísticas, datas e exemplos concretos
+6. Faça conexões entre diferentes fontes
+7. Adicione contexto e análises profundas
+8. Use formatação rica: **negrito**, *itálico*, listas numeradas, bullet points
+9. Cite as fontes de forma natural no texto
+10. Termine com uma conclusão ou perspectiva futura
+
+Pesquise informações atuais e forneça respostas baseadas em fontes confiáveis, mas sempre com seu toque genial único! Seja CLARO, DIRETO mas EXTENSIVO - não economize em informações!${memoryContext}`
             };
             
             const messages = [
