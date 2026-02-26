@@ -4500,10 +4500,164 @@ ${latexCode}
         
         console.log('🎨 [APPEND] HTML gerado:', carouselHtml);
         
-        // Inserir ANTES do conteúdo existente
-        responseDiv.insertAdjacentHTML('afterbegin', carouselHtml);
+        // TENTAR SHADOW DOM PARA ISOLAR COMPLETAMENTE
+        try {
+            const shadowContainer = document.createElement('div');
+            shadowContainer.id = `shadow-${carouselId}`;
+            
+            // Criar Shadow Root
+            const shadowRoot = shadowContainer.attachShadow({ mode: 'open' });
+            
+            // CSS isolado no Shadow DOM
+            const shadowStyle = document.createElement('style');
+            shadowStyle.textContent = `
+                .carousel-container {
+                    display: flex !important;
+                    flex-direction: row !important;
+                    flex-wrap: nowrap !important;
+                    align-items: stretch !important;
+                    justify-content: space-between !important;
+                    gap: 8px !important;
+                    width: 100% !important;
+                    margin-bottom: 20px !important;
+                    box-sizing: border-box !important;
+                }
+                .carousel-item {
+                    flex: 1 !important;
+                    display: block !important;
+                    min-width: 0 !important;
+                    max-width: none !important;
+                    width: auto !important;
+                    height: 200px !important;
+                    border-radius: 12px !important;
+                    overflow: hidden !important;
+                    cursor: pointer !important;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
+                    transition: none !important;
+                    animation: none !important;
+                    transform: none !important;
+                    position: static !important;
+                    float: none !important;
+                    clear: none !important;
+                    vertical-align: top !important;
+                    box-sizing: border-box !important;
+                }
+                .carousel-img {
+                    width: 100% !important;
+                    height: 100% !important;
+                    object-fit: cover !important;
+                    display: block !important;
+                    transition: none !important;
+                    animation: none !important;
+                    transform: none !important;
+                    position: static !important;
+                    float: none !important;
+                    clear: none !important;
+                    box-sizing: border-box !important;
+                }
+            `;
+            
+            // HTML do carousel no Shadow DOM
+            const carouselContent = `
+                <div class="carousel-container">
+                    ${images.slice(0, 3).map((img, index) => `
+                        <div class="carousel-item" onclick="window.open('${img.src}', '_blank')">
+                            <img class="carousel-img" src="${img.src}" alt="${img.alt || ''}" 
+                                 crossorigin="anonymous"
+                                 referrerpolicy="no-referrer"
+                                 onerror="
+                                     var img = this;
+                                     var proxyUrl = '/api/image-proxy?url=' + encodeURIComponent('${img.src}');
+                                     console.log('🔄 [IMG] Tentando proxy:', proxyUrl);
+                                     var proxyImg = new Image();
+                                     proxyImg.onload = function() {
+                                         img.src = proxyUrl;
+                                         img.style.display = 'block';
+                                     };
+                                     proxyImg.onerror = function() {
+                                         img.style.display = 'none';
+                                         img.parentElement.innerHTML = '<div style=\\'display: flex; align-items: center; justify-content: center; height: 100%; color: #999; font-size: 14px; background: #f5f5f5; text-align: center; padding: 10px;\\'>🖼️ Imagem bloqueada<br><small>Desative ad-blocker<br>ou recarregue a página</small></div>';
+                                     };
+                                     proxyImg.src = proxyUrl;
+                                 " />
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            // Adicionar ao Shadow DOM
+            shadowRoot.appendChild(shadowStyle);
+            shadowRoot.innerHTML += carouselContent;
+            
+            // Inserir o container Shadow ANTES do conteúdo existente
+            responseDiv.insertAdjacentElement('afterbegin', shadowContainer);
+            
+            console.log('🎭 [SHADOW] Carousel isolado criado com Shadow DOM!');
+            
+        } catch (shadowError) {
+            console.warn('🎭 [SHADOW] Shadow DOM falhou, usando método normal:', shadowError);
+            
+            // FALLBACK: Método normal com JavaScript forçado
+            responseDiv.insertAdjacentHTML('afterbegin', carouselHtml);
+            
+            // JAVASCRIPT FORÇADO PARA CORRIGIR LAYOUT A CADA 1 SEGUNDO
+            const fixLayout = () => {
+                const carousel = document.getElementById(carouselId);
+                if (carousel) {
+                    carousel.style.display = 'flex';
+                    carousel.style.flexDirection = 'row';
+                    carousel.style.flexWrap = 'nowrap';
+                    carousel.style.justifyContent = 'space-between';
+                    carousel.style.gap = '8px';
+                    carousel.style.width = '100%';
+                    
+                    const images = carousel.querySelectorAll('div');
+                    images.forEach(imgDiv => {
+                        imgDiv.style.flex = '1';
+                        imgDiv.style.display = 'block';
+                        imgDiv.style.minWidth = '0';
+                        imgDiv.style.height = '200px';
+                        imgDiv.style.transition = 'none';
+                        imgDiv.style.animation = 'none';
+                        imgDiv.style.transform = 'none';
+                        imgDiv.style.position = 'static';
+                        imgDiv.style.float = 'none';
+                        imgDiv.style.clear = 'none';
+                        
+                        const img = imgDiv.querySelector('img');
+                        if (img) {
+                            img.style.width = '100%';
+                            img.style.height = '100%';
+                            img.style.display = 'block';
+                            img.style.transition = 'none';
+                            img.style.animation = 'none';
+                            img.style.transform = 'none';
+                            img.style.position = 'static';
+                            img.style.float = 'none';
+                            img.style.clear = 'none';
+                        }
+                    });
+                    
+                    console.log('🔧 [FIX] Layout forçado aplicado');
+                }
+            };
+            
+            // Aplicar imediatamente
+            fixLayout();
+            
+            // Aplicar a cada 1 segundo por 10 segundos
+            let fixCount = 0;
+            const fixInterval = setInterval(() => {
+                fixLayout();
+                fixCount++;
+                if (fixCount >= 10) {
+                    clearInterval(fixInterval);
+                    console.log('🔧 [FIX] Correção automática parada');
+                }
+            }, 1000);
+        }
         
-        console.log('✅ [CARROSSEL] Carrossel de vidro fosco adicionado ANTES da resposta!');
+        console.log('✅ [CARROSSEL] Carrossel adicionado com isolamento máximo!');
     }
 
 
