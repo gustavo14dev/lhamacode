@@ -3951,10 +3951,30 @@ ${latexCode}
 
             // Salvar as imagens existentes antes de limpar
             const existingImages = responseDiv.querySelectorAll('div[style*="flex: 1"]');
-            const imagesHtml = Array.from(existingImages).map(img => img.outerHTML).join('');
+            const shadowContainers = responseDiv.querySelectorAll('div[id*="shadow-"]');
+            const allContainers = responseDiv.querySelectorAll('div[id*="carousel_"], div[class*="carousel"]');
             
-            console.log('🔍 [SAVE] Imagens encontradas:', existingImages.length);
-            console.log('🔍 [SAVE] HTML salvo:', imagesHtml.substring(0, 200));
+            let imagesHtml = '';
+            
+            // Salvar imagens normais
+            Array.from(existingImages).forEach(img => {
+                imagesHtml += img.outerHTML;
+            });
+            
+            // Salvar Shadow DOM containers
+            Array.from(shadowContainers).forEach(container => {
+                imagesHtml += container.outerHTML;
+            });
+            
+            // Salvar outros containers de carousel
+            Array.from(allContainers).forEach(container => {
+                imagesHtml += container.outerHTML;
+            });
+            
+            console.log('🔍 [SAVE] Imagens normais encontradas:', existingImages.length);
+            console.log('🔍 [SAVE] Shadow containers encontrados:', shadowContainers.length);
+            console.log('🔍 [SAVE] Outros containers encontrados:', allContainers.length);
+            console.log('🔍 [SAVE] HTML salvo length:', imagesHtml.length);
             
             // Forçar texto seguro (string) e mensagem amigável para respostas vazias
             let safeText = (text == null || String(text).trim().length === 0) ? '[Erro: resposta vazia do servidor. Verifique /api/status e suas Environment Variables.]' : String(text);
