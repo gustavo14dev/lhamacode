@@ -27,10 +27,39 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Fazer requisição para API Pexels
-    const searchUrl = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=6&orientation=landscape`;
+    // Melhorar a query para busca mais específica e relevante
+    let improvedQuery = query;
     
-    console.log('🔍 Buscando imagem:', searchUrl);
+    // Se for um conceito abstrato ou pessoa famosa, adicionar contexto
+    if (query.toLowerCase().includes('monalisa') || query.toLowerCase().includes('mona lisa')) {
+      improvedQuery = 'mona lisa painting portrait art louvre masterpiece';
+    } else if (query.toLowerCase().includes('einstein')) {
+      improvedQuery = 'albert einstein scientist portrait physics nobel';
+    } else if (query.toLowerCase().includes('picasso')) {
+      improvedQuery = 'pablo picasso painting art abstract cubism';
+    } else if (query.toLowerCase().includes('davinci')) {
+      improvedQuery = 'leonardo da vinci painting art renaissance inventor';
+    } else if (query.toLowerCase().includes('beatles')) {
+      improvedQuery = 'beatles band music concert abbey road';
+    } else if (query.toLowerCase().includes('disney')) {
+      improvedQuery = 'walt disney castle magic kingdom fantasy';
+    } else if (query.toLowerCase().includes('natureza')) {
+      improvedQuery = 'beautiful nature landscape forest mountains';
+    } else if (query.toLowerCase().includes('carro')) {
+      improvedQuery = 'luxury sports car automotive speed';
+    } else if (query.toLowerCase().includes('comida')) {
+      improvedQuery = 'delicious gourmet food restaurant cuisine';
+    } else if (query.length < 4) {
+      // Para queries muito curtas, adicionar contexto
+      improvedQuery = query + ' professional high quality';
+    }
+    
+    // Fazer requisição para API Pexels com query melhorada
+    const searchUrl = `https://api.pexels.com/v1/search?query=${encodeURIComponent(improvedQuery)}&per_page=6&orientation=landscape&size=large&quality=high`;
+    
+    console.log('🔍 Buscando imagem original:', query);
+    console.log('🎯 Query melhorada:', improvedQuery);
+    console.log('🔗 URL completa:', searchUrl);
 
     const response = await fetch(searchUrl, {
       headers: {

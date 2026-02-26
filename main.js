@@ -4393,46 +4393,21 @@ ${latexCode}
         
         console.log(`🖼️ [CARROSSEL] Adicionando ${images.length} imagens ANTES da resposta ${responseId}`);
         
-        // Criar carrossel com efeito vidro fosco
+        // Criar layout de 3 imagens grandes que preenchem a largura
         const carouselId = `carousel_${Date.now()}`;
         const carouselHtml = `
-            <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
-                ${images.length > 3 ? `
-                <button onclick="document.getElementById('${carouselId}').scrollLeft -= 636;" 
-                        style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 2px solid rgba(255, 255, 255, 0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; transition: all 0.3s ease; flex-shrink: 0; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.1);"
-                        onmouseover="this.style.background='rgba(255, 255, 255, 0.15)'; this.style.transform='scale(1.05)';"
-                        onmouseout="this.style.background='rgba(255, 255, 255, 0.08)'; this.style.transform='scale(1)';">
-                    ←
-                </button>
-                ` : ''}
-                
-                <div id="${carouselId}" style="display: flex; gap: 8px; overflow-x: hidden; scroll-behavior: smooth; max-width: 636px; flex: 1; scrollbar-width: none; -ms-overflow-style: none;">
-                    ${images.map((img, index) => `
-                        <div style="flex-shrink: 0; width: 200px; height: 150px; border-radius: 8px; overflow: hidden; cursor: pointer;"
-                             onclick="window.open('${img.src}', '_blank')"
-                             onmouseover="this.style.transform='scale(1.05)'; this.style.transition='transform 0.2s ease';"
-                             onmouseout="this.style.transform='scale(1)';">
-                            <img src="${img.src}" alt="" 
-                                 style="width: 100%; height: 100%; object-fit: cover; display: block;"
-                                 onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'display: flex; align-items: center; justify-content: center; height: 100%; color: #999; font-size: 12px;\\'>❌</div>'" />
-                        </div>
-                    `).join('')}
-                </div>
-                
-                ${images.length > 3 ? `
-                <button onclick="document.getElementById('${carouselId}').scrollLeft += 636;" 
-                        style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 2px solid rgba(255, 255, 255, 0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; transition: all 0.3s ease; flex-shrink: 0; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.1);"
-                        onmouseover="this.style.background='rgba(255, 255, 255, 0.15)'; this.style.transform='scale(1.05)';"
-                        onmouseout="this.style.background='rgba(255, 255, 255, 0.08)'; this.style.transform='scale(1)';">
-                    →
-                </button>
-                ` : ''}
+            <div style="margin-bottom: 20px; display: flex; gap: 8px; width: 100%; justify-content: space-between;">
+                ${images.slice(0, 3).map((img, index) => `
+                    <div style="flex: 1; height: 200px; border-radius: 12px; overflow: hidden; cursor: pointer; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;"
+                         onclick="window.open('${img.src}', '_blank')"
+                         onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 8px 30px rgba(0, 0, 0, 0.15)';"
+                         onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 20px rgba(0, 0, 0, 0.1)';">
+                        <img src="${img.src}" alt="${img.alt || ''}" 
+                             style="width: 100%; height: 100%; object-fit: cover; display: block;"
+                             onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'display: flex; align-items: center; justify-content: center; height: 100%; color: #999; font-size: 14px; background: #f5f5f5;\\'>❌ Imagem não disponível</div>'" />
+                    </div>
+                `).join('')}
             </div>
-            <style>
-                #${carouselId}::-webkit-scrollbar {
-                    display: none;
-                }
-            </style>
         `;
         
         console.log('🎨 [APPEND] HTML gerado:', carouselHtml);
