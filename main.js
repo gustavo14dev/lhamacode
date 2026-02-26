@@ -3944,23 +3944,20 @@ ${latexCode}
 
         if (responseDiv) {
 
-            // Limpar e colocar vazio enquanto anima
-
-            responseDiv.innerHTML = '';
-
+            // NÃO LIMPAR o innerHTML para preservar as imagens!
+            // Apenas garantir que tenha altura mínima
+            
             responseDiv.style.minHeight = '20px';
 
+            // Salvar as imagens existentes antes de limpar
+            const existingImages = responseDiv.querySelectorAll('div[style*="flex: 1; height: 200px"]');
+            const imagesHtml = Array.from(existingImages).map(img => img.outerHTML).join('');
             
-
             // Forçar texto seguro (string) e mensagem amigável para respostas vazias
-
             let safeText = (text == null || String(text).trim().length === 0) ? '[Erro: resposta vazia do servidor. Verifique /api/status e suas Environment Variables.]' : String(text);
 
-
-
             // Executar typewriter effect com o texto bruto ANTES de formatar
-
-            this.typewriterEffect(safeText, responseDiv, callback);
+            this.typewriterEffect(safeText, responseDiv, callback, imagesHtml);
 
         }
 
@@ -3970,7 +3967,7 @@ ${latexCode}
 
 
 
-    async typewriterEffect(text, element, callback) {
+    async typewriterEffect(text, element, callback, imagesHtml = '') {
 
         // Garantir que temos string
 
@@ -3980,11 +3977,12 @@ ${latexCode}
 
         if (!text || text.length === 0) {
 
-            // Sem animação; renderizar direto
+            // Sem animação; renderizar direto com imagens
 
             const formattedHtml = this.formatResponse(text);
-
-            element.innerHTML = formattedHtml;
+            
+            // Combinar imagens + texto
+            element.innerHTML = imagesHtml + formattedHtml;
 
             setTimeout(() => this.scrollToBottom(), 100);
 
@@ -4032,7 +4030,8 @@ ${latexCode}
 
                 const formattedPartial = this.formatResponse(partialText);
 
-                element.innerHTML = formattedPartial;
+                // Combinar imagens + texto durante animação
+                element.innerHTML = imagesHtml + formattedPartial;
 
                 
 
@@ -4066,7 +4065,8 @@ ${latexCode}
 
         const finalFormatted = this.formatResponse(text);
 
-        element.innerHTML = finalFormatted;
+        // Combinar imagens + texto final
+        element.innerHTML = imagesHtml + finalFormatted;
 
         setTimeout(() => this.scrollToBottom(), 100);
 
@@ -4404,7 +4404,25 @@ ${latexCode}
                          onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 20px rgba(0, 0, 0, 0.1)';">
                         <img src="${img.src}" alt="${img.alt || ''}" 
                              style="width: 100%; height: 100%; object-fit: cover; display: block;"
-                             onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'display: flex; align-items: center; justify-content: center; height: 100%; color: #999; font-size: 14px; background: #f5f5f5;\\'>❌ Imagem não disponível</div>'" />
+                             crossorigin="anonymous"
+                             referrerpolicy="no-referrer"
+                             onerror="
+                                 var img = this;
+                                 var proxyUrl = '/api/image-proxy?url=' + encodeURIComponent('${img.src}');
+                                 console.log('🔄 [IMG] Tentando proxy:', proxyUrl);
+                                 
+                                 // Tentar carregar via proxy
+                                 var proxyImg = new Image();
+                                 proxyImg.onload = function() {
+                                     img.src = proxyUrl;
+                                     img.style.display = 'block';
+                                 };
+                                 proxyImg.onerror = function() {
+                                     img.style.display = 'none';
+                                     img.parentElement.innerHTML = '<div style=\\'display: flex; align-items: center; justify-content: center; height: 100%; color: #999; font-size: 14px; background: #f5f5f5; text-align: center; padding: 10px;\\'>🖼️ Imagem bloqueada<br><small>Desative ad-blocker<br>ou recarregue a página</small></div>';
+                                 };
+                                 proxyImg.src = proxyUrl;
+                             " />
                     </div>
                 `).join('')}
             </div>
