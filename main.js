@@ -3874,9 +3874,13 @@ ${latexCode}
 
         
 
-        // RETORNAR O ID PARA USO FUTURO
-
-        return uniqueId;
+        // RETORNAR O OBJETO COM IDs ESPERADOS PELOS MODELOS
+        return {
+            uniqueId: uniqueId,
+            headerId: `thinkingHeader_${uniqueId}`,
+            responseId: `responseText_${uniqueId}`,
+            stepsId: null // Para compatibilidade com modelos que usam steps
+        };
 
     }
 
