@@ -5544,8 +5544,38 @@ ${latexCode}
             // Limpar texto "Pesquisando..."
             this.setThinkingHeader('', messageContainer.headerId);
             
+            // Construir HTML das fontes
+            let sourcesHtml = '';
+            if (data.sources && data.sources.length > 0) {
+                sourcesHtml = `
+                    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fontes</div>
+                        <div class="space-y-2">
+                            ${data.sources.map((source, index) => `
+                                <a href="https://www.google.com/search?q=${encodeURIComponent(source.title || source)}" target="_blank" class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group">
+                                    <div class="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                                        <span class="material-icons-outlined text-blue-600 dark:text-blue-400 text-sm">link</span>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                            ${source.title || source}
+                                        </div>
+                                        <div class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                            ${source.url || 'Fonte ' + (index + 1)}
+                                        </div>
+                                    </div>
+                                    <div class="flex-shrink-0">
+                                        <span class="material-icons-outlined text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 text-sm transition-colors">open_in_new</span>
+                                    </div>
+                                </a>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
             // Adicionar resposta da IA com fontes e depois imagens
-            this.setResponseText(data.response, messageContainer.responseId, async () => {
+            this.setResponseText(data.response + sourcesHtml, messageContainer.responseId, async () => {
                 // Adicionar imagens DEPOIS do texto
                 const images = await imagesPromise;
                 if (images && images.length > 0) {
