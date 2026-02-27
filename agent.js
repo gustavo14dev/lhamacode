@@ -166,7 +166,7 @@ export class Agent {
         const messageContainer = this.ui.createAssistantMessageContainer();
         const timestamp = Date.now();
         
-        this.ui.setThinkingHeader('🔍 Pesquisando na web...', messageContainer.headerId);
+        this.ui.setThinkingHeader('🔍 Pesquisando...', messageContainer.headerId);
         await this.ui.sleep(800);
         
         this.addToHistory('user', userMessage);
@@ -175,17 +175,6 @@ export class Agent {
         const imagesPromise = this.searchPexelsImages(userMessage);
 
         try {
-            // BUSCAR IMAGENS PRIMEIRO - antes de chamar a API
-            console.log('🔄 [DEBUG-PESQUISA] Buscando imagens ANTES da resposta...');
-            const images = await this.searchPexelsImages(userMessage);
-            console.log('📦 [DEBUG-PESQUISA] Imagens recebidas:', images);
-            
-            // Adicionar imagens ANTES da resposta
-            if (images && images.length > 0) {
-                console.log('✅ [DEBUG-PESQUISA] Adicionando imagens ANTES da resposta');
-                this.ui.appendImagesToMessage(`responseText_${messageContainer}`, images);
-            }
-            
             // Construir prompt com contexto da memória
             let memoryContext = '';
             if (relevantContext.length > 0) {
@@ -262,7 +251,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
               // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
             });
-            this.ui.closeThinkingSteps(messageContainer.headerId);
+            this.ui.setThinkingHeader('', messageContainer.headerId);
             
         } catch (error) {
             if (error.message === 'ABORTED') {
@@ -354,7 +343,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
             });
-            this.ui.closeThinkingSteps(messageContainer.headerId);
+            this.ui.setThinkingHeader('', messageContainer.headerId);
             
         } catch (error) {
             if (error.message === 'ABORTED') {
@@ -454,7 +443,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
             });
-            this.ui.closeThinkingSteps(messageContainer.headerId);
+            this.ui.setThinkingHeader('', messageContainer.headerId);
         } catch (error) {
             if (error.message === 'ABORTED') {
                 console.log('⚠️ Geração interrompida pelo usuário');
@@ -947,7 +936,7 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
             
             // Fechar raciocínio quando terminar
             await this.ui.sleep(500);
-            this.ui.closeThinkingSteps(messageContainer.headerId);
+            this.ui.setThinkingHeader('', messageContainer.headerId);
             
             // Exibir imagens
             await this.displayImagesIfAvailable(imagesPromise, messageContainer.container.id.replace('msg_', ''));
@@ -983,7 +972,7 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
         const messageContainer = this.ui.createAssistantMessageContainer();
         const timestamp = Date.now();
         
-        this.ui.setThinkingHeader('🔍 Pesquisando na web...', messageContainer.headerId);
+        this.ui.setThinkingHeader('🔍 Pesquisando...', messageContainer.headerId);
         await this.ui.sleep(800);
         
         this.addToHistory('user', userMessage);
@@ -1064,7 +1053,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                     console.warn('⚠️ Erro ao desativar modo pesquisa:', error);
                 }
             });
-            this.ui.closeThinkingSteps(messageContainer.headerId);
+            this.ui.setThinkingHeader('', messageContainer.headerId);
             
         } catch (error) {
             if (error.message === 'ABORTED') {
