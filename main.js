@@ -3678,6 +3678,78 @@ ${latexCode}
 
 
 
+    createAssistantMessageContainer() {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'mb-6 flex justify-start animate-slideIn';
+        
+        const uniqueId = 'msg_' + Date.now();
+        
+        messageDiv.innerHTML = `
+            <div class="flex items-start gap-3">
+                <!-- Avatar do assistente -->
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-lg font-bold">
+                    AI
+                </div>
+                
+                <div class="flex-1 max-w-[85%] px-5 py-4">
+                    <div class="text-base leading-relaxed text-gray-600 dark:text-gray-300 mb-4" id="thinkingHeader_${uniqueId}"></div>
+                    <div class="text-base leading-relaxed text-gray-700 dark:text-gray-200 min-h-4" id="responseText_${uniqueId}"></div>
+                </div>
+            </div>
+        `;
+        
+        this.elements.messagesContainer.appendChild(messageDiv);
+        
+        // Adicionar barra invisível com botões de ação
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'flex gap-2 justify-start mt-4 mb-2 px-2 opacity-0 transition-opacity duration-300';
+        actionsDiv.innerHTML = `
+            <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors" id="copyBtn_${uniqueId}" title="Copiar resposta">
+                <span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-400">content_copy</span>
+            </button>
+            <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors" id="regenerateBtn_${uniqueId}" title="Gerar novamente">
+                <span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-400">refresh</span>
+            </button>
+        `;
+        
+        this.elements.messagesContainer.appendChild(actionsDiv);
+        this.scrollToBottom();
+        
+        // Setup dos botões de ação
+        const copyBtn = document.getElementById(`copyBtn_${uniqueId}`);
+        const regenerateBtn = document.getElementById(`regenerateBtn_${uniqueId}`);
+        
+        if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+                const responseText = document.getElementById(`responseText_${uniqueId}`);
+                if (responseText) {
+                    navigator.clipboard.writeText(responseText.textContent).then(() => {
+                        copyBtn.innerHTML = '<span class="material-icons-outlined text-sm text-green-600">check</span>';
+                        setTimeout(() => {
+                            copyBtn.innerHTML = '<span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-400">content_copy</span>';
+                        }, 2000);
+                    });
+                }
+            });
+        }
+        
+        if (regenerateBtn) {
+            regenerateBtn.addEventListener('click', () => {
+                if (window.agent) {
+                    window.agent.regenerateLastResponse();
+                }
+            });
+        }
+        
+        // Retornar objeto com IDs esperados pelos modelos
+        return {
+            uniqueId: uniqueId,
+            headerId: `thinkingHeader_${uniqueId}`,
+            responseId: `responseText_${uniqueId}`,
+            stepsId: null // Para compatibilidade com modelos que usam steps
+        };
+    }
+
     createRapidMessageContainer() {
 
         const messageDiv = document.createElement('div');
