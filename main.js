@@ -3211,7 +3211,7 @@ ${latexCode}
 
         messageDiv.innerHTML = `
 
-            <div class="w-full max-w-[85%] bg-surface-light dark:bg-surface-dark rounded-2xl px-5 py-4 shadow-soft border border-gray-100 dark:border-gray-700">
+            <div class="w-full max-w-[85%] rounded-2xl px-5 py-4 shadow-soft border border-gray-100 dark:border-gray-700">
 
                 <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
 
@@ -3606,7 +3606,7 @@ ${latexCode}
 
         messageDiv.innerHTML = `
 
-            <div class="w-full max-w-[85%] bg-surface-light dark:bg-surface-dark rounded-2xl px-5 py-4 shadow-soft border border-gray-100 dark:border-gray-700">
+            <div class="w-full max-w-[85%] rounded-2xl px-5 py-4 shadow-soft border border-gray-100 dark:border-gray-700">
 
                 <div class="text-base leading-relaxed text-gray-700 dark:text-gray-200" id="responseText_${uniqueId}"></div>
                 ${sourcesHtml}
