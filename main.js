@@ -5502,7 +5502,7 @@ ${latexCode}
             console.log('🔍 [TAVILY DEBUG] isWebSearchMode:', typeof isWebSearchMode !== 'undefined' ? isWebSearchMode : 'UNDEFINED');
 
             // Criar container com texto "Pesquisando..."
-            const messageContainer = this.createAssistantMessageContainer();
+            const messageContainer = this.createRapidMessageContainer();
             this.setThinkingHeader('🔍 Pesquisando...', messageContainer.headerId);
                 
             // Iniciar busca de imagens em paralelo
