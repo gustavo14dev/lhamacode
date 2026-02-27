@@ -5500,6 +5500,13 @@ ${latexCode}
             console.log('🔍 [TAVILY DEBUG] Iniciando chamada API Tavily Search...');
             console.log('🔍 [TAVILY DEBUG] Mensagem:', message);
             console.log('🔍 [TAVILY DEBUG] isWebSearchMode:', typeof isWebSearchMode !== 'undefined' ? isWebSearchMode : 'UNDEFINED');
+
+            // Criar container com texto "Pesquisando..."
+            const messageContainer = this.createAssistantMessageContainer();
+            this.setThinkingHeader('🔍 Pesquisando...', messageContainer.headerId);
+                
+            // Iniciar busca de imagens em paralelo
+            const imagesPromise = this.agent.searchPexelsImages(message);
                 
             // Obter histórico da conversa atual
             const currentChat = this.chats.find(c => c.id === this.currentChatId);
@@ -5534,8 +5541,17 @@ ${latexCode}
             console.log('✅ [TAVILY DEBUG] Dados da resposta:', data);
             console.log('✅ [TAVILY DEBUG] Fontes encontradas:', data.sources?.length || 0);
             
-            // Adicionar resposta da IA com fontes
-            this.addAssistantMessage(data.response, data.sources || [], null);
+            // Limpar texto "Pesquisando..."
+            this.setThinkingHeader('', messageContainer.headerId);
+            
+            // Adicionar resposta da IA com fontes e depois imagens
+            this.setResponseText(data.response, messageContainer.responseId, async () => {
+                // Adicionar imagens DEPOIS do texto
+                const images = await imagesPromise;
+                if (images && images.length > 0) {
+                    this.appendImagesToMessage(messageContainer.responseId, images);
+                }
+            });
 
             console.log('✅ [TAVILY DEBUG] Pesquisa Tavily concluída com sucesso');
 
