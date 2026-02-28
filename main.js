@@ -4015,7 +4015,13 @@ ${latexCode}
 
 
     setResponseText(text, responseId, callback) {
+        console.log('🔍 [SET-TEXT] Iniciando setResponseText');
+        console.log('🔍 [SET-TEXT] Text:', text ? text.substring(0, 100) + '...' : 'NULO');
+        console.log('🔍 [SET-TEXT] ResponseId:', responseId);
+        console.log('🔍 [SET-TEXT] Callback:', typeof callback);
+        
         const responseDiv = document.getElementById(responseId);
+        console.log('🔍 [SET-TEXT] Elemento encontrado:', !!responseDiv);
 
         if (responseDiv) {
             // NÃO LIMPAR innerHTML NUNCA! Apenas adicionar texto após imagens existentes
@@ -4023,6 +4029,8 @@ ${latexCode}
 
             // Forçar texto seguro (string) e mensagem amigável para respostas vazias
             let safeText = (text == null || String(text).trim().length === 0) ? '[Erro: resposta vazia do servidor. Verifique /api/status e suas Environment Variables.]' : String(text);
+
+            console.log('🔍 [SET-TEXT] SafeText:', safeText.substring(0, 100) + '...');
 
             // Verificar se já existem imagens no elemento
             const hasImages = responseDiv.querySelectorAll('div[style*="flex: 1"], div[id*="shadow-"], div[id*="carousel_"]').length > 0;
@@ -4052,7 +4060,11 @@ ${latexCode}
     async typewriterEffect(text, element, callback, imagesHtml = '') {
 
         // Garantir que temos string
-
+        console.log('🔍 [TYPE] Iniciando typewriterEffect');
+        console.log('🔍 [TYPE] Text length:', text ? text.length : 0);
+        console.log('🔍 [TYPE] Element:', !!element);
+        console.log('🔍 [TYPE] Callback:', typeof callback);
+        
         text = (text == null) ? '' : String(text);
 
         console.log('🔍 [TYPE] Iniciando typewriter com imagesHtml length:', imagesHtml.length);

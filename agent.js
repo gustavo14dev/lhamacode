@@ -619,9 +619,6 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 
         this.addToHistory('user', userMessage);
         
-        // Iniciar busca de imagens em paralelo
-        const imagesPromise = this.searchPexelsImages(userMessage);
-
         try {
             const messages = this.extraMessagesForNextCall ? [
                 { role: 'system', content: this.getSystemPrompt('rapido') },
@@ -642,6 +639,10 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             }
             
             let response = await this.callGroqAPI('llama-3.1-8b-instant', messages);
+            console.log('🔍 [DEBUG-RAPIDO] Resposta da API recebida:', response ? response.substring(0, 100) + '...' : 'NULO');
+            console.log('🔍 [DEBUG-RAPIDO] Tipo da resposta:', typeof response);
+            console.log('🔍 [DEBUG-RAPIDO] Tamanho da resposta:', response ? response.length : 0);
+            
             // limpar extras para próxima chamada
             this.extraMessagesForNextCall = null;
 
