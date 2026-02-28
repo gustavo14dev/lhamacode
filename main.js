@@ -3686,9 +3686,11 @@ ${latexCode}
         
         messageDiv.innerHTML = `
             <div class="flex items-start gap-3">
-                <!-- Avatar do assistente -->
-                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-lg font-bold">
-                    AI
+                <!-- Vídeo animado ao lado esquerdo da resposta -->
+                <div class="flex-shrink-0 mt-1">
+                    <video autoplay muted loop playsinline class="w-8 h-8 rounded-full object-cover shadow-sm" style="filter: brightness(1.1) contrast(1.1);">
+                        <source src="img/Video Project.mp4" type="video/mp4">
+                    </video>
                 </div>
                 
                 <div class="flex-1 max-w-[85%] px-5 py-4">

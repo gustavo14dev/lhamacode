@@ -439,7 +439,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.ui.setResponseText(response, messageContainer.responseId);
             await this.ui.sleep(500);
             this.ui.setResponseText(response, messageContainer.responseId, async () => {
-                await this.displayImagesIfAvailable(imagesPromise, messageContainer.container.id.replace('msg_', ''));
+                await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
             });
@@ -743,7 +743,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             
             // Mostrar resposta final
             this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
-                await this.displayImagesIfAvailable(imagesPromise, messageContainer.container.id.replace('msg_', ''));
+                await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);
             });
@@ -940,7 +940,7 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
             this.ui.setThinkingHeader('', messageContainer.headerId);
             
             // Exibir imagens
-            await this.displayImagesIfAvailable(imagesPromise, messageContainer.container.id.replace('msg_', ''));
+            await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
             
             // Gerar sugestões de acompanhamento
             await this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);

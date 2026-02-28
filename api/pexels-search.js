@@ -63,7 +63,7 @@ export default async function handler(req, res) {
     }
     
     // Fazer requisição para API Pexels com query melhorada
-    const searchUrl = `https://api.pexels.com/v1/search?query=${encodeURIComponent(improvedQuery)}&per_page=6&orientation=landscape&size=large&quality=high`;
+    const searchUrl = `https://api.pexels.com/v1/search?query=${encodeURIComponent(improvedQuery)}&per_page=3&orientation=landscape&size=large&quality=high`;
     
     console.log('🔍 Buscando imagem original:', query);
     console.log('🎯 Query melhorada:', improvedQuery);
