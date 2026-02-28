@@ -66,6 +66,14 @@ export class Agent {
         console.log('📨 Mensagem para processar:', userMessage.substring(0, 100) + '...');
         console.log('📨 Tamanho total:', userMessage.length, 'caracteres');
 
+        // Verificar se o usuário quer gerar uma imagem
+        const imageGenerationMatch = userMessage.match(/^(gere|crie|criar|desenhe|produza|faça).*imagem\s+(sobre|de|do|com)?\s+(.+)$/i);
+        if (imageGenerationMatch) {
+            console.log('🎨 [DETECÇÃO] Usuário quer gerar imagem:', imageGenerationMatch[2]);
+            await this.processImageGeneration(imageGenerationMatch[2]);
+            return;
+        }
+
         // Adicionar mensagem à memória da conversa
         this.memory.addConversationMemory('user', userMessage);
     
@@ -161,6 +169,64 @@ export class Agent {
         this.isGenerating = false;
         this.ui.updateSendButtonToSend();
     }
+
+    async processImageGeneration(prompt) {
+        console.log(`🎨 [IMAGE-GEN] Processando geração de imagem: "${prompt}"`);
+        
+        const messageContainer = this.ui.createAssistantMessageContainer();
+        const timestamp = Date.now();
+
+        this.ui.setThinkingHeader('🎨 Gerando imagem...', messageContainer.headerId);
+        await this.ui.sleep(500);
+
+        try {
+            // Gerar imagem com Gemini
+            const imageData = await this.generateImageWithGemini(prompt);
+            
+            if (imageData && imageData.imageUrl) {
+                console.log('✅ [IMAGE-GEN] Imagem gerada com sucesso!');
+                
+                // Criar resposta com a imagem
+                const response = `🎨 **Imagem gerada com sucesso!**\n\nAqui está sua imagem sobre: "${prompt}"`;
+                
+                // Adicionar ao histórico
+                this.addToHistory('assistant', response);
+                
+                // Exibir resposta
+                this.ui.setResponseText(response, messageContainer.responseId, async () => {
+                    // Adicionar imagem gerada
+                    const imageHtml = `
+                        <div style="margin-top: 15px; text-align: center;">
+                            <img src="${imageData.imageUrl}" alt="Imagem gerada: ${prompt}" 
+                                 style="max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); cursor: pointer;"
+                                 onclick="window.open('${imageData.imageUrl}', '_blank')"
+                                 title="Clique para ampliar">
+                            <div style="margin-top: 8px; font-size: 12px; color: #6b7280; font-style: italic;">
+                                🎨 Gerado por Gemini • ${prompt}
+                            </div>
+                        </div>
+                    `;
+                    
+                    const responseDiv = document.getElementById(messageContainer.responseId);
+                    if (responseDiv) {
+                        responseDiv.insertAdjacentHTML('beforeend', imageHtml);
+                    }
+                });
+                
+                // Limpar header de processamento
+                this.ui.setThinkingHeader('', messageContainer.headerId);
+                
+            } else {
+                throw new Error('Não foi possível gerar a imagem');
+            }
+            
+        } catch (error) {
+            console.error('Erro na geração de imagem:', error);
+            this.ui.setResponseText('❌ Desculpe, não foi possível gerar a imagem. Tente novamente.', messageContainer.responseId);
+            this.ui.setThinkingHeader('', messageContainer.headerId);
+        }
+    }
+
     // ==================== MODELO DE PESQUISA (openai/gpt-oss-20b com browser search) ====================
     async processPesquisaModel(userMessage, relevantContext = []) {
         const messageContainer = this.ui.createAssistantMessageContainer();
@@ -1433,6 +1499,48 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             return null;
         } catch (error) {
             console.error('Erro ao buscar informações na web:', error);
+            return null;
+        }
+    }
+
+    async generateImageWithGemini(prompt) {
+        console.log(`🎨 [GEMINI] Gerando imagem para: "${prompt}"`);
+        
+        // Chamar o proxy server-side para a API Gemini
+        const proxyUrl = '/api/gemini-image';
+
+        try {
+            const response = await fetch(proxyUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ prompt: prompt })
+            });
+
+            console.log(`📡 [GEMINI] Resposta status: ${response.status}`);
+
+            // Verificar se a resposta é válida antes de tentar ler JSON
+            if (!response.ok) {
+                console.error('Erro ao gerar imagem:', response.status, response.statusText);
+                return null;
+            }
+            
+            const data = await response.json();
+            console.log(`📦 [GEMINI] Dados recebidos:`, data);
+            
+            if (data.success && data.imageUrl) {
+                console.log(`✅ [GEMINI] Imagem gerada com sucesso!`);
+                return {
+                    imageUrl: data.imageUrl,
+                    prompt: prompt,
+                    model: data.model
+                };
+            }
+            console.log(`⚠️ [GEMINI] Nenhuma imagem gerada`);
+            return null;
+        } catch (error) {
+            console.error('Erro ao gerar imagem com Gemini:', error);
             return null;
         }
     }
