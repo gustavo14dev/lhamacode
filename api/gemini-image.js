@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
   try {
     // Usar a API correta do Gemini para geração de imagens
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -110,7 +110,7 @@ export default async function handler(req, res) {
       success: true,
       imageUrl: imageUrl,
       prompt: prompt,
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.0-flash-exp',
       message: 'Imagem gerada com sucesso!'
     });
 
