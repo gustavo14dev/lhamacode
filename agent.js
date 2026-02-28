@@ -1407,7 +1407,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ query: query })
+                body: JSON.stringify({ message: query })
             });
 
             console.log(`📡 [WEB-SEARCH] Resposta status: ${response.status}`);
