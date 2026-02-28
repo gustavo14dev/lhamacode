@@ -27,28 +27,29 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Usar o modelo mais econômico do Gemini para geração de imagens
+    // Usar a API correta do Gemini para geração de imagens
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `Generate a high-quality image of: ${prompt}. Make it visually appealing and professional.`
+            text: prompt
           }]
         }],
         generationConfig: {
-          responseModalities: ["Text", "Image"],
-          responseMimeType: "text/plain"
+          responseModalities: ["Image"],
+          responseMimeType: "image/png"
         }
       })
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error(' Erro na API Gemini:', response.status, response.statusText);
+      console.error(' Detalhes:', errorData);
       console.error('❌ Erro na API Gemini:', response.status, response.statusText);
       console.error('❌ Detalhes:', errorData);
       
