@@ -41,17 +41,8 @@ export default async function handler(req, res) {
         model: 'black-forest-labs/flux.2-flex', // Modelo mais recente e estável
         messages: [{
           role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `Generate a high-quality, professional image of: ${prompt}. Make it visually appealing and detailed.`
-            }
-          ]
+          content: `Generate a high-quality, professional image of: ${prompt}. Make it visually appealing and detailed.`
         }],
-        response_format: {
-          type: 'image',
-          quality: 'high'
-        },
         max_tokens: 1000
       })
     });
@@ -97,17 +88,44 @@ export default async function handler(req, res) {
     if (data.choices && data.choices[0] && data.choices[0].message) {
       const message = data.choices[0].message;
       
-      // Procurar por imagem no content
+      // OpenRouter pode retornar imagem de diferentes formas
       if (message.content) {
-        for (const content of message.content) {
-          if (content.type === 'image' && content.image) {
-            // OpenRouter retorna URL direta da imagem
-            imageUrl = content.image.url;
-            break;
+        // Se for string, pode ser uma URL
+        if (typeof message.content === 'string') {
+          // Procurar por URL na string
+          const urlMatch = message.content.match(/https?:\/\/[^\s\)]+/);
+          if (urlMatch) {
+            imageUrl = urlMatch[0];
+          }
+        }
+        // Se for array, procurar por objeto de imagem
+        else if (Array.isArray(message.content)) {
+          for (const content of message.content) {
+            if (content.type === 'image' && content.image) {
+              imageUrl = content.image.url;
+              break;
+            }
+            // Ou se tiver URL direto no content
+            if (content.text && typeof content.text === 'string') {
+              const urlMatch = content.text.match(/https?:\/\/[^\s\)]+/);
+              if (urlMatch) {
+                imageUrl = urlMatch[0];
+                break;
+              }
+            }
           }
         }
       }
     }
+
+    console.log('🔍 [DEBUG] Estrutura da resposta:', {
+      hasChoices: !!data.choices,
+      choicesLength: data.choices?.length,
+      firstChoice: data.choices?.[0],
+      hasMessage: !!data.choices?.[0]?.message,
+      messageContent: data.choices?.[0]?.message?.content,
+      extractedImageUrl: imageUrl
+    });
 
     if (!imageUrl) {
       console.error('❌ Nenhuma imagem encontrada na resposta');
