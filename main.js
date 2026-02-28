@@ -4776,15 +4776,15 @@ ${latexCode}
                     align-items: center;
                     gap: 8px;
                     padding: 8px 16px;
-                    background: #f3f4f6;
-                    border: none;
+                    background: transparent;
+                    border: 1px solid #3b82f6;
                     border-radius: 20px;
                     cursor: pointer;
                     font-size: 14px;
-                    color: #374151;
+                    color: #3b82f6;
                     transition: all 0.2s ease;
-                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-                " onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'">
+                    backdrop-filter: blur(10px);
+                " onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'" onmouseout="this.style.background='transparent'">
                     <!-- Ícones sobrepostos -->
                     <div style="position: relative; width: 16px; height: 16px;">
                         <!-- Círculo azul com nuvens -->
@@ -4850,21 +4850,22 @@ ${latexCode}
                 display: none;
                 margin-top: 10px;
                 padding: 15px;
-                background: #f9fafb;
-                border: 1px solid #e5e7eb;
+                background: transparent;
+                border: 1px solid #3b82f6;
                 border-radius: 12px;
                 animation: slideDown 0.3s ease;
+                backdrop-filter: blur(10px);
             ">
-                <div style="font-weight: 600; color: #374151; margin-bottom: 10px; font-size: 14px;">
+                <div style="font-weight: 600; color: #3b82f6; margin-bottom: 10px; font-size: 14px;">
                     📚 Fontes pesquisadas para: "${query}"
                 </div>
                 ${sources.map((source, index) => `
                     <div style="
                         margin-bottom: 12px;
                         padding: 10px;
-                        background: white;
+                        background: transparent;
                         border-radius: 8px;
-                        border: 1px solid #e5e7eb;
+                        border: 1px solid rgba(59, 130, 246, 0.3);
                     ">
                         <div style="display: flex; align-items: start; gap: 10px;">
                             <span style="
@@ -4881,7 +4882,7 @@ ${latexCode}
                                 flex-shrink: 0;
                             ">${index + 1}</span>
                             <div style="flex: 1;">
-                                <div style="font-weight: 500; color: #111827; margin-bottom: 4px; font-size: 13px;">
+                                <div style="font-weight: 500; color: #1f2937; margin-bottom: 4px; font-size: 13px;">
                                     ${source.title || 'Fonte sem título'}
                                 </div>
                                 <div style="color: #6b7280; font-size: 12px; margin-bottom: 6px;">
