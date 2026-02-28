@@ -717,42 +717,41 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 
         this.addToHistory('user', userMessage);
         
-        // Iniciar busca de imagens em paralelo
-        const imagesPromise = this.searchPexelsImages(userMessage);
-
         try {
-            // ÚNICA CHAMADA API com modelo de raciocínio
-            const systemPrompt = { 
-                role: 'system', 
-                content: this.getSystemPrompt('raciocinio') + 
-                ' Você é um modelo de raciocínio. Pense passo a passo sobre a pergunta do usuário e coloque seu raciocínio completo dentro de tags <think>...</think>. Depois do raciocínio, forneça a resposta final.'
-            };
+            // Buscar dados web antes de chamar a API
+            const imagesPromise = this.searchPexelsImages(userMessage);
+            const webSearchPromise = this.searchWebForResponse(userMessage);
+            const [images, webData] = await Promise.all([imagesPromise, webSearchPromise]);
+            console.log('📦 [RACIOCINIO] Imagens recebidas:', images);
+            console.log('🌐 [RACIOCINIO] Dados web recebidos:', webData);
             
-            const messages = this.extraMessagesForNextCall ? 
-                [systemPrompt, ...this.extraMessagesForNextCall, ...this.conversationHistory] : 
-                [systemPrompt, ...this.conversationHistory];
+            // Construir mensagens com contexto web se disponível
+            let finalMessages = this.extraMessagesForNextCall ? 
+                [{ role: 'system', content: this.getSystemPrompt('raciocinio') }, ...this.extraMessagesForNextCall, ...this.conversationHistory] : 
+                [{ role: 'system', content: this.getSystemPrompt('raciocinio') }, ...this.conversationHistory];
+                
+            if (webData && webData.answer && webData.sources.length > 0) {
+                const webContext = `Informações relevantes da web: ${webData.answer}\nFontes: ${webData.sources.map(s => s.title).join(', ')}`;
+                finalMessages = [
+                    { 
+                        role: 'system', 
+                        content: this.getSystemPrompt('raciocinio') + 
+                        ' Você é um modelo de raciocínio. Pense passo a passo sobre a pergunta do usuário e coloque seu raciocínio completo dentro de tags </think>...</think>. Depois do raciocínio, forneça a resposta final.\n\n' + webContext
+                    },
+                    ...(this.extraMessagesForNextCall || []),
+                    ...this.conversationHistory
+                ];
+            }
             
             console.log('🧭 Usando modelo de raciocínio: qwen/qwen3-32b');
-            let fullResponse = await this.callGroqAPI('qwen/qwen3-32b', messages);
-            this.extraMessagesForNextCall = null;
-            
-            // Extrair raciocínio e resposta
-            let reasoningText = '';
-            let finalResponse = fullResponse;
-            
-            // Procurar por tags <think>...</think>
-            const thinkMatch = fullResponse.match(/<think>([\s\S]*?)<\/think>/);
-            if (thinkMatch) {
-                reasoningText = thinkMatch[1].trim();
-                finalResponse = fullResponse.replace(/<think>[\s\S]*?<\/think>/, '').trim();
-            }
+            let fullResponse = await this.callGroqAPI('qwen/qwen3-32b', finalMessages);
             
             // Tentar extrair arquivos gerados na resposta e anexá-los ao chat
             try {
-                const parsedFiles = this.parseFilesFromText(finalResponse);
+                const parsedFiles = this.parseFilesFromText(fullResponse);
                 if (parsedFiles && parsedFiles.length > 0) {
                     this.attachGeneratedFilesToChat(parsedFiles);
-                    finalResponse = finalResponse.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
+                    fullResponse = fullResponse.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
                 }
             } catch (e) {
                 console.warn('⚠️ Falha parsing arquivos de resposta (Raciocínio):', e);
@@ -762,6 +761,11 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             
             // Mostrar resposta final
             this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
+                // Adicionar botão de fontes se houver dados web
+                if (webData && webData.sources && webData.sources.length > 0) {
+                    this.ui.addSourcesButton(messageContainer.responseId, webData.sources, webData.query);
+                }
+                
                 await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);
@@ -837,10 +841,22 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 
         this.addToHistory('user', userMessage);
         
-        // Iniciar busca de imagens em paralelo
+        // Iniciar busca de imagens e informações web em paralelo
         const imagesPromise = this.searchPexelsImages(userMessage);
+        const webSearchPromise = this.searchWebForResponse(userMessage);
 
         try {
+            // Buscar dados web antes de começar as análises
+            const [images, webData] = await Promise.all([imagesPromise, webSearchPromise]);
+            console.log('📦 [PRO] Imagens recebidas:', images);
+            console.log('🌐 [PRO] Dados web recebidos:', webData);
+            
+            // Preparar contexto web se disponível
+            let webContext = '';
+            if (webData && webData.answer && webData.sources.length > 0) {
+                webContext = `\n\nInformações relevantes da web: ${webData.answer}\nFontes: ${webData.sources.map(s => s.title).join(', ')}`;
+            }
+            
             // ========== ETAPA 1: Primeira análise ==========
             const step1Text = 'Analisando perspectiva 1...';
             this.ui.setThinkingHeader(step1Text, messageContainer.headerId);
@@ -849,12 +865,12 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             await this.ui.sleep(500);
             
             const messages1 = this.extraMessagesForNextCall ? [
-                { role: 'system', content: this.getSystemPrompt('pro') },
+                { role: 'system', content: this.getSystemPrompt('pro') + webContext },
                 ...this.extraMessagesForNextCall,
                 ...this.conversationHistory,
                 { role: 'user', content: userMessage }
             ] : [
-                { role: 'system', content: this.getSystemPrompt('pro') },
+                { role: 'system', content: this.getSystemPrompt('pro') + webContext },
                 ...this.conversationHistory,
                 { role: 'user', content: userMessage }
             ];
@@ -878,12 +894,12 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             await this.ui.sleep(500);
             
             const messages2 = this.extraMessagesForNextCall ? [
-                { role: 'system', content: this.getSystemPrompt('pro') },
+                { role: 'system', content: this.getSystemPrompt('pro') + webContext },
                 ...this.extraMessagesForNextCall,
                 ...this.conversationHistory,
                 { role: 'user', content: userMessage }
             ] : [
-                { role: 'system', content: this.getSystemPrompt('pro') },
+                { role: 'system', content: this.getSystemPrompt('pro') + webContext },
                 ...this.conversationHistory,
                 { role: 'user', content: userMessage }
             ];
@@ -909,7 +925,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const synthMessages = [
                 {
                     role: 'system',
-                    content: this.getSystemPrompt('pro') + ' Você é um especialista em síntese. Combine e melhore as duas respostas abaixo em uma única resposta superior. Corrija possíveis erros, melhore a clareza, e crie uma resposta final otimizada.'
+                    content: this.getSystemPrompt('pro') + webContext + ' Você é um especialista em síntese. Combine e melhore as duas respostas abaixo em uma única resposta superior. Corrija possíveis erros, melhore a clareza, e crie uma resposta final otimizada.'
                 },
                 {
                     role: 'user',
@@ -945,7 +961,12 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
             }
 
             this.addToHistory('assistant', finalResponse);
-            this.ui.setResponseText(finalResponse, messageContainer.responseId);
+            this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
+                // Adicionar botão de fontes se houver dados web
+                if (webData && webData.sources && webData.sources.length > 0) {
+                    this.ui.addSourcesButton(messageContainer.responseId, webData.sources, webData.query);
+                }
+            });
             
             // Mostrar botões de ação quando resposta estiver completa
             const actionsDiv = document.getElementById(`actions_${messageContainer.container.id.replace('msg_', '')}`);
