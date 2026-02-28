@@ -611,7 +611,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         const timestamp = Date.now();
 
         // Adicionar texto simples de carregamento com pontinhos pulsando
-        const thinkingHeader = document.getElementById(`thinkingHeader_${messageContainer}`);
+        const thinkingHeader = document.getElementById(messageContainer.headerId);
         if (thinkingHeader) {
             thinkingHeader.innerHTML = '<span class="inline-flex gap-1"><span class="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></span><span class="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style="animation-delay: 0.2s"></span><span class="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style="animation-delay: 0.4s"></span></span>';
             thinkingHeader.className = 'text-base leading-relaxed text-gray-500 dark:text-gray-400';
@@ -635,7 +635,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             // Adicionar imagens ANTES da resposta
             if (images && images.length > 0) {
                 console.log('✅ [DEBUG-RAPIDO] Adicionando imagens ANTES da resposta');
-                this.ui.appendImagesToMessage(`responseText_${messageContainer}`, images);
+                this.ui.appendImagesToMessage(messageContainer.responseId, images);
             }
             
             let response = await this.callGroqAPI('llama-3.1-8b-instant', messages);
@@ -650,11 +650,11 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.addToHistory('assistant', response);
             
             // Exibir na UI usando o método padrão que suporta HTML
-            this.ui.setResponseText(response, `responseText_${messageContainer}`, async () => {
+            this.ui.setResponseText(response, messageContainer.responseId, async () => {
                 console.log('🔄 [DEBUG-RAPIDO] Resposta exibida após imagens');
 
                 // Mostrar botões de ação quando resposta estiver completa
-                const actionsDiv = document.getElementById(`actions_${messageContainer}`);
+                const actionsDiv = document.getElementById(`actions_${messageContainer.uniqueId}`);
                 if (actionsDiv) {
                     actionsDiv.classList.remove('opacity-0');
                     actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
@@ -683,7 +683,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 console.log('⚠️ Geração interrompida pelo usuário');
                 return;
             }
-            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem. ' + error.message, `responseText_${messageContainer}`);
+            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem. ' + error.message, messageContainer.responseId);
             console.error('Erro no Modelo Rápido:', error);
         }
     }
