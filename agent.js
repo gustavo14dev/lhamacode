@@ -626,11 +626,14 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 ...this.conversationHistory
             ] : undefined;
             
-            // BUSCAR IMAGENS PRIMEIRO - antes de chamar a API
-            console.log('🔄 [DEBUG-RAPIDO] Buscando imagens ANTES da resposta...');
+            // BUSCAR IMAGENS E INFORMAÇÕES WEB EM PARALELO - antes de chamar a API
+            console.log('🔄 [DEBUG-RAPIDO] Buscando imagens e informações web ANTES da resposta...');
             const imagesPromise = this.searchPexelsImages(userMessage);
-            const images = await imagesPromise;
+            const webSearchPromise = this.searchWebForResponse(userMessage);
+            
+            const [images, webData] = await Promise.all([imagesPromise, webSearchPromise]);
             console.log('📦 [DEBUG-RAPIDO] Imagens recebidas:', images);
+            console.log('🌐 [DEBUG-RAPIDO] Dados web recebidos:', webData);
             
             // Adicionar imagens ANTES da resposta
             if (images && images.length > 0) {
@@ -638,7 +641,18 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 this.ui.appendImagesToMessage(messageContainer.responseId, images);
             }
             
-            let response = await this.callGroqAPI('llama-3.1-8b-instant', messages);
+            // Construir mensagens com contexto web se disponível
+            let finalMessages = messages;
+            if (webData && webData.answer && webData.sources.length > 0) {
+                const webContext = `Informações relevantes da web: ${webData.answer}\nFontes: ${webData.sources.map(s => s.title).join(', ')}`;
+                finalMessages = [
+                    { role: 'system', content: this.getSystemPrompt('rapido') + '\n\n' + webContext },
+                    ...(this.extraMessagesForNextCall || []),
+                    ...this.conversationHistory
+                ];
+            }
+            
+            let response = await this.callGroqAPI('llama-3.1-8b-instant', finalMessages);
             console.log('🔍 [DEBUG-RAPIDO] Resposta da API recebida:', response ? response.substring(0, 100) + '...' : 'NULO');
             console.log('🔍 [DEBUG-RAPIDO] Tipo da resposta:', typeof response);
             console.log('🔍 [DEBUG-RAPIDO] Tamanho da resposta:', response ? response.length : 0);
@@ -652,6 +666,11 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             // Exibir na UI usando o método padrão que suporta HTML
             this.ui.setResponseText(response, messageContainer.responseId, async () => {
                 console.log('🔄 [DEBUG-RAPIDO] Resposta exibida após imagens');
+
+                // Adicionar botão de fontes se houver dados web
+                if (webData && webData.sources && webData.sources.length > 0) {
+                    this.ui.addSourcesButton(messageContainer.responseId, webData.sources, webData.query);
+                }
 
                 // Mostrar botões de ação quando resposta estiver completa
                 const actionsDiv = document.getElementById(`actions_${messageContainer.uniqueId}`);
@@ -1354,6 +1373,49 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             return [];
         }
     }
+
+    async searchWebForResponse(query) {
+        console.log(`🔍 [WEB-SEARCH] Buscando informações na web para: "${query}"`);
+        
+        // Chamar o proxy server-side para a API Tavily com fallback
+        const proxyUrl = '/api/tavily-web';
+
+        try {
+            const response = await fetch(proxyUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ query: query })
+            });
+
+            console.log(`📡 [WEB-SEARCH] Resposta status: ${response.status}`);
+
+            // Verificar se a resposta é válida antes de tentar ler JSON
+            if (!response.ok) {
+                console.error('Erro ao buscar informações na web:', response.status, response.statusText);
+                return null;
+            }
+            
+            const data = await response.json();
+            console.log(`📦 [WEB-SEARCH] Dados recebidos:`, data);
+            
+            if (data.sources && Array.isArray(data.sources)) {
+                console.log(`✅ [WEB-SEARCH] ${data.sources.length} fontes encontradas`);
+                return {
+                    answer: data.response,
+                    sources: data.sources,
+                    query: query
+                };
+            }
+            console.log(`⚠️ [WEB-SEARCH] Nenhuma fonte encontrada`);
+            return null;
+        } catch (error) {
+            console.error('Erro ao buscar informações na web:', error);
+            return null;
+        }
+    }
+
     // ==================== UTILITIES ====================
     addToHistory(role, content) {
         this.conversationHistory.push({

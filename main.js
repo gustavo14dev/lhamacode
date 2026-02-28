@@ -4753,6 +4753,200 @@ ${latexCode}
         console.log('✅ [CARROSSEL] Carrossel adicionado com isolamento máximo!');
     }
 
+    // Método para adicionar botão de fontes personalizado
+    addSourcesButton(responseId, sources, query) {
+        console.log('🔗 [SOURCES] Adicionando botão de fontes para:', responseId);
+        console.log('🔗 [SOURCES] Fontes:', sources.length);
+        
+        const responseDiv = document.getElementById(responseId);
+        if (!responseDiv) {
+            console.error('❌ [SOURCES] Elemento responseDiv não encontrado');
+            return;
+        }
+
+        // Criar ID único para o botão e container
+        const sourcesId = `sources_${Date.now()}`;
+        const buttonId = `sourcesBtn_${Date.now()}`;
+
+        // Criar botão de fontes com design personalizado
+        const sourcesButtonHtml = `
+            <div style="margin-top: 15px; margin-bottom: 10px;">
+                <button id="${buttonId}" class="sources-button" style="
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 8px 16px;
+                    background: #f3f4f6;
+                    border: none;
+                    border-radius: 20px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    color: #374151;
+                    transition: all 0.2s ease;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                " onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'">
+                    <!-- Ícones sobrepostos -->
+                    <div style="position: relative; width: 16px; height: 16px;">
+                        <!-- Círculo azul com nuvens -->
+                        <div style="
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            width: 16px;
+                            height: 16px;
+                            background: #3b82f6;
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <div style="
+                                width: 10px;
+                                height: 10px;
+                                background: white;
+                                border-radius: 50%;
+                                opacity: 0.8;
+                            "></div>
+                        </div>
+                        <!-- Nuvem escura com raio -->
+                        <div style="
+                            position: absolute;
+                            top: 2px;
+                            left: 2px;
+                            width: 12px;
+                            height: 12px;
+                            background: #1f2937;
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <div style="
+                                width: 0;
+                                height: 0;
+                                border-left: 3px solid transparent;
+                                border-right: 3px solid transparent;
+                                border-top: 5px solid #fbbf24;
+                                transform: translateY(-1px);
+                            "></div>
+                        </div>
+                    </div>
+                    <span style="font-weight: 500;">Fontes</span>
+                    <span style="
+                        width: 16px;
+                        height: 16px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        transition: transform 0.2s ease;
+                    ">▼</span>
+                </button>
+            </div>
+        `;
+
+        // Criar container das fontes (inicialmente oculto)
+        const sourcesContainerHtml = `
+            <div id="${sourcesId}" style="
+                display: none;
+                margin-top: 10px;
+                padding: 15px;
+                background: #f9fafb;
+                border: 1px solid #e5e7eb;
+                border-radius: 12px;
+                animation: slideDown 0.3s ease;
+            ">
+                <div style="font-weight: 600; color: #374151; margin-bottom: 10px; font-size: 14px;">
+                    📚 Fontes pesquisadas para: "${query}"
+                </div>
+                ${sources.map((source, index) => `
+                    <div style="
+                        margin-bottom: 12px;
+                        padding: 10px;
+                        background: white;
+                        border-radius: 8px;
+                        border: 1px solid #e5e7eb;
+                    ">
+                        <div style="display: flex; align-items: start; gap: 10px;">
+                            <span style="
+                                background: #3b82f6;
+                                color: white;
+                                width: 20px;
+                                height: 20px;
+                                border-radius: 50%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 12px;
+                                font-weight: bold;
+                                flex-shrink: 0;
+                            ">${index + 1}</span>
+                            <div style="flex: 1;">
+                                <div style="font-weight: 500; color: #111827; margin-bottom: 4px; font-size: 13px;">
+                                    ${source.title || 'Fonte sem título'}
+                                </div>
+                                <div style="color: #6b7280; font-size: 12px; margin-bottom: 6px;">
+                                    ${source.url || ''}
+                                </div>
+                                ${source.snippet ? `
+                                    <div style="color: #4b5563; font-size: 12px; line-height: 1.4;">
+                                        "${source.snippet.substring(0, 200)}${source.snippet.length > 200 ? '...' : ''}"
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <a href="${source.url || '#'}" target="_blank" style="
+                                color: #3b82f6;
+                                text-decoration: none;
+                                font-size: 12px;
+                                font-weight: 500;
+                                flex-shrink: 0;
+                            ">Ver →</a>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+        // Adicionar CSS para animação
+        const styleHtml = `
+            <style>
+                @keyframes slideDown {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                .sources-button:hover span:last-child {
+                    transform: rotate(180deg);
+                }
+            </style>
+        `;
+
+        // Inserir elementos no DOM
+        responseDiv.insertAdjacentHTML('beforeend', styleHtml + sourcesButtonHtml + sourcesContainerHtml);
+
+        // Adicionar evento de clique ao botão
+        const button = document.getElementById(buttonId);
+        const container = document.getElementById(sourcesId);
+        
+        if (button && container) {
+            button.addEventListener('click', () => {
+                const isHidden = container.style.display === 'none';
+                container.style.display = isHidden ? 'block' : 'none';
+                
+                // Atualizar texto do botão
+                const arrow = button.querySelector('span:last-child');
+                if (arrow) {
+                    arrow.textContent = isHidden ? '▲' : '▼';
+                }
+            });
+        }
+
+        console.log('✅ [SOURCES] Botão de fontes adicionado com sucesso!');
+    }
 
 
     escapeHtml(text) {
