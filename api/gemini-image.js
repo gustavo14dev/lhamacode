@@ -16,6 +16,7 @@ export default async function handler(req, res) {
   console.log('🎨 === VERIFICAÇÃO GEMINI API ===');
   console.log('🎨 GEMINI_API_KEY:', geminiApiKey ? '✅ Configurada' : '❌ Não configurada');
   console.log('🎨 Prompt:', prompt);
+  console.log('🎨 Endpoint:', `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent`);
   console.log('=====================================');
 
   if (!geminiApiKey) {
@@ -27,31 +28,38 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Usar a API correta do Gemini para geração de imagens
+    // Payload correto para Gemini 2.0
+    const payload = {
+      contents: [{
+        parts: [{
+          text: prompt
+        }]
+      }],
+      generationConfig: {
+        responseModalities: ["TEXT", "IMAGE"]
+      }
+    };
+
+    console.log('📤 Payload enviado:', JSON.stringify(payload, null, 2));
+
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          responseModalities: ["Image"],
-          responseMimeType: "image/png"
-        }
-      })
+      body: JSON.stringify(payload)
     });
+
+    console.log('📡 STATUS:', response.status);
+    console.log('📡 HEADERS:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error(' Erro na API Gemini:', response.status, response.statusText);
-      console.error(' Detalhes:', errorData);
-      console.error('❌ Erro na API Gemini:', response.status, response.statusText);
-      console.error('❌ Detalhes:', errorData);
+      console.error('❌ ERRO COMPLETO:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: errorData
+      });
       
       if (response.status === 429) {
         return res.status(429).json({ 
@@ -75,8 +83,15 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
-    console.log('✅ Imagem gerada com sucesso!');
-    console.log('📊 Resposta:', data);
+    console.log('✅ RESPOSTA COMPLETA:', JSON.stringify(data, null, 2));
+    console.log('📊 Estrutura da resposta:', {
+      hasCandidates: !!data.candidates,
+      candidatesLength: data.candidates?.length,
+      firstCandidate: data.candidates?.[0],
+      hasContent: !!data.candidates?.[0]?.content,
+      hasParts: !!data.candidates?.[0]?.content?.parts,
+      partsLength: data.candidates?.[0]?.content?.parts?.length
+    });
 
     // Extrair a imagem gerada da resposta
     let imageUrl = null;
