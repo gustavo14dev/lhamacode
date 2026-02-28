@@ -38,7 +38,7 @@ export default async function handler(req, res) {
         'X-Title': 'Drekee AI'
       },
       body: JSON.stringify({
-        model: 'black-forest-labs/flux-1.1-pro', // Modelo excelente com limites generosos
+        model: 'black-forest-labs/flux.2-flex', // Modelo mais recente e estável
         messages: [{
           role: 'user',
           content: [
@@ -121,7 +121,7 @@ export default async function handler(req, res) {
       success: true,
       imageUrl: imageUrl,
       prompt: prompt,
-      model: 'black-forest-labs/flux-1.1-pro',
+      model: 'black-forest-labs/flux.2-flex',
       message: 'Imagem gerada com sucesso!'
     });
 
