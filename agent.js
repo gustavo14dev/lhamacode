@@ -180,8 +180,8 @@ export class Agent {
         await this.ui.sleep(500);
 
         try {
-            // Gerar imagem com Gemini
-            const imageData = await this.generateImageWithGemini(prompt);
+            // Gerar imagem com OpenRouter
+            const imageData = await this.generateImageWithOpenRouter(prompt);
             
             if (imageData && imageData.imageUrl) {
                 console.log('✅ [IMAGE-GEN] Imagem gerada com sucesso!');
@@ -202,7 +202,7 @@ export class Agent {
                                  onclick="window.open('${imageData.imageUrl}', '_blank')"
                                  title="Clique para ampliar">
                             <div style="margin-top: 8px; font-size: 12px; color: #6b7280; font-style: italic;">
-                                🎨 Gerado por Gemini • ${prompt}
+                                🎨 Gerado por OpenRouter • ${prompt}
                             </div>
                         </div>
                     `;
@@ -1503,11 +1503,11 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         }
     }
 
-    async generateImageWithGemini(prompt) {
-        console.log(`🎨 [GEMINI] Gerando imagem para: "${prompt}"`);
+    async generateImageWithOpenRouter(prompt) {
+        console.log(`🎨 [OPENROUTER] Gerando imagem para: "${prompt}"`);
         
-        // Chamar o proxy server-side para a API Gemini
-        const proxyUrl = '/api/gemini-image';
+        // Chamar o proxy server-side para a API OpenRouter
+        const proxyUrl = '/api/openrouter-image';
 
         try {
             const response = await fetch(proxyUrl, {
@@ -1518,7 +1518,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 body: JSON.stringify({ prompt: prompt })
             });
 
-            console.log(`📡 [GEMINI] Resposta status: ${response.status}`);
+            console.log(`📡 [OPENROUTER] Resposta status: ${response.status}`);
 
             // Verificar se a resposta é válida antes de tentar ler JSON
             if (!response.ok) {
@@ -1527,20 +1527,20 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             }
             
             const data = await response.json();
-            console.log(`📦 [GEMINI] Dados recebidos:`, data);
+            console.log(`📦 [OPENROUTER] Dados recebidos:`, data);
             
             if (data.success && data.imageUrl) {
-                console.log(`✅ [GEMINI] Imagem gerada com sucesso!`);
+                console.log(`✅ [OPENROUTER] Imagem gerada com sucesso!`);
                 return {
                     imageUrl: data.imageUrl,
                     prompt: prompt,
                     model: data.model
                 };
             }
-            console.log(`⚠️ [GEMINI] Nenhuma imagem gerada`);
+            console.log(`⚠️ [OPENROUTER] Nenhuma imagem gerada`);
             return null;
         } catch (error) {
-            console.error('Erro ao gerar imagem com Gemini:', error);
+            console.error('Erro ao gerar imagem com OpenRouter:', error);
             return null;
         }
     }
