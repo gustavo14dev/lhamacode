@@ -67,10 +67,10 @@ export class Agent {
         console.log('📨 Tamanho total:', userMessage.length, 'caracteres');
 
         // Verificar se o usuário quer gerar uma imagem
-        const imageGenerationMatch = userMessage.match(/^(gere|crie|criar|desenhe|produza|faça).*imagem\s+(sobre|de|do|com)?\s+(.+)$/i);
+        const imageGenerationMatch = userMessage.match(/^(gere|crie|criar|desenhe|produza|faça).*imagem\s+(sobre|de|do|com)?\s*(.+)$/i);
         if (imageGenerationMatch) {
-            console.log('🎨 [DETECÇÃO] Usuário quer gerar imagem:', imageGenerationMatch[2]);
-            await this.processImageGeneration(imageGenerationMatch[2]);
+            console.log('🎨 [DETECÇÃO] Usuário quer gerar imagem:', imageGenerationMatch[3]);
+            await this.processImageGeneration(imageGenerationMatch[3]);
             return;
         }
 
