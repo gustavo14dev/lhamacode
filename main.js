@@ -4856,8 +4856,8 @@ ${latexCode}
                 animation: slideDown 0.3s ease;
                 backdrop-filter: blur(10px);
             ">
-                <div style="font-weight: 600; color: #3b82f6; margin-bottom: 10px; font-size: 14px;">
-                    📚 Fontes pesquisadas para: "${query}"
+                <div style="font-weight: 600; color: white; margin-bottom: 10px; font-size: 14px;">
+                    ${query}
                 </div>
                 ${sources.map((source, index) => `
                     <div style="
@@ -4882,7 +4882,7 @@ ${latexCode}
                                 flex-shrink: 0;
                             ">${index + 1}</span>
                             <div style="flex: 1;">
-                                <div style="font-weight: 500; color: #1f2937; margin-bottom: 4px; font-size: 13px;">
+                                <div style="font-weight: 500; color: white; margin-bottom: 4px; font-size: 13px;">
                                     ${source.title || 'Fonte sem título'}
                                 </div>
                                 <div style="color: #6b7280; font-size: 12px; margin-bottom: 6px;">
