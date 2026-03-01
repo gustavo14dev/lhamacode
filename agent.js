@@ -180,8 +180,8 @@ export class Agent {
         await this.ui.sleep(500);
 
         try {
-            // Gerar imagem com OpenRouter
-            const imageData = await this.generateImageWithOpenRouter(prompt);
+            // Gerar imagem com Stability AI
+            const imageData = await this.generateImageWithStability(prompt);
             
             if (imageData && imageData.imageUrl) {
                 console.log('✅ [IMAGE-GEN] Imagem gerada com sucesso!');
@@ -202,7 +202,7 @@ export class Agent {
                                  onclick="window.open('${imageData.imageUrl}', '_blank')"
                                  title="Clique para ampliar">
                             <div style="margin-top: 8px; font-size: 12px; color: #6b7280; font-style: italic;">
-                                🎨 Gerado por OpenRouter • ${prompt}
+                                🎨 Gerado por Stability AI • ${prompt}
                             </div>
                         </div>
                     `;
@@ -1503,11 +1503,11 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         }
     }
 
-    async generateImageWithOpenRouter(prompt) {
-        console.log(`🎨 [OPENROUTER] Gerando imagem para: "${prompt}"`);
+    async generateImageWithStability(prompt) {
+        console.log(`🎨 [STABILITY] Gerando imagem para: "${prompt}"`);
         
-        // Chamar o proxy server-side para a API OpenRouter
-        const proxyUrl = '/api/openrouter-image';
+        // Chamar o proxy server-side para a API Stability AI
+        const proxyUrl = '/api/stability-image';
 
         try {
             const response = await fetch(proxyUrl, {
@@ -1518,7 +1518,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 body: JSON.stringify({ prompt: prompt })
             });
 
-            console.log(`📡 [OPENROUTER] Resposta status: ${response.status}`);
+            console.log(`📡 [STABILITY] Resposta status: ${response.status}`);
 
             // Verificar se a resposta é válida antes de tentar ler JSON
             if (!response.ok) {
@@ -1527,20 +1527,20 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             }
             
             const data = await response.json();
-            console.log(`📦 [OPENROUTER] Dados recebidos:`, data);
+            console.log(`📦 [STABILITY] Dados recebidos:`, data);
             
             if (data.success && data.imageUrl) {
-                console.log(`✅ [OPENROUTER] Imagem gerada com sucesso!`);
+                console.log(`✅ [STABILITY] Imagem gerada com sucesso!`);
                 return {
                     imageUrl: data.imageUrl,
                     prompt: prompt,
                     model: data.model
                 };
             }
-            console.log(`⚠️ [OPENROUTER] Nenhuma imagem gerada`);
+            console.log(`⚠️ [STABILITY] Nenhuma imagem gerada`);
             return null;
         } catch (error) {
-            console.error('Erro ao gerar imagem com OpenRouter:', error);
+            console.error('Erro ao gerar imagem com Stability AI:', error);
             return null;
         }
     }
