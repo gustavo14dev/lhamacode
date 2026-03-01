@@ -8,6 +8,15 @@ import { PreferenceLearning } from './preference-system.js';
 
 
 
+// Configuração do Supabase
+const SUPABASE_URL = 'https://vvckoxcmhcaibfgfyqor.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_7RlWwC4vkk1uIRGN4I5-uQ_2d4cCa5w';
+
+// Inicializar Supabase (disponível globalmente)
+const supabase = window.supabase?.createClient ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+
+
 // Sistema de Depuração (carregado dinamicamente)
 
 let DebugSystem = null;
@@ -82,7 +91,14 @@ class UI {
 
             createButtonText: document.getElementById('createButtonText'),
 
-            scrollToBottomBtn: document.getElementById('scrollToBottomBtn')
+            scrollToBottomBtn: document.getElementById('scrollToBottomBtn'),
+
+            // Elementos de autenticação
+            userHeader: document.getElementById('userHeader'),
+            userEmail: document.getElementById('userEmail'),
+            loginBtn: document.getElementById('loginBtn'),
+            loginPrompt: document.getElementById('loginPrompt'),
+            logoutBtn: document.getElementById('logoutBtn')
 
         };
 
@@ -956,6 +972,11 @@ class UI {
 
         // Auto-resize da caixa de mensagem
         this.setupAutoResize();
+
+        
+
+        // Inicializar sistema de autenticação
+        this.initAuthSystem();
 
         
 
@@ -5859,6 +5880,199 @@ ${latexCode}
             originalHandleSend();
             textarea.style.height = MIN_HEIGHT + 'px';
         };
+    }
+
+    // Sistema de Autenticação com Supabase
+    async initAuthSystem() {
+        if (!supabase) {
+            console.warn('Supabase não disponível');
+            this.showGuestMode();
+            return;
+        }
+
+        // Verificar sessão atual
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+            this.showLoggedInUser(session.user);
+            await this.loadUserChats();
+        } else {
+            this.showGuestMode();
+        }
+
+        // Configurar event listeners
+        this.setupAuthListeners();
+
+        // Escutar mudanças na autenticação
+        supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                this.showLoggedInUser(session.user);
+                this.loadUserChats();
+            } else if (event === 'SIGNED_OUT') {
+                this.showGuestMode();
+                this.clearUserChats();
+            }
+        });
+    }
+
+    setupAuthListeners() {
+        // Botão de login
+        this.elements.loginBtn?.addEventListener('click', () => {
+            window.location.href = 'login.html';
+        });
+
+        // Botão de logout
+        this.elements.logoutBtn?.addEventListener('click', async () => {
+            await this.logout();
+        });
+    }
+
+    showLoggedInUser(user) {
+        const email = user.email;
+        this.elements.userEmail.textContent = email;
+        this.elements.userHeader.classList.remove('hidden');
+        this.elements.loginPrompt.classList.add('hidden');
+        
+        // Salvar sessão do usuário
+        localStorage.setItem('userSession', JSON.stringify({
+            email: email,
+            id: user.id
+        }));
+        
+        // Limpar flag de visitante
+        localStorage.removeItem('isGuest');
+        
+        console.log('✅ Usuário logado:', email);
+    }
+
+    showGuestMode() {
+        this.elements.userHeader.classList.add('hidden');
+        this.elements.loginPrompt.classList.remove('hidden');
+        
+        // Verificar se é visitante
+        if (localStorage.getItem('isGuest') === 'true') {
+            console.log('👤 Modo visitante');
+        } else {
+            console.log('🔒 Usuário não logado');
+        }
+    }
+
+    async logout() {
+        if (!supabase) return;
+
+        try {
+            await supabase.auth.signOut();
+            localStorage.removeItem('userSession');
+            localStorage.setItem('isGuest', 'true');
+            
+            // Limpar chats do usuário
+            this.clearUserChats();
+            
+            // Mostrar modo visitante
+            this.showGuestMode();
+            
+            console.log('✅ Logout realizado');
+        } catch (error) {
+            console.error('❌ Erro no logout:', error);
+        }
+    }
+
+    async loadUserChats() {
+        if (!supabase) return;
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Carregar chats do Supabase
+            const { data: chats, error } = await supabase
+                .from('chats')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('updated_at', { ascending: false });
+
+            if (error) {
+                console.error('❌ Erro ao carregar chats:', error);
+                return;
+            }
+
+            // Converter chats do Supabase para o formato local
+            if (chats && chats.length > 0) {
+                this.chats = chats.map(chat => ({
+                    id: chat.id,
+                    title: chat.title,
+                    messages: chat.messages || [],
+                    updated: chat.updated_at
+                }));
+                
+                this.renderChatHistory();
+                console.log(`✅ ${chats.length} chats carregados do servidor`);
+            }
+
+        } catch (error) {
+            console.error('❌ Erro ao carregar chats do usuário:', error);
+        }
+    }
+
+    async saveChatToSupabase(chatId) {
+        if (!supabase) return;
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const chat = this.chats.find(c => c.id === chatId);
+            if (!chat) return;
+
+            const chatData = {
+                user_id: user.id,
+                title: chat.title,
+                messages: chat.messages,
+                updated_at: new Date().toISOString()
+            };
+
+            // Upsert (insert ou update)
+            const { data, error } = await supabase
+                .from('chats')
+                .upsert(chatData, { onConflict: 'id' })
+                .select();
+
+            if (error) {
+                console.error('❌ Erro ao salvar chat:', error);
+                return;
+            }
+
+            console.log('✅ Chat salvo no Supabase:', chatId);
+
+        } catch (error) {
+            console.error('❌ Erro ao salvar chat no Supabase:', error);
+        }
+    }
+
+    clearUserChats() {
+        this.chats = [];
+        this.currentChatId = null;
+        this.elements.messagesContainer.innerHTML = '';
+        this.renderChatHistory();
+    }
+
+    // Sobrescrever saveCurrentChat para incluir Supabase
+    saveCurrentChat() {
+        // Salvar localmente (comportamento original)
+        if (!this.currentChatId) return;
+        
+        const chat = this.chats.find(c => c.id === this.currentChatId);
+        if (chat) {
+            chat.updated = new Date().toLocaleString('pt-BR');
+        }
+
+        // Salvar no Supabase se estiver logado
+        if (supabase && localStorage.getItem('userSession')) {
+            this.saveChatToSupabase(this.currentChatId);
+        }
+
+        // Salvar localmente (backup)
+        this.saveChats();
     }
 }
 
