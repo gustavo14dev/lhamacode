@@ -1,4 +1,4 @@
-import { Agent } from './agent.js';
+﻿import { Agent } from './agent.js';
 
 import { TimelineSystem } from './timeline-system.js';
 
@@ -952,7 +952,12 @@ class UI {
 
         });
 
+        
 
+        // Auto-resize da caixa de mensagem
+        this.setupAutoResize();
+
+        
 
         // Inicializar sistema de scroll automático
 
@@ -5806,6 +5811,54 @@ ${latexCode}
             console.error('❌ [TAVILY DEBUG] Stack trace:', error.stack);
             this.addErrorMessage(`Erro na pesquisa: ${error.message}`);
         }
+    }
+
+    // Configurar auto-resize da caixa de mensagem
+    setupAutoResize() {
+        const textarea = this.elements.userInput;
+        if (!textarea) return;
+
+        // Configurações iniciais
+        const MIN_HEIGHT = 48; // h-12 = 48px
+        const MAX_HEIGHT = 200; // altura máxima razoável
+        const LINE_HEIGHT = 24; // altura aproximada por linha
+
+        // Função para ajustar a altura
+        const adjustHeight = () => {
+            // Resetar altura para calcular corretamente
+            textarea.style.height = 'auto';
+            
+            // Calcular nova altura baseada no conteúdo
+            const scrollHeight = textarea.scrollHeight;
+            
+            // Aplicar altura com limites e transição suave
+            if (scrollHeight > MIN_HEIGHT) {
+                const newHeight = Math.min(scrollHeight, MAX_HEIGHT);
+                textarea.style.height = newHeight + 'px';
+            } else {
+                textarea.style.height = MIN_HEIGHT + 'px';
+            }
+        };
+
+        // Adicionar transição suave
+        textarea.style.transition = 'height 0.2s ease-in-out';
+
+        // Event listeners
+        textarea.addEventListener('input', adjustHeight);
+        textarea.addEventListener('paste', () => {
+            // Pequeno delay para o conteúdo ser colado
+            setTimeout(adjustHeight, 10);
+        });
+
+        // Ajustar inicialmente
+        adjustHeight();
+
+        // Resetar altura quando enviar mensagem
+        const originalHandleSend = this.handleSend.bind(this);
+        this.handleSend = () => {
+            originalHandleSend();
+            textarea.style.height = MIN_HEIGHT + 'px';
+        };
     }
 }
 
