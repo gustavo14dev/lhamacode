@@ -6184,9 +6184,8 @@ ${latexCode}
     showWelcomeScreen() {
         // Mostrar tela inicial com vídeo e texto
         if (this.elements.welcomeScreen) {
-            this.elements.welcomeScreen.classList.remove('hidden');
-            this.elements.welcomeScreen.classList.remove('pointer-events-none');
             this.elements.welcomeScreen.style.opacity = '1';
+            this.elements.welcomeScreen.style.visibility = 'visible';
         }
         if (this.elements.titleSection) {
             this.elements.titleSection.style.opacity = '1';
@@ -6198,12 +6197,11 @@ ${latexCode}
     }
 
     hideWelcomeScreen() {
-        // Esconder tela inicial suavemente
+        // Esconder tela inicial suavemente sem movimento
         if (this.elements.welcomeScreen) {
             this.elements.welcomeScreen.style.opacity = '0';
             setTimeout(() => {
-                this.elements.welcomeScreen.classList.add('hidden');
-                this.elements.welcomeScreen.classList.add('pointer-events-none');
+                this.elements.welcomeScreen.style.visibility = 'hidden';
             }, 300);
         }
         if (this.elements.titleSection) {
