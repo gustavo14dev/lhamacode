@@ -5892,6 +5892,11 @@ ${latexCode}
         this.chats = [];
         this.currentChatId = null;
         localStorage.removeItem('lhama_chats'); // Forçar limpeza
+        
+        // Limpar também o container de mensagens
+        if (this.elements.messagesContainer) {
+            this.elements.messagesContainer.innerHTML = '';
+        }
 
         // Verificar sessão atual
         const { data: { session }, error } = await window.supabase.auth.getSession();
@@ -6130,12 +6135,9 @@ ${latexCode}
                     updated: chat.updated_at
                 }));
                 
-                // Selecionar o chat mais recente
-                if (this.chats.length > 0) {
-                    this.currentChatId = this.chats[0].id;
-                    this.renderChatHistory();
-                    this.openChat(this.chats[0].id);
-                }
+                // Não selecionar nenhum chat automaticamente
+                // Apenas mostrar no sidebar
+                this.renderChatHistory();
                 
                 console.log(`✅ ${chats.length} chats carregados do servidor`);
             } else {
@@ -6199,7 +6201,12 @@ ${latexCode}
     clearUserChats() {
         this.chats = [];
         this.currentChatId = null;
-        this.elements.messagesContainer.innerHTML = '';
+        
+        // Limpar o container de mensagens
+        if (this.elements.messagesContainer) {
+            this.elements.messagesContainer.innerHTML = '';
+        }
+        
         this.renderChatHistory();
     }
 
