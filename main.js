@@ -336,8 +336,6 @@ class UI {
 
                     <div class="font-medium text-sm text-gray-700 dark:text-gray-200 truncate"></div>
 
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1"></div>
-
                 </div>
 
                 <button class="ml-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-950/30 rounded transition-all text-red-600 dark:text-red-400 flex-shrink-0" title="Excluir conversa" data-chat-id="${chat.id}">
@@ -354,11 +352,7 @@ class UI {
 
             const titleEl = chatDiv.querySelector('.font-medium');
 
-            const updatedEl = chatDiv.querySelector('.text-xs');
-
             if (titleEl) titleEl.textContent = chat.title || 'Sem título';
-
-            if (updatedEl) updatedEl.textContent = chat.updated || '';
 
             
 
@@ -3399,34 +3393,22 @@ ${latexCode}
 
         this.isTransitioned = true;
 
-
-
-        this.elements.welcomeScreen.style.transition = 'opacity 0.5s ease';
-
-        this.elements.welcomeScreen.style.opacity = '0';
-
-        
-
-        await this.sleep(500);
-
-        
-
+        // Esconder tela inicial imediatamente
+        this.elements.welcomeScreen.style.display = 'none';
         this.elements.welcomeScreen.classList.add('hidden');
-
+        this.elements.welcomeScreen.classList.add('pointer-events-none');
         
-
+        this.elements.titleSection.style.display = 'none';
+        this.elements.titleSection.classList.add('hidden');
+        
+        // Mostrar área de chat
         this.elements.chatArea.classList.remove('hidden');
-
         this.elements.chatArea.style.opacity = '0';
 
-        
+        await this.sleep(50);
 
-        await this.sleep(100);
-
-        
-
-        this.elements.chatArea.style.transition = 'opacity 0.5s ease';
-
+        // Fazer transição suave
+        this.elements.chatArea.style.transition = 'opacity 0.3s ease';
         this.elements.chatArea.style.opacity = '1';
 
         // Mover input para baixo quando transicionar para chat
@@ -5173,34 +5155,22 @@ ${latexCode}
 
         this.isTransitioned = true;
 
-
-
-        this.elements.welcomeScreen.style.transition = 'opacity 0.5s ease';
-
-        this.elements.welcomeScreen.style.opacity = '0';
-
-        
-
-        await this.sleep(500);
-
-        
-
+        // Esconder tela inicial imediatamente
+        this.elements.welcomeScreen.style.display = 'none';
         this.elements.welcomeScreen.classList.add('hidden');
-
+        this.elements.welcomeScreen.classList.add('pointer-events-none');
         
-
+        this.elements.titleSection.style.display = 'none';
+        this.elements.titleSection.classList.add('hidden');
+        
+        // Mostrar área de chat
         this.elements.chatArea.classList.remove('hidden');
-
         this.elements.chatArea.style.opacity = '0';
 
-        
+        await this.sleep(50);
 
-        await this.sleep(100);
-
-        
-
-        this.elements.chatArea.style.transition = 'opacity 0.5s ease';
-
+        // Fazer transição suave
+        this.elements.chatArea.style.transition = 'opacity 0.3s ease';
         this.elements.chatArea.style.opacity = '1';
 
         // Mover input para baixo quando transicionar para chat
