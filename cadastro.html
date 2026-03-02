@@ -12,6 +12,16 @@
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <!-- Inicializar Supabase para cadastro.html -->
+    <script>
+        // Configuração do Supabase
+        const SUPABASE_URL = 'https://vvckoxcmhcaibfgfyqor.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_7RlWwC4vkk1uIRGN4I5-uQ_2d4cCa5w';
+        
+        // Inicializar Supabase globalmente
+        window.supabase = window.supabase?.createClient ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+    </script>
+    
     <script>
         tailwind.config = {
             darkMode: "class",

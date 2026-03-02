@@ -232,16 +232,21 @@ function toggleMode(loginMode) {
 }
 
 // Verificar sessão atual ao carregar
-document.addEventListener('DOMContentLoaded', async () => {
-    // Verificar se já está logado
-    const { data: { session } } = await window.supabase.auth.getSession();
-    
-    if (session) {
-        // Já está logado, redirecionar
-        window.location.href = 'code.html';
+document.addEventListener('DOMContentLoaded', () => {
+    // Verificar se Supabase está disponível
+    if (!window.supabase) {
+        console.error('❌ Supabase não está inicializado');
+        showToast('Erro de configuração. Recarregue a página.', 'error');
         return;
     }
-    
+
+    // Verificar se já está logado
+    window.supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+            window.location.href = 'code.html';
+        }
+    });
+
     // Carregar email lembrado
     const rememberedEmail = localStorage.getItem('rememberUser');
     if (rememberedEmail) {
