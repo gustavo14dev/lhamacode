@@ -3390,30 +3390,13 @@ ${latexCode}
 
 
     async transitionToChat() {
-
         this.isTransitioned = true;
-
-        // Esconder tela inicial imediatamente
-        this.elements.welcomeScreen.style.display = 'none';
-        this.elements.welcomeScreen.classList.add('hidden');
-        this.elements.welcomeScreen.classList.add('pointer-events-none');
         
-        this.elements.titleSection.style.display = 'none';
-        this.elements.titleSection.classList.add('hidden');
+        // Usar o método hideWelcomeScreen que já tem a transição suave
+        this.hideWelcomeScreen();
         
-        // Mostrar área de chat
-        this.elements.chatArea.classList.remove('hidden');
-        this.elements.chatArea.style.opacity = '0';
-
-        await this.sleep(50);
-
-        // Fazer transição suave
-        this.elements.chatArea.style.transition = 'opacity 0.3s ease';
-        this.elements.chatArea.style.opacity = '1';
-
         // Mover input para baixo quando transicionar para chat
         this.moveInputDown();
-
     }
 
 
@@ -5152,30 +5135,13 @@ ${latexCode}
 
 
     async transitionToChat() {
-
         this.isTransitioned = true;
-
-        // Esconder tela inicial imediatamente
-        this.elements.welcomeScreen.style.display = 'none';
-        this.elements.welcomeScreen.classList.add('hidden');
-        this.elements.welcomeScreen.classList.add('pointer-events-none');
         
-        this.elements.titleSection.style.display = 'none';
-        this.elements.titleSection.classList.add('hidden');
+        // Usar o método hideWelcomeScreen que já tem a transição suave
+        this.hideWelcomeScreen();
         
-        // Mostrar área de chat
-        this.elements.chatArea.classList.remove('hidden');
-        this.elements.chatArea.style.opacity = '0';
-
-        await this.sleep(50);
-
-        // Fazer transição suave
-        this.elements.chatArea.style.transition = 'opacity 0.3s ease';
-        this.elements.chatArea.style.opacity = '1';
-
         // Mover input para baixo quando transicionar para chat
         this.moveInputDown();
-
     }
 
 
@@ -6220,9 +6186,10 @@ ${latexCode}
         if (this.elements.welcomeScreen) {
             this.elements.welcomeScreen.classList.remove('hidden');
             this.elements.welcomeScreen.classList.remove('pointer-events-none');
+            this.elements.welcomeScreen.style.opacity = '1';
         }
         if (this.elements.titleSection) {
-            this.elements.titleSection.classList.remove('hidden');
+            this.elements.titleSection.style.opacity = '1';
         }
         if (this.elements.chatArea) {
             this.elements.chatArea.classList.add('hidden');
@@ -6231,13 +6198,16 @@ ${latexCode}
     }
 
     hideWelcomeScreen() {
-        // Esconder tela inicial
+        // Esconder tela inicial suavemente
         if (this.elements.welcomeScreen) {
-            this.elements.welcomeScreen.classList.add('hidden');
-            this.elements.welcomeScreen.classList.add('pointer-events-none');
+            this.elements.welcomeScreen.style.opacity = '0';
+            setTimeout(() => {
+                this.elements.welcomeScreen.classList.add('hidden');
+                this.elements.welcomeScreen.classList.add('pointer-events-none');
+            }, 300);
         }
         if (this.elements.titleSection) {
-            this.elements.titleSection.classList.add('hidden');
+            this.elements.titleSection.style.opacity = '0';
         }
         if (this.elements.chatArea) {
             this.elements.chatArea.classList.remove('hidden');
