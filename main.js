@@ -13,7 +13,8 @@ const SUPABASE_URL = 'https://vvckoxcmhcaibfgfyqor.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_7RlWwC4vkk1uIRGN4I5-uQ_2d4cCa5w';
 
 // Inicializar Supabase (disponível globalmente)
-const supabase = window.supabase?.createClient ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+window.supabase = window.supabase?.createClient ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const supabase = window.supabase;
 
 
 

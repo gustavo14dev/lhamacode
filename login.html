@@ -12,6 +12,42 @@
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3B82F6",
+                        "background-light": "#F0F9FF",
+                        "background-dark": "#0F172A",
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#1E293B",
+                        "text-main-light": "#1E293B",
+                        "text-main-dark": "#F8FAFC",
+                        "sidebar-light": "#F8FAFC",
+                        "sidebar-dark": "#1E293B",
+                    },
+                    fontFamily: {
+                        display: ["'Plus Jakarta Sans'", "sans-serif"],
+                        sans: ["'Plus Jakarta Sans'", "sans-serif"],
+                        inter: ["'Inter'", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        'xl': '1rem',
+                        '2xl': '1.5rem',
+                        '3xl': '2rem',
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(59, 130, 246, 0.1)',
+                        'input': '0 10px 40px -10px rgba(59, 130, 246, 0.15)',
+                    }
+                },
+            },
+        };
+    </script>
+    
     <style>
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
@@ -19,17 +55,12 @@
         
         .glass-effect {
             backdrop-filter: blur(12px);
-            background: rgba(255, 255, 255, 0.85);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-        
-        .dark .glass-effect {
             background: rgba(30, 41, 59, 0.85);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
         }
         
         .auth-button {
@@ -50,31 +81,42 @@
             transform: translateY(-1px);
             box-shadow: 0 4px 20px -2px rgba(59, 130, 246, 0.15);
         }
+        
+        video {
+            pointer-events: none;
+            user-select: none;
+        }
     </style>
 </head>
 <body class="min-h-screen gradient-bg flex items-center justify-center p-4">
     <!-- Background Pattern -->
-    <div class="absolute inset-0 opacity-10">
+    <div class="absolute inset-0 opacity-5">
         <div class="absolute inset-0" style="background-image: url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.4"%3E%3Ccircle cx="7" cy="7" r="7"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"></div>
     </div>
 
     <!-- Login Card -->
     <div class="relative z-10 w-full max-w-md">
         <div class="glass-effect rounded-[2rem] p-8 shadow-2xl">
-            <!-- Logo/Title -->
+            <!-- Video Header -->
             <div class="text-center mb-8">
-                <div class="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                    <span class="material-icons-outlined text-white text-2xl">smart_toy</span>
-                </div>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Bem-vindo ao Drekee AI</h1>
-                <p class="text-gray-600 dark:text-gray-300 text-sm">Faça login para salvar suas conversas</p>
+                <video 
+                    autoplay 
+                    muted 
+                    loop 
+                    playsinline 
+                    class="w-24 h-24 rounded-2xl object-cover mx-auto mb-4 shadow-lg"
+                >
+                    <source src="img/Video Project.mp4" type="video/mp4">
+                </video>
+                <h1 class="text-2xl font-bold text-white mb-2">Bem-vindo ao Drekee AI</h1>
+                <p class="text-gray-300 text-sm">Faça login para salvar suas conversas</p>
             </div>
 
             <!-- Login Form -->
             <form id="loginForm" class="space-y-4">
                 <!-- Email -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label class="block text-sm font-medium text-gray-200 mb-2">
                         Email
                     </label>
                     <div class="relative">
@@ -85,7 +127,7 @@
                             type="email"
                             id="email"
                             required
-                            class="input-field w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                            class="input-field w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                             placeholder="seu@email.com"
                         />
                     </div>
@@ -93,7 +135,7 @@
 
                 <!-- Password -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label class="block text-sm font-medium text-gray-200 mb-2">
                         Senha
                     </label>
                     <div class="relative">
@@ -104,13 +146,13 @@
                             type="password"
                             id="password"
                             required
-                            class="input-field w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                            class="input-field w-full pl-10 pr-12 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                             placeholder="••••••••"
                         />
                         <button
                             type="button"
                             id="togglePassword"
-                            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
                         >
                             <span class="material-icons-outlined text-sm">visibility</span>
                         </button>
@@ -120,8 +162,8 @@
                 <!-- Remember Me & Forgot Password -->
                 <div class="flex items-center justify-between">
                     <label class="flex items-center">
-                        <input type="checkbox" id="remember" class="w-4 h-4 text-primary bg-white/50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600 rounded focus:ring-primary">
-                        <span class="ml-2 text-sm text-gray-600 dark:text-gray-300">Lembrar de mim</span>
+                        <input type="checkbox" id="remember" class="w-4 h-4 text-primary bg-gray-800/50 border-gray-600 rounded focus:ring-primary">
+                        <span class="ml-2 text-sm text-gray-300">Lembrar de mim</span>
                     </label>
                     <a href="#" class="text-sm text-primary hover:text-primary/80 transition-colors">Esqueceu a senha?</a>
                 </div>
@@ -140,10 +182,10 @@
             <!-- Divider -->
             <div class="relative my-6">
                 <div class="absolute inset-0 flex items-center">
-                    <div class="w-full border-t border-gray-200 dark:border-gray-600"></div>
+                    <div class="w-full border-t border-gray-600"></div>
                 </div>
                 <div class="relative flex justify-center text-sm">
-                    <span class="px-4 bg-transparent text-gray-500 dark:text-gray-400">ou continue com</span>
+                    <span class="px-4 bg-transparent text-gray-400">ou continue com</span>
                 </div>
             </div>
 
@@ -151,7 +193,7 @@
             <div class="space-y-3">
                 <button
                     id="googleLogin"
-                    class="auth-button w-full bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-3"
+                    class="auth-button w-full bg-gray-800 hover:bg-gray-700 border border-gray-600 text-gray-200 font-medium py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-3"
                 >
                     <svg class="w-5 h-5" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -165,17 +207,17 @@
 
             <!-- Sign Up Link -->
             <div class="text-center mt-6">
-                <p class="text-sm text-gray-600 dark:text-gray-300">
+                <p class="text-sm text-gray-300">
                     Não tem uma conta? 
                     <a href="#" id="showSignup" class="text-primary hover:text-primary/80 font-medium transition-colors">Cadastre-se</a>
                 </p>
             </div>
 
             <!-- Guest Button -->
-            <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-600">
+            <div class="mt-8 pt-6 border-t border-gray-600">
                 <button
                     id="guestBtn"
-                    class="w-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                    class="w-full bg-gray-700/50 hover:bg-gray-700 text-gray-300 font-medium py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
                 >
                     <span class="material-icons-outlined text-sm">person_outline</span>
                     Continuar como Visitante
@@ -187,19 +229,19 @@
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden">
         <div class="flex items-center justify-center h-full">
-            <div class="bg-white dark:bg-gray-800 rounded-xl p-6 flex items-center gap-3">
+            <div class="bg-gray-800 rounded-xl p-6 flex items-center gap-3">
                 <div class="animate-spin w-5 h-5 border-2 border-primary border-t-transparent rounded-full"></div>
-                <span class="text-gray-700 dark:text-gray-300">Carregando...</span>
+                <span class="text-gray-300">Carregando...</span>
             </div>
         </div>
     </div>
 
     <!-- Toast Notification -->
     <div id="toast" class="fixed top-4 right-4 z-50 hidden">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 flex items-center gap-3 min-w-[300px]">
+        <div class="bg-gray-800 rounded-lg shadow-lg p-4 flex items-center gap-3 min-w-[300px]">
             <span id="toastIcon" class="material-icons-outlined text-lg"></span>
             <div>
-                <p id="toastMessage" class="text-gray-700 dark:text-gray-300 text-sm font-medium"></p>
+                <p id="toastMessage" class="text-gray-300 text-sm font-medium"></p>
             </div>
         </div>
     </div>
