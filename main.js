@@ -136,35 +136,15 @@ class UI {
 
 
     loadChats() {
-
-        const saved = localStorage.getItem('lhama_chats');
-
-        if (!saved) return [];
-
-        try {
-
-            const parsed = JSON.parse(saved);
-
-            return Array.isArray(parsed) ? parsed : [];
-
-        } catch (e) {
-
-            console.warn('lhama_chats corrompido, limpando storage');
-
-            localStorage.removeItem('lhama_chats');
-
-            return [];
-
-        }
-
+        // Não carregar mais do localStorage - apenas do Supabase
+        // Se estiver logado, os chats serão carregados do Supabase em loadUserChats()
+        // Se não estiver logado, começar com array vazio
+        return [];
     }
 
-
-
     saveChats() {
-
-        localStorage.setItem('lhama_chats', JSON.stringify(this.chats));
-
+        // Não salvar mais no localStorage - apenas no Supabase
+        // Mantido apenas para compatibilidade, mas não faz nada
     }
 
 
@@ -5943,6 +5923,9 @@ ${latexCode}
         // Limpar flag de visitante
         localStorage.removeItem('isGuest');
         
+        // Limpar histórico local ao fazer login
+        localStorage.removeItem('lhama_chats');
+        
         console.log('✅ Usuário logado:', email);
     }
 
@@ -6057,9 +6040,9 @@ ${latexCode}
         this.renderChatHistory();
     }
 
-    // Sobrescrever saveCurrentChat para incluir Supabase
+    // Sobrescrever saveCurrentChat para usar apenas Supabase
     saveCurrentChat() {
-        // Salvar localmente (comportamento original)
+        // Não salvar mais localmente - apenas no Supabase
         if (!this.currentChatId) return;
         
         const chat = this.chats.find(c => c.id === this.currentChatId);
@@ -6067,13 +6050,13 @@ ${latexCode}
             chat.updated = new Date().toLocaleString('pt-BR');
         }
 
-        // Salvar no Supabase se estiver logado
-        if (supabase && localStorage.getItem('userSession')) {
+        // Salvar APENAS no Supabase se estiver logado
+        if (window.supabase && localStorage.getItem('userSession')) {
             this.saveChatToSupabase(this.currentChatId);
         }
-
-        // Salvar localmente (backup)
-        this.saveChats();
+        
+        // Não salvar mais no localStorage
+        // this.saveChats(); // Removido
     }
 }
 
