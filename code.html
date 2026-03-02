@@ -97,6 +97,13 @@
         .animate-slideIn {
             animation: slideIn 0.3s ease;
         }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
         .animate-spin-slow {
             animation: spin-slow 2s linear infinite;
         }
@@ -232,6 +239,9 @@
         </div>
         <button id="logoutBtn" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title="Sair">
             <span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-300">logout</span>
+        </button>
+        <button id="syncBtn" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title="Sincronizar">
+            <span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-300">sync</span>
         </button>
     </div>
 </div>

@@ -6012,6 +6012,22 @@ ${latexCode}
         this.elements.logoutBtn?.addEventListener('click', async () => {
             await this.logout();
         });
+
+        // Botão de sincronização (se existir)
+        const syncBtn = document.getElementById('syncBtn');
+        if (syncBtn) {
+            syncBtn.addEventListener('click', async () => {
+                syncBtn.disabled = true;
+                syncBtn.innerHTML = '<span class="material-icons-outlined animate-spin">sync</span>';
+                
+                await this.forceSyncChats();
+                
+                setTimeout(() => {
+                    syncBtn.disabled = false;
+                    syncBtn.innerHTML = '<span class="material-icons-outlined">sync</span>';
+                }, 2000);
+            });
+        }
     }
 
     showLoggedInUser(user) {
@@ -6200,11 +6216,39 @@ ${latexCode}
         // Salvar APENAS no Supabase se estiver logado (não for visitante)
         const isGuest = localStorage.getItem('isGuest') === 'true';
         if (!isGuest && window.supabase && localStorage.getItem('userSession')) {
+            console.log('💾 Salvando chat atual no Supabase:', this.currentChatId);
             this.saveChatToSupabase(this.currentChatId);
+        } else {
+            console.log('📝 Chat não salvo (visitante ou sem sessão)');
         }
         
         // Não salvar mais no localStorage
         // this.saveChats(); // Removido
+    }
+
+    // Forçar sincronização completa dos chats
+    async forceSyncChats() {
+        if (!window.supabase) {
+            console.error('❌ Supabase não disponível');
+            return;
+        }
+
+        try {
+            console.log('🔄 Forçando sincronização completa...');
+            
+            // Limpar tudo
+            this.chats = [];
+            this.currentChatId = null;
+            localStorage.removeItem('lhama_chats');
+            
+            // Recarregar do Supabase
+            await this.loadUserChats();
+            
+            console.log('✅ Sincronização completa concluída');
+            
+        } catch (error) {
+            console.error('❌ Erro na sincronização forçada:', error);
+        }
     }
 }
 
