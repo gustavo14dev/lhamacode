@@ -1,5 +1,5 @@
 // Usar Supabase já inicializado no main.js
-const supabase = window.supabase;
+// const supabase = window.supabase; // Removido para evitar conflito
 
 // Elementos DOM
 const loginForm = document.getElementById('loginForm');
@@ -96,7 +96,7 @@ loginForm?.addEventListener('submit', async (e) => {
     try {
         if (isLoginMode) {
             // Login
-            const { data, error } = await supabase.auth.signInWithPassword({
+            const { data, error } = await window.supabase.auth.signInWithPassword({
                 email,
                 password
             });
@@ -119,7 +119,7 @@ loginForm?.addEventListener('submit', async (e) => {
             
         } else {
             // Cadastro
-            const { data, error } = await supabase.auth.signUp({
+            const { data, error } = await window.supabase.auth.signUp({
                 email,
                 password,
                 options: {
@@ -164,7 +164,7 @@ googleLogin?.addEventListener('click', async () => {
     showLoading(true);
     
     try {
-        const { data, error } = await supabase.auth.signInWithOAuth({
+        const { data, error } = await window.supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
                 redirectTo: window.location.origin + '/code.html'
@@ -230,7 +230,7 @@ function toggleMode(loginMode) {
 // Verificar sessão atual ao carregar
 document.addEventListener('DOMContentLoaded', async () => {
     // Verificar se já está logado
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await window.supabase.auth.getSession();
     
     if (session) {
         // Já está logado, redirecionar

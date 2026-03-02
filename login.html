@@ -247,5 +247,17 @@
     </div>
 
     <script src="auth.js"></script>
+    
+    <!-- Inicializar Supabase para login.html -->
+    <script>
+        // Configuração do Supabase
+        const SUPABASE_URL = 'https://vvckoxcmhcaibfgfyqor.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_7RlWwC4vkk1uIRGN4I5-uQ_2d4cCa5w';
+        
+        // Inicializar Supabase globalmente
+        if (typeof supabase !== 'undefined') {
+            window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+    </script>
 </body>
 </html>
