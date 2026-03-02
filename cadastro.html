@@ -394,15 +394,16 @@
                     
                     if (error) throw error;
                     
-                    showToast('Cadastro realizado! Verifique seu email para confirmar.', 'success');
+                    // Se não houver erro, o cadastro foi bem-sucedido
+                    showToast('Cadastro realizado! Redirecionando...', 'success');
                     
                     // Limpar formulário
                     signupForm.reset();
                     
-                    // Redirecionar após 2 segundos
+                    // Redirecionar imediatamente para o code.html
                     setTimeout(() => {
-                        window.location.href = 'login.html';
-                    }, 2000);
+                        window.location.href = 'code.html';
+                    }, 1500);
                     
                 } catch (error) {
                     console.error('Erro no cadastro:', error);

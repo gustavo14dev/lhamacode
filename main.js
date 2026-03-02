@@ -2546,9 +2546,12 @@ ${latexCode}
 
         const message = this.elements.userInput.value.trim();
 
-        // Verificar se está logado antes de enviar mensagem
-        if (!window.supabase || !localStorage.getItem('userSession')) {
-            // Redirecionar para login
+        // Permitir envio se estiver logado OU em modo visitante
+        const isGuest = localStorage.getItem('isGuest') === 'true';
+        const isLoggedIn = window.supabase && localStorage.getItem('userSession');
+        
+        if (!isGuest && !isLoggedIn) {
+            // Redirecionar para login apenas se não for visitante e não estiver logado
             window.location.href = 'login.html';
             return;
         }
@@ -6058,8 +6061,9 @@ ${latexCode}
             chat.updated = new Date().toLocaleString('pt-BR');
         }
 
-        // Salvar APENAS no Supabase se estiver logado
-        if (window.supabase && localStorage.getItem('userSession')) {
+        // Salvar APENAS no Supabase se estiver logado (não for visitante)
+        const isGuest = localStorage.getItem('isGuest') === 'true';
+        if (!isGuest && window.supabase && localStorage.getItem('userSession')) {
             this.saveChatToSupabase(this.currentChatId);
         }
         
