@@ -5885,14 +5885,14 @@ ${latexCode}
 
     // Sistema de Autenticação com Supabase
     async initAuthSystem() {
-        if (!supabase) {
+        if (!window.supabase) {
             console.warn('Supabase não disponível');
             this.showGuestMode();
             return;
         }
 
         // Verificar sessão atual
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await window.supabase.auth.getSession();
         
         if (session) {
             this.showLoggedInUser(session.user);
@@ -5905,7 +5905,7 @@ ${latexCode}
         this.setupAuthListeners();
 
         // Escutar mudanças na autenticação
-        supabase.auth.onAuthStateChange((event, session) => {
+        window.supabase.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_IN' && session) {
                 this.showLoggedInUser(session.user);
                 this.loadUserChats();
@@ -5959,10 +5959,10 @@ ${latexCode}
     }
 
     async logout() {
-        if (!supabase) return;
+        if (!window.supabase) return;
 
         try {
-            await supabase.auth.signOut();
+            await window.supabase.auth.signOut();
             localStorage.removeItem('userSession');
             localStorage.setItem('isGuest', 'true');
             
@@ -5979,14 +5979,14 @@ ${latexCode}
     }
 
     async loadUserChats() {
-        if (!supabase) return;
+        if (!window.supabase) return;
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await window.supabase.auth.getUser();
             if (!user) return;
 
             // Carregar chats do Supabase
-            const { data: chats, error } = await supabase
+            const { data: chats, error } = await window.supabase
                 .from('chats')
                 .select('*')
                 .eq('user_id', user.id)
@@ -6016,10 +6016,10 @@ ${latexCode}
     }
 
     async saveChatToSupabase(chatId) {
-        if (!supabase) return;
+        if (!window.supabase) return;
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await window.supabase.auth.getUser();
             if (!user) return;
 
             const chat = this.chats.find(c => c.id === chatId);
