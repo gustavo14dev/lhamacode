@@ -1147,29 +1147,38 @@ class UI {
 
         const dropdownHTML = `
 
-            <div id="floatingModelDropdown" class="hidden fixed bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[200]" style="min-width: 180px;">
+            <div id="floatingModelDropdown" class="hidden fixed bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[200]" style="min-width: 280px;">
 
-                <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2 first:rounded-t-lg" data-model="rapido">
+                <button class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3 first:rounded-t-lg" data-model="rapido">
 
-                    <span class="material-icons-outlined text-base text-blue-400">flash_on</span>
+                    <span class="material-icons-outlined text-base text-blue-400 mt-0.5">flash_on</span>
 
-                    Rápido
-
-                </button>
-
-                <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2" data-model="raciocinio">
-
-                    <span class="material-icons-outlined text-base text-orange-500">psychology</span>
-
-                    Raciocínio
+                    <div class="flex-1">
+                        <div class="font-medium">Rápido</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Drekee AI 1.0 Flash</div>
+                    </div>
 
                 </button>
 
-                <button class="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2" data-model="pro">
+                <button class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3" data-model="raciocinio">
 
-                    <span class="material-icons-outlined text-base text-purple-500">workspace_premium</span>
+                    <span class="material-icons-outlined text-base text-orange-500 mt-0.5">psychology</span>
 
-                    Pro
+                    <div class="flex-1">
+                        <div class="font-medium">Raciocínio</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Drekee AI 1.0 Mini</div>
+                    </div>
+
+                </button>
+
+                <button class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3" data-model="pro">
+
+                    <span class="material-icons-outlined text-base text-purple-500 mt-0.5">workspace_premium</span>
+
+                    <div class="flex-1">
+                        <div class="font-medium">Pro</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Drekee AI 1.0 Pro</div>
+                    </div>
 
                 </button>
 
@@ -3623,6 +3632,23 @@ ${latexCode}
             <div class="w-full max-w-[85%] px-5 py-4">
 
                 <div class="text-base leading-relaxed text-gray-700 dark:text-gray-200" id="responseText_${uniqueId}"></div>
+                
+                <!-- Botões de Feedback -->
+                <div class="flex items-center gap-2 mt-3 pb-2 border-b border-gray-200 dark:border-gray-700">
+                    <button onclick="ui.likeResponse('${uniqueId}')" class="feedback-btn p-2 text-gray-400 hover:text-green-500 transition-colors" title="Gostei">
+                        <span class="material-icons-outlined text-sm">thumb_up</span>
+                    </button>
+                    <button onclick="ui.dislikeResponse('${uniqueId}')" class="feedback-btn p-2 text-gray-400 hover:text-red-500 transition-colors" title="Não gostei">
+                        <span class="material-icons-outlined text-sm">thumb_down</span>
+                    </button>
+                    <button onclick="ui.copyResponse('${uniqueId}')" class="feedback-btn p-2 text-gray-400 hover:text-blue-500 transition-colors" title="Copiar">
+                        <span class="material-icons-outlined text-sm">content_copy</span>
+                    </button>
+                    <button onclick="ui.showRegenerateOptions('${uniqueId}')" class="feedback-btn p-2 text-gray-400 hover:text-purple-500 transition-colors" title="Regenerar">
+                        <span class="material-icons-outlined text-sm">refresh</span>
+                    </button>
+                </div>
+                
                 ${sourcesHtml}
             </div>
 
@@ -5888,6 +5914,8 @@ ${latexCode}
         if (session) {
             this.showLoggedInUser(session.user);
             await this.loadUserChats();
+            // Iniciar heartbeat para usuários logados
+            this.startHeartbeat(session.user.id);
         } else {
             this.showGuestMode();
         }
@@ -5900,11 +5928,70 @@ ${latexCode}
             if (event === 'SIGNED_IN' && session) {
                 this.showLoggedInUser(session.user);
                 this.loadUserChats();
+                // Iniciar heartbeat
+                this.startHeartbeat(session.user.id);
             } else if (event === 'SIGNED_OUT') {
                 this.showGuestMode();
                 this.clearUserChats();
+                // Parar heartbeat
+                this.stopHeartbeat();
             }
         });
+    }
+
+    // Sistema de Heartbeat para usuários ativos
+    startHeartbeat(userId) {
+        // Parar heartbeat anterior se existir
+        this.stopHeartbeat();
+        
+        // Registrar sessão inicial
+        this.updateUserSession(userId);
+        
+        // Configurar heartbeat a cada 30 segundos
+        this.heartbeatInterval = setInterval(() => {
+            this.updateUserSession(userId);
+        }, 30000); // 30 segundos
+        
+        console.log('🫀 Heartbeat iniciado para usuário:', userId);
+    }
+
+    stopHeartbeat() {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+            console.log('🫀 Heartbeat parado');
+        }
+    }
+
+    async updateUserSession(userId) {
+        try {
+            if (!window.supabase || !userId) return;
+
+            // Verificar se já existe sessão para este usuário
+            const { data: existingSession } = await window.supabase
+                .from('user_sessions')
+                .select('id')
+                .eq('user_id', userId)
+                .single();
+
+            if (existingSession) {
+                // Atualizar sessão existente
+                await window.supabase
+                    .from('user_sessions')
+                    .update({ last_seen: new Date().toISOString() })
+                    .eq('user_id', userId);
+            } else {
+                // Criar nova sessão
+                await window.supabase
+                    .from('user_sessions')
+                    .insert({
+                        user_id: userId,
+                        last_seen: new Date().toISOString()
+                    });
+            }
+        } catch (error) {
+            console.error('❌ Erro ao atualizar sessão do usuário:', error);
+        }
     }
 
     setupAuthListeners() {
@@ -6069,6 +6156,230 @@ ${latexCode}
         
         // Não salvar mais no localStorage
         // this.saveChats(); // Removido
+    }
+
+    // Métodos de Feedback
+    async likeResponse(messageId) {
+        try {
+            const responseText = document.getElementById(`responseText_${messageId}`)?.innerText;
+            if (!responseText) return;
+
+            const { data: { user } } = await window.supabase.auth.getUser();
+            if (!user) return;
+
+            const chat = this.chats.find(c => c.id === this.currentChatId);
+            if (!chat) return;
+
+            const lastMessage = chat.messages[chat.messages.length - 1];
+            if (!lastMessage || lastMessage.role !== 'assistant') return;
+
+            await window.supabase.from('feedback').insert({
+                user_id: user.id,
+                chat_id: this.currentChatId,
+                message_id: messageId,
+                feedback_type: 'like',
+                response_text: responseText
+            });
+
+            this.showToast('👍 Feedback registrado!', 'success');
+            this.updateFeedbackButtons(messageId, 'like');
+        } catch (error) {
+            console.error('Erro ao registrar like:', error);
+            this.showToast('❌ Erro ao registrar feedback', 'error');
+        }
+    }
+
+    async dislikeResponse(messageId) {
+        try {
+            const responseText = document.getElementById(`responseText_${messageId}`)?.innerText;
+            if (!responseText) return;
+
+            const { data: { user } } = await window.supabase.auth.getUser();
+            if (!user) return;
+
+            const chat = this.chats.find(c => c.id === this.currentChatId);
+            if (!chat) return;
+
+            const lastMessage = chat.messages[chat.messages.length - 1];
+            if (!lastMessage || lastMessage.role !== 'assistant') return;
+
+            const comment = prompt('Por que você não gostou desta resposta? (opcional)');
+            
+            await window.supabase.from('feedback').insert({
+                user_id: user.id,
+                chat_id: this.currentChatId,
+                message_id: messageId,
+                feedback_type: 'dislike',
+                response_text: responseText,
+                comment: comment || null
+            });
+
+            this.showToast('👎 Feedback registrado!', 'success');
+            this.updateFeedbackButtons(messageId, 'dislike');
+        } catch (error) {
+            console.error('Erro ao registrar dislike:', error);
+            this.showToast('❌ Erro ao registrar feedback', 'error');
+        }
+    }
+
+    copyResponse(messageId) {
+        try {
+            const responseText = document.getElementById(`responseText_${messageId}`)?.innerText;
+            if (!responseText) return;
+
+            navigator.clipboard.writeText(responseText).then(() => {
+                this.showToast('📋 Resposta copiada!', 'success');
+                this.updateFeedbackButtons(messageId, 'copied');
+            }).catch(err => {
+                console.error('Erro ao copiar:', err);
+                this.showToast('❌ Erro ao copiar', 'error');
+            });
+        } catch (error) {
+            console.error('Erro ao copiar resposta:', error);
+            this.showToast('❌ Erro ao copiar', 'error');
+        }
+    }
+
+    showRegenerateOptions(messageId) {
+        try {
+            const options = [
+                { text: 'Mais Criativo', value: 'creative' },
+                { text: 'Mais Técnico', value: 'technical' },
+                { text: 'Mais Simples', value: 'simple' }
+            ];
+
+            const optionsHtml = options.map(option => `
+                <button onclick="ui.regenerateResponse('${messageId}', '${option.value}')" 
+                        class="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-3">
+                    <span class="material-icons-outlined text-blue-400">auto_awesome</span>
+                    <div>
+                        <div class="font-medium">${option.text}</div>
+                        <div class="text-xs text-gray-500">Regenerar com este estilo</div>
+                    </div>
+                </button>
+            `).join('');
+
+            // Criar modal de opções
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center';
+            modal.innerHTML = `
+                <div class="bg-surface-light dark:bg-surface-dark rounded-xl p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Regenerar Resposta</h3>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
+                            <span class="material-icons-outlined">close</span>
+                        </button>
+                    </div>
+                    <div class="space-y-2">
+                        ${optionsHtml}
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.remove();
+            });
+        } catch (error) {
+            console.error('Erro ao mostrar opções:', error);
+            this.showToast('❌ Erro ao mostrar opções', 'error');
+        }
+    }
+
+    async regenerateResponse(messageId, style) {
+        try {
+            const modal = document.querySelector('.fixed');
+            if (modal) modal.remove();
+
+            this.showToast('🔄 Regenerando resposta...', 'info');
+
+            const chat = this.chats.find(c => c.id === this.currentChatId);
+            if (!chat) return;
+
+            const lastUserMessage = chat.messages.filter(m => m.role === 'user').pop();
+            if (!lastUserMessage) return;
+
+            // Adicionar indicador de regeneração
+            const regenerateId = this.addAssistantMessage('🔄 Regenerando resposta com estilo "' + style + '"...');
+
+            // Chamar agente com estilo específico
+            await this.agent.processMessage(lastUserMessage.content + ' [estilo: ' + style + ']', null);
+
+            // Remover indicador após alguns segundos
+            setTimeout(() => {
+                const regenerateElement = document.getElementById(regenerateId);
+                if (regenerateElement) {
+                    regenerateElement.remove();
+                }
+            }, 2000);
+
+        } catch (error) {
+            console.error('Erro ao regenerar:', error);
+            this.showToast('❌ Erro ao regenerar resposta', 'error');
+        }
+    }
+
+    updateFeedbackButtons(messageId, action) {
+        try {
+            const buttons = document.querySelectorAll(`[onclick*="${messageId}"]`);
+            buttons.forEach(btn => {
+                if (action === 'like' && btn.onclick.toString().includes('likeResponse')) {
+                    btn.classList.remove('text-gray-400');
+                    btn.classList.add('text-green-500');
+                    btn.disabled = true;
+                } else if (action === 'dislike' && btn.onclick.toString().includes('dislikeResponse')) {
+                    btn.classList.remove('text-gray-400');
+                    btn.classList.add('text-red-500');
+                    btn.disabled = true;
+                } else if (action === 'copied' && btn.onclick.toString().includes('copyResponse')) {
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<span class="material-icons-outlined text-sm">check</span>';
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                    }, 2000);
+                }
+            });
+        } catch (error) {
+            console.error('Erro ao atualizar botões:', error);
+        }
+    }
+
+    showToast(message, type = 'info') {
+        // Criar toast se não existir
+        let toast = document.getElementById('feedbackToast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'feedbackToast';
+            toast.className = 'fixed top-4 right-4 z-50';
+            toast.innerHTML = `
+                <div class="bg-gray-800 rounded-lg shadow-lg p-4 flex items-center gap-3 min-w-[300px]">
+                    <span id="toastIcon" class="material-icons-outlined text-lg"></span>
+                    <div>
+                        <p id="toastMessage" class="text-gray-300 text-sm font-medium"></p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(toast);
+        }
+
+        const toastMessage = toast.querySelector('#toastMessage');
+        const toastIcon = toast.querySelector('#toastIcon');
+        
+        toastMessage.textContent = message;
+        
+        const configs = {
+            success: { icon: 'check_circle', color: 'text-green-500' },
+            error: { icon: 'error', color: 'text-red-500' },
+            info: { icon: 'info', color: 'text-blue-500' }
+        };
+        
+        const config = configs[type] || configs.info;
+        toastIcon.textContent = config.icon;
+        toastIcon.className = `material-icons-outlined text-lg ${config.color}`;
+        
+        setTimeout(() => {
+            toast.classList.add('hidden');
+        }, 3000);
     }
 }
 

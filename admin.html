@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Admin Dashboard - Drekee AI 1</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3B82F6",
+                        success: "#10B981",
+                        warning: "#F59E0B",
+                        error: "#EF4444",
+                        "background-light": "#F0F9FF",
+                        "background-dark": "#0F172A",
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#1E293B",
+                        "text-main-light": "#1E293B",
+                        "text-main-dark": "#F8FAFC",
+                        "sidebar-light": "#F8FAFC",
+                        "sidebar-dark": "#1E293B",
+                    },
+                    fontFamily: {
+                        display: ["'Plus Jakarta Sans'", "sans-serif"],
+                        sans: ["'Plus Jakarta Sans'", "sans-serif"],
+                        inter: ["'Inter'", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        'xl': '1rem',
+                        '2xl': '1.5rem',
+                        '3xl': '2rem',
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(59, 130, 246, 0.1)',
+                        'input': '0 10px 40px -10px rgba(59, 130, 246, 0.15)',
+                    }
+                },
+            },
+        };
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        
+        .glass-effect {
+            backdrop-filter: blur(12px);
+            background: rgba(30, 41, 59, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+        }
+        
+        .status-online {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+    </style>
+</head>
+<body class="min-h-screen gradient-bg">
+    <!-- Header -->
+    <header class="bg-gray-900/50 backdrop-blur-md border-b border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <video 
+                        autoplay 
+                        muted 
+                        loop 
+                        playsinline 
+                        class="w-10 h-10 rounded-lg object-cover"
+                    >
+                        <source src="img/Video Project.mp4" type="video/mp4">
+                    </video>
+                    <h1 class="text-xl font-bold text-white">Admin Dashboard</h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="text-sm text-gray-300" id="lastUpdate">Última atualização: --</span>
+                    <button onclick="location.reload()" class="p-2 text-gray-300 hover:text-white transition-colors">
+                        <span class="material-icons-outlined">refresh</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Status Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            <!-- Usuários Únicos -->
+            <div class="glass-effect rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-300">Usuários Únicos</p>
+                        <p class="text-2xl font-bold text-white mt-1" id="uniqueUsers">0</p>
+                    </div>
+                    <div class="p-3 bg-blue-500/20 rounded-lg">
+                        <span class="material-icons-outlined text-blue-400">person_add</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Usuários Online -->
+            <div class="glass-effect rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-300">Usuários Ativos</p>
+                        <p class="text-2xl font-bold text-white mt-1" id="onlineUsers">0</p>
+                    </div>
+                    <div class="p-3 bg-green-500/20 rounded-lg">
+                        <span class="material-icons-outlined text-green-400">people</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total de Chats -->
+            <div class="glass-effect rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-300">Total de Chats</p>
+                        <p class="text-2xl font-bold text-white mt-1" id="totalChats">0</p>
+                    </div>
+                    <div class="p-3 bg-purple-500/20 rounded-lg">
+                        <span class="material-icons-outlined text-purple-400">chat</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Likes -->
+            <div class="glass-effect rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-300">Likes</p>
+                        <p class="text-2xl font-bold text-white mt-1" id="totalLikes">0</p>
+                    </div>
+                    <div class="p-3 bg-green-500/20 rounded-lg">
+                        <span class="material-icons-outlined text-green-400">thumb_up</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dislikes -->
+            <div class="glass-effect rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-300">Dislikes</p>
+                        <p class="text-2xl font-bold text-white mt-1" id="totalDislikes">0</p>
+                    </div>
+                    <div class="p-3 bg-red-500/20 rounded-lg">
+                        <span class="material-icons-outlined text-red-400">thumb_down</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Status -->
+        <div class="glass-effect rounded-xl p-6 mb-8">
+            <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <span class="material-icons-outlined">api</span>
+                Status das APIs
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="apiStatus">
+                <!-- API status cards will be inserted here -->
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Feedback Chart -->
+            <div class="glass-effect rounded-xl p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <span class="material-icons-outlined">bar_chart</span>
+                    Feedback (Últimos 7 dias)
+                </h2>
+                <div class="chart-container">
+                    <canvas id="feedbackChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Usage Chart -->
+            <div class="glass-effect rounded-xl p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <span class="material-icons-outlined">trending_up</span>
+                    Uso da IA (Últimos 7 dias)
+                </h2>
+                <div class="chart-container">
+                    <canvas id="usageChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback Details -->
+        <div class="glass-effect rounded-xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                    <span class="material-icons-outlined">reviews</span>
+                    Feedback Detalhado
+                </h2>
+                <div class="flex gap-2">
+                    <button onclick="filterFeedback('all')" class="filter-btn px-3 py-1 text-sm rounded-lg bg-gray-700 text-white" data-filter="all">
+                        Todos
+                    </button>
+                    <button onclick="filterFeedback('like')" class="filter-btn px-3 py-1 text-sm rounded-lg bg-gray-700 text-gray-300" data-filter="like">
+                        Likes
+                    </button>
+                    <button onclick="filterFeedback('dislike')" class="filter-btn px-3 py-1 text-sm rounded-lg bg-gray-700 text-gray-300" data-filter="dislike">
+                        Dislikes
+                    </button>
+                </div>
+            </div>
+            
+            <div class="space-y-4 max-h-96 overflow-y-auto" id="feedbackList">
+                <!-- Feedback items will be inserted here -->
+            </div>
+        </div>
+
+        <!-- Error Logs -->
+        <div class="glass-effect rounded-xl p-6 mt-8">
+            <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <span class="material-icons-outlined text-red-400">error</span>
+                Logs de Erro
+            </h2>
+            <div class="space-y-2 max-h-64 overflow-y-auto" id="errorLogs">
+                <!-- Error logs will be inserted here -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden">
+        <div class="flex items-center justify-center h-full">
+            <div class="bg-gray-800 rounded-xl p-6 flex items-center gap-3">
+                <div class="animate-spin w-5 h-5 border-2 border-primary border-t-transparent rounded-full"></div>
+                <span class="text-gray-300">Carregando...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuração do Supabase
+        const SUPABASE_URL = 'https://vvckoxcmhcaibfgfyqor.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_7RlWwC4vkk1uIRGN4I5-uQ_2d4cCa5w';
+        
+        // Inicializar Supabase
+        window.supabase = window.supabase?.createClient ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+        // Estado global
+        let currentFilter = 'all';
+        let feedbackData = [];
+        let errorLogs = [];
+
+        // APIs para monitorar
+        const apis = [
+            { name: 'Groq API', url: '/api/groq-proxy', icon: 'speed', color: 'blue' },
+            { name: 'Tavily Search', url: '/api/tavily-search', icon: 'search', color: 'green' },
+            { name: 'Stability AI', url: '/api/stability-image', icon: 'image', color: 'purple' },
+            { name: 'OpenRouter', url: '/api/openrouter-image', icon: 'hub', color: 'orange' },
+            { name: 'Gemini', url: '/api/gemini-image', icon: 'smart_toy', color: 'pink' },
+            { name: 'Pexels', url: '/api/pexels-search', icon: 'photo_library', color: 'teal' }
+        ];
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadDashboard();
+            setInterval(loadDashboard, 30000); // Atualizar a cada 30 segundos
+        });
+
+        // Carregar dados do dashboard
+        async function loadDashboard() {
+            try {
+                await Promise.all([
+                    loadStats(),
+                    loadAPIStatus(),
+                    loadFeedback(),
+                    loadErrorLogs()
+                ]);
+                
+                updateLastUpdate();
+            } catch (error) {
+                console.error('Erro ao carregar dashboard:', error);
+                addErrorLog('Dashboard Load Error', error.message);
+            }
+        }
+
+        // Carregar estatísticas
+        async function loadStats() {
+            try {
+                // Carregar estatísticas do Supabase
+                const { data: chats } = await window.supabase.from('chats').select('count(*)');
+                const { data: likes } = await window.supabase.from('feedback').select('count(*)').eq('feedback_type', 'like');
+                const { data: dislikes } = await window.supabase.from('feedback').select('count(*)').eq('feedback_type', 'dislike');
+                
+                // Contar usuários únicos (que já se cadastraram)
+                const { data: uniqueUsers } = await window.supabase
+                    .from('auth.users')
+                    .select('count(*)');
+                
+                // Contar usuários ativos reais (últimos 5 minutos)
+                const { data: activeUsers } = await window.supabase
+                    .from('user_sessions')
+                    .select('count(*)')
+                    .gte('last_seen', new Date(Date.now() - 5 * 60 * 1000).toISOString());
+
+                document.getElementById('totalChats').textContent = chats?.[0]?.count || 0;
+                document.getElementById('totalLikes').textContent = likes?.[0]?.count || 0;
+                document.getElementById('totalDislikes').textContent = dislikes?.[0]?.count || 0;
+                document.getElementById('uniqueUsers').textContent = uniqueUsers?.[0]?.count || 0;
+                document.getElementById('onlineUsers').textContent = activeUsers?.[0]?.count || 0;
+                
+                // Limpar sessões antigas
+                await window.supabase.rpc('cleanup_old_sessions');
+                
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+                // Fallback para valores simulados se houver erro
+                document.getElementById('uniqueUsers').textContent = '0';
+                document.getElementById('onlineUsers').textContent = '0';
+            }
+        }
+
+        // Carregar status das APIs
+        async function loadAPIStatus() {
+            const container = document.getElementById('apiStatus');
+            container.innerHTML = '';
+
+            for (const api of apis) {
+                const status = await checkAPIStatus(api);
+                container.innerHTML += createAPICard(api, status);
+            }
+        }
+
+        // Verificar status de uma API
+        async function checkAPIStatus(api) {
+            try {
+                const response = await fetch(api.url, { method: 'HEAD', timeout: 5000 });
+                return {
+                    online: response.ok,
+                    responseTime: response.headers.get('x-response-time') || 'N/A'
+                };
+            } catch (error) {
+                return {
+                    online: false,
+                    responseTime: 'Error'
+                };
+            }
+        }
+
+        // Criar card de API
+        function createAPICard(api, status) {
+            const colors = {
+                blue: 'text-blue-400',
+                green: 'text-green-400',
+                purple: 'text-purple-400',
+                orange: 'text-orange-400',
+                pink: 'text-pink-400',
+                teal: 'text-teal-400'
+            };
+
+            return `
+                <div class="bg-gray-800/50 rounded-lg p-4 border ${status.online ? 'border-green-500/50' : 'border-red-500/50'}">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="material-icons-outlined ${colors[api.color]}">${api.icon}</span>
+                            <div>
+                                <p class="text-sm font-medium text-white">${api.name}</p>
+                                <p class="text-xs text-gray-400">${status.responseTime}ms</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full ${status.online ? 'bg-green-500 status-online' : 'bg-red-500'}"></div>
+                            <span class="text-xs ${status.online ? 'text-green-400' : 'text-red-400'}">
+                                ${status.online ? 'Online' : 'Offline'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Carregar feedback
+        async function loadFeedback() {
+            try {
+                const { data, error } = await window.supabase
+                    .from('feedback')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(50);
+
+                if (error) throw error;
+                
+                feedbackData = data || [];
+                renderFeedback();
+                updateFeedbackChart();
+            } catch (error) {
+                console.error('Erro ao carregar feedback:', error);
+                addErrorLog('Feedback Load Error', error.message);
+            }
+        }
+
+        // Renderizar feedback
+        function renderFeedback() {
+            const container = document.getElementById('feedbackList');
+            const filtered = currentFilter === 'all' 
+                ? feedbackData 
+                : feedbackData.filter(f => f.feedback_type === currentFilter);
+
+            container.innerHTML = filtered.map(feedback => `
+                <div class="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="material-icons-outlined text-sm ${
+                                feedback.feedback_type === 'like' ? 'text-green-400' : 'text-red-400'
+                            }">
+                                ${feedback.feedback_type === 'like' ? 'thumb_up' : 'thumb_down'}
+                            </span>
+                            <span class="text-sm text-gray-300">
+                                ${new Date(feedback.created_at).toLocaleString('pt-BR')}
+                            </span>
+                        </div>
+                        <span class="text-xs text-gray-400">
+                            Chat: ${feedback.chat_id?.substring(0, 8)}...
+                        </span>
+                    </div>
+                    <div class="bg-gray-900/50 rounded p-3 mb-2">
+                        <p class="text-sm text-gray-300 line-clamp-3">${feedback.response_text}</p>
+                    </div>
+                    ${feedback.comment ? `
+                        <div class="bg-gray-700/50 rounded p-2">
+                            <p class="text-xs text-gray-400">
+                                <strong>Comentário:</strong> ${feedback.comment}
+                            </p>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Filtrar feedback
+        function filterFeedback(type) {
+            currentFilter = type;
+            
+            // Atualizar botões
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.dataset.filter === type) {
+                    btn.className = 'filter-btn px-3 py-1 text-sm rounded-lg bg-primary text-white';
+                } else {
+                    btn.className = 'filter-btn px-3 py-1 text-sm rounded-lg bg-gray-700 text-gray-300';
+                }
+            });
+            
+            renderFeedback();
+        }
+
+        // Carregar logs de erro
+        async function loadErrorLogs() {
+            try {
+                // Simular logs de erro (em produção, viria de um sistema de logging)
+                errorLogs = [
+                    { timestamp: new Date().toISOString(), message: 'API Groq timeout', level: 'warning' },
+                    { timestamp: new Date().toISOString(), message: 'Database connection failed', level: 'error' },
+                    { timestamp: new Date().toISOString(), message: 'High memory usage', level: 'warning' }
+                ];
+                
+                renderErrorLogs();
+            } catch (error) {
+                console.error('Erro ao carregar logs:', error);
+            }
+        }
+
+        // Renderizar logs de erro
+        function renderErrorLogs() {
+            const container = document.getElementById('errorLogs');
+            container.innerHTML = errorLogs.map(log => `
+                <div class="flex items-center gap-3 p-2 bg-gray-800/50 rounded border border-gray-700">
+                    <span class="material-icons-outlined text-sm ${
+                        log.level === 'error' ? 'text-red-400' : 'text-yellow-400'
+                    }">
+                        ${log.level === 'error' ? 'error' : 'warning'}
+                    </span>
+                    <div class="flex-1">
+                        <p class="text-sm text-gray-300">${log.message}</p>
+                        <p class="text-xs text-gray-500">
+                            ${new Date(log.timestamp).toLocaleString('pt-BR')}
+                        </p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Adicionar log de erro
+        function addErrorLog(message, details) {
+            errorLogs.unshift({
+                timestamp: new Date().toISOString(),
+                message: message,
+                details: details,
+                level: 'error'
+            });
+            
+            if (errorLogs.length > 50) errorLogs.pop();
+            
+            renderErrorLogs();
+        }
+
+        // Atualizar gráfico de feedback
+        function updateFeedbackChart() {
+            const ctx = document.getElementById('feedbackChart').getContext('2d');
+            
+            // Agrupar feedback por dia
+            const last7Days = [];
+            const likesByDay = [];
+            const dislikesByDay = [];
+            
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                
+                last7Days.push(date.toLocaleDateString('pt-BR', { weekday: 'short' }));
+                
+                const dayFeedback = feedbackData.filter(f => 
+                    f.created_at.startsWith(dateStr)
+                );
+                
+                likesByDay.push(dayFeedback.filter(f => f.feedback_type === 'like').length);
+                dislikesByDay.push(dayFeedback.filter(f => f.feedback_type === 'dislike').length);
+            }
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: last7Days,
+                    datasets: [
+                        {
+                            label: 'Likes',
+                            data: likesByDay,
+                            backgroundColor: 'rgba(34, 197, 94, 0.5)',
+                            borderColor: 'rgba(34, 197, 94, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Dislikes',
+                            data: dislikesByDay,
+                            backgroundColor: 'rgba(239, 68, 68, 0.5)',
+                            borderColor: 'rgba(239, 68, 68, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#F3F4F6' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#9CA3AF' },
+                            grid: { color: 'rgba(156, 163, 175, 0.1)' }
+                        },
+                        y: {
+                            ticks: { color: '#9CA3AF' },
+                            grid: { color: 'rgba(156, 163, 175, 0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Atualizar gráfico de uso
+        function updateUsageChart() {
+            const ctx = document.getElementById('usageChart').getContext('2d');
+            
+            // Dados simulados de uso
+            const last7Days = [];
+            const usageData = [];
+            
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                last7Days.push(date.toLocaleDateString('pt-BR', { weekday: 'short' }));
+                usageData.push(Math.floor(Math.random() * 100) + 50);
+            }
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: last7Days,
+                    datasets: [{
+                        label: 'Mensagens Processadas',
+                        data: usageData,
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#F3F4F6' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#9CA3AF' },
+                            grid: { color: 'rgba(156, 163, 175, 0.1)' }
+                        },
+                        y: {
+                            ticks: { color: '#9CA3AF' },
+                            grid: { color: 'rgba(156, 163, 175, 0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Atualizar última atualização
+        function updateLastUpdate() {
+            document.getElementById('lastUpdate').textContent = 
+                `Última atualização: ${new Date().toLocaleTimeString('pt-BR')}`;
+        }
+    </script>
+</body>
+</html>

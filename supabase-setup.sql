@@ -14,12 +14,51 @@ CREATE TABLE IF NOT EXISTS chats (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 3. Índices para performance
+-- 3. Tabela de Feedback das Respostas
+CREATE TABLE IF NOT EXISTS feedback (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    chat_id TEXT NOT NULL,
+    message_id TEXT NOT NULL,
+    feedback_type TEXT CHECK (feedback_type IN ('like', 'dislike')),
+    comment TEXT,
+    response_text TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 4. Tabela de Sessões Ativas (para usuários online)
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 4. Índices para performance
 CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id);
 CREATE INDEX IF NOT EXISTS idx_chats_updated_at ON chats(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feedback_user_id ON feedback(user_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feedback_type ON feedback(feedback_type);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_last_seen ON user_sessions(last_seen DESC);
 
--- 4. Políticas de segurança (RLS - Row Level Security)
+-- 5. Políticas de segurança (RLS - Row Level Security)
 ALTER TABLE chats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE feedback ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_sessions ENABLE ROW LEVEL SECURITY;
+
+-- Remover políticas existentes antes de criar novas
+DROP POLICY IF EXISTS "Users can view own chats" ON chats;
+DROP POLICY IF EXISTS "Users can insert own chats" ON chats;
+DROP POLICY IF EXISTS "Users can update own chats" ON chats;
+DROP POLICY IF EXISTS "Users can delete own chats" ON chats;
+DROP POLICY IF EXISTS "Users can view own feedback" ON feedback;
+DROP POLICY IF EXISTS "Users can insert own feedback" ON feedback;
+DROP POLICY IF EXISTS "Admin can view all feedback" ON feedback;
+DROP POLICY IF EXISTS "Users can manage own preferences" ON user_preferences;
+DROP POLICY IF EXISTS "Users can manage own sessions" ON user_sessions;
+DROP POLICY IF EXISTS "Admin can view all sessions" ON user_sessions;
 
 -- Política: Usuários só podem ver seus próprios chats
 CREATE POLICY "Users can view own chats" ON chats
@@ -37,7 +76,46 @@ CREATE POLICY "Users can update own chats" ON chats
 CREATE POLICY "Users can delete own chats" ON chats
     FOR DELETE USING (auth.uid() = user_id);
 
--- 5. Trigger para atualizar updated_at automaticamente
+-- 6. Políticas de Feedback
+-- Política: Usuários só podem ver seus próprios feedbacks
+CREATE POLICY "Users can view own feedback" ON feedback
+    FOR SELECT USING (auth.uid() = user_id);
+
+-- Política: Usuários só podem inserir seus próprios feedbacks
+CREATE POLICY "Users can insert own feedback" ON feedback
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Política: Admin pode ver todos os feedbacks
+CREATE POLICY "Admin can view all feedback" ON feedback
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM auth.users 
+            WHERE auth.users.id = auth.uid() 
+            AND auth.users.email = 'gustavo14dev@gmail.com'
+        )
+    );
+
+-- 7. Políticas de Sessões
+-- Política: Usuários só podem gerenciar suas próprias sessões
+CREATE POLICY "Users can manage own sessions" ON user_sessions
+    FOR ALL USING (auth.uid() = user_id);
+
+-- Política: Admin pode ver todas as sessões
+CREATE POLICY "Admin can view all sessions" ON user_sessions
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM auth.users 
+            WHERE auth.users.id = auth.uid() 
+            AND auth.users.email = 'gustavo14dev@gmail.com'
+        )
+    );
+
+-- 7. Trigger para atualizar updated_at automaticamente
+-- Remover trigger existente antes de criar
+DROP TRIGGER IF EXISTS update_chats_updated_at ON chats;
+DROP TRIGGER IF EXISTS update_user_preferences_updated_at ON user_preferences;
+DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;
+
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -47,35 +125,25 @@ END;
 $$ language 'plpgsql';
 
 CREATE TRIGGER update_chats_updated_at 
-    BEFORE UPDATE ON chats 
-    FOR EACH ROW 
+    BEFORE UPDATE ON chats
+    FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- 6. Tabela de Preferências do Usuário (opcional, para futuro)
-CREATE TABLE IF NOT EXISTS user_preferences (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
-    preferences JSONB DEFAULT '{}'::jsonb,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Índices para user_preferences
-CREATE INDEX IF NOT EXISTS idx_user_preferences_user_id ON user_preferences(user_id);
-
--- RLS para user_preferences
-ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can manage own preferences" ON user_preferences
-    FOR ALL USING (auth.uid() = user_id);
-
--- Trigger para updated_at em user_preferences
 CREATE TRIGGER update_user_preferences_updated_at 
-    BEFORE UPDATE ON user_preferences 
-    FOR EACH ROW 
+    BEFORE UPDATE ON user_preferences
+    FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- 7. Função útil para limpeza (opcional)
+-- 8. Função para limpar sessões antigas
+CREATE OR REPLACE FUNCTION cleanup_old_sessions()
+RETURNS void AS $$
+BEGIN
+    DELETE FROM user_sessions 
+    WHERE last_seen < NOW() - INTERVAL '5 minutes';
+END;
+$$ language 'plpgsql';
+
+-- 9. Função útil para limpeza (opcional)
 CREATE OR REPLACE FUNCTION cleanup_old_chats()
 RETURNS void AS $$
 BEGIN
