@@ -6134,7 +6134,7 @@ ${latexCode}
                 if (this.chats.length > 0) {
                     this.currentChatId = this.chats[0].id;
                     this.renderChatHistory();
-                    this.loadChat(this.chats[0].id);
+                    this.openChat(this.chats[0].id);
                 }
                 
                 console.log(`✅ ${chats.length} chats carregados do servidor`);
