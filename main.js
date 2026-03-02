@@ -2546,10 +2546,14 @@ ${latexCode}
 
         const message = this.elements.userInput.value.trim();
 
-        
+        // Verificar se está logado antes de enviar mensagem
+        if (!window.supabase || !localStorage.getItem('userSession')) {
+            // Redirecionar para login
+            window.location.href = 'login.html';
+            return;
+        }
 
         // Remover sugestões de acompanhamento ao enviar nova mensagem
-
         this.removeFollowUpSuggestions();
 
         
@@ -5870,6 +5874,10 @@ ${latexCode}
             this.showGuestMode();
             return;
         }
+
+        // Limpar chats ao carregar para não misturar contas
+        this.chats = [];
+        this.currentChatId = null;
 
         // Verificar sessão atual
         const { data: { session } } = await window.supabase.auth.getSession();

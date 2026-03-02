@@ -10,6 +10,10 @@ const showSignup = document.getElementById('showSignup');
 const togglePassword = document.getElementById('togglePassword');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const toast = document.getElementById('toast');
+
+// Verificar se está na página de login ou cadastro
+const isLoginPage = window.location.pathname.includes('login.html');
+const isSignupPage = window.location.pathname.includes('cadastro.html');
 const toastIcon = document.getElementById('toastIcon');
 const toastMessage = document.getElementById('toastMessage');
 
