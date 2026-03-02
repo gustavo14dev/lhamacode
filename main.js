@@ -5888,38 +5888,62 @@ ${latexCode}
             return;
         }
 
-        // Limpar chats ao carregar para não misturar contas
+        // Limpar TUDO ao carregar para sincronização correta
         this.chats = [];
         this.currentChatId = null;
+        localStorage.removeItem('lhama_chats'); // Forçar limpeza
 
         // Verificar sessão atual
-        const { data: { session } } = await window.supabase.auth.getSession();
+        const { data: { session }, error } = await window.supabase.auth.getSession();
+        
+        if (error) {
+            console.error('❌ Erro ao verificar sessão:', error);
+            this.showGuestMode();
+            return;
+        }
         
         if (session) {
-            this.showLoggedInUser(session.user);
+            console.log('✅ Sessão encontrada:', session.user.email);
+            await this.showLoggedInUser(session.user);
             await this.loadUserChats();
             // Iniciar heartbeat para usuários logados
             this.startHeartbeat(session.user.id);
         } else {
+            console.log('🔒 Nenhuma sessão encontrada');
             this.showGuestMode();
         }
 
         // Configurar event listeners
         this.setupAuthListeners();
 
-        // Escutar mudanças na autenticação
-        window.supabase.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_IN' && session) {
-                this.showLoggedInUser(session.user);
-                this.loadUserChats();
-                // Iniciar heartbeat
-                this.startHeartbeat(session.user.id);
-            } else if (event === 'SIGNED_OUT') {
-                this.showGuestMode();
-                this.clearUserChats();
-                // Parar heartbeat
-                this.stopHeartbeat();
-            }
+        // Escutar mudanças na autenticação com delay para UI atualizar
+        window.supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log('🔄 Auth state changed:', event, session?.user?.email);
+            
+            // Adicionar delay para UI atualizar corretamente
+            setTimeout(async () => {
+                if (event === 'SIGNED_IN' && session) {
+                    console.log('✅ Usuário fez login:', session.user.email);
+                    
+                    // Limpar tudo e forçar reload
+                    this.chats = [];
+                    this.currentChatId = null;
+                    localStorage.removeItem('lhama_chats');
+                    
+                    await this.showLoggedInUser(session.user);
+                    await this.loadUserChats();
+                    this.startHeartbeat(session.user.id);
+                    
+                    // Forçar refresh da UI
+                    this.renderChatHistory();
+                    
+                } else if (event === 'SIGNED_OUT') {
+                    console.log('👤 Usuário fez logout');
+                    this.showGuestMode();
+                    this.clearUserChats();
+                    this.stopHeartbeat();
+                }
+            }, 500); // 500ms delay
         });
     }
 
@@ -5993,15 +6017,32 @@ ${latexCode}
     showLoggedInUser(user) {
         const email = user.email;
         
-// Salvar sessão do usuário
-localStorage.setItem('userSession', JSON.stringify({
-email: email,
-id: user.id
-}));
+        // Salvar sessão do usuário
+        localStorage.setItem('userSession', JSON.stringify({
+            email: email,
+            id: user.id
+        }));
+        
         // Limpar histórico local ao fazer login
         localStorage.removeItem('lhama_chats');
         
+        // Forçar atualização da UI
+        this.elements.userHeader.classList.remove('hidden');
+        this.elements.loginPrompt.classList.add('hidden');
+        
+        // Atualizar texto do email com delay
+        setTimeout(() => {
+            if (this.elements.userEmail) {
+                this.elements.userEmail.textContent = email;
+            }
+        }, 100);
+        
         console.log('✅ Usuário logado:', email);
+        
+        // Forçar refresh completo da interface
+        setTimeout(() => {
+            this.renderChatHistory();
+        }, 200);
     }
 
     showGuestMode() {
@@ -6040,10 +6081,15 @@ id: user.id
         if (!window.supabase) return;
 
         try {
-            const { data: { user } } = await window.supabase.auth.getUser();
-            if (!user) return;
+            const { data: { user }, error: userError } = await window.supabase.auth.getUser();
+            if (userError || !user) {
+                console.error('❌ Erro ao obter usuário:', userError);
+                return;
+            }
 
-            // Carregar chats do Supabase
+            console.log('🔄 Carregando chats do usuário:', user.email);
+
+            // Forçar reload completo do Supabase
             const { data: chats, error } = await window.supabase
                 .from('chats')
                 .select('*')
@@ -6055,6 +6101,10 @@ id: user.id
                 return;
             }
 
+            // Limpar completamente antes de carregar
+            this.chats = [];
+            this.currentChatId = null;
+
             // Converter chats do Supabase para o formato local
             if (chats && chats.length > 0) {
                 this.chats = chats.map(chat => ({
@@ -6064,12 +6114,25 @@ id: user.id
                     updated: chat.updated_at
                 }));
                 
-                this.renderChatHistory();
+                // Selecionar o chat mais recente
+                if (this.chats.length > 0) {
+                    this.currentChatId = this.chats[0].id;
+                    this.renderChatHistory();
+                    this.loadChat(this.chats[0].id);
+                }
+                
                 console.log(`✅ ${chats.length} chats carregados do servidor`);
+            } else {
+                console.log('📝 Nenhum chat encontrado, criando lista vazia');
+                this.renderChatHistory();
             }
 
         } catch (error) {
             console.error('❌ Erro ao carregar chats do usuário:', error);
+            // Fallback para lista vazia
+            this.chats = [];
+            this.currentChatId = null;
+            this.renderChatHistory();
         }
     }
 
@@ -6077,21 +6140,30 @@ id: user.id
         if (!window.supabase) return;
 
         try {
-            const { data: { user } } = await window.supabase.auth.getUser();
-            if (!user) return;
+            const { data: { user }, error: userError } = await window.supabase.auth.getUser();
+            if (userError || !user) {
+                console.error('❌ Erro ao obter usuário para salvar chat:', userError);
+                return;
+            }
 
             const chat = this.chats.find(c => c.id === chatId);
-            if (!chat) return;
+            if (!chat) {
+                console.error('❌ Chat não encontrado:', chatId);
+                return;
+            }
 
             const chatData = {
+                id: chatId,
                 user_id: user.id,
                 title: chat.title,
                 messages: chat.messages,
                 updated_at: new Date().toISOString()
             };
 
+            console.log('💾 Salvando chat no Supabase:', chatId);
+
             // Upsert (insert ou update)
-            const { data, error } = await supabase
+            const { data, error } = await window.supabase
                 .from('chats')
                 .upsert(chatData, { onConflict: 'id' })
                 .select();
