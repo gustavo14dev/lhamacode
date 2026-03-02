@@ -6008,19 +6008,12 @@ ${latexCode}
 
     showLoggedInUser(user) {
         const email = user.email;
-        this.elements.userEmail.textContent = email;
-        this.elements.userHeader.classList.remove('hidden');
-        this.elements.loginPrompt.classList.add('hidden');
         
-        // Salvar sessão do usuário
-        localStorage.setItem('userSession', JSON.stringify({
-            email: email,
-            id: user.id
-        }));
-        
-        // Limpar flag de visitante
-        localStorage.removeItem('isGuest');
-        
+// Salvar sessão do usuário
+localStorage.setItem('userSession', JSON.stringify({
+email: email,
+id: user.id
+}));
         // Limpar histórico local ao fazer login
         localStorage.removeItem('lhama_chats');
         
