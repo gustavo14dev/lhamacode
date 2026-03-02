@@ -150,67 +150,42 @@ class UI {
 
 
     createNewChat() {
-
         const chatId = Date.now().toString();
-
         const chat = {
-
             id: chatId,
-
             title: 'Nova Conversa',
-
             messages: [],
-
             created: new Date().toLocaleString('pt-BR'),
-
             updated: new Date().toLocaleString('pt-BR')
-
         };
-
         this.chats.unshift(chat);
-
         this.saveChats();
-
+        
+        // Abrir o chat (vai mover input para cima pois não tem mensagens)
         this.openChat(chatId);
-
+        
+        // Mostrar tela inicial (welcome screen)
+        this.showWelcomeScreen();
+        
         this.renderChatHistory();
 
-
-
         // Observer: quando uma nova mensagem é adicionada ao container, rolar imediatamente para o final
-
         try {
-
             this._messagesObserver = new MutationObserver((mutations) => {
-
                 for (const m of mutations) {
-
                     if (m.addedNodes && m.addedNodes.length > 0) {
-
                         const last = this.elements.messagesContainer.lastElementChild;
-
                         if (last) {
-
                             try { last.scrollIntoView({ behavior: 'smooth', block: 'end' }); } catch(e) {}
-
                             this.scrollToBottom();
-
                         }
-
                     }
-
                 }
-
             });
-
             this._messagesObserver.observe(this.elements.messagesContainer, { childList: true });
-
         } catch (e) {
-
             // Fallback silencioso se MutationObserver não estiver disponível
-
         }
-
     }
 
 
@@ -281,8 +256,10 @@ class UI {
         // Mover input para baixo se tiver mensagens, senão para cima
         if (hasMessages) {
             this.moveInputDown();
+            this.hideWelcomeScreen(); // Esconder tela inicial se tiver mensagens
         } else {
             this.moveInputUp();
+            this.showWelcomeScreen(); // Mostrar tela inicial se não tiver mensagens
         }
 
         if (!chat) return;
@@ -294,18 +271,17 @@ class UI {
             console.log('📝 Mensagens do chat:', chat.messages.length);
         }
 
-        chat.messages.forEach((msg, index) => {
-            if (DEBUG) console.log(`  ${index + 1}. ${msg.role}: ${msg.content.substring(0, 50)}...`);
+        // Só mostrar mensagens se tiver
+        if (hasMessages) {
+            chat.messages.forEach((msg, index) => {
+                if (DEBUG) console.log(`  ${index + 1}. ${msg.role}: ${msg.content.substring(0, 50)}...`);
 
-            if (msg.role === 'user') {
-                this.addUserMessage(msg.content);
-            } else {
-                this.addAssistantMessage(msg.content, msg.thinking);
-            }
-        });
-
-        if (!this.isTransitioned) {
-            this.transitionToChat();
+                if (msg.role === 'user') {
+                    this.addUserMessage(msg.content);
+                } else {
+                    this.addAssistantMessage(msg.content, msg.thinking);
+                }
+            });
         }
 
         this.scrollToBottom();
@@ -3453,6 +3429,9 @@ ${latexCode}
 
         this.elements.chatArea.style.opacity = '1';
 
+        // Mover input para baixo quando transicionar para chat
+        this.moveInputDown();
+
     }
 
 
@@ -3525,18 +3504,17 @@ ${latexCode}
 
         this.elements.messagesContainer.appendChild(messageDiv);
 
-
+        // Se for o primeiro mensagem do chat, fazer transição
+        if (!this.isTransitioned) {
+            this.transitionToChat();
+        }
 
         // Auto-scroll imediato para mensagens do usuário
-
         this.scrollToBottom();
 
         // Reforço após a animação
-
         setTimeout(() => {
-
             this.scrollToBottom();
-
         }, 100);
 
     }
@@ -3625,8 +3603,12 @@ ${latexCode}
 
         this.elements.messagesContainer.appendChild(messageDiv);
 
-        // Scroll imediato quando mensagem é adicionada
+        // Se for o primeiro mensagem do chat, fazer transição
+        if (!this.isTransitioned) {
+            this.transitionToChat();
+        }
 
+        // Scroll imediato quando mensagem é adicionada
         this.scrollToBottom();
 
 
@@ -5221,6 +5203,9 @@ ${latexCode}
 
         this.elements.chatArea.style.opacity = '1';
 
+        // Mover input para baixo quando transicionar para chat
+        this.moveInputDown();
+
     }
 
 
@@ -6258,6 +6243,36 @@ ${latexCode}
             inputWrapper.classList.remove('input-wrapper-bottom');
             inputWrapper.classList.add('input-wrapper-center');
         }
+    }
+
+    showWelcomeScreen() {
+        // Mostrar tela inicial com vídeo e texto
+        if (this.elements.welcomeScreen) {
+            this.elements.welcomeScreen.classList.remove('hidden');
+            this.elements.welcomeScreen.classList.remove('pointer-events-none');
+        }
+        if (this.elements.titleSection) {
+            this.elements.titleSection.classList.remove('hidden');
+        }
+        if (this.elements.chatArea) {
+            this.elements.chatArea.classList.add('hidden');
+        }
+        this.isTransitioned = false;
+    }
+
+    hideWelcomeScreen() {
+        // Esconder tela inicial
+        if (this.elements.welcomeScreen) {
+            this.elements.welcomeScreen.classList.add('hidden');
+            this.elements.welcomeScreen.classList.add('pointer-events-none');
+        }
+        if (this.elements.titleSection) {
+            this.elements.titleSection.classList.add('hidden');
+        }
+        if (this.elements.chatArea) {
+            this.elements.chatArea.classList.remove('hidden');
+        }
+        this.isTransitioned = true;
     }
 }
 
