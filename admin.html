@@ -114,7 +114,7 @@
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Status Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             <!-- Usuários Únicos -->
             <div class="glass-effect rounded-xl p-6">
                 <div class="flex items-center justify-between">
@@ -153,32 +153,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Likes -->
-            <div class="glass-effect rounded-xl p-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-300">Likes</p>
-                        <p class="text-2xl font-bold text-white mt-1" id="totalLikes">0</p>
-                    </div>
-                    <div class="p-3 bg-green-500/20 rounded-lg">
-                        <span class="material-icons-outlined text-green-400">thumb_up</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Dislikes -->
-            <div class="glass-effect rounded-xl p-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-300">Dislikes</p>
-                        <p class="text-2xl font-bold text-white mt-1" id="totalDislikes">0</p>
-                    </div>
-                    <div class="p-3 bg-red-500/20 rounded-lg">
-                        <span class="material-icons-outlined text-red-400">thumb_down</span>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- API Status -->
@@ -214,31 +188,6 @@
                 <div class="chart-container">
                     <canvas id="usageChart"></canvas>
                 </div>
-            </div>
-        </div>
-
-        <!-- Feedback Details -->
-        <div class="glass-effect rounded-xl p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-white flex items-center gap-2">
-                    <span class="material-icons-outlined">reviews</span>
-                    Feedback Detalhado
-                </h2>
-                <div class="flex gap-2">
-                    <button onclick="filterFeedback('all')" class="filter-btn px-3 py-1 text-sm rounded-lg bg-gray-700 text-white" data-filter="all">
-                        Todos
-                    </button>
-                    <button onclick="filterFeedback('like')" class="filter-btn px-3 py-1 text-sm rounded-lg bg-gray-700 text-gray-300" data-filter="like">
-                        Likes
-                    </button>
-                    <button onclick="filterFeedback('dislike')" class="filter-btn px-3 py-1 text-sm rounded-lg bg-gray-700 text-gray-300" data-filter="dislike">
-                        Dislikes
-                    </button>
-                </div>
-            </div>
-            
-            <div class="space-y-4 max-h-96 overflow-y-auto" id="feedbackList">
-                <!-- Feedback items will be inserted here -->
             </div>
         </div>
 
@@ -299,7 +248,6 @@
                 await Promise.all([
                     loadStats(),
                     loadAPIStatus(),
-                    loadFeedback(),
                     loadErrorLogs()
                 ]);
                 
@@ -315,8 +263,6 @@
             try {
                 // Carregar estatísticas do Supabase
                 const { data: chats } = await window.supabase.from('chats').select('count(*)');
-                const { data: likes } = await window.supabase.from('feedback').select('count(*)').eq('feedback_type', 'like');
-                const { data: dislikes } = await window.supabase.from('feedback').select('count(*)').eq('feedback_type', 'dislike');
                 
                 // Contar usuários únicos (que já se cadastraram)
                 const { data: uniqueUsers } = await window.supabase
@@ -330,8 +276,6 @@
                     .gte('last_seen', new Date(Date.now() - 5 * 60 * 1000).toISOString());
 
                 document.getElementById('totalChats').textContent = chats?.[0]?.count || 0;
-                document.getElementById('totalLikes').textContent = likes?.[0]?.count || 0;
-                document.getElementById('totalDislikes').textContent = dislikes?.[0]?.count || 0;
                 document.getElementById('uniqueUsers').textContent = uniqueUsers?.[0]?.count || 0;
                 document.getElementById('onlineUsers').textContent = activeUsers?.[0]?.count || 0;
                 
@@ -360,15 +304,20 @@
         // Verificar status de uma API
         async function checkAPIStatus(api) {
             try {
-                const response = await fetch(api.url, { method: 'HEAD', timeout: 5000 });
+                const response = await fetch(api.url, { 
+                    method: 'HEAD', 
+                    timeout: 3000,
+                    mode: 'no-cors'
+                });
+                
                 return {
-                    online: response.ok,
-                    responseTime: response.headers.get('x-response-time') || 'N/A'
+                    online: response.ok || response.status === 0,
+                    responseTime: response.headers.get('x-response-time') || 'Online'
                 };
             } catch (error) {
                 return {
                     online: false,
-                    responseTime: 'Error'
+                    responseTime: 'Offline'
                 };
             }
         }
