@@ -123,7 +123,7 @@ loginForm?.addEventListener('submit', async (e) => {
                 email,
                 password,
                 options: {
-                    emailRedirectTo: window.location.origin + '/code.html'
+                    emailRedirectTo: 'http://localhost:8000/code.html'
                 }
             });
             
@@ -167,7 +167,7 @@ googleLogin?.addEventListener('click', async () => {
         const { data, error } = await window.supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: window.location.origin + '/code.html'
+                redirectTo: 'http://localhost:8000/code.html'
             }
         });
         
