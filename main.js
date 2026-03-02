@@ -272,59 +272,44 @@ class UI {
 
 
     openChat(chatId) {
-
         this.currentChatId = chatId;
-
+        
+        // Verificar se o chat tem mensagens
         const chat = this.chats.find(c => c.id === chatId);
+        const hasMessages = chat && chat.messages && chat.messages.length > 0;
+        
+        // Mover input para baixo se tiver mensagens, senão para cima
+        if (hasMessages) {
+            this.moveInputDown();
+        } else {
+            this.moveInputUp();
+        }
 
         if (!chat) return;
 
-
-
         this.elements.messagesContainer.innerHTML = '';
 
-
-
         if (DEBUG) {
-
             console.log('📂 Abrindo chat:', chatId);
-
             console.log('📝 Mensagens do chat:', chat.messages.length);
-
         }
 
-
-
         chat.messages.forEach((msg, index) => {
-
             if (DEBUG) console.log(`  ${index + 1}. ${msg.role}: ${msg.content.substring(0, 50)}...`);
 
             if (msg.role === 'user') {
-
                 this.addUserMessage(msg.content);
-
             } else {
-
                 this.addAssistantMessage(msg.content, msg.thinking);
-
             }
-
         });
 
-
-
         if (!this.isTransitioned) {
-
             this.transitionToChat();
-
         }
 
-
-
         this.scrollToBottom();
-
         this.renderChatHistory();
-
     }
 
 
@@ -6255,6 +6240,23 @@ ${latexCode}
             
         } catch (error) {
             console.error('❌ Erro na sincronização forçada:', error);
+        }
+    }
+
+    // Métodos para controlar posição do input
+    moveInputDown() {
+        const inputWrapper = document.getElementById('inputWrapper');
+        if (inputWrapper) {
+            inputWrapper.classList.remove('input-wrapper-center');
+            inputWrapper.classList.add('input-wrapper-bottom');
+        }
+    }
+
+    moveInputUp() {
+        const inputWrapper = document.getElementById('inputWrapper');
+        if (inputWrapper) {
+            inputWrapper.classList.remove('input-wrapper-bottom');
+            inputWrapper.classList.add('input-wrapper-center');
         }
     }
 }

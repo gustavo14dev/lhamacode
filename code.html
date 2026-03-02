@@ -269,7 +269,7 @@
 <div class="max-w-4xl mx-auto w-full" id="messagesContainer"></div>
 </div>
 
-<div class="fixed bottom-4 left-80 right-0 px-4 md:px-12 z-50" id="inputWrapper">
+<div class="fixed top-1/2 left-80 right-0 transform -translate-y-1/2 px-4 md:px-12 z-50 input-wrapper-center" id="inputWrapper">
 <div class="max-w-4xl mx-auto w-full">
 <div class="bg-surface-light dark:bg-surface-dark rounded-[2rem] p-4 shadow-input border border-white/60 dark:border-white/5 transition-all duration-300">
 <!-- Container para mostrar arquivos anexados (posicionado acima da caixa de texto) -->
@@ -733,36 +733,12 @@ document.addEventListener('DOMContentLoaded', function() {
     let checkInterval;
     function startPeriodicCheck() {
         checkInterval = setInterval(checkForNewMessages, 500);
-        setTimeout(() => {
-            clearInterval(checkInterval);
-        }, 10000);
-    }
-    
-    // Configurar observer quando a página carregar
-    setupMessageObserver();
-    
-    // Função para mostrar o vídeo ao lado do anexo
-    function showInputVideo() {
-        const video = document.getElementById('inputVideo');
-        if (video) {
-            video.style.display = 'block';
-            video.classList.remove('hidden');
-        }
-    }
-    
-        
-    // Função para esconder o vídeo
-    function hideInputVideo() {
-        const video = document.getElementById('inputVideo');
-        if (video) {
-            video.style.display = 'none';
-            video.classList.add('hidden');
-        }
     }
     
     // Rolar para baixo quando enviar mensagem
     if (sendButton) {
         sendButton.addEventListener('click', function() {
+            setTimeout(moveInputDown, 50);
             setTimeout(smoothScrollToBottom, 200);
             setTimeout(showInputVideo, 100); // Mostrar vídeo após enviar
             startPeriodicCheck(); // Ativar verificação periódica
@@ -773,6 +749,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (userInput) {
         userInput.addEventListener('keydown', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
+                setTimeout(moveInputDown, 50);
                 setTimeout(smoothScrollToBottom, 200);
                 setTimeout(showInputVideo, 100); // Mostrar vídeo após enviar
                 startPeriodicCheck(); // Ativar verificação periódica
