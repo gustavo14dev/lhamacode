@@ -4073,7 +4073,7 @@ ${latexCode}
 
                 }
 
-                await this.sleep(5); // Rápido e suave: 5ms por caractere
+                await this.sleep(2); // Mais rápido: 2ms por caractere
 
             }
 
@@ -4087,7 +4087,7 @@ ${latexCode}
 
             // Pequena pausa entre linhas
 
-            await this.sleep(10); // Pausa suave entre linhas
+            await this.sleep(5); // Pausa rápida entre linhas
 
         }
 
