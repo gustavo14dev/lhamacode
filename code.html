@@ -264,7 +264,9 @@
 
 <!-- Cabeçalho vazio conectado com o sidebar -->
 <header class="fixed top-0 left-72 right-0 h-16 bg-sidebar-light/95 dark:bg-sidebar-dark/95 backdrop-blur-md border-b border-white/50 dark:border-white/10 z-40">
-    <!-- Conteúdo do cabeçalho vazio por enquanto -->
+    <div class="h-full flex items-center justify-center px-6">
+        <h1 id="conversationTitle" class="text-lg font-semibold text-text-main-light dark:text-text-main-dark truncate"></h1>
+    </div>
 </header>
 
 <!-- API Status Banner: exibido quando as ENV das APIs não estão configuradas ou /api/status falha -->
@@ -286,7 +288,7 @@
 </div>
 
 <div class="fixed top-1/2 left-72 right-0 transform -translate-y-[45%] px-4 md:px-12 z-50 input-wrapper-center" id="inputWrapper">
-<div class="max-w-4xl mx-auto w-full">
+<div class="max-w-3xl mx-auto w-full">
 <div class="bg-surface-light dark:bg-surface-dark rounded-[2rem] p-3 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-white/60 dark:border-white/5 transition-all duration-300">
 <!-- Container para mostrar arquivos anexados (posicionado acima da caixa de texto) -->
 <div id="attachedFilesContainer" class="mb-3 w-full hidden"></div>
@@ -614,7 +616,115 @@ class VoiceRecorder {
 // Inicializar quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', () => {
     new VoiceRecorder();
+    new ConversationTitleManager();
 });
+
+// Gerenciador de título da conversa
+class ConversationTitleManager {
+    constructor() {
+        this.conversationTitle = document.getElementById('conversationTitle');
+        this.currentChatId = null;
+        
+        // Observar mudanças no chat atual
+        this.observeChatChanges();
+        
+        // Verificar se há um chat ativo ao carregar
+        this.updateTitle();
+    }
+    
+    observeChatChanges() {
+        // Observar mudanças no container de mensagens
+        const messagesContainer = document.getElementById('messagesContainer');
+        if (messagesContainer) {
+            const observer = new MutationObserver(() => {
+                this.updateTitle();
+            });
+            
+            observer.observe(messagesContainer, {
+                childList: true,
+                subtree: true,
+                attributes: false,
+                characterData: false
+            });
+        }
+        
+        // Observar mudanças na lista de chats
+        const chatHistoryList = document.getElementById('chatHistoryList');
+        if (chatHistoryList) {
+            const observer = new MutationObserver(() => {
+                this.updateTitle();
+            });
+            
+            observer.observe(chatHistoryList, {
+                childList: true,
+                subtree: true,
+                attributes: false,
+                characterData: false
+            });
+        }
+    }
+    
+    updateTitle() {
+        try {
+            // Tentar obter o chat atual do UI
+            if (window.ui && window.ui.currentChatId) {
+                this.currentChatId = window.ui.currentChatId;
+            }
+            
+            // Se não houver chat ativo, limpar o título
+            if (!this.currentChatId) {
+                this.conversationTitle.textContent = '';
+                return;
+            }
+            
+            // Tentar obter o título do chat atual
+            let chatTitle = '';
+            
+            // Verificar se há um chat ativo no sistema
+            if (window.ui && window.ui.chats) {
+                const currentChat = window.ui.chats.find(chat => chat.id === this.currentChatId);
+                if (currentChat && currentChat.title) {
+                    chatTitle = currentChat.title;
+                }
+            }
+            
+            // Se não tiver título, usar a primeira mensagem como título
+            if (!chatTitle) {
+                const firstMessage = document.querySelector('#messagesContainer > div:first-child .message-content');
+                if (firstMessage) {
+                    const text = firstMessage.textContent.trim();
+                    chatTitle = text.length > 50 ? text.substring(0, 50) + '...' : text;
+                }
+            }
+            
+            // Se ainda não tiver título, usar um padrão
+            if (!chatTitle) {
+                chatTitle = 'Nova Conversa';
+            }
+            
+            this.conversationTitle.textContent = chatTitle;
+            
+        } catch (error) {
+            console.error('Erro ao atualizar título da conversa:', error);
+            this.conversationTitle.textContent = '';
+        }
+    }
+    
+    // Método para ser chamado externamente quando mudar de chat
+    setCurrentChat(chatId, title = '') {
+        this.currentChatId = chatId;
+        this.conversationTitle.textContent = title;
+    }
+    
+    // Método para limpar o título
+    clearTitle() {
+        this.currentChatId = null;
+        this.conversationTitle.textContent = '';
+    }
+}
+
+// Expor globalmente para uso pelo main.js
+window.conversationTitleManager = new ConversationTitleManager();
 </script>
 <script>
 // Variáveis globais para controle de retry
