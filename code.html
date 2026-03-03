@@ -197,7 +197,7 @@
     </style>
 </head>
 <body class="custom-bg min-h-screen text-text-main-light dark:text-text-main-dark transition-colors duration-300 dark">
-<nav class="fixed left-4 top-4 bottom-4 w-72 bg-sidebar-light/95 dark:bg-sidebar-dark/95 backdrop-blur-md rounded-[2rem] flex flex-col py-6 px-4 shadow-soft z-50 border border-white/50 dark:border-white/10 transition-colors duration-300">
+<nav class="fixed left-0 top-0 bottom-0 w-72 bg-sidebar-light/95 dark:bg-sidebar-dark/95 backdrop-blur-md flex flex-col py-6 px-4 shadow-soft z-50 border-r border-white/50 dark:border-white/10 transition-colors duration-300">
 <div class="mb-8 px-2 flex items-center gap-3">
     <video autoplay muted loop playsinline class="w-8 h-8 rounded-full object-cover">
         <source src="img/Video Project.mp4" type="video/mp4">
@@ -219,42 +219,58 @@
 </div>
 </div>
 </div>
-</nav>
-<main class="ml-80 min-h-screen flex flex-col relative" id="mainContainer">
 
-<!-- API Status Banner: exibido quando as ENV das APIs não estão configuradas ou /api/status falha -->
-<div id="apiStatusBanner" class="fixed right-6 top-20 z-50 hidden bg-yellow-50 dark:bg-yellow-900 text-yellow-900 dark:text-yellow-100 border border-yellow-200 dark:border-yellow-700 rounded-lg px-4 py-2 shadow-sm max-w-md"></div>
-
-<!-- User Header -->
-<div id="userHeader" class="fixed top-4 right-4 z-40 hidden">
-    <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl px-4 py-2 flex items-center gap-3 shadow-lg border border-white/20 dark:border-gray-700">
-        <div class="flex items-center gap-2">
-            <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <span class="material-icons-outlined text-white text-sm">person</span>
-            </div>
-            <div>
-                <p id="userEmail" class="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[150px]"></p>
+<!-- User Header (movido para o final da sidebar) -->
+<div id="userHeader" class="hidden">
+    <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-white/20 dark:border-gray-700">
+        <!-- Seção do usuário -->
+        <div class="flex items-center gap-3 mb-3">
+            <img src="img/perfil.png" alt="Perfil" class="w-10 h-10 rounded-full object-cover border-2 border-white/20">
+            <div class="flex-1 min-w-0">
+                <p id="userEmail" class="text-sm font-medium text-gray-900 dark:text-white truncate">carregando...</p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">Conta conectada</p>
             </div>
         </div>
-        <button id="logoutBtn" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title="Sair">
-            <span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-300">logout</span>
-        </button>
-        <button id="syncBtn" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title="Sincronizar">
-            <span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-300">sync</span>
+        
+        <!-- Botões de ação -->
+        <div class="flex gap-2 mb-3">
+            <button id="logoutBtn" class="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-medium transition-all">
+                <span class="material-icons-outlined text-sm">logout</span>
+                <span>Sair</span>
+            </button>
+            <button id="settingsBtn" class="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-medium transition-all">
+                <span class="material-icons-outlined text-sm">settings</span>
+                <span>Configurações</span>
+            </button>
+        </div>
+        
+        <!-- Botão Limpar Histórico -->
+        <button id="clearHistoryBtn" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-orange-50 dark:bg-orange-950/20 hover:bg-orange-100 dark:hover:bg-orange-950/40 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 text-sm font-medium transition-all">
+            <span class="material-icons-outlined text-sm">delete_sweep</span>
+            <span>Limpar Histórico</span>
         </button>
     </div>
 </div>
 
-<!-- Login Button (quando não logado) -->
-<div id="loginPrompt" class="fixed top-4 right-4 z-40">
-    <button id="loginBtn" class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl px-4 py-2 flex items-center gap-2 shadow-lg border border-white/20 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-all">
+<!-- Login Button (movido para o final da sidebar) -->
+<div id="loginPrompt">
+    <button id="loginBtn" class="w-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl px-3 py-2 flex items-center justify-center gap-2 shadow-lg border border-white/20 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-all">
         <span class="material-icons-outlined text-sm text-primary">login</span>
         <span class="text-sm font-medium text-gray-900 dark:text-white">Entrar</span>
     </button>
 </div>
+</nav>
+<main class="ml-72 min-h-screen flex flex-col relative" id="mainContainer">
 
-<div class="flex-1 flex flex-col justify-center px-4 md:px-12 pb-20 max-w-4xl mx-auto pointer-events-none" id="welcomeScreen">
+<!-- Cabeçalho vazio conectado com o sidebar -->
+<header class="fixed top-0 left-72 right-0 h-16 bg-sidebar-light/95 dark:bg-sidebar-dark/95 backdrop-blur-md border-b border-white/50 dark:border-white/10 z-40">
+    <!-- Conteúdo do cabeçalho vazio por enquanto -->
+</header>
+
+<!-- API Status Banner: exibido quando as ENV das APIs não estão configuradas ou /api/status falha -->
+<div id="apiStatusBanner" class="fixed right-6 top-20 z-50 hidden bg-yellow-50 dark:bg-yellow-900 text-yellow-900 dark:text-yellow-100 border border-yellow-200 dark:border-yellow-700 rounded-lg px-4 py-2 shadow-sm max-w-md"></div>
+
+<div class="absolute inset-0 flex flex-col items-center px-4 md:px-12 pb-64 max-w-4xl mx-auto pointer-events-none" id="welcomeScreen" style="margin-top: 6rem;">
 <div class="max-w-6xl text-center mb-8 flex flex-col items-center transition-opacity duration-300" id="titleSection">
 <video autoplay muted loop playsinline class="w-32 h-32 rounded-none object-cover">
         <source src="img/Video Project.mp4" type="video/mp4">
@@ -265,17 +281,17 @@
 </div>
 </div>
 
-<div class="flex-1 overflow-y-auto px-4 md:px-12 pt-8 pb-52" id="chatArea">
+<div class="flex-1 overflow-y-auto px-4 md:px-12 pt-20 pb-52" id="chatArea">
 <div class="max-w-4xl mx-auto w-full" id="messagesContainer"></div>
 </div>
 
-<div class="fixed top-1/2 left-80 right-0 transform -translate-y-1/2 px-4 md:px-12 z-50 input-wrapper-center" id="inputWrapper">
+<div class="fixed top-1/2 left-72 right-0 transform -translate-y-1/2 px-4 md:px-12 z-50 input-wrapper-center" id="inputWrapper">
 <div class="max-w-4xl mx-auto w-full">
-<div class="bg-surface-light dark:bg-surface-dark rounded-[2rem] p-4 shadow-input border border-white/60 dark:border-white/5 transition-all duration-300">
+<div class="bg-surface-light dark:bg-surface-dark rounded-[2rem] p-3 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-white/60 dark:border-white/5 transition-all duration-300">
 <!-- Container para mostrar arquivos anexados (posicionado acima da caixa de texto) -->
 <div id="attachedFilesContainer" class="mb-3 w-full hidden"></div>
 
-<textarea class="w-full bg-transparent border-none text-gray-600 dark:text-gray-300 text-lg placeholder-gray-400 dark:placeholder-gray-500 focus:ring-0 resize-y min-h-[48px] max-h-[200px] py-2 px-2" placeholder="Como posso ajudar com seu código hoje?" id="userInput"></textarea>
+<textarea class="w-full bg-transparent border-none text-gray-600 dark:text-gray-300 text-lg placeholder-gray-400 dark:placeholder-gray-500 focus:ring-0 resize-y min-h-[32px] max-h-[200px] py-1 px-2" placeholder="Como posso ajudar com seu código hoje?" id="userInput"></textarea>
 <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-2 px-2 pb-1">
 <div class="flex items-center gap-3 w-full sm:w-auto overflow-x-auto no-scrollbar">
 <!-- Vídeo animado ao lado do botão de anexo -->
@@ -336,6 +352,9 @@
 <span class="material-icons-outlined text-sm">expand_more</span>
 </button>
 </div>
+<button id="voiceButton" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 shadow-lg transition-all transform hover:scale-105 active:scale-95" title="Gravar áudio">
+<span class="material-icons-outlined text-xl" id="voiceIcon">mic</span>
+</button>
 <button class="w-10 h-10 rounded-full bg-primary hover:bg-primary/90 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105 active:scale-95" id="sendButton">
 <span class="material-icons-outlined text-xl">arrow_upward</span>
 </button>
@@ -345,7 +364,7 @@
 </div>
 
 <!-- Botão de scroll para baixo -->
-<button class="absolute bottom-24 right-6 w-12 h-12 rounded-full bg-primary hover:bg-primary/90 text-white shadow-lg shadow-blue-500/30 transition-all transform hover:scale-110 active:scale-95 opacity-0 pointer-events-none animate-fadeIn" id="scrollToBottomBtn" title="Voltar para mensagem mais recente">
+<button class="absolute bottom-24 right-6 w-12 h-12 rounded-full bg-primary hover:bg-primary/90 text-white shadow-lg shadow-blue-500/30 transition-all transform hover:scale-110 active:scale-95 opacity-0 pointer-events-none animate-fadeIn" id="scrollToBottomBtn" title="Voltar para mensagem mais recente" style="margin-right: 1rem;">
 <span class="material-icons-outlined text-xl">arrow_downward</span>
 </button>
 </div>
@@ -505,6 +524,97 @@ function toggleWebSearch() {
 
 // Expor função globalmente
 window.toggleWebSearch = toggleWebSearch;
+
+// Funcionalidade de gravação de voz
+class VoiceRecorder {
+    constructor() {
+        this.isRecording = false;
+        this.mediaRecorder = null;
+        this.audioChunks = [];
+        this.recognition = null;
+        this.voiceButton = document.getElementById('voiceButton');
+        this.voiceIcon = document.getElementById('voiceIcon');
+        this.userInput = document.getElementById('userInput');
+        
+        this.init();
+    }
+    
+    init() {
+        // Verificar suporte à Web Speech API
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            this.recognition = new SpeechRecognition();
+            this.recognition.continuous = false;
+            this.recognition.interimResults = false;
+            this.recognition.lang = 'pt-BR';
+            
+            this.recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                this.userInput.value = transcript;
+                this.stopRecording();
+            };
+            
+            this.recognition.onerror = (event) => {
+                console.error('Erro no reconhecimento de voz:', event.error);
+                this.stopRecording();
+            };
+            
+            this.recognition.onend = () => {
+                this.stopRecording();
+            };
+        } else {
+            console.warn('Web Speech API não suportada neste navegador');
+            this.voiceButton.style.display = 'none';
+        }
+        
+        // Event listener
+        this.voiceButton.addEventListener('click', () => {
+            if (this.isRecording) {
+                this.stopRecording();
+            } else {
+                this.startRecording();
+            }
+        });
+    }
+    
+    startRecording() {
+        if (!this.recognition) return;
+        
+        this.isRecording = true;
+        this.voiceButton.classList.add('bg-red-500', 'hover:bg-red-600');
+        this.voiceButton.classList.remove('bg-gray-100', 'dark:bg-gray-700', 'hover:bg-gray-200', 'dark:hover:bg-gray-600');
+        this.voiceIcon.textContent = 'stop';
+        this.voiceButton.title = 'Parar gravação';
+        
+        try {
+            this.recognition.start();
+        } catch (error) {
+            console.error('Erro ao iniciar gravação:', error);
+            this.stopRecording();
+        }
+    }
+    
+    stopRecording() {
+        if (!this.recognition || !this.isRecording) return;
+        
+        this.isRecording = false;
+        this.voiceButton.classList.remove('bg-red-500', 'hover:bg-red-600');
+        this.voiceButton.classList.add('bg-gray-100', 'dark:bg-gray-700', 'hover:bg-gray-200', 'dark:hover:bg-gray-600');
+        this.voiceIcon.textContent = 'mic';
+        this.voiceButton.title = 'Gravar áudio';
+        
+        try {
+            this.recognition.stop();
+        } catch (error) {
+            console.error('Erro ao parar gravação:', error);
+        }
+    }
+}
+
+// Inicializar quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', () => {
+    new VoiceRecorder();
+});
 </script>
 <script>
 // Variáveis globais para controle de retry

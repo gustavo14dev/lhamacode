@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Configurações - Drekee AI</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3B82F6",
+                        "background-light": "#F0F9FF",
+                        "background-dark": "#0F172A",
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#1E293B",
+                        "text-main-light": "#1E293B",
+                        "text-main-dark": "#F8FAFC",
+                        "sidebar-light": "#F8FAFC",
+                        "sidebar-dark": "#1E293B",
+                    },
+                    fontFamily: {
+                        display: ["'Plus Jakarta Sans'", "sans-serif"],
+                        sans: ["'Plus Jakarta Sans'", "sans-serif"],
+                        inter: ["'Inter'", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        'xl': '1rem',
+                        '2xl': '1.5rem',
+                        '3xl': '2rem',
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(59, 130, 246, 0.1)',
+                        'input': '0 10px 40px -10px rgba(59, 130, 246, 0.15)',
+                    }
+                },
+            },
+        };
+    </script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .custom-bg {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="custom-bg min-h-screen text-text-main-light dark:text-text-main-dark transition-colors duration-300 dark">
+    <!-- Header -->
+    <header class="bg-surface-light/10 dark:bg-surface-dark/10 backdrop-blur-md border-b border-white/10 dark:border-white/5">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button onclick="history.back()" class="p-2 rounded-lg hover:bg-white/10 dark:hover:bg-white/5 transition-colors">
+                    <span class="material-icons-outlined text-white">arrow_back</span>
+                </button>
+                <h1 class="text-xl font-semibold text-white">Configurações</h1>
+            </div>
+            <div class="flex items-center gap-2">
+                <video autoplay muted loop playsinline class="w-8 h-8 rounded-full object-cover">
+                    <source src="img/Video Project.mp4" type="video/mp4">
+                </video>
+                <span class="text-white font-medium">Drekee AI</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-8">
+        <div class="space-y-6">
+            <!-- Seção: Perfil -->
+            <div class="bg-surface-light/10 dark:bg-surface-dark/10 backdrop-blur-sm rounded-xl p-6 border border-white/10 dark:border-white/5">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <span class="material-icons-outlined">person</span>
+                    Perfil
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-sm text-gray-300 block mb-1">Email</label>
+                        <input type="email" id="userEmail" class="w-full px-3 py-2 bg-white/10 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-lg text-white placeholder-gray-400" readonly>
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-300 block mb-1">Status</label>
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span class="text-sm text-gray-300">Conta conectada</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção: Preferências -->
+            <div class="bg-surface-light/10 dark:bg-surface-dark/10 backdrop-blur-sm rounded-xl p-6 border border-white/10 dark:border-white/5">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <span class="material-icons-outlined">settings</span>
+                    Preferências
+                </h2>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-white font-medium">Modo Escuro</p>
+                            <p class="text-sm text-gray-400">Usar tema escuro na interface</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="darkModeToggle" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-white font-medium">Notificações</p>
+                            <p class="text-sm text-gray-400">Receber notificações do sistema</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="notificationsToggle" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção: Dados -->
+            <div class="bg-surface-light/10 dark:bg-surface-dark/10 backdrop-blur-sm rounded-xl p-6 border border-white/10 dark:border-white/5">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <span class="material-icons-outlined">storage</span>
+                    Gerenciamento de Dados
+                </h2>
+                <div class="space-y-4">
+                    <button onclick="exportData()" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 font-medium transition-all">
+                        <span class="material-icons-outlined">download</span>
+                        Exportar Dados
+                    </button>
+                    <button onclick="clearCache()" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 hover:bg-orange-100 dark:hover:bg-orange-950/40 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 font-medium transition-all">
+                        <span class="material-icons-outlined">cleaning_services</span>
+                        Limpar Cache
+                    </button>
+                </div>
+            </div>
+
+            <!-- Seção: Sobre -->
+            <div class="bg-surface-light/10 dark:bg-surface-dark/10 backdrop-blur-sm rounded-xl p-6 border border-white/10 dark:border-white/5">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <span class="material-icons-outlined">info</span>
+                    Sobre
+                </h2>
+                <div class="space-y-3 text-sm text-gray-300">
+                    <div class="flex justify-between">
+                        <span>Versão</span>
+                        <span class="text-white">BETA 1</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Desenvolvedor</span>
+                        <span class="text-white">Drekee AI</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Licença</span>
+                        <span class="text-white">MIT</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Inicialização do Supabase
+        function createSupabaseClient() {
+            return window.supabase = window.supabase || supabase.createClient(
+                'https://your-project.supabase.co',
+                'your-anon-key'
+            );
+        }
+
+        // Forçar tema escuro
+        document.addEventListener('DOMContentLoaded', function() {
+            document.documentElement.classList.add('dark');
+            document.body.classList.add('dark');
+            
+            // Carregar email do usuário
+            loadUserEmail();
+        });
+
+        async function loadUserEmail() {
+            try {
+                const { data: { user } } = await window.supabase.auth.getUser();
+                if (user) {
+                    document.getElementById('userEmail').value = user.email;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar email:', error);
+            }
+        }
+
+        function exportData() {
+            // Implementar exportação de dados
+            alert('Funcionalidade de exportação em desenvolvimento!');
+        }
+
+        function clearCache() {
+            if (confirm('Tem certeza que deseja limpar o cache? Isso pode melhorar o desempenho, mas irá limpar dados temporários.')) {
+                localStorage.clear();
+                sessionStorage.clear();
+                alert('Cache limpo com sucesso!');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            }
+        }
+
+        // Inicializar Supabase
+        window.supabase = window.supabase || createSupabaseClient();
+    </script>
+</body>
+</html>

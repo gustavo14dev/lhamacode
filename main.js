@@ -384,37 +384,7 @@ class UI {
 
         
 
-        // Adicionar botão de limpar tudo em baixo
-
-        if (this.chats.length > 0) {
-
-            const clearAllDiv = document.createElement('div');
-
-            clearAllDiv.className = 'p-3 mt-4 border-t border-gray-200 dark:border-gray-700';
-
-            clearAllDiv.innerHTML = `
-
-                <button class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-medium transition-all" id="clearAllHistoryBtn">
-
-                    <span class="material-icons-outlined text-base">delete_sweep</span>
-
-                    Limpar histórico
-
-                </button>
-
-            `;
-
-            this.elements.chatHistoryList.appendChild(clearAllDiv);
-
-            
-
-            // Event listener
-
-            const clearBtn = clearAllDiv.querySelector('#clearAllHistoryBtn');
-
-            clearBtn.addEventListener('click', () => this.clearAllHistory());
-
-        }
+        // Botão de limpar histórico agora está no userHeader no HTML
 
     }
 
@@ -5923,6 +5893,22 @@ ${latexCode}
         this.elements.logoutBtn?.addEventListener('click', async () => {
             await this.logout();
         });
+
+        // Botão de configurações
+        const settingsBtn = document.getElementById('settingsBtn');
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', () => {
+                window.location.href = 'configuracoes.html';
+            });
+        }
+
+        // Botão de limpar histórico
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        if (clearHistoryBtn) {
+            clearHistoryBtn.addEventListener('click', () => {
+                this.clearAllHistory();
+            });
+        }
 
         // Botão de sincronização (se existir)
         const syncBtn = document.getElementById('syncBtn');
