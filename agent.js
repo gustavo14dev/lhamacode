@@ -802,7 +802,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                     { 
                         role: 'system', 
                         content: this.getSystemPrompt('raciocinio') + 
-                        ' Você é um modelo de raciocínio. Pense passo a passo sobre a pergunta do usuário e coloque seu raciocínio completo dentro de tags </think>...</think>. Depois do raciocínio, forneça a resposta final.\n\n' + webContext
+                        ' Você é um modelo de raciocínio. Pense passo a passo sobre a pergunta do usuário e coloque SEU RACIOCÍNIO COMPLETO DENTRO DAS TAGS <raciocínio>SEU_RACIOCINIO_AQUI</raciocínio>. NÃO COLOQUE NENHUMA PARTE DO RACIOCÍNIO FORA DAS TAGS. Depois do raciocínio, forneça APENAS a resposta final, sem mencionar que houve raciocínio.\n\n' + webContext
                     },
                     ...(this.extraMessagesForNextCall || []),
                     ...this.conversationHistory
@@ -822,6 +822,15 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 reasoningText = reasoningMatch[1].trim();
                 // Remover as tags de raciocínio da resposta final
                 finalResponse = fullResponse.replace(/<raciocínio>[\s\S]*?<\/raciocínio>/i, '').trim();
+                
+                // Limpeza adicional: remover qualquer "Raciocínio:" ou similar que possa aparecer
+                finalResponse = finalResponse.replace(/^Raciocínio:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|$)/gim, '').trim();
+                finalResponse = finalResponse.replace(/^Pensando:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|$)/gim, '').trim();
+                
+                console.log('🧠 Raciocínio extraído:', reasoningText.substring(0, 100) + '...');
+                console.log('📝 Resposta final limpa:', finalResponse.substring(0, 100) + '...');
+            } else {
+                console.log('⚠️ Nenhuma tag <raciocínio> encontrada na resposta');
             }
             
             // Tentar extrair arquivos gerados na resposta e anexá-los ao chat
@@ -1316,7 +1325,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         // System prompts diferenciados por modelo
         const prompts = {
             rapido: `Olá! 😊 Eu sou a Drekee AI, sua assistente de código amigável! Estou aqui para te ajudar com programação de forma leve, divertida e super útil. Vou responder com clareza, usar emojis pra deixar tudo mais agradável 🚀 e ser bem natural na conversa. Adoro ajudar com código, debugging e explicações técnicas! Seja concisa mas completa, e sempre com um toque especial! ✨💻`,
-            raciocinio: `Você é o Drekee AI 1, um assistente de IA especializado em raciocínio profundo. Forneça respostas bem estruturadas com múltiplos parágrafos, **conceitos em negrito**, listas organizadas, e quando apropriado use notação matemática ($símbolos$ inline ou $$blocos$$). Seja analítico e detalhado.`,
+            raciocinio: `Você é o Drekee AI 1, um assistente de IA especializado em raciocínio profundo. IMPORTANTE: Coloque SEU RACIOCÍNIO COMPLETO DENTRO DAS TAGS <raciocínio>SEU_RACIOCINIO_AQUI</raciocínio>. NÃO COLOQUE NENHUMA PARTE DO RACIOCÍNIO FORA DAS TAGS. Depois do raciocínio, forneça APENAS a resposta final. Forneça respostas bem estruturadas com múltiplos parágrafos, **conceitos em negrito**, listas organizadas, e quando apropriado use notação matemática ($símbolos$ inline ou $$blocos$$). Seja analítico e detalhado.`,
             pro: `Você é o Drekee AI 1, um assistente de código avançado. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings, e quando apropriado use tabelas (em formato markdown) e notação matemática. Evite blocos enormes de código - prefira explicações visuais. Seja técnico mas acessível.`
         };
         const systemPrompt = prompts[model] || prompts.rapido;
