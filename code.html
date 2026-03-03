@@ -613,23 +613,19 @@ class VoiceRecorder {
     }
 }
 
-// Inicializar quando o DOM estiver pronto
-document.addEventListener('DOMContentLoaded', () => {
-    new VoiceRecorder();
-    new ConversationTitleManager();
-});
-
 // Gerenciador de título da conversa
 class ConversationTitleManager {
     constructor() {
         this.conversationTitle = document.getElementById('conversationTitle');
         this.currentChatId = null;
         
+        console.log('🗣️ ConversationTitleManager inicializado');
+        
         // Observar mudanças no chat atual
         this.observeChatChanges();
         
         // Verificar se há um chat ativo ao carregar
-        this.updateTitle();
+        setTimeout(() => this.updateTitle(), 1000);
     }
     
     observeChatChanges() {
@@ -721,10 +717,20 @@ class ConversationTitleManager {
         this.currentChatId = null;
         this.conversationTitle.textContent = '';
     }
+    
+    // Método de teste
+    testTitle() {
+        console.log('🧪 Testando título da conversa...');
+        console.log('Elemento do título:', this.conversationTitle);
+        console.log('Conteúdo atual:', this.conversationTitle.textContent);
+        console.log('UI disponível:', !!window.ui);
+        
+        // Testar com um título fixo
+        this.conversationTitle.textContent = 'Conversa de Teste';
+        console.log('✅ Título de teste aplicado!');
+    }
 }
 
-// Expor globalmente para uso pelo main.js
-window.conversationTitleManager = new ConversationTitleManager();
 </script>
 <script>
 // Variáveis globais para controle de retry
@@ -877,7 +883,27 @@ function selectBiluVideo(videoPath, characterName) {
 }
 
 // Lógica para mover a caixa de input para baixo quando enviar mensagem
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 DOM carregado, inicializando componentes...');
+    new VoiceRecorder();
+    
+    // Inicializar ConversationTitleManager após um pequeno delay
+    setTimeout(() => {
+        console.log('🗣️ Inicializando ConversationTitleManager...');
+        window.conversationTitleManager = new ConversationTitleManager();
+        
+        // Expor função de teste globalmente
+        window.testConversationTitle = () => {
+            if (window.conversationTitleManager) {
+                window.conversationTitleManager.testTitle();
+            } else {
+                console.log('❌ ConversationTitleManager não encontrado');
+            }
+        };
+        
+        console.log('✅ Teste disponível: window.testConversationTitle()');
+    }, 500);
+    
     const inputWrapper = document.getElementById('inputWrapper');
     const userInput = document.getElementById('userInput');
     

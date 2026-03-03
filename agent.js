@@ -823,10 +823,10 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 console.warn('⚠️ Falha parsing arquivos de resposta (Raciocínio):', e);
             }
 
-            this.addToHistory('assistant', finalResponse);
+            this.addToHistory('assistant', fullResponse);
             
             // Mostrar resposta final
-            this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
+            this.ui.setResponseText(fullResponse, messageContainer.responseId, async () => {
                 // Adicionar botão de fontes se houver dados web
                 if (webData && webData.sources && webData.sources.length > 0) {
                     this.ui.addSourcesButton(messageContainer.responseId, webData.sources, webData.query);
@@ -834,7 +834,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 
                 await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
-                this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);
+                this.generateFollowUpSuggestions(userMessage, fullResponse, messageContainer.responseId);
             });
             
             // Limpar header de processamento
