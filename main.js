@@ -3431,7 +3431,7 @@ ${latexCode}
 
             <div class="max-w-[80%] bg-primary text-white rounded-2xl px-5 py-3 shadow-soft">
 
-                <p class="text-base leading-relaxed whitespace-pre-wrap">${this.escapeHtml(text)}</p>
+                <p class="text-base leading-relaxed whitespace-pre-wrap break-words overflow-wrap-anywhere">${this.escapeHtml(text)}</p>
 
             </div>
 
@@ -3527,9 +3527,9 @@ ${latexCode}
 
         messageDiv.innerHTML = `
 
-            <div class="w-full max-w-[85%] px-5 py-4">
+            <div class="w-full max-w-[85%] px-5 py-4 overflow-hidden">
 
-                <div class="text-base leading-relaxed text-gray-700 dark:text-gray-200" id="responseText_${uniqueId}"></div>
+                <div class="text-base leading-relaxed text-gray-700 dark:text-gray-200 whitespace-pre-wrap break-words overflow-wrap-anywhere" id="responseText_${uniqueId}"></div>
                 
                 ${sourcesHtml}
             </div>
@@ -3955,8 +3955,8 @@ ${latexCode}
             // NÃO LIMPAR innerHTML NUNCA! Apenas adicionar texto após imagens existentes
             responseDiv.style.minHeight = '20px';
 
-            // Forçar texto seguro (string) e mensagem amigável para respostas vazias
-            let safeText = (text == null || String(text).trim().length === 0) ? '[Erro: resposta vazia do servidor. Verifique /api/status e suas Environment Variables.]' : String(text);
+            // Forçar texto seguro (string) - NÃO mostrar erro na animação
+            let safeText = (text == null || String(text).trim().length === 0) ? '' : String(text);
 
             console.log('🔍 [SET-TEXT] SafeText:', safeText.substring(0, 100) + '...');
 
@@ -4073,7 +4073,7 @@ ${latexCode}
 
                 }
 
-                await this.sleep(0.1); // Super rápido: 0.1ms por caractere
+                await this.sleep(5); // Rápido e suave: 5ms por caractere
 
             }
 
@@ -4087,7 +4087,7 @@ ${latexCode}
 
             // Pequena pausa entre linhas
 
-            await this.sleep(1); // Super rápido entre linhas
+            await this.sleep(10); // Pausa suave entre linhas
 
         }
 
