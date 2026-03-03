@@ -812,21 +812,39 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             console.log('🧭 Usando modelo de raciocínio: qwen/qwen3-32b');
             let fullResponse = await this.callGroqAPI('qwen/qwen3-32b', finalMessages);
             
+            // Extrair raciocínio das tags <raciocínio>
+            let reasoningText = '';
+            let finalResponse = fullResponse;
+            
+            // Tentar extrair raciocínio das tags
+            const reasoningMatch = fullResponse.match(/<raciocínio>([\s\S]*?)<\/raciocínio>/i);
+            if (reasoningMatch) {
+                reasoningText = reasoningMatch[1].trim();
+                // Remover as tags de raciocínio da resposta final
+                finalResponse = fullResponse.replace(/<raciocínio>[\s\S]*?<\/raciocínio>/i, '').trim();
+            }
+            
             // Tentar extrair arquivos gerados na resposta e anexá-los ao chat
             try {
-                const parsedFiles = this.parseFilesFromText(fullResponse);
+                const parsedFiles = this.parseFilesFromText(finalResponse);
                 if (parsedFiles && parsedFiles.length > 0) {
                     this.attachGeneratedFilesToChat(parsedFiles);
-                    fullResponse = fullResponse.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
+                    finalResponse = finalResponse.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
                 }
             } catch (e) {
                 console.warn('⚠️ Falha parsing arquivos de resposta (Raciocínio):', e);
             }
 
-            this.addToHistory('assistant', fullResponse);
+            this.addToHistory('assistant', finalResponse);
             
-            // Mostrar resposta final
-            this.ui.setResponseText(fullResponse, messageContainer.responseId, async () => {
+            // Mostrar "Pensando..." enquanto processa
+            this.ui.setThinkingHeader('Pensando...', messageContainer.headerId);
+            
+            // Mostrar resposta final com animação letra por letra
+            this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
+                // Limpar "Pensando..." quando terminar
+                this.ui.setThinkingHeader('', messageContainer.headerId);
+                
                 // Adicionar botão de fontes se houver dados web
                 if (webData && webData.sources && webData.sources.length > 0) {
                     this.ui.addSourcesButton(messageContainer.responseId, webData.sources, webData.query);
@@ -834,11 +852,8 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 
                 await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
-                this.generateFollowUpSuggestions(userMessage, fullResponse, messageContainer.responseId);
+                this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);
             });
-            
-            // Limpar header de processamento
-            this.ui.setThinkingHeader('', messageContainer.headerId);
             
             // Mostrar botão "Mostrar raciocínio" se houver raciocínio
             if (reasoningText) {
@@ -847,7 +862,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                     showBtn.classList.remove('hidden');
                     showBtn.innerHTML = `
                         <span class="material-icons-outlined text-sm">expand_more</span>
-                        Mostrar raciocínio
+                        Mostrar Raciocínio
                     `;
                     
                     // Adicionar evento para mostrar/ocultar raciocínio
@@ -864,14 +879,14 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                                 `;
                                 showBtn.innerHTML = `
                                     <span class="material-icons-outlined text-sm">expand_less</span>
-                                    Ocultar raciocínio
+                                    Ocultar Raciocínio
                                 `;
                             } else {
                                 // Ocultar raciocínio
                                 stepsDiv.classList.add('hidden');
                                 showBtn.innerHTML = `
                                     <span class="material-icons-outlined text-sm">expand_more</span>
-                                    Mostrar raciocínio
+                                    Mostrar Raciocínio
                                 `;
                             }
                         }
