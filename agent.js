@@ -812,25 +812,51 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             console.log('🧭 Usando modelo de raciocínio: qwen/qwen3-32b');
             let fullResponse = await this.callGroqAPI('qwen/qwen3-32b', finalMessages);
             
+            console.log('📄 Resposta bruta da API:', fullResponse);
+            
             // Extrair raciocínio das tags <raciocínio>
             let reasoningText = '';
             let finalResponse = fullResponse;
             
-            // Tentar extrair raciocínio das tags
-            const reasoningMatch = fullResponse.match(/<raciocínio>([\s\S]*?)<\/raciocínio>/i);
+            // Tentar extrair raciocínio das tags (múltiplos padrões)
+            let reasoningMatch = fullResponse.match(/<raciocínio>([\s\S]*?)<\/raciocínio>/i);
+            if (!reasoningMatch) {
+                // Tentar outros padrões possíveis
+                reasoningMatch = fullResponse.match(/<raciocinio>([\s\S]*?)<\/raciocinio>/i);
+            }
+            if (!reasoningMatch) {
+                // Tentar sem acento
+                reasoningMatch = fullResponse.match(/<raciocinio>([\s\S]*?)<\/raciocinio>/i);
+            }
+            if (!reasoningMatch) {
+                // Tentar detectar raciocínio manualmente (começa com "Raciocínio:")
+                const manualMatch = fullResponse.match(/^Raciocínio:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/im);
+                if (manualMatch) {
+                    reasoningText = manualMatch[0].replace(/^Raciocínio:\s*/i, '').trim();
+                    finalResponse = fullResponse.replace(/^Raciocínio:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/im, '').trim();
+                    console.log('🧠 Raciocínio extraído manualmente:', reasoningText.substring(0, 100) + '...');
+                }
+            }
+            
             if (reasoningMatch) {
                 reasoningText = reasoningMatch[1].trim();
                 // Remover as tags de raciocínio da resposta final
-                finalResponse = fullResponse.replace(/<raciocínio>[\s\S]*?<\/raciocínio>/i, '').trim();
+                finalResponse = fullResponse.replace(/<raciocínio>[\s\S]*?<\/raciocínio>/gi, '').trim();
+                finalResponse = finalResponse.replace(/<raciocinio>[\s\S]*?<\/raciocinio>/gi, '').trim();
                 
-                // Limpeza adicional: remover qualquer "Raciocínio:" ou similar que possa aparecer
-                finalResponse = finalResponse.replace(/^Raciocínio:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|$)/gim, '').trim();
-                finalResponse = finalResponse.replace(/^Pensando:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|$)/gim, '').trim();
+                // Limpeza AGRESSIVA: remover qualquer texto que pareça raciocínio
+                finalResponse = finalResponse.replace(/^Raciocínio:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/gim, '').trim();
+                finalResponse = finalResponse.replace(/^Pensando:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/gim, '').trim();
+                finalResponse = finalResponse.replace(/^Análise:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/gim, '').trim();
+                
+                // Remover linhas em branco extras
+                finalResponse = finalResponse.replace(/^\n+/gm, '').trim();
                 
                 console.log('🧠 Raciocínio extraído:', reasoningText.substring(0, 100) + '...');
                 console.log('📝 Resposta final limpa:', finalResponse.substring(0, 100) + '...');
             } else {
                 console.log('⚠️ Nenhuma tag <raciocínio> encontrada na resposta');
+                console.log('📝 Conteúdo da resposta (primeiros 200 chars):', fullResponse.substring(0, 200));
             }
             
             // Tentar extrair arquivos gerados na resposta e anexá-los ao chat
