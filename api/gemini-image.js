@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   console.log('🎨 === VERIFICAÇÃO GEMINI API ===');
   console.log('🎨 GEMINI_API_KEY:', geminiApiKey ? '✅ Configurada' : '❌ Não configurada');
   console.log('🎨 Prompt:', prompt);
-  console.log('🎨 Endpoint:', `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent`);
+            console.log('🎨 Endpoint:', `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent`);
   console.log('=====================================');
 
   if (!geminiApiKey) {
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
     console.log('📤 Payload enviado:', JSON.stringify(payload, null, 2));
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-fast-generate-001:generateContent?key=${geminiApiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -125,7 +125,7 @@ export default async function handler(req, res) {
       success: true,
       imageUrl: imageUrl,
       prompt: prompt,
-      model: 'imagen-4.0-fast-generate-001',
+      model: 'gemini-2.0-flash-exp',
       message: 'Imagem gerada com sucesso!'
     });
 

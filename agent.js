@@ -225,7 +225,7 @@ export class Agent {
                                  onclick="window.open('${imageData.imageUrl}', '_blank')"
                                  title="Clique para ampliar">
                             <div style="margin-top: 8px; font-size: 12px; color: #6b7280; font-style: italic;">
-                                🎨 Gerado por Stability AI • ${prompt}
+                                🎨 Gerado por Gemini 2.0 Flash • ${prompt}
                             </div>
                         </div>
                     `;
@@ -1597,7 +1597,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 },
                 body: JSON.stringify({
                     prompt: prompt,
-                    model: 'imagen-4.0-fast-generate-001'
+                    model: 'gemini-2.0-flash-exp'
                 })
             });
             
