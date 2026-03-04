@@ -154,28 +154,27 @@ export class Agent {
         this.isGenerating = true;
         this.ui.updateSendButtonToPause();
         
-        // Se houver anexos, forçar o uso do Gemini
+        // Lógica simples: COM ANEXO = Gemini, SEM ANEXO = Groq
         const hasAttachments = attachedFilesFromUI && attachedFilesFromUI.length > 0;
         
         try {
             if (hasAttachments) {
-                console.log('📎 Anexos detectados, usando Gemini API');
+                console.log('📎 COM ANEXO detectado, usando Gemini API');
                 await this.processGeminiModel(userMessage, attachedFilesFromUI, relevantContext);
-            } else if (this.useImageModelForThisMessage) {
-                await this.processImageModel(userMessage, relevantContext);
-            } else if (this.useMistralForThisMessage) {
-                await this.processMistralModel(userMessage, relevantContext);
-            } else if (this.currentModel === 'rapido') {
-                try {
+            } else {
+                console.log('💬 SEM ANEXO, usando modelo atual (Groq):', this.currentModel);
+                
+                // Usa o modelo selecionado (Groq)
+                if (this.currentModel === 'rapido') {
                     await this.processRapidoModel(userMessage, relevantContext);
-                } catch (error) {
-                    console.warn('⚠️ Groq falhou, usando Gemini como fallback:', error);
-                    await this.processGeminiModel(userMessage, null, relevantContext);
+                } else if (this.currentModel === 'raciocinio') {
+                    await this.processRaciocioModel(userMessage, relevantContext);
+                } else if (this.currentModel === 'pro') {
+                    await this.processProModel(userMessage, relevantContext);
+                } else {
+                    // Fallback para rapido se modelo não reconhecido
+                    await this.processRapidoModel(userMessage, relevantContext);
                 }
-            } else if (this.currentModel === 'raciocinio') {
-                await this.processRaciocioModel(userMessage, relevantContext);
-            } else if (this.currentModel === 'pro') {
-                await this.processProModel(userMessage, relevantContext);
             }
         } catch (error) {
             console.error('❌ Erro no processamento da mensagem:', error);
