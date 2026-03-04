@@ -10,121 +10,91 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Prompt parameter is required' });
   }
 
-  // Verificar se a API Key está configurada (com fallback)
-  let geminiApiKey = process.env.GEMINI_API_KEY;
-  let usingFallback = false;
-  
-  if (!geminiApiKey) {
-    console.log('🔄 [FALLBACK] Tentando GEMINI_API_KEY_2...');
-    geminiApiKey = process.env.GEMINI_API_KEY_2;
-    usingFallback = true;
-  }
-  
-  if (!geminiApiKey) {
-    console.log('❌ [FALLBACK] Nenhuma GEMINI_API_KEY configurada!');
-    return res.status(500).json({ 
-      error: 'GEMINI_API_KEY not configured in server environment',
-      friendly_message: 'Ops! Sistema de geração de imagens não está configurado. Adicione GEMINI_API_KEY nas Environment Variables do Vercel.'
-    });
-  }
-  
-  console.log('🎨 === VERIFICAÇÃO GEMINI API ===');
-  console.log('🎨 GEMINI_API_KEY:', geminiApiKey ? '✅ Configurada' : '❌ Não configurada');
-  console.log('🎨 Usando Fallback:', usingFallback ? '✅ Sim (GEMINI_API_KEY_2)' : '❌ Não');
-  console.log('🎨 Prompt:', prompt);
-  console.log('🎨 Endpoint:', `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent`);
-
-  try {
-    // Payload correto para Gemini 2.0
-    const payload = {
-      contents: [{
-        parts: [{
-          text: prompt
-        }]
-      }],
-      generationConfig: {
-        responseModalities: ["TEXT", "IMAGE"]
-      }
-    };
-
-    console.log('📤 Payload enviado:', JSON.stringify(payload, null, 2));
-
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`, {
+  // Função para tentar gerar imagem com fallback automático
+  async function tryGenerateImage(prompt, apiKey, isFallback = false) {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${apiKey}`;
+    
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          responseModalities: ["TEXT", "IMAGE"]
+        }
+      })
     });
 
-    console.log('📡 STATUS:', response.status);
-    console.log('📡 HEADERS:', Object.fromEntries(response.headers.entries()));
-
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('❌ ERRO COMPLETO:', {
-        status: response.status,
-        statusText: response.statusText,
-        data: errorData
-      });
-      
       if (response.status === 429) {
-        return res.status(429).json({ 
-          error: 'Rate limit exceeded',
-          friendly_message: 'Muitas solicitações! Tente novamente em alguns segundos.'
-        });
+        console.log(`⏳ Rate limit na ${isFallback ? 'GEMINI_API_KEY_2' : 'GEMINI_API_KEY'}`);
+        throw new Error('RATE_LIMIT');
       }
       
-      if (response.status === 401 || response.status === 403) {
-        return res.status(401).json({ 
-          error: 'Invalid API key',
-          friendly_message: 'Chave da API Gemini inválida ou expirada.'
-        });
-      }
-      
-      return res.status(500).json({ 
-        error: 'Gemini API error',
-        message: 'Erro ao gerar imagem',
-        details: errorData
-      });
+      const errorData = await response.json().catch(() => ({}));
+      console.error(`❌ Erro na ${isFallback ? 'GEMINI_API_KEY_2' : 'GEMINI_API_KEY'}:`, errorData);
+      throw new Error('API_ERROR');
     }
 
     const data = await response.json();
-    console.log('✅ RESPOSTA COMPLETA:', JSON.stringify(data, null, 2));
-    console.log('📊 Estrutura da resposta:', {
-      hasCandidates: !!data.candidates,
-      candidatesLength: data.candidates?.length,
-      firstCandidate: data.candidates?.[0],
-      hasContent: !!data.candidates?.[0]?.content,
-      hasParts: !!data.candidates?.[0]?.content?.parts,
-      partsLength: data.candidates?.[0]?.content?.parts?.length
-    });
-
-    // Extrair a imagem gerada da resposta
-    let imageUrl = null;
     
-    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-      const content = data.candidates[0].content;
-      
-      // Procurar por imagem nos parts
-      if (content.parts) {
-        for (const part of content.parts) {
-          if (part.inline_data && part.inline_data.data) {
-            // Converter base64 para URL de dados
-            const mimeType = part.inline_data.mime_type || 'image/png';
-            const base64Data = part.inline_data.data;
-            imageUrl = `data:${mimeType};base64,${base64Data}`;
-            break;
-          }
+    // Extrair imagem
+    let imageUrl = null;
+    if (data.candidates?.[0]?.content?.parts) {
+      for (const part of data.candidates[0].content.parts) {
+        if (part.inline_data?.data) {
+          const mimeType = part.inline_data.mime_type || 'image/png';
+          const base64Data = part.inline_data.data;
+          imageUrl = `data:${mimeType};base64,${base64Data}`;
+          break;
         }
       }
     }
 
     if (!imageUrl) {
-      console.error('❌ Nenhuma imagem encontrada na resposta');
+      throw new Error('NO_IMAGE');
+    }
+
+    return imageUrl;
+  }
+
+  try {
+    console.log('🎨 === VERIFICAÇÃO GEMINI API ===');
+    console.log('🎨 Prompt:', prompt);
+    
+    // Tentar com GEMINI_API_KEY primeiro
+    let imageUrl = null;
+    let usedFallback = false;
+    
+    if (process.env.GEMINI_API_KEY) {
+      console.log('🎨 Tentando GEMINI_API_KEY...');
+      try {
+        imageUrl = await tryGenerateImage(prompt, process.env.GEMINI_API_KEY, false);
+        console.log('✅ Sucesso com GEMINI_API_KEY');
+      } catch (error) {
+        if (error.message === 'RATE_LIMIT' && process.env.GEMINI_API_KEY_2) {
+          console.log('🔄 [FALLBACK] GEMINI_API_KEY deu rate limit, tentando GEMINI_API_KEY_2...');
+          imageUrl = await tryGenerateImage(prompt, process.env.GEMINI_API_KEY_2, true);
+          console.log('✅ Sucesso com GEMINI_API_KEY_2 (fallback)');
+          usedFallback = true;
+        } else {
+          throw error;
+        }
+      }
+    } else if (process.env.GEMINI_API_KEY_2) {
+      console.log('🎨 GEMINI_API_KEY não configurada, usando GEMINI_API_KEY_2...');
+      imageUrl = await tryGenerateImage(prompt, process.env.GEMINI_API_KEY_2, true);
+      console.log('✅ Sucesso com GEMINI_API_KEY_2');
+      usedFallback = true;
+    } else {
+      console.error('❌ Nenhuma GEMINI_API_KEY configurada!');
       return res.status(500).json({ 
-        error: 'No image generated',
-        friendly_message: 'Não foi possível gerar a imagem. Tente novamente.'
+        error: 'GEMINI_API_KEY not configured',
+        friendly_message: 'Ops! Configure GEMINI_API_KEY ou GEMINI_API_KEY_2 na Vercel.'
       });
     }
 
@@ -134,7 +104,7 @@ export default async function handler(req, res) {
       prompt: prompt,
       model: 'gemini-2.0-flash-exp-image-generation',
       message: 'Imagem gerada com sucesso!',
-      usingFallback: usingFallback
+      usingFallback: usedFallback
     });
 
   } catch (error) {
