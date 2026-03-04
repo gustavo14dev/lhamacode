@@ -454,12 +454,12 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             
             // PRIMEIRO: Adicionar imagens ANTES da resposta
             console.log('🔄 [DEBUG] Adicionando imagens ANTES da resposta...');
-            const images = await imagesPromise;
-            console.log('📦 [DEBUG] Imagens recebidas:', images);
+            const imagesData = await imagesPromise;
+            console.log('📦 [DEBUG] Imagens recebidas:', imagesData);
             
-            if (images && images.length > 0) {
+            if (imagesData && imagesData.length > 0) {
                 console.log('✅ [DEBUG] Adicionando imagens ANTES da resposta');
-                this.ui.appendImagesToMessage(messageContainer.responseId, images);
+                this.ui.appendImagesToMessage(messageContainer.responseId, imagesData);
             } else {
                 console.log('❌ [DEBUG] Nenhuma imagem encontrada ou array vazio');
             }
