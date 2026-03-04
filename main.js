@@ -127,8 +127,18 @@ class UI {
                 console.log('🖱️ [ATTACH] Botão de anexo clicado!');
                 e.stopPropagation();
                 if (this.elements.attachDropdown) {
-                    console.log('🔄 [ATTACH] Toggle dropdown - estado atual:', this.elements.attachDropdown.classList.contains('hidden'));
-                    this.elements.attachDropdown.classList.toggle('hidden');
+                    const isHidden = this.elements.attachDropdown.classList.contains('hidden');
+                    console.log('🔄 [ATTACH] Toggle dropdown - estado atual:', isHidden);
+                    
+                    if (isHidden) {
+                        // Abrir dropdown
+                        this.elements.attachDropdown.classList.remove('hidden');
+                        console.log('✅ [ATTACH] Dropdown aberto!');
+                    } else {
+                        // Fechar dropdown
+                        this.elements.attachDropdown.classList.add('hidden');
+                        console.log('❌ [ATTACH] Dropdown fechado!');
+                    }
                 }
             });
         } else {
