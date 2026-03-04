@@ -14,7 +14,11 @@ export default async function handler(req, res) {
   }
 
   const geminiApiKey = process.env.GEMINI_API_KEY;
+  console.log('🔍 [GEMINI-DEBUG] GEMINI_API_KEY existe:', !!geminiApiKey);
+  console.log('🔍 [GEMINI-DEBUG] GEMINI_API_KEY length:', geminiApiKey?.length || 0);
+  
   if (!geminiApiKey) {
+    console.error('❌ [GEMINI-DEBUG] GEMINI_API_KEY não configurada!');
     return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
   }
 

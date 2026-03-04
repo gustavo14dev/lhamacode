@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Gemini API Local</title>
+</head>
+<body>
+    <h1>Teste Gemini API Local</h1>
+    <input type="file" id="fileInput" accept="image/*">
+    <br><br>
+    <input type="text" id="messageInput" placeholder="Digite sua mensagem..." style="width: 300px;">
+    <br><br>
+    <button onclick="testGemini()">Testar Gemini</button>
+    <br><br>
+    <div id="result"></div>
+
+    <script>
+        async function testGemini() {
+            const fileInput = document.getElementById('fileInput');
+            const messageInput = document.getElementById('messageInput');
+            const resultDiv = document.getElementById('result');
+            
+            if (!messageInput.value) {
+                resultDiv.innerHTML = 'Digite uma mensagem';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('message', messageInput.value);
+            formData.append('context', JSON.stringify([]));
+            
+            if (fileInput.files.length > 0) {
+                formData.append('file_0', fileInput.files[0]);
+                resultDiv.innerHTML = 'Enviando arquivo: ' + fileInput.files[0].name;
+            } else {
+                resultDiv.innerHTML = 'Enviando apenas texto...';
+            }
+            
+            try {
+                const response = await fetch('/api/gemini-chat', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = '<h3>✅ Sucesso!</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                } else {
+                    resultDiv.innerHTML = '<h3>❌ Erro:</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<h3>❌ Erro de rede:</h3><pre>' + error.message + '</pre>';
+            }
+        }
+    </script>
+</body>
+</html>
