@@ -82,16 +82,28 @@ export class Agent {
         console.log('🧠 Contexto relevante encontrado:', relevantContext.length, 'memórias');
 
         // Verificar se há anexos
-        const hasAttachments = attachedFilesFromUI && attachedFilesFromUI.length > 0;
+        const hasAttachments = (attachedFilesFromUI && attachedFilesFromUI.length > 0) || 
+                              (this.lastParsedFiles && this.lastParsedFiles.length > 0) ||
+                              (this.ui && this.ui.attachedFiles && this.ui.attachedFiles.length > 0);
         
         if (hasAttachments) {
             console.log('--------------------------------------------------');
             console.log('🤖 [MODELO UTILIZADO]: GEMINI (Google)');
             console.log('📎 MOTIVO: Presença de anexos detectada.');
             console.log('--------------------------------------------------');
-            console.log('📎 Anexos:', attachedFilesFromUI.map(f => f.name));
-            // Para Gemini, mantém os arquivos como estão para processamento
-            this.lastParsedFiles = attachedFilesFromUI;
+            
+            // Prioridade de captura de anexos
+            let filesToProcess = [];
+            if (attachedFilesFromUI && attachedFilesFromUI.length > 0) {
+                filesToProcess = attachedFilesFromUI;
+            } else if (this.ui && this.ui.attachedFiles && this.ui.attachedFiles.length > 0) {
+                filesToProcess = this.ui.attachedFiles;
+            } else {
+                filesToProcess = this.lastParsedFiles;
+            }
+            
+            console.log('📎 Anexos encontrados:', filesToProcess.map(f => f.name));
+            this.lastParsedFiles = filesToProcess;
         } else {
             console.log('--------------------------------------------------');
             console.log('🤖 [MODELO UTILIZADO]: GROQ (Llama/Mixtral)');
@@ -110,7 +122,7 @@ export class Agent {
         try {
             if (hasAttachments) {
                 console.log('📎 COM ANEXO detectado, usando Gemini API');
-                await this.processGeminiModel(userMessage, attachedFilesFromUI, relevantContext);
+                await this.processGeminiModel(userMessage, this.lastParsedFiles, relevantContext);
             } else {
                 console.log('💬 SEM ANEXO, usando modelo atual (Groq):', this.currentModel);
                 

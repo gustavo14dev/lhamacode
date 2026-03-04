@@ -2746,8 +2746,8 @@ ${latexCode}
 
             }));
 
+            console.log('📎 [DEBUG] Anexos prontos para envio:', sendFiles);
             
-
             // Snapshot para a UI (não incluir conteúdo completo no DOM para imagens)
 
             attachmentsSnapshot = this.attachedFiles.map(f => ({ 
@@ -2804,6 +2804,7 @@ ${latexCode}
         } else {
             console.log('🔍 [DEBUG] Modo NORMAL. Chamando agent.processMessage...');
             console.log('🔍 [DEBUG] window.isWebSearchMode:', window.isWebSearchMode);
+            console.log('📎 [DEBUG] Enviando para Agent - sendFiles:', sendFiles);
             // Modo normal - chamar agent.processMessage
             await this.agent.processMessage(finalMessage, sendFiles);
         }
