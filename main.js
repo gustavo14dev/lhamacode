@@ -114,14 +114,25 @@ class UI {
     }
 
     setupAttachListeners() {
+        console.log('🔧 [ATTACH] Configurando listeners de anexo...');
+        console.log('🔧 [ATTACH] attachFileBtn:', !!this.elements.attachFileBtn);
+        console.log('🔧 [ATTACH] attachDropdown:', !!this.elements.attachDropdown);
+        console.log('🔧 [ATTACH] attachFileOptionBtn:', !!this.elements.attachFileOptionBtn);
+        console.log('🔧 [ATTACH] imageFileInput:', !!this.elements.imageFileInput);
+        
         // Toggle dropdown
         if (this.elements.attachFileBtn) {
+            console.log('✅ [ATTACH] Adicionando listener no botão de anexo');
             this.elements.attachFileBtn.addEventListener('click', (e) => {
+                console.log('🖱️ [ATTACH] Botão de anexo clicado!');
                 e.stopPropagation();
                 if (this.elements.attachDropdown) {
+                    console.log('🔄 [ATTACH] Toggle dropdown - estado atual:', this.elements.attachDropdown.classList.contains('hidden'));
                     this.elements.attachDropdown.classList.toggle('hidden');
                 }
             });
+        } else {
+            console.error('❌ [ATTACH] Botão de anexo não encontrado!');
         }
 
         // Fechar dropdown ao clicar fora
