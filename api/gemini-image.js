@@ -10,22 +10,29 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Prompt parameter is required' });
   }
 
-  // Verificar se a API Key está configurada
-  const geminiApiKey = process.env.GEMINI_API_KEY;
+  // Verificar se a API Key está configurada (com fallback)
+  let geminiApiKey = process.env.GEMINI_API_KEY;
+  let usingFallback = false;
   
-  console.log('🎨 === VERIFICAÇÃO GEMINI API ===');
-  console.log('🎨 GEMINI_API_KEY:', geminiApiKey ? '✅ Configurada' : '❌ Não configurada');
-  console.log('🎨 Prompt:', prompt);
-            console.log('🎨 Endpoint:', `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent`);
-  console.log('=====================================');
-
   if (!geminiApiKey) {
-    console.log('❌ GEMINI_API_KEY não configurada!');
+    console.log('🔄 [FALLBACK] Tentando GEMINI_API_KEY_2...');
+    geminiApiKey = process.env.GEMINI_API_KEY_2;
+    usingFallback = true;
+  }
+  
+  if (!geminiApiKey) {
+    console.log('❌ [FALLBACK] Nenhuma GEMINI_API_KEY configurada!');
     return res.status(500).json({ 
       error: 'GEMINI_API_KEY not configured in server environment',
       friendly_message: 'Ops! Sistema de geração de imagens não está configurado. Adicione GEMINI_API_KEY nas Environment Variables do Vercel.'
     });
   }
+  
+  console.log('🎨 === VERIFICAÇÃO GEMINI API ===');
+  console.log('🎨 GEMINI_API_KEY:', geminiApiKey ? '✅ Configurada' : '❌ Não configurada');
+  console.log('🎨 Usando Fallback:', usingFallback ? '✅ Sim (GEMINI_API_KEY_2)' : '❌ Não');
+  console.log('🎨 Prompt:', prompt);
+  console.log('🎨 Endpoint:', `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent`);
 
   try {
     // Payload correto para Gemini 2.0
@@ -126,7 +133,8 @@ export default async function handler(req, res) {
       imageUrl: imageUrl,
       prompt: prompt,
       model: 'gemini-2.0-flash-exp-image-generation',
-      message: 'Imagem gerada com sucesso!'
+      message: 'Imagem gerada com sucesso!',
+      usingFallback: usingFallback
     });
 
   } catch (error) {
