@@ -4201,13 +4201,13 @@ ${latexCode}
 
                 
 
-                if (charIndex % 3 === 0) {
+                if (charIndex % 10 === 0) { // Scroll menos frequente para melhor performance
 
                     this.scrollToBottom();
 
                 }
 
-                await this.sleep(2); // Mais rápido: 2ms por caractere
+                await this.sleep(0); // MUITO mais rápido: 0ms por caractere
 
             }
 
@@ -4221,7 +4221,7 @@ ${latexCode}
 
             // Pequena pausa entre linhas
 
-            await this.sleep(5); // Pausa rápida entre linhas
+            await this.sleep(0); // Pausa instantânea entre linhas
 
         }
 
