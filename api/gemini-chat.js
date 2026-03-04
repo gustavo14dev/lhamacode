@@ -22,8 +22,12 @@ export default async function handler(req, res) {
   
   form.parse(req, async (err, fields, files) => {
     if (err) {
+      console.error('❌ [GEMINI-DEBUG] Error parsing form data:', err);
       return res.status(500).json({ error: 'Error parsing form data' });
     }
+
+    console.log('🔍 [GEMINI-DEBUG] Fields:', fields);
+    console.log('🔍 [GEMINI-DEBUG] Files:', files);
 
     const userMessage = fields.message ? fields.message[0] : '';
     const context = fields.context ? JSON.parse(fields.context[0]) : [];
@@ -32,9 +36,17 @@ export default async function handler(req, res) {
       const parts = [{ text: userMessage }];
 
       // Adicionar arquivos se hover
+      console.log('🔍 [GEMINI-DEBUG] Processando arquivos...');
       for (const key in files) {
+        console.log(`🔍 [GEMINI-DEBUG] Processando arquivo key: ${key}`);
         const fileList = files[key];
         for (const file of fileList) {
+          console.log(`🔍 [GEMINI-DEBUG] Arquivo:`, {
+            originalFilename: file.originalFilename,
+            path: file.path,
+            headers: file.headers,
+            size: file.size
+          });
           const fileData = fs.readFileSync(file.path);
           const base64Data = fileData.toString('base64');
           
@@ -62,14 +74,20 @@ export default async function handler(req, res) {
         }
       };
 
+      console.log('🔍 [GEMINI-DEBUG] Payload enviado para Gemini:', JSON.stringify(payload, null, 2));
+
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
+      console.log('🔍 [GEMINI-DEBUG] Resposta status:', response.status);
+      console.log('🔍 [GEMINI-DEBUG] Resposta headers:', response.headers);
+
       if (!response.ok) {
         const error = await response.json();
+        console.error('❌ [GEMINI-DEBUG] Erro da API Gemini:', error);
         throw new Error(error.error?.message || 'Gemini API error');
       }
 
@@ -79,7 +97,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ text: aiResponse });
 
     } catch (error) {
-      console.error('Gemini API Error:', error);
+      console.error('❌ [GEMINI-DEBUG] Erro geral:', error);
+      console.error('❌ [GEMINI-DEBUG] Stack:', error.stack);
       return res.status(500).json({ error: error.message });
     }
   });
