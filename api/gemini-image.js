@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   console.log('🎨 === VERIFICAÇÃO GEMINI API ===');
   console.log('🎨 GEMINI_API_KEY:', geminiApiKey ? '✅ Configurada' : '❌ Não configurada');
   console.log('🎨 Prompt:', prompt);
-            console.log('🎨 Endpoint:', `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent`);
+            console.log('🎨 Endpoint:', `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent`);
   console.log('=====================================');
 
   if (!geminiApiKey) {
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
     console.log('📤 Payload enviado:', JSON.stringify(payload, null, 2));
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${geminiApiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -125,12 +125,12 @@ export default async function handler(req, res) {
       success: true,
       imageUrl: imageUrl,
       prompt: prompt,
-      model: 'gemini-2.5-flash-image',
+      model: 'gemini-2.0-flash-exp-image-generation',
       message: 'Imagem gerada com sucesso!'
     });
 
   } catch (error) {
-    console.error('❌ Erro ao gerar imagem com Gemini:', error);
+    console.error(' Erro ao gerar imagem com Gemini:', error);
     return res.status(500).json({ 
       error: 'Failed to generate image',
       friendly_message: 'Ocorreu um erro ao gerar a imagem. Tente novamente.',
