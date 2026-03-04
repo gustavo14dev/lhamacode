@@ -30,22 +30,23 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Error parsing form data' });
     }
 
-    console.log('🔍 [GEMINI-DEBUG] Fields:', fields);
-    console.log('🔍 [GEMINI-DEBUG] Files:', files);
+    console.log(' [GEMINI-DEBUG] Fields:', fields);
+    console.log(' [GEMINI-DEBUG] Files:', files);
 
     const userMessage = fields.message ? fields.message[0] : '';
     const context = fields.context ? JSON.parse(fields.context[0]) : [];
+    const model = fields.model ? fields.model[0] : 'gemini-2.5-flash';
     
     try {
       const parts = [{ text: userMessage }];
 
-      // Adicionar arquivos se hover
-      console.log('🔍 [GEMINI-DEBUG] Processando arquivos...');
+      // Adicionar arquivos se houver
+      console.log(' [GEMINI-DEBUG] Processando arquivos...');
       for (const key in files) {
-        console.log(`🔍 [GEMINI-DEBUG] Processando arquivo key: ${key}`);
+        console.log(` [GEMINI-DEBUG] Processando arquivo key: ${key}`);
         const fileList = files[key];
         for (const file of fileList) {
-          console.log(`🔍 [GEMINI-DEBUG] Arquivo:`, {
+          console.log(` [GEMINI-DEBUG] Arquivo:`, {
             originalFilename: file.originalFilename,
             path: file.path,
             headers: file.headers,
@@ -64,7 +65,7 @@ export default async function handler(req, res) {
       }
 
       // Adicionar contexto se houver
-      let systemInstruction = "Você é o Drekee AI 1, uma IA inteligente e prestativa.";
+      let systemInstruction = "Você é o Drekee AI, um assistente de IA focado em codificação e produtividade.";
       if (context && context.length > 0) {
           systemInstruction += "\n\nContexto da conversa:\n" + context.map(m => `${m.role}: ${m.content}`).join('\n');
       }
@@ -78,15 +79,16 @@ export default async function handler(req, res) {
         }
       };
 
-      console.log('🔍 [GEMINI-DEBUG] Payload enviado para Gemini:', JSON.stringify(payload, null, 2));
+      console.log(' [GEMINI-DEBUG] Payload enviado para Gemini:', JSON.stringify(payload, null, 2));
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      console.log('🔍 [GEMINI-DEBUG] Resposta status:', response.status);
+      console.log(' [GEMINI-DEBUG] Resposta status:', response.status);
+      console.log(' [GEMINI-DEBUG] Resposta headers:', response.headers);
       console.log('🔍 [GEMINI-DEBUG] Resposta headers:', response.headers);
 
       if (!response.ok) {

@@ -66,6 +66,12 @@ export class Agent {
         console.log('📨 Mensagem para processar:', userMessage.substring(0, 100) + '...');
         console.log('📨 Tamanho total:', userMessage.length, 'caracteres');
 
+        // Verificar se é o modo de investigação
+        if (window.isInvestigateMode) {
+            await this.processInvestigateModel(userMessage, attachedFilesFromUI, relevantContext);
+            return;
+        }
+
         // Verificar se o usuário quer gerar uma imagem
         const imageGenerationMatch = userMessage.match(/^(gere|crie|criar|desenhe|produza|faça).*imagem\s+(sobre|de|do|com)?\s*(.+)$/i);
         if (imageGenerationMatch) {
@@ -156,6 +162,53 @@ export class Agent {
         
         this.isGenerating = false;
         this.ui.updateSendButtonToSend();
+    }
+
+    async processInvestigateModel(userMessage, attachments = null, relevantContext = []) {
+        const messageContainer = this.ui.createAssistantMessageContainer();
+        this.ui.setThinkingHeader('Deep Research em andamento...', messageContainer.headerId);
+        
+        // Texto de feedback inicial conforme solicitado
+        this.ui.setResponseText('Trabalhando na sua solicitação ao Drekee Investigate 1.0, aguarde alguns minutos...', messageContainer.responseId);
+
+        try {
+            // Incrementar uso no localStorage (limite de 1)
+            const currentUsage = parseInt(localStorage.getItem('drekee_investigate_usage') || '0');
+            localStorage.setItem('drekee_investigate_usage', (currentUsage + 1).toString());
+
+            const formData = new FormData();
+            formData.append('message', userMessage);
+            formData.append('context', JSON.stringify(relevantContext));
+            formData.append('model', 'deep-research-pro-preview-12-2025');
+            
+            if (attachments) {
+                attachments.forEach((file, index) => {
+                    formData.append(`file_${index}`, file.file || file);
+                });
+            }
+
+            const response = await fetch('/api/gemini-chat', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) throw new Error('Erro na API Investigate');
+            
+            const data = await response.json();
+            const aiResponse = data.text || data.response;
+
+            this.addToHistory('assistant', aiResponse);
+            this.ui.setResponseText(aiResponse, messageContainer.responseId);
+            this.ui.setThinkingHeader('', messageContainer.headerId);
+            
+            // Desativar modo investigar após o uso
+            if (window.selectTool) window.selectTool('investigate');
+
+        } catch (error) {
+            console.error('Erro Investigate:', error);
+            this.ui.setResponseText('❌ Desculpe, ocorreu um erro na investigação profunda. Tente novamente mais tarde.', messageContainer.responseId);
+            this.ui.setThinkingHeader('', messageContainer.headerId);
+        }
     }
 
     async processGeminiModel(userMessage, attachments = null, relevantContext = []) {
