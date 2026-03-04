@@ -78,7 +78,9 @@ export class MemorySystem {
     }
 
     getUserPreference(preference) {
-        return this.userMemory.preferences?.[preference];
+        return (this.userMemory.preferences && Object.prototype.hasOwnProperty.call(this.userMemory.preferences, preference))
+            ? this.userMemory.preferences[preference]
+            : undefined;
     }
 
     learnFromInteraction(userMessage, aiResponse, userFeedback = null) {

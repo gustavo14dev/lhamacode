@@ -219,7 +219,9 @@
         const SUPABASE_ANON_KEY = 'sb_publishable_7RlWwC4vkk1uIRGN4I5-uQ_2d4cCa5w';
         
         // Inicializar Supabase
-        window.supabase = window.supabase?.createClient ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+        window.supabase = (window.supabase && window.supabase.createClient)
+            ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+            : null;
 
         // Estado global
         let currentFilter = 'all';
@@ -275,9 +277,9 @@
                     .select('count(*)')
                     .gte('last_seen', new Date(Date.now() - 5 * 60 * 1000).toISOString());
 
-                document.getElementById('totalChats').textContent = chats?.[0]?.count || 0;
-                document.getElementById('uniqueUsers').textContent = uniqueUsers?.[0]?.count || 0;
-                document.getElementById('onlineUsers').textContent = activeUsers?.[0]?.count || 0;
+                document.getElementById('totalChats').textContent = (chats && chats[0] && chats[0].count) ? chats[0].count : 0;
+                document.getElementById('uniqueUsers').textContent = (uniqueUsers && uniqueUsers[0] && uniqueUsers[0].count) ? uniqueUsers[0].count : 0;
+                document.getElementById('onlineUsers').textContent = (activeUsers && activeUsers[0] && activeUsers[0].count) ? activeUsers[0].count : 0;
                 
                 // Limpar sessões antigas
                 await window.supabase.rpc('cleanup_old_sessions');
@@ -395,7 +397,7 @@
                             </span>
                         </div>
                         <span class="text-xs text-gray-400">
-                            Chat: ${feedback.chat_id?.substring(0, 8)}...
+                            Chat: ${(feedback && feedback.chat_id) ? feedback.chat_id.substring(0, 8) : ''}...
                         </span>
                     </div>
                     <div class="bg-gray-900/50 rounded p-3 mb-2">

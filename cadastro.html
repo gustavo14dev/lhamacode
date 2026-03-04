@@ -19,7 +19,9 @@
         const SUPABASE_ANON_KEY = 'sb_publishable_7RlWwC4vkk1uIRGN4I5-uQ_2d4cCa5w';
         
         // Inicializar Supabase globalmente
-        window.supabase = window.supabase?.createClient ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+        window.supabase = (window.supabase && window.supabase.createClient)
+            ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+            : null;
     </script>
     
     <script>
@@ -340,7 +342,7 @@
             }
 
             // Toggle password visibility
-            togglePassword?.addEventListener('click', () => {
+            if (togglePassword) togglePassword.addEventListener('click', () => {
                 const type = passwordInput.type === 'password' ? 'text' : 'password';
                 passwordInput.type = type;
                 confirmPasswordInput.type = type;
@@ -348,7 +350,7 @@
             });
 
             // Cadastro com email/senha
-            signupForm?.addEventListener('submit', async (e) => {
+            if (signupForm) signupForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
                 const fullName = document.getElementById('fullName').value.trim();
@@ -414,7 +416,7 @@
             });
 
             // Login com Google
-            googleLogin?.addEventListener('click', async () => {
+            if (googleLogin) googleLogin.addEventListener('click', async () => {
                 showLoading(true);
                 
                 try {
@@ -437,7 +439,7 @@
             });
 
             // Modo visitante
-            guestBtn?.addEventListener('click', () => {
+            if (guestBtn) guestBtn.addEventListener('click', () => {
                 localStorage.setItem('isGuest', 'true');
                 localStorage.setItem('userSession', JSON.stringify({
                     email: 'Visitante',

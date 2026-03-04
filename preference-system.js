@@ -68,7 +68,8 @@ class PreferenceLearning {
 
     // Gerar system prompt personalizado
     getPersonalizedSystemPrompt() {
-        const langPref = Object.entries(this.profile.preferredLanguages).sort((a, b) => b[1] - a[1])[0]?.[0] || 'javascript';
+        const sortedLangs = Object.entries(this.profile.preferredLanguages).sort((a, b) => b[1] - a[1]);
+        const langPref = (sortedLangs[0] && sortedLangs[0][0]) ? sortedLangs[0][0] : 'javascript';
         const styleHint = this.profile.codeStyle.naming === 'snake_case' ? 'snake_case' : 'camelCase';
         const patternHint = this.profile.suggestionsStyle;
         const explanation = this.getExplanationStyle();
@@ -97,7 +98,8 @@ ${patternHint === 'functional' ? 'Prefira programação funcional (map, filter, 
 
     // Renderizar widget de perfil
     renderProfileWidget() {
-        const topLang = Object.entries(this.profile.preferredLanguages).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Nenhuma';
+        const sortedLangs = Object.entries(this.profile.preferredLanguages).sort((a, b) => b[1] - a[1]);
+        const topLang = (sortedLangs[0] && sortedLangs[0][0]) ? sortedLangs[0][0] : 'Nenhuma';
         const interactions = this.profile.totalInteractions;
 
         return `
@@ -126,15 +128,15 @@ ${patternHint === 'functional' ? 'Prefira programação funcional (map, filter, 
                 </div>
                 <div class="mt-2 text-xs text-indigo-600 dark:text-indigo-400">
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="explanation" value="simple" ${this.profile.explanationPreference === 'simple' ? 'checked' : ''} onchange="window.preferenceSystem?.setExplanationPreference('simple')">
+                        <input type="radio" name="explanation" value="simple" ${this.profile.explanationPreference === 'simple' ? 'checked' : ''} onchange="window.preferenceSystem && window.preferenceSystem.setExplanationPreference && window.preferenceSystem.setExplanationPreference('simple')">
                         <span>Explicações Simples</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer mt-1">
-                        <input type="radio" name="explanation" value="balanced" ${this.profile.explanationPreference === 'balanced' ? 'checked' : ''} onchange="window.preferenceSystem?.setExplanationPreference('balanced')">
+                        <input type="radio" name="explanation" value="balanced" ${this.profile.explanationPreference === 'balanced' ? 'checked' : ''} onchange="window.preferenceSystem && window.preferenceSystem.setExplanationPreference && window.preferenceSystem.setExplanationPreference('balanced')">
                         <span>Balanceadas</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer mt-1">
-                        <input type="radio" name="explanation" value="technical" ${this.profile.explanationPreference === 'technical' ? 'checked' : ''} onchange="window.preferenceSystem?.setExplanationPreference('technical')">
+                        <input type="radio" name="explanation" value="technical" ${this.profile.explanationPreference === 'technical' ? 'checked' : ''} onchange="window.preferenceSystem && window.preferenceSystem.setExplanationPreference && window.preferenceSystem.setExplanationPreference('technical')">
                         <span>Técnicas</span>
                     </label>
                 </div>

@@ -154,20 +154,78 @@ export class Agent {
         this.isGenerating = true;
         this.ui.updateSendButtonToPause();
         
-        if (this.useImageModelForThisMessage) {
-            await this.processImageModel(userMessage, relevantContext);
-        } else if (this.useMistralForThisMessage) {
-            await this.processMistralModel(userMessage, relevantContext);
-        } else if (this.currentModel === 'rapido') {
-            await this.processRapidoModel(userMessage, relevantContext);
-        } else if (this.currentModel === 'raciocinio') {
-            await this.processRaciocioModel(userMessage, relevantContext);
-        } else if (this.currentModel === 'pro') {
-            await this.processProModel(userMessage, relevantContext);
+        // Se houver anexos, forçar o uso do Gemini
+        const hasAttachments = attachedFilesFromUI && attachedFilesFromUI.length > 0;
+        
+        try {
+            if (hasAttachments) {
+                console.log('📎 Anexos detectados, usando Gemini API');
+                await this.processGeminiModel(userMessage, attachedFilesFromUI, relevantContext);
+            } else if (this.useImageModelForThisMessage) {
+                await this.processImageModel(userMessage, relevantContext);
+            } else if (this.useMistralForThisMessage) {
+                await this.processMistralModel(userMessage, relevantContext);
+            } else if (this.currentModel === 'rapido') {
+                try {
+                    await this.processRapidoModel(userMessage, relevantContext);
+                } catch (error) {
+                    console.warn('⚠️ Groq falhou, usando Gemini como fallback:', error);
+                    await this.processGeminiModel(userMessage, null, relevantContext);
+                }
+            } else if (this.currentModel === 'raciocinio') {
+                await this.processRaciocioModel(userMessage, relevantContext);
+            } else if (this.currentModel === 'pro') {
+                await this.processProModel(userMessage, relevantContext);
+            }
+        } catch (error) {
+            console.error('❌ Erro no processamento da mensagem:', error);
+            // Fallback final para Gemini em caso de qualquer erro crítico se não for um cancelamento
+            if (error.message !== 'ABORTED') {
+                try {
+                    await this.processGeminiModel(userMessage, attachedFilesFromUI, relevantContext);
+                } catch (geminiError) {
+                    this.ui.setResponseText('Desculpe, ocorreu um erro persistente em nossos modelos. Tente novamente mais tarde.', this.ui.createAssistantMessageContainer().responseId);
+                }
+            }
         }
         
         this.isGenerating = false;
         this.ui.updateSendButtonToSend();
+    }
+
+    async processGeminiModel(userMessage, attachments = null, relevantContext = []) {
+        const messageContainer = this.ui.createAssistantMessageContainer();
+        this.ui.setThinkingHeader('♊ Processando com Gemini...', messageContainer.headerId);
+        
+        try {
+            const formData = new FormData();
+            formData.append('message', userMessage);
+            formData.append('context', JSON.stringify(relevantContext));
+            
+            if (attachments) {
+                attachments.forEach((file, index) => {
+                    formData.append(`file_${index}`, file.file || file);
+                });
+            }
+
+            const response = await fetch('/api/gemini-chat', { // Usando novo endpoint para chat e arquivos
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) throw new Error('Erro na API Gemini');
+            
+            const data = await response.json();
+            const aiResponse = data.text || data.response;
+
+            this.addToHistory('assistant', aiResponse);
+            this.ui.setResponseText(aiResponse, messageContainer.responseId);
+            this.ui.setThinkingHeader('', messageContainer.headerId);
+            
+        } catch (error) {
+            console.error('Erro Gemini:', error);
+            throw error;
+        }
     }
 
     async processImageGeneration(prompt) {
@@ -1227,15 +1285,16 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         console.log('🔍 callGroqAPIWithBrowserSearch iniciado');
         console.log('📋 Modelo:', model);
         console.log('📋 Mensagens:', messages.length, 'mensagens');
-        console.log('📤 Primeira mensagem:', messages[0]?.content ? (typeof messages[0].content === 'string' ? messages[0].content.substring(0, 100) + '...' : 'CONTEÚDO MULTIMÍDIA') : 'SEM CONTEÚDO');
+        console.log('📤 Primeira mensagem:', (messages[0] && messages[0].content) ? (typeof messages[0].content === 'string' ? messages[0].content.substring(0, 100) + '...' : 'CONTEÚDO MULTIMÍDIA') : 'SEM CONTEÚDO');
         if (messages.length > 1) {
             const lastMessage = messages[messages.length - 1];
             let contentPreview = 'SEM CONTEÚDO';
-            if (lastMessage?.content) {
+            if (lastMessage && lastMessage.content) {
                 if (typeof lastMessage.content === 'string') {
                     contentPreview = lastMessage.content.substring(0, 100) + '...';
                 } else if (Array.isArray(lastMessage.content)) {
-                    const textPart = lastMessage.content.find(item => item.type === 'text')?.text;
+                    const foundTextPart = lastMessage.content.find(item => item && item.type === 'text');
+                    const textPart = foundTextPart ? foundTextPart.text : null;
                     if (textPart) {
                         contentPreview = textPart.substring(0, 100) + '...';
                     } else {
@@ -1359,17 +1418,17 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         const messages = customMessages || [{ role: 'system', content: systemPrompt }, ...this.conversationHistory];
         
         console.log('📤 Mensagens finais para API:', messages.length, 'mensagens');
-        console.log('📤 Primeira mensagem:', messages[0]?.content ? (typeof messages[0].content === 'string' ? messages[0].content.substring(0, 100) + '...' : 'CONTEÚDO MULTIMÍDIA') : 'SEM CONTEÚDO');
+        console.log('📤 Primeira mensagem:', (messages[0] && messages[0].content) ? (typeof messages[0].content === 'string' ? messages[0].content.substring(0, 100) + '...' : 'CONTEÚDO MULTIMÍDIA') : 'SEM CONTEÚDO');
         if (messages.length > 1) {
             const lastMessage = messages[messages.length - 1];
             let contentPreview = 'SEM CONTEÚDO';
-            if (lastMessage?.content) {
+            if (lastMessage && lastMessage.content) {
                 if (typeof lastMessage.content === 'string') {
                     contentPreview = lastMessage.content.substring(0, 100) + '...';
                 } else if (Array.isArray(lastMessage.content)) {
-                    const textPart = lastMessage.content.find(item => item.type === 'text')?.text;
-                    if (textPart) {
-                        contentPreview = textPart.substring(0, 100) + '...';
+                    const foundTextPart = lastMessage.content.find(item => item && item.type === 'text');
+                    if (foundTextPart && foundTextPart.text) {
+                        contentPreview = foundTextPart.text.substring(0, 100) + '...';
                     } else {
                         contentPreview = 'CONTEÚDO MULTIMÍDIA (IMAGENS)';
                     }
@@ -1416,7 +1475,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 console.error('❌ Erro na resposta:', status, errorData);
                 
                 // Verificar se é mensagem amigável do fallback
-                if (errorData?.friendly_message) {
+                if (errorData && errorData.friendly_message) {
                     throw new Error(errorData.friendly_message);
                 }
                 
@@ -1427,7 +1486,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 if (status === 401) {
                     throw new Error('Invalid API Key: Verifique sua chave no Vercel para GROQ_API_KEY.');
                 }
-                throw new Error(errorData?.error || `Erro HTTP ${status}`);
+                throw new Error((errorData && errorData.error) ? errorData.error : `Erro HTTP ${status}`);
             }
 
             const data = await response.json().catch(() => ({}));

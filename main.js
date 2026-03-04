@@ -13,7 +13,9 @@ const SUPABASE_URL = 'https://vvckoxcmhcaibfgfyqor.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_7RlWwC4vkk1uIRGN4I5-uQ_2d4cCa5w';
 
 // Inicializar Supabase (disponível globalmente)
-window.supabase = window.supabase?.createClient ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+window.supabase = (window.supabase && window.supabase.createClient)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
 const supabase = window.supabase;
 
 
@@ -59,81 +61,213 @@ class UI {
         
 
         this.elements = {
-
             welcomeScreen: document.getElementById('welcomeScreen'),
-
             titleSection: document.getElementById('titleSection'),
-
             chatArea: document.getElementById('chatArea'),
-
             messagesContainer: document.getElementById('messagesContainer'),
-
             userInput: document.getElementById('userInput'),
-
             sendButton: document.getElementById('sendButton'),
-
-            addCodeButton: document.getElementById('addCodeButton'),
-
+            attachFileBtn: document.getElementById('attachFileBtn'),
+            attachDropdown: document.getElementById('attachDropdown'),
+            attachFileOptionBtn: document.getElementById('attachFileOptionBtn'),
+            takePhotoOptionBtn: document.getElementById('takePhotoOptionBtn'),
+            cameraCard: document.getElementById('cameraCard'),
+            cameraVideo: document.getElementById('cameraVideo'),
+            cameraCanvas: document.getElementById('cameraCanvas'),
+            closeCameraBtn: document.getElementById('closeCameraBtn'),
+            takePhotoBtn: document.getElementById('takePhotoBtn'),
+            switchCameraBtn: document.getElementById('switchCameraBtn'),
+            cameraLoading: document.getElementById('cameraLoading'),
+            codeFileInput: document.getElementById('codeFileInput'),
+            imageFileInput: document.getElementById('imageFileInput'),
             attachedFilesContainer: document.getElementById('attachedFilesContainer'),
-
             newChatBtn: document.getElementById('newChatBtn'),
-
             chatHistoryList: document.getElementById('chatHistoryList'),
-
             modelButton: document.getElementById('modelButton'),
-
             modelDropdown: document.getElementById('modelDropdown'),
-
             modelButtonText: document.getElementById('modelButtonText'),
-
-            createButton: document.getElementById('createButton'),
-
-            createDropdown: document.getElementById('createDropdown'),
-
-            createButtonText: document.getElementById('createButtonText'),
-
             scrollToBottomBtn: document.getElementById('scrollToBottomBtn'),
-
-            // Elementos de autenticação
             userHeader: document.getElementById('userHeader'),
             userEmail: document.getElementById('userEmail'),
             loginBtn: document.getElementById('loginBtn'),
             loginPrompt: document.getElementById('loginPrompt'),
             logoutBtn: document.getElementById('logoutBtn')
-
         };
 
-
+        this.cameraStream = null;
+        this.currentFacingMode = 'user';
+        this.setupAttachListeners();
 
         // Debug (somente se flag ativada)
-
         if (DEBUG) {
-
             console.log('✅ Elementos carregados:', {
-
                 modelButton: !!this.elements.modelButton,
-
                 modelDropdown: !!this.elements.modelDropdown,
-
                 modelButtonText: !!this.elements.modelButtonText,
-
                 createButton: !!this.elements.createButton,
-
                 createDropdown: !!this.elements.createDropdown,
-
                 createButtonText: !!this.elements.createButtonText
-
             });
-
         }
 
-
-
         this.init();
-
     }
 
+    setupAttachListeners() {
+        // Toggle dropdown
+        if (this.elements.attachFileBtn) {
+            this.elements.attachFileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this.elements.attachDropdown) {
+                    this.elements.attachDropdown.classList.toggle('hidden');
+                }
+            });
+        }
 
+        // Fechar dropdown ao clicar fora
+        document.addEventListener('click', () => {
+            if (this.elements.attachDropdown) this.elements.attachDropdown.classList.add('hidden');
+        });
+
+        // Opção Selecionar Arquivo
+        if (this.elements.attachFileOptionBtn) {
+            this.elements.attachFileOptionBtn.addEventListener('click', () => {
+                this.elements.imageFileInput.click();
+            });
+        }
+
+        // Opção Tirar Foto
+        if (this.elements.takePhotoOptionBtn) {
+            this.elements.takePhotoOptionBtn.addEventListener('click', () => {
+                this.openCamera();
+            });
+        }
+
+        // Listeners da Câmera
+        if (this.elements.closeCameraBtn) {
+            this.elements.closeCameraBtn.addEventListener('click', () => this.closeCamera());
+        }
+
+        if (this.elements.takePhotoBtn) {
+            this.elements.takePhotoBtn.addEventListener('click', () => this.takePhoto());
+        }
+
+        if (this.elements.switchCameraBtn) {
+            this.elements.switchCameraBtn.addEventListener('click', () => this.switchCamera());
+        }
+
+        // Input de arquivo
+        if (this.elements.imageFileInput) {
+            this.elements.imageFileInput.addEventListener('change', (e) => {
+                const files = Array.from(e.target.files);
+                files.forEach(file => this.addAttachment(file));
+                this.elements.imageFileInput.value = '';
+            });
+        }
+    }
+
+    async openCamera() {
+        if (!this.elements.cameraCard) return;
+        this.elements.cameraCard.classList.remove('hidden');
+        this.elements.cameraLoading.classList.remove('hidden');
+        
+        try {
+            if (this.cameraStream) {
+                this.cameraStream.getTracks().forEach(track => track.stop());
+            }
+            
+            this.cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: this.currentFacingMode },
+                audio: false
+            });
+            
+            this.elements.cameraVideo.srcObject = this.cameraStream;
+            this.elements.cameraLoading.classList.add('hidden');
+        } catch (err) {
+            console.error("Erro ao acessar câmera:", err);
+            alert("Não foi possível acessar a câmera. Verifique as permissões.");
+            this.closeCamera();
+        }
+    }
+
+    closeCamera() {
+        if (this.cameraStream) {
+            this.cameraStream.getTracks().forEach(track => track.stop());
+            this.cameraStream = null;
+        }
+        if (this.elements.cameraCard) this.elements.cameraCard.classList.add('hidden');
+    }
+
+    async switchCamera() {
+        this.currentFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
+        await this.openCamera();
+    }
+
+    takePhoto() {
+        if (!this.cameraStream) return;
+        
+        const video = this.elements.cameraVideo;
+        const canvas = this.elements.cameraCanvas;
+        const context = canvas.getContext('2d');
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob((blob) => {
+            const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+            this.addAttachment(file);
+            this.closeCamera();
+        }, 'image/jpeg', 0.8);
+    }
+
+    addAttachment(file) {
+        if (this.attachedFiles.length >= 5) {
+            alert('Máximo de 5 anexos permitidos.');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const attachment = {
+                id: Date.now().toString(),
+                file: file,
+                preview: e.target.result,
+                name: file.name,
+                type: file.type
+            };
+            
+            this.attachedFiles.push(attachment);
+            this.renderAttachments();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    removeAttachment(id) {
+        this.attachedFiles = this.attachedFiles.filter(a => a.id !== id);
+        this.renderAttachments();
+    }
+
+    renderAttachments() {
+        const container = this.elements.attachedFilesContainer;
+        if (!container) return;
+        
+        if (this.attachedFiles.length === 0) {
+            container.classList.add('hidden');
+            container.innerHTML = '';
+            return;
+        }
+        
+        container.classList.remove('hidden');
+        container.innerHTML = this.attachedFiles.map(a => `
+            <div class="relative inline-block mr-2 mb-2 group">
+                <img src="${a.preview}" class="w-16 h-16 object-cover rounded-lg border border-white/10">
+                <button onclick="window.ui.removeAttachment('${a.id}')" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span class="material-icons-outlined" style="font-size:14px">close</span>
+                </button>
+            </div>
+        `).join('');
+    }
 
     loadChats() {
         // Não carregar mais do localStorage - apenas do Supabase
@@ -514,7 +648,7 @@ class UI {
 
             // Anexar código
 
-            attachCodeBtn?.addEventListener('click', () => {
+            if (attachCodeBtn) attachCodeBtn.addEventListener('click', () => {
 
                 attachDropdown.style.transition = 'all 0.15s ease-in';
 
@@ -540,7 +674,7 @@ class UI {
 
             // Anexar imagem
 
-            attachImageBtn?.addEventListener('click', () => {
+            if (attachImageBtn) attachImageBtn.addEventListener('click', () => {
 
                 attachDropdown.style.transition = 'all 0.15s ease-in';
 
@@ -5556,13 +5690,13 @@ ${latexCode}
 
         
 
-        closeBtn?.addEventListener('click', closeModal);
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
 
-        cancelBtn?.addEventListener('click', closeModal);
+        if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
 
         
 
-        confirmBtn?.addEventListener('click', () => {
+        if (confirmBtn) confirmBtn.addEventListener('click', () => {
 
             const instruction = input.value.trim();
 
@@ -5652,7 +5786,7 @@ ${latexCode}
             console.log('✅ [TAVILY DEBUG] Resposta recebida com sucesso');
             const data = await response.json();
             console.log('✅ [TAVILY DEBUG] Dados da resposta:', data);
-            console.log('✅ [TAVILY DEBUG] Fontes encontradas:', data.sources?.length || 0);
+            console.log('✅ [TAVILY DEBUG] Fontes encontradas:', (data && data.sources && data.sources.length) ? data.sources.length : 0);
             
             // Limpar texto "Pesquisando..."
             this.setThinkingHeader('', messageContainer.headerId);
@@ -5799,7 +5933,7 @@ ${latexCode}
 
         // Escutar mudanças na autenticação com delay para UI atualizar
         window.supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('🔄 Auth state changed:', event, session?.user?.email);
+            console.log('🔄 Auth state changed:', event, (session && session.user) ? session.user.email : null);
             
             // Adicionar delay para UI atualizar corretamente
             setTimeout(async () => {
@@ -5885,12 +6019,12 @@ ${latexCode}
 
     setupAuthListeners() {
         // Botão de login
-        this.elements.loginBtn?.addEventListener('click', () => {
+        if (this.elements.loginBtn) this.elements.loginBtn.addEventListener('click', () => {
             window.location.href = 'login.html';
         });
 
         // Botão de logout
-        this.elements.logoutBtn?.addEventListener('click', async () => {
+        if (this.elements.logoutBtn) this.elements.logoutBtn.addEventListener('click', async () => {
             await this.logout();
         });
 

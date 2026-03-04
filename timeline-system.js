@@ -52,7 +52,7 @@ class TimelineSystem {
             const changePercent = idx > 0 ? Math.round((changeSize / timeline[idx - 1].charCount) * 100) : 0;
 
             return `
-                <div class="flex items-center gap-3 mb-2 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors" onclick="window.timelineSystem?.restoreSnapshot('${snap.id}')">
+                <div class="flex items-center gap-3 mb-2 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors" onclick="window.timelineSystem && window.timelineSystem.restoreSnapshot && window.timelineSystem.restoreSnapshot('${snap.id}')">
                     <div class="w-2 h-2 rounded-full ${changeSize >= 0 ? 'bg-green-500' : 'bg-red-500'}"></div>
                     <div class="flex-1 text-xs">
                         <div class="font-semibold text-gray-900 dark:text-white">${timeStr}</div>

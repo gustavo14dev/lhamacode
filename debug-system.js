@@ -43,8 +43,8 @@ Responda APENAS com JSON válido, sem markdown, sem explicação:`;
                 { role: 'user', content: userMessage }
             ]);
 
-            console.log('🔵 generateHypotheses: 3. Response recebido, length:', response?.length);
-            console.log('🔵 generateHypotheses: 3.1 Primeiros 500 chars:', response?.substring(0, 500));
+            console.log('🔵 generateHypotheses: 3. Response recebido, length:', response ? response.length : null);
+            console.log('🔵 generateHypotheses: 3.1 Primeiros 500 chars:', response ? response.substring(0, 500) : null);
             
             if (!response || response.trim().length === 0) {
                 console.warn('🔵 generateHypotheses: Response vazio, usando default');

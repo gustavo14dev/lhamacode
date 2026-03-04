@@ -74,10 +74,10 @@ function validatePassword(password) {
 }
 
 // Event Listeners
-togglePassword?.addEventListener('click', togglePasswordVisibility);
+if (togglePassword) togglePassword.addEventListener('click', togglePasswordVisibility);
 
 // Login com Email/Senha
-loginForm?.addEventListener('submit', async (e) => {
+if (loginForm) loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const email = document.getElementById('email').value.trim();
@@ -164,7 +164,7 @@ loginForm?.addEventListener('submit', async (e) => {
 });
 
 // Login com Google
-googleLogin?.addEventListener('click', async () => {
+if (googleLogin) googleLogin.addEventListener('click', async () => {
     showLoading(true);
     
     try {
@@ -187,7 +187,7 @@ googleLogin?.addEventListener('click', async () => {
 });
 
 // Continuar como Visitante
-guestBtn?.addEventListener('click', () => {
+if (guestBtn) guestBtn.addEventListener('click', () => {
     // Marcar como visitante no localStorage
     localStorage.setItem('isGuest', 'true');
     localStorage.removeItem('userSession');
@@ -200,7 +200,7 @@ guestBtn?.addEventListener('click', () => {
 });
 
 // Alternar entre Login/Cadastro
-showSignup?.addEventListener('click', (e) => {
+if (showSignup) showSignup.addEventListener('click', (e) => {
     e.preventDefault();
     toggleMode(false);
 });
@@ -262,7 +262,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Esqueceu a senha (placeholder)
-document.querySelector('a[href="#"]')?.addEventListener('click', (e) => {
+const forgotPasswordLink = document.querySelector('a[href="#"]');
+if (forgotPasswordLink) forgotPasswordLink.addEventListener('click', (e) => {
     e.preventDefault();
     showToast('Funcionalidade de recuperação de senha em breve!', 'info');
 });

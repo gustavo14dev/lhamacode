@@ -17,13 +17,13 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: "#3B82F6", // Blue accent color for the button
-                        "background-light": "#F0F9FF", // Light blue background
-                        "background-dark": "#0F172A", // Dark blue background
+                        primary: "#3B82F6",
+                        "background-light": "#F0F9FF",
+                        "background-dark": "#0F172A",
                         "surface-light": "#FFFFFF",
                         "surface-dark": "#1E293B",
-                        "text-main-light": "#1E293B", // Dark blue text
-                        "text-main-dark": "#F8FAFC", // Light text for dark mode
+                        "text-main-light": "#1E293B",
+                        "text-main-dark": "#F8FAFC",
                         "sidebar-light": "#F8FAFC",
                         "sidebar-dark": "#1E293B",
                     },
@@ -47,199 +47,545 @@
         };
     </script>
 <style>
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-        }
-        .custom-bg {
-            background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 50%, #DBEAFE 100%);
-        }
-        .dark .custom-bg {
-            background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%);
-        }
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        /* Prevenir scroll horizontal */
-        * {
-            overflow-x: hidden !important;
-        }
+        /* ── Base ──────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; }
         html, body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #131e30 !important;
+            color: #e2e8f0 !important;
             overflow-x: hidden !important;
             max-width: 100vw !important;
         }
-        /* Forçar quebra de linha em textos longos */
-        .message-content, .text-gray-700, .text-gray-200 {
-            word-wrap: break-word !important;
-            overflow-wrap: break-word !important;
-            hyphens: auto !important;
-            max-width: 100% !important;
+
+        /* ── Scrollbar oculta ──────────────────────────── */
+        *::-webkit-scrollbar { width:0!important; height:0!important; display:none!important; }
+        * { -ms-overflow-style:none!important; scrollbar-width:none!important; overflow-x:hidden!important; }
+
+        /* ── Background ────────────────────────────────── */
+        .custom-bg {
+            background: #131e30 !important;
         }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+        /* Subtle animated noise/grain overlay */
+        .custom-bg::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59,130,246,0.18) 0%, transparent 60%),
+                radial-gradient(ellipse 40% 40% at 80% 80%, rgba(99,102,241,0.10) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+
+        /* ── Sidebar ───────────────────────────────────── */
+        nav {
+            background: rgba(16, 24, 44, 0.97) !important;
+            border-right: 1px solid rgba(255,255,255,0.07) !important;
+            backdrop-filter: blur(20px);
         }
-        @keyframes scaleIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
+        .bg-sidebar-light\/95, .dark .bg-sidebar-dark\/95 {
+            background: rgba(16, 24, 44, 0.97) !important;
         }
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes spin-slow {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        @keyframes typing {
-            from { width: 0; }
-            to { width: 100%; }
-        }
-        .typing-animation {
-            overflow: hidden;
-            white-space: nowrap;
-            border-right: 2px solid rgba(255,255,255,0.3);
-            animation: typing 0.5s steps(40, end) forwards;
-        }
-        .animate-fadeIn {
-            animation: fadeIn 0.3s ease;
-        }
-        .animate-scaleIn {
-            animation: scaleIn 0.3s ease;
-        }
-        .animate-slideIn {
-            animation: slideIn 0.3s ease;
-        }
-        .animate-spin {
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        .animate-spin-slow {
-            animation: spin-slow 2s linear infinite;
-        }
-        .input-wrapper-bottom {
-            position: fixed !important;
-            bottom: 1rem !important;
-            top: auto !important;
-            transform: none !important;
-            transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
-            will-change: transform, top, bottom;
-        }
-        .input-wrapper-center {
-            position: fixed !important;
-            top: 50% !important;
-            bottom: auto !important;
-            transform: translateY(-50%) !important;
-            transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
-            will-change: transform, top, bottom;
-        }
-        .pause-button {
-            width: 2.5rem;
-            height: 2.5rem;
-            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-            border: none;
-            border-radius: 50%;
-            color: white;
-            cursor: pointer;
+
+        /* Sidebar brand */
+        .sidebar-brand {
             display: flex;
             align-items: center;
-            justify-content: center;
-            box-shadow: 0 8px 24px -8px rgba(59, 130, 246, 0.4);
+            gap: 10px;
+        }
+        .sidebar-brand-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #60a5fa, #818cf8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .badge-beta {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            padding: 2px 7px;
+            border-radius: 99px;
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+            color: #fff;
+        }
+
+        /* New Chat button */
+        #newChatBtn {
+            background: rgba(59,130,246,0.08) !important;
+            border: 1px solid rgba(59,130,246,0.2) !important;
+            color: #93c5fd !important;
             transition: all 0.2s ease;
         }
-        .pause-button:hover {
-            transform: scale(1.1);
-            box-shadow: 0 12px 32px -8px rgba(59, 130, 246, 0.6);
+        #newChatBtn:hover {
+            background: rgba(59,130,246,0.15) !important;
+            border-color: rgba(59,130,246,0.4) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(59,130,246,0.15);
         }
-        .pause-button:active {
-            transform: scale(0.95);
+
+        /* Chat history items */
+        .chat-history-item {
+            padding: 9px 12px;
+            border-radius: 10px;
+            font-size: 0.82rem;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        /* Esconder scrollbar mas permitir scroll */
-        #debugModalContent {
-            scrollbar-width: none;
-            -ms-overflow-style: none;
+        .chat-history-item:hover {
+            background: rgba(255,255,255,0.05);
+            color: #e2e8f0;
         }
-        #debugModalContent::-webkit-scrollbar {
-            display: none;
+        .chat-history-item.active {
+            background: rgba(59,130,246,0.1);
+            color: #93c5fd;
         }
-        
-        /* Forçar tema escuro */
-        html, body {
-            background: #0f172a !important;
+
+        /* ── Header ────────────────────────────────────── */
+        header {
+            background: rgba(8, 14, 26, 0.9) !important;
+            border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+            backdrop-filter: blur(20px);
+            height: 56px !important;
+        }
+        /* Remove left-72 override so it aligns with main */
+        header { left: 18rem !important; }
+
+        #conversationTitle {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            letter-spacing: -0.01em;
+        }
+
+        /* ── Welcome screen — overlay sobre o chatArea ───── */
+        #welcomeScreen {
+            position: absolute !important;
+            top: 56px !important; /* altura do header */
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding-bottom: 160px !important;
+            pointer-events: none;
+            z-index: 2;
+        }
+        #welcomeScreen.hidden {
+            display: none !important;
+        }
+        #welcomeScreen h1 {
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            font-size: clamp(2.2rem, 5vw, 3.8rem);
+            letter-spacing: -0.04em;
+            background: linear-gradient(135deg, #f8fafc 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.1;
+            margin-top: 1rem;
+        }
+        #welcomeScreen .subtitle {
+            font-size: 0.95rem;
+            color: #475569;
+            margin-top: 0.5rem;
+            font-weight: 400;
+        }
+
+        /* ── Chat area — sem padding-top extra ──────────── */
+        #chatArea {
+            padding-top: 60px !important;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Message bubbles */
+        .msg-user {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 1rem;
+            animation: msgIn 0.25s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        .msg-user .bubble {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #fff;
+            padding: 12px 18px;
+            border-radius: 22px 22px 4px 22px;
+            max-width: 72%;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            box-shadow: 0 4px 20px rgba(37,99,235,0.3);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .msg-ai {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 1.2rem;
+            align-items: flex-start;
+            animation: msgIn 0.25s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        .msg-ai .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            overflow: hidden;
+            flex-shrink: 0;
+            margin-top: 4px;
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+        }
+        .msg-ai .bubble {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255,255,255,0.06);
+            color: #e2e8f0;
+            padding: 14px 18px;
+            border-radius: 4px 22px 22px 22px;
+            max-width: 80%;
+            font-size: 0.95rem;
+            line-height: 1.7;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            backdrop-filter: blur(8px);
+        }
+
+        @keyframes msgIn {
+            from { opacity: 0; transform: translateY(10px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* ── Surface (input card background) ───────────── */
+        .bg-surface-light, .bg-surface-dark, .dark .bg-surface-dark {
+            background: rgba(17, 27, 48, 0.95) !important;
+        }
+
+        /* ── Input wrapper ──────────────────────────────── */
+        #inputWrapper {
+            position: fixed !important;
+            bottom: 1.5rem !important;
+            top: auto !important;
+            transform: none !important;
+            left: 18rem !important;
+            right: 0 !important;
+            z-index: 50;
+        }
+        #inputWrapper .input-card {
+            background: rgba(17, 27, 48, 0.75);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 24px;
+            padding: 12px 14px 10px;
+            box-shadow: none;
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            transition: border-color 0.2s ease;
+        }
+        #inputWrapper .input-card:focus-within {
+            transform: translateY(-2px);
+            box-shadow: none;
+        }
+
+        /* Textarea inside input card */
+        #userInput {
             color: #e2e8f0 !important;
+            font-size: 0.95rem !important;
+            line-height: 1.5 !important;
         }
-        
-        .custom-bg {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+        #userInput::placeholder { color: #475569 !important; }
+
+        /* ── Toolbar buttons ────────────────────────────── */
+        .toolbar-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 99px;
+            border: 1px solid rgba(255,255,255,0.08);
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #64748b;
+            background: transparent;
+            transition: all 0.15s ease;
+            cursor: pointer;
+            white-space: nowrap;
         }
-        
-        /* Forçar cores do tema escuro */
-        .text-text-main-light {
-            color: #e2e8f0 !important;
+        .toolbar-btn:hover {
+            background: rgba(255,255,255,0.05);
+            color: #94a3b8;
+            border-color: rgba(255,255,255,0.12);
         }
-        
-        .bg-sidebar-light\/95 {
-            background: rgba(30, 41, 59, 0.95) !important;
+        .toolbar-btn.active {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+            border-color: transparent !important;
+            color: #fff !important;
+            box-shadow: none;
         }
-        
-        .bg-surface-light {
-            background: #1e293b !important;
+
+        /* Send button */
+        #sendButton {
+            background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+            box-shadow: none !important;
+            transition: all 0.15s ease !important;
         }
-        
-        /* Remover cores do tema claro */
-        .bg-white\/5 {
-            background: rgba(255, 255, 255, 0.05) !important;
+        #sendButton:hover {
+            transform: scale(1.08) !important;
+            box-shadow: none !important;
         }
-        
-        /* Botão de pesquisa web ativo */
+        #sendButton:active { transform: scale(0.95) !important; }
+
+        /* Voice button */
+        #voiceButton {
+            background: rgba(255,255,255,0.05) !important;
+            border: 1px solid rgba(255,255,255,0.08) !important;
+            transition: all 0.15s ease !important;
+        }
+        #voiceButton:hover {
+            background: rgba(255,255,255,0.1) !important;
+            border-color: rgba(255,255,255,0.15) !important;
+        }
+
+        /* Model button */
+        #modelButton {
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,255,255,0.08) !important;
+            color: #64748b !important;
+            transition: all 0.15s ease !important;
+        }
+        #modelButton:hover {
+            background: rgba(255,255,255,0.07) !important;
+            color: #94a3b8 !important;
+        }
+
+        /* Attach button */
+        #attachFileBtn {
+            color: #475569 !important;
+            transition: all 0.15s ease !important;
+        }
+        #attachFileBtn:hover { color: #94a3b8 !important; }
+
+        /* Web search toggle */
+        #webSearchToggle {
+            border-color: rgba(255,255,255,0.08) !important;
+            color: #64748b !important;
+        }
+        #webSearchToggle:hover {
+            background: rgba(255,255,255,0.05) !important;
+            color: #94a3b8 !important;
+        }
         #webSearchToggle.active {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
-            border-color: #3b82f6 !important;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+            border-color: transparent !important;
             color: white !important;
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            box-shadow: none;
         }
-        
-        #webSearchToggle.active:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-            transform: scale(1.08);
+
+        /* ── Animations ─────────────────────────────────── */
+        @keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+        @keyframes scaleIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
+        @keyframes slideIn { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes spin    { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes spin-slow { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+        .animate-fadeIn  { animation: fadeIn  0.3s ease; }
+        .animate-scaleIn { animation: scaleIn 0.3s ease; }
+        .animate-slideIn { animation: slideIn 0.3s ease; }
+        .animate-spin    { animation: spin 1s linear infinite; }
+        .animate-spin-slow { animation: spin-slow 2s linear infinite; }
+        /* ── Float animation ────────────────────────────── */
+        @keyframes float {
+            0%   { transform: translateY(0px); }
+            50%  { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        #titleSection video {
+            animation: float 4s ease-in-out infinite !important;
+            box-shadow: none !important;
+            border: none !important;
+            outline: none !important;
+        }
+
+        /* ── Metallic title ─────────────────────────────── */
+        .metallic-title {
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            font-size: clamp(1.2rem, 3.5vw, 2rem);
+            letter-spacing: -0.04em;
+            background: linear-gradient(
+                135deg,
+                #9ca3af 0%,
+                #e5e7eb 20%,
+                #f3f4f6 35%,
+                #d1d5db 50%,
+                #9ca3af 65%,
+                #6b7280 80%,
+                #9ca3af 100%
+            );
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: metalShimmer 4s linear infinite;
+        }
+        @keyframes metalShimmer {
+            0%   { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
+        /* ── Entrada do welcome screen ──────────────────── */
+        #titleSection {
+            animation: welcomeIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        @keyframes welcomeIn {
+            from { opacity: 0; transform: translateY(24px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* ── Mensagens com animação mais suave ──────────── */
+        .msg-user { animation: msgSlideRight 0.35s cubic-bezier(0.22,1,0.36,1) both; }
+        .msg-ai   { animation: msgSlideLeft  0.35s cubic-bezier(0.22,1,0.36,1) both; }
+        @keyframes msgSlideRight {
+            from { opacity:0; transform: translateX(20px) scale(0.97); }
+            to   { opacity:1; transform: translateX(0)    scale(1); }
+        }
+        @keyframes msgSlideLeft {
+            from { opacity:0; transform: translateX(-16px) scale(0.97); }
+            to   { opacity:1; transform: translateX(0)     scale(1); }
+        }
+
+        /* ── Input card: sobe suavemente ao focar ───────── */
+        #inputWrapper .input-card {
+            transition: transform 0.25s cubic-bezier(0.22,1,0.36,1), border-color 0.2s ease !important;
+        }
+        #inputWrapper .input-card:focus-within {
+            transform: translateY(-2px);
+        }
+
+        /* ── Send button pulse ao clicar ────────────────── */
+        #sendButton:active {
+            animation: sendPulse 0.3s ease;
+        }
+        @keyframes sendPulse {
+            0%  { box-shadow: 0 4px 16px rgba(59,130,246,0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(59,130,246,0); transform: scale(0.92); }
+            100%{ box-shadow: 0 4px 16px rgba(59,130,246,0.4); transform: scale(1); }
+        }
+
+        /* ── Toolbar buttons hover deslizam ─────────────── */
+        .toolbar-btn {
+            transition: all 0.18s cubic-bezier(0.22,1,0.36,1) !important;
+        }
+        .toolbar-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        /* ── Sidebar new chat button ────────────────────── */
+        #newChatBtn {
+            transition: all 0.2s cubic-bezier(0.22,1,0.36,1) !important;
+        }
+        #newChatBtn:hover { transform: translateY(-1px); }
+
+
+        /* ── Pause/stop button ──────────────────────────── */
+        .pause-button {
+            width:2.5rem; height:2.5rem;
+            background: linear-gradient(135deg,#3B82F6,#2563EB);
+            border:none; border-radius:50%; color:white; cursor:pointer;
+            display:flex; align-items:center; justify-content:center;
+            box-shadow:0 8px 24px -8px rgba(59,130,246,0.4);
+            transition:all 0.2s ease;
+        }
+        .pause-button:hover { transform:scale(1.1); box-shadow:0 12px 32px -8px rgba(59,130,246,0.6); }
+        .pause-button:active { transform:scale(0.95); }
+
+        /* ── Typing indicator ───────────────────────────── */
+        .typing-animation {
+            overflow:hidden; white-space:nowrap;
+            border-right:2px solid rgba(255,255,255,0.3);
+            animation: typing 0.5s steps(40,end) forwards;
+        }
+        @keyframes typing { from{width:0} to{width:100%} }
+
+        /* ── Responsive: small height screens ──────────── */
+        @media (max-height: 600px) {
+            #welcomeScreen h1 { font-size: 2rem !important; }
+            #welcomeScreen video { width: 3.5rem !important; height: 3.5rem !important; }
+            #welcomeScreen { padding-bottom: 160px !important; }
+        }
+
+        /* ── Misc overrides ─────────────────────────────── */
+        .message-content { word-wrap:break-word!important; overflow-wrap:break-word!important; hyphens:auto!important; max-width:100%!important; }
+        .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
+        #debugModalContent { scrollbar-width:none; -ms-overflow-style:none; }
+
+        /* Login & user section in sidebar */
+        #loginBtn {
+            background: rgba(30,41,59,0.8) !important;
+            border: 1px solid rgba(255,255,255,0.08) !important;
+            color: #94a3b8 !important;
+        }
+        #loginBtn:hover { background: rgba(30,41,59,1) !important; color: #e2e8f0 !important; }
+        #userHeader > div {
+            background: rgba(15,23,42,0.9) !important;
+            border: 1px solid rgba(255,255,255,0.07) !important;
+        }
+
+        /* Attach dropdown */
+        #attachDropdown {
+            background: rgba(15,23,42,0.98) !important;
+            border: 1px solid rgba(255,255,255,0.08) !important;
+            backdrop-filter: blur(20px);
+        }
+        #attachDropdown button:hover {
+            background: rgba(255,255,255,0.05) !important;
+        }
+
+        /* Scroll to bottom button */
+        #scrollToBottomBtn {
+            background: rgba(15,23,42,0.9) !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+            color: #94a3b8 !important;
+            box-shadow: none !important;
+        }
+        #scrollToBottomBtn:hover {
+            background: rgba(30,41,59,1) !important;
+            color: #e2e8f0 !important;
         }
     </style>
 </head>
 <body class="custom-bg min-h-screen text-text-main-light dark:text-text-main-dark transition-colors duration-300 dark">
 <nav class="fixed left-0 top-0 bottom-0 w-72 bg-sidebar-light/95 dark:bg-sidebar-dark/95 backdrop-blur-md flex flex-col py-6 px-4 shadow-soft z-50 border-r border-white/50 dark:border-white/10 transition-colors duration-300">
-<div class="mb-8 px-2 flex items-center gap-3">
-    <video autoplay muted loop playsinline class="w-8 h-8 rounded-full object-cover">
+<div class="mb-7 px-2 flex items-center gap-3">
+    <video autoplay muted loop playsinline class="w-9 h-9 rounded-xl object-cover" style="box-shadow:none;border:none;">
         <source src="img/Video Project.mp4" type="video/mp4">
     </video>
-    <div class="flex items-center gap-3">
-        <span class="text-xl font-bold tracking-tight text-text-main-light dark:text-text-main-dark">Drekee AI</span>
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary text-white tracking-wider">BETA 1</span>
+    <div class="sidebar-brand">
+        <span class="sidebar-brand-name">Drekee AI</span>
+        <span class="badge-beta">BETA</span>
     </div>
 </div>
-<button class="flex items-center gap-3 w-full p-3 mb-6 rounded-xl bg-surface-light dark:bg-white/5 border border-gray-100 dark:border-white/5 shadow-sm hover:shadow-md transition-all group text-left" id="newChatBtn">
-<span class="material-icons-outlined text-primary group-hover:scale-110 transition-transform">add_circle</span>
-<span class="font-semibold text-gray-700 dark:text-gray-200">Novo Chat</span>
+<button class="flex items-center gap-3 w-full p-3 mb-5 rounded-xl transition-all group text-left" id="newChatBtn" style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);">
+<span class="material-icons-outlined text-blue-400 group-hover:scale-110 transition-transform" style="font-size:1.1rem">add_circle</span>
+<span class="font-semibold text-blue-300 text-sm">Novo Chat</span>
 </button>
 <div class="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-4 px-1">
 <div>
-<h3 class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 pl-2">Suas Conversas</h3>
-<div class="flex flex-col gap-1.5" id="chatHistoryList">
-<div class="text-xs text-gray-400 dark:text-gray-500 px-3 py-6 text-center">Nenhuma conversa recente</div>
+<h3 class="text-xs font-bold uppercase tracking-widest mb-3 pl-2" style="color:#334155;letter-spacing:0.1em">Conversas</h3>
+<div class="flex flex-col gap-1" id="chatHistoryList">
+<div class="text-xs px-3 py-8 text-center" style="color:#334155">Nenhuma conversa ainda</div>
 </div>
 </div>
 </div>
 
-<!-- User Header (movido para o final da sidebar) -->
+<!-- User Header -->
 <div id="userHeader" class="hidden">
     <div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-white/20 dark:border-gray-700">
-        <!-- Seção do usuário -->
         <div class="flex items-center gap-3 mb-3">
             <img src="img/perfil.png" alt="Perfil" class="w-10 h-10 rounded-full object-cover border-2 border-white/20">
             <div class="flex-1 min-w-0">
@@ -247,8 +593,6 @@
                 <p class="text-xs text-gray-500 dark:text-gray-400">Conta conectada</p>
             </div>
         </div>
-        
-        <!-- Botões de ação -->
         <div class="flex gap-2 mb-3">
             <button id="logoutBtn" class="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-medium transition-all">
                 <span class="material-icons-outlined text-sm">logout</span>
@@ -259,8 +603,6 @@
                 <span>Configurações</span>
             </button>
         </div>
-        
-        <!-- Botão Limpar Histórico -->
         <button id="clearHistoryBtn" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-orange-50 dark:bg-orange-950/20 hover:bg-orange-100 dark:hover:bg-orange-950/40 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 text-sm font-medium transition-all">
             <span class="material-icons-outlined text-sm">delete_sweep</span>
             <span>Limpar Histórico</span>
@@ -268,7 +610,7 @@
     </div>
 </div>
 
-<!-- Login Button (movido para o final da sidebar) -->
+<!-- Login Button -->
 <div id="loginPrompt">
     <button id="loginBtn" class="w-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl px-3 py-2 flex items-center justify-center gap-2 shadow-lg border border-white/20 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-all">
         <span class="material-icons-outlined text-sm text-primary">login</span>
@@ -276,114 +618,122 @@
     </button>
 </div>
 </nav>
-<main class="ml-72 min-h-screen flex flex-col relative" id="mainContainer">
+<main class="ml-72 min-h-screen flex flex-col" id="mainContainer" style="position:relative;padding-top:0;">
 
-<!-- Cabeçalho vazio conectado com o sidebar -->
-<header class="fixed top-0 left-72 right-0 h-16 bg-sidebar-light/95 dark:bg-sidebar-dark/95 backdrop-blur-md border-b border-white/50 dark:border-white/10 z-40">
+<!-- Header fixo -->
+<header class="fixed z-40" style="top:0;left:18rem;right:0;height:56px;background:rgba(16, 24, 44, 0.97);border-bottom:1px solid rgba(255,255,255,0.07);backdrop-filter:blur(20px);">
     <div class="h-full flex items-center justify-center px-6">
-        <h1 id="conversationTitle" class="text-lg font-semibold text-text-main-light dark:text-text-main-dark truncate"></h1>
+        <h1 id="conversationTitle" style="font-size:0.9rem;font-weight:600;color:#cbd5e1;letter-spacing:-0.01em;" class="truncate"></h1>
     </div>
 </header>
 
-<!-- API Status Banner: exibido quando as ENV das APIs não estão configuradas ou /api/status falha -->
+<!-- API Status Banner -->
 <div id="apiStatusBanner" class="fixed right-6 top-20 z-50 hidden bg-yellow-50 dark:bg-yellow-900 text-yellow-900 dark:text-yellow-100 border border-yellow-200 dark:border-yellow-700 rounded-lg px-4 py-2 shadow-sm max-w-md"></div>
 
-<div class="absolute inset-0 flex flex-col items-center px-4 md:px-12 pb-64 max-w-4xl mx-auto pointer-events-none" id="welcomeScreen" style="margin-top: 6rem;">
-<div class="max-w-6xl text-center mb-8 flex flex-col items-center transition-opacity duration-300" id="titleSection">
-<video autoplay muted loop playsinline class="w-32 h-32 rounded-none object-cover">
-        <source src="img/Video Project.mp4" type="video/mp4">
-    </video>
-<h1 class="text-4xl md:text-5xl lg:text-6xl font-medium tracking-tight text-white leading-[1.1] font-inter">
-            Como posso ajudar? 
-        </h1>
-</div>
-</div>
-
-<div class="flex-1 overflow-y-auto px-4 md:px-12 pt-20 pb-52" id="chatArea">
-<div class="max-w-4xl mx-auto w-full" id="messagesContainer"></div>
-</div>
-
-<div class="fixed top-1/2 left-72 right-0 transform -translate-y-[45%] px-4 md:px-12 z-50 input-wrapper-center" id="inputWrapper">
-<div class="max-w-3xl mx-auto w-full">
-<div class="bg-surface-light dark:bg-surface-dark rounded-[2rem] p-3 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-white/60 dark:border-white/5 transition-all duration-300">
-<!-- Container para mostrar arquivos anexados (posicionado acima da caixa de texto) -->
-<div id="attachedFilesContainer" class="mb-3 w-full hidden"></div>
-
-<textarea class="w-full bg-transparent border-none text-gray-600 dark:text-gray-300 text-lg placeholder-gray-400 dark:placeholder-gray-500 focus:ring-0 resize-y min-h-[32px] max-h-[200px] py-1 px-2" placeholder="Como posso ajudar com seu código hoje?" id="userInput"></textarea>
-<div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-2 px-2 pb-1">
-<div class="flex items-center gap-3 w-full sm:w-auto overflow-x-auto no-scrollbar">
-<!-- Vídeo animado ao lado do botão de anexo -->
-<video id="inputVideo" autoplay muted loop playsinline class="w-10 h-10 rounded-lg object-cover hidden cursor-pointer hover:scale-105 transition-transform" style="display: none;" onclick="showBiluCard()" title="Clique para ver a família Bilu">
-    <source src="img/Video Project.mp4" type="video/mp4">
-</video>
-<button id="attachFileBtn" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300 transition-colors" title="Anexar arquivo">
-<span class="material-icons-outlined text-base">attach_file</span>
-</button>
-
-<!-- Dropdown de seleção de anexos -->
-<div id="attachDropdown" class="hidden absolute bottom-full left-0 mb-3 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden min-w-[280px] z-50 backdrop-blur-sm">
-    <div class="p-2">
-        <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider px-3 py-2 mb-1">Tipo de Anexo</div>
-        
-        <button id="attachCodeBtn" class="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 rounded-xl group flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/20 flex items-center justify-center group-hover:scale-105 transition-transform">
-                <span class="material-icons-outlined text-lg text-blue-600 dark:text-blue-400">code</span>
-            </div>
-            <div class="flex-1">
-                <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">Anexar Código</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">JavaScript, Python, HTML, CSS, Markdown</div>
-            </div>
-            <span class="material-icons-outlined text-xs text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">arrow_right</span>
-        </button>
-        
-        <div class="h-px bg-gray-200 dark:bg-gray-700 my-1"></div>
-        
-        <button id="attachImageBtn" class="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 rounded-xl group flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-500/20 flex items-center justify-center group-hover:scale-105 transition-transform">
-                <span class="material-icons-outlined text-lg text-green-600 dark:text-green-400">image</span>
-            </div>
-            <div class="flex-1">
-                <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">Anexar Imagem</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">JPG, PNG, GIF, WebP (até 5 imagens)</div>
-            </div>
-            <span class="material-icons-outlined text-xs text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">arrow_right</span>
-        </button>
+<!-- Tela de boas-vindas: overlay absoluto, desaparece quando há mensagens -->
+<div id="welcomeScreen" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:100px;padding-top:0;margin-top:-80px;pointer-events:none;z-index:2;">
+    <div class="text-center flex flex-col items-center" id="titleSection">
+        <video autoplay muted loop playsinline class="w-28 h-28 rounded-2xl object-cover mb-5" style="box-shadow:none;border:none;">
+            <source src="img/Video Project.mp4" type="video/mp4">
+        </video>
+        <h1 class="metallic-title" style="line-height:1.1;margin-top:0.2rem;min-height:2.5rem;">Como posso ajudar?</h1>
     </div>
 </div>
 
-<!-- Botão de Pesquisa Web -->
-<button id="webSearchToggle" class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-all duration-200" onclick="toggleWebSearch()">
-<span class="material-icons-outlined text-base">search</span>
-<span id="webSearchText">Pesquisa Web</span>
-<span class="material-icons-outlined text-sm hidden" id="webSearchClose">close</span>
-</button>
-
-<!-- Inputs ocultos -->
-<input type="file" id="codeFileInput" class="hidden" multiple accept=".js,.py,.html,.htm,.css,.md,.txt,.json" />
-<input type="file" id="imageFileInput" class="hidden" multiple accept=".jpg,.jpeg,.png,.gif,.webp" />
-</div>
-<div class="flex items-center gap-2 ml-auto">
-<div class="relative" id="modelSelectorContainer">
-<button class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" id="modelButton">
-<span class="material-icons-outlined text-base">psychology</span>
-<span id="modelButtonText">Raciocínio</span>
-<span class="material-icons-outlined text-sm">expand_more</span>
-</button>
-</div>
-<button id="voiceButton" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 shadow-lg transition-all transform hover:scale-105 active:scale-95" title="Gravar áudio">
-<span class="material-icons-outlined text-xl" id="voiceIcon">mic</span>
-</button>
-<button class="w-10 h-10 rounded-full bg-primary hover:bg-primary/90 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105 active:scale-95" id="sendButton">
-<span class="material-icons-outlined text-xl">arrow_upward</span>
-</button>
+<!-- Chat area: começa do topo, sem padding extra -->
+<div class="flex-1 overflow-y-auto px-4 md:px-12 pb-52" id="chatArea" style="padding-top:60px;">
+<div class="max-w-4xl mx-auto w-full" id="messagesContainer"></div>
 </div>
 
+<!-- ============================================================
+     INPUT WRAPPER — sempre fixo no rodapé, nunca sobrepõe o título
+     ============================================================ -->
+<div class="fixed px-4 md:px-10 z-50" id="inputWrapper" style="bottom:1.5rem;left:18rem;right:0;">
+<div class="max-w-3xl mx-auto w-full">
+<div class="input-card">
+<!-- Arquivos anexados -->
+<div id="attachedFilesContainer" class="mb-2 w-full hidden"></div>
+
+<textarea class="w-full bg-transparent border-none text-gray-200 text-base placeholder-slate-600 focus:ring-0 resize-none min-h-[36px] max-h-[200px] py-1 px-2 leading-relaxed" placeholder="Pergunte qualquer coisa..." id="userInput" rows="1"></textarea>
+
+<div class="flex items-center justify-between gap-3 mt-2 px-1">
+<div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+    <!-- Vídeo Bilu -->
+    <video id="inputVideo" autoplay muted loop playsinline class="w-8 h-8 rounded-lg object-cover hidden cursor-pointer hover:scale-105 transition-transform" style="display:none;" onclick="showBiluCard()" title="Família Bilu">
+        <source src="img/Video Project.mp4" type="video/mp4">
+    </video>
+
+    <!-- Attach -->
+    <button id="attachFileBtn" class="p-2 rounded-lg transition-colors" style="color:#475569" title="Anexar arquivo">
+        <span class="material-icons-outlined" style="font-size:1.1rem">attach_file</span>
+    </button>
+
+    <!-- Attach dropdown -->
+    <div id="attachDropdown" class="hidden absolute bottom-full left-0 mb-3 rounded-2xl shadow-2xl overflow-hidden min-w-[280px] z-50" style="background:rgba(10,15,28,0.98);border:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(20px);">
+        <div class="p-2">
+            <div class="text-xs font-semibold uppercase tracking-widest px-3 py-2 mb-1" style="color:#334155;letter-spacing:0.08em">Opções de Anexo</div>
+            <button id="attachFileOptionBtn" class="w-full px-4 py-3 text-left transition-all rounded-xl group flex items-center gap-3 hover:bg-white/5">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(59,130,246,0.12)">
+                    <span class="material-icons-outlined text-blue-400" style="font-size:1rem">upload_file</span>
+                </div>
+                <div class="flex-1">
+                    <div class="text-sm font-semibold text-slate-200">Selecionar Arquivo</div>
+                    <div class="text-xs text-slate-500">Documentos, imagens, código...</div>
+                </div>
+            </button>
+            <div class="h-px my-1" style="background:rgba(255,255,255,0.06)"></div>
+            <button id="takePhotoOptionBtn" class="w-full px-4 py-3 text-left transition-all rounded-xl group flex items-center gap-3 hover:bg-white/5">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(34,197,94,0.1)">
+                    <span class="material-icons-outlined text-green-400" style="font-size:1rem">photo_camera</span>
+                </div>
+                <div class="flex-1">
+                    <div class="text-sm font-semibold text-slate-200">Tirar Foto</div>
+                    <div class="text-xs text-slate-500">Usar a câmera do dispositivo</div>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <!-- Web Search -->
+    <button id="webSearchToggle" class="toolbar-btn" onclick="toggleWebSearch()">
+        <span class="material-icons-outlined" style="font-size:1rem">search</span>
+        <span id="webSearchText">Pesquisa Web</span>
+        <span class="material-icons-outlined hidden" style="font-size:0.85rem" id="webSearchClose">close</span>
+    </button>
+
+    <!-- Hidden file inputs -->
+    <input type="file" id="codeFileInput" class="hidden" multiple accept=".js,.py,.html,.htm,.css,.md,.txt,.json" />
+    <input type="file" id="imageFileInput" class="hidden" multiple accept=".jpg,.jpeg,.png,.gif,.webp" />
+</div>
+
+<div class="flex items-center gap-2">
+    <!-- Model selector -->
+    <div class="relative" id="modelSelectorContainer">
+        <button class="toolbar-btn" id="modelButton">
+            <span class="material-icons-outlined" style="font-size:1rem">psychology</span>
+            <span id="modelButtonText">Raciocínio</span>
+            <span class="material-icons-outlined" style="font-size:0.85rem">expand_more</span>
+        </button>
+    </div>
+
+    <!-- Voice -->
+    <button id="voiceButton" class="w-9 h-9 rounded-full flex items-center justify-center transition-all" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:#64748b" title="Gravar áudio">
+        <span class="material-icons-outlined" style="font-size:1.1rem" id="voiceIcon">mic</span>
+    </button>
+
+    <!-- Send -->
+    <button class="w-9 h-9 rounded-full flex items-center justify-center text-white" id="sendButton" style="background:linear-gradient(135deg,#3b82f6,#2563eb);box-shadow:none">
+        <span class="material-icons-outlined" style="font-size:1.1rem">arrow_upward</span>
+    </button>
 </div>
 </div>
 
-<!-- Botão de scroll para baixo -->
-<button class="absolute bottom-24 right-6 w-12 h-12 rounded-full bg-primary hover:bg-primary/90 text-white shadow-lg shadow-blue-500/30 transition-all transform hover:scale-110 active:scale-95 opacity-0 pointer-events-none animate-fadeIn" id="scrollToBottomBtn" title="Voltar para mensagem mais recente" style="margin-right: 1rem;">
-<span class="material-icons-outlined text-xl">arrow_downward</span>
+</div>
+</div>
+
+<!-- Scroll to bottom -->
+<button class="absolute right-6 w-10 h-10 rounded-full flex items-center justify-center opacity-0 pointer-events-none animate-fadeIn transition-all" id="scrollToBottomBtn" style="bottom:5rem;background:rgba(15,23,42,0.9);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;box-shadow:none">
+    <span class="material-icons-outlined" style="font-size:1.1rem">arrow_downward</span>
 </button>
 </div>
 </div>
@@ -391,7 +741,6 @@
 <!-- Card de Erro de API -->
 <div id="apiErrorCard" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn pointer-events-none">
     <div class="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl shadow-2xl max-w-md w-full animate-scaleIn pointer-events-auto p-6">
-        <!-- Header -->
         <div class="text-center mb-4">
             <div class="w-16 h-16 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span class="material-icons-outlined text-3xl text-red-600 dark:text-red-400">close</span>
@@ -400,13 +749,9 @@
             <p class="text-red-700 dark:text-red-300 mb-4">Ocorreu um erro no nosso sistema</p>
             <p class="text-sm text-red-600 dark:text-red-400" id="retryMessage">Tentando novamente em 10 segundos...</p>
         </div>
-        
-        <!-- Loading indicator -->
         <div class="flex justify-center mb-4">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600"></div>
         </div>
-        
-        <!-- Footer -->
         <div class="text-center">
             <button onclick="cancelApiRetry()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm">
                 Cancelar
@@ -418,30 +763,22 @@
 <!-- Card da Família Bilu -->
 <div id="biluFamilyCard" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn pointer-events-none" onclick="if(event.target === this) { hideBiluCard(); }">
     <div class="bg-white dark:bg-gray-950 rounded-xl border border-gray-200 dark:border-gray-800 shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-scaleIn pointer-events-auto p-6">
-        <!-- Header -->
         <div class="text-center mb-6">
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Essa é a família Bilu</h2>
         </div>
-        
-        <!-- Grid de Vídeos -->
         <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mb-6">
-            <!-- Vídeo 1: Bilu (existente) -->
             <div class="video-slot">
                 <video autoplay muted loop playsinline class="w-full h-32 object-cover rounded-lg cursor-pointer hover:scale-105 transition-transform" onclick="selectBiluVideo('img/Video Project.mp4', 'Bilu')">
                     <source src="img/Video Project.mp4" type="video/mp4">
                 </video>
                 <p class="text-xs text-center mt-1 text-gray-600 dark:text-gray-400">Bilu</p>
             </div>
-            
-            <!-- Vídeo 2: Kino (novo) -->
             <div class="video-slot">
                 <video autoplay muted loop playsinline class="w-full h-32 object-cover rounded-lg cursor-pointer hover:scale-105 transition-transform" onclick="selectBiluVideo('img/Video Project2.mp4', 'Kino')">
                     <source src="img/Video Project2.mp4" type="video/mp4">
                 </video>
                 <p class="text-xs text-center mt-1 text-gray-600 dark:text-gray-400">Kino</p>
             </div>
-            
-            <!-- Vídeos 3-6: Placeholders -->
             <div class="video-slot">
                 <div class="w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
                     <span class="material-icons-outlined text-gray-400 dark:text-gray-500">add_circle_outline</span>
@@ -466,8 +803,7 @@
                 </div>
                 <p class="text-xs text-center mt-1 text-gray-600 dark:text-gray-400">Vazio</p>
             </div>
-        
-        <!-- Footer -->
+        </div>
         <div class="text-center">
             <button onclick="hideBiluCard()" class="px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-full font-medium transition-colors">
                 Fechar
@@ -475,157 +811,181 @@
         </div>
     </div>
 </div>
+<!-- Card da Câmera -->
+<div id="cameraCard" class="fixed inset-0 z-[60] hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+    <div class="bg-gray-950 rounded-2xl border border-white/10 shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col">
+        <div class="p-4 border-b border-white/10 flex justify-between items-center bg-gray-900">
+            <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                <span class="material-icons-outlined text-blue-400">photo_camera</span>
+                Tirar Foto
+            </h2>
+            <button id="closeCameraBtn" class="p-2 hover:bg-white/5 rounded-full text-gray-400 transition-colors">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        
+        <div class="relative bg-black flex-1 min-h-[300px] flex items-center justify-center">
+            <video id="cameraVideo" autoplay playsinline class="w-full h-full object-contain"></video>
+            <canvas id="cameraCanvas" class="hidden"></canvas>
+            <div id="cameraLoading" class="absolute inset-0 flex flex-center justify-center items-center bg-black/50 hidden">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+        </div>
+        
+        <div class="p-6 bg-gray-900 flex justify-center items-center gap-6">
+            <button id="switchCameraBtn" class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-all">
+                <span class="material-icons-outlined">flip_camera_ios</span>
+            </button>
+            
+            <button id="takePhotoBtn" class="w-16 h-16 rounded-full bg-white p-1 flex items-center justify-center group active:scale-95 transition-all">
+                <div class="w-full h-full rounded-full border-4 border-gray-900 flex items-center justify-center">
+                    <div class="w-10 h-10 rounded-full bg-blue-500 group-hover:bg-blue-600 transition-colors"></div>
+                </div>
+            </button>
+            
+            <div class="w-12 h-12"></div>
+        </div>
+    </div>
+</div>
+
 </main>
 
 <script type="module" src="main.js" defer></script>
 <script>
-// Forçar tema escuro em qualquer computador
+// Sistema de rotação de títulos (só ao atualizar página)
+const titleMessages = [
+    // Diretas e Prestativas
+    "Como posso ajudar?",
+    "O que vamos resolver hoje?",
+    "Em que posso ser útil agora?",
+    "Como posso facilitar o seu dia?",
+    "Pronto para ajudar. O que você precisa?",
+    "Diga-me: qual o desafio de hoje?",
+    
+    // Criativas e Inspiradoras
+    "O que vamos criar juntos?",
+    "Luz, câmera, ideia! Por onde começamos?",
+    "Transforme seus pensamentos em realidade.",
+    "Qual é a grande ideia de hoje?",
+    "Espaço aberto para sua imaginação. O que faremos?",
+    
+    // Produtividade e Foco
+    "Mãos à obra. Como posso te apoiar?",
+    "Vamos otimizar suas tarefas?",
+    "Sua central de comando está pronta.",
+    "Pronto para decolar seu projeto?",
+    "Foco total. O que temos na lista?",
+    
+    // Amigáveis e Casuais
+    "Oi! O que passa pela sua cabeça?",
+    "Tudo pronto por aqui. E por aí?",
+    "Estou à disposição. No que posso atuar?",
+    "Bora colocar as ideias em ordem?"
+];
+
+// Escolhe título aleatório só ao carregar a página
+function setRandomTitle() {
+    const titleElement = document.querySelector('.metallic-title');
+    if (!titleElement) return;
+    
+    const randomIndex = Math.floor(Math.random() * titleMessages.length);
+    const randomTitle = titleMessages[randomIndex];
+    titleElement.textContent = randomTitle;
+}
+
+// Iniciar quando a página carregar
 document.addEventListener('DOMContentLoaded', function() {
-    // Adicionar classe 'dark' ao HTML para forçar tema escuro
+    // Forçar tema escuro
     document.documentElement.classList.add('dark');
-    
-    // Também forçar no body
     document.body.classList.add('dark');
-    
-    // Salvar preferência no localStorage
     localStorage.setItem('theme', 'dark');
-    
     console.log('🌙 Tema escuro forçado com sucesso!');
+    
+    // Define título aleatório
+    setRandomTitle();
 });
 
 // Controle do modo de pesquisa web
 window.isWebSearchMode = false;
 
 function toggleWebSearch() {
-    console.log('🔍 [TOGGLE] toggleWebSearch chamada!');
-    
     const toggle = document.getElementById('webSearchToggle');
     const searchText = document.getElementById('webSearchText');
     const closeIcon = document.getElementById('webSearchClose');
     const searchIcon = toggle.querySelector('.material-icons-outlined.text-base');
     
-    console.log('🔍 [TOGGLE] window.isWebSearchMode antes:', window.isWebSearchMode);
     window.isWebSearchMode = !window.isWebSearchMode;
-    console.log('🔍 [TOGGLE] window.isWebSearchMode depois:', window.isWebSearchMode);
     
     if (window.isWebSearchMode) {
-        // Ativar modo pesquisa
         toggle.classList.add('active');
         searchText.textContent = 'Pesquisando';
         closeIcon.classList.remove('hidden');
         searchIcon.textContent = 'search';
-        
-        // Mudar placeholder do input
         const userInput = document.getElementById('userInput');
-        if (userInput) {
-            userInput.placeholder = 'Digite sua pergunta para pesquisar na web...';
-        }
-        
-        console.log('✅ Modo pesquisa WEB ATIVADO');
-        
+        if (userInput) userInput.placeholder = 'Digite sua pergunta para pesquisar na web...';
     } else {
-        // Desativar modo pesquisa
         toggle.classList.remove('active');
         searchText.textContent = 'Pesquisa Web';
         closeIcon.classList.add('hidden');
         searchIcon.textContent = 'search';
-        
-        // Voltar placeholder original
         const userInput = document.getElementById('userInput');
-        if (userInput) {
-            userInput.placeholder = 'Como posso ajudar com seu código hoje?';
-        }
-        
-        console.log('❌ Modo pesquisa WEB DESATIVADO');
+        if (userInput) userInput.placeholder = 'Como posso ajudar com seu código hoje?';
     }
 }
-
-// Expor função globalmente
 window.toggleWebSearch = toggleWebSearch;
 
-// Funcionalidade de gravação de voz
+// Gravação de voz
 class VoiceRecorder {
     constructor() {
         this.isRecording = false;
-        this.mediaRecorder = null;
-        this.audioChunks = [];
         this.recognition = null;
         this.voiceButton = document.getElementById('voiceButton');
         this.voiceIcon = document.getElementById('voiceIcon');
         this.userInput = document.getElementById('userInput');
-        
         this.init();
     }
     
     init() {
-        // Verificar suporte à Web Speech API
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             this.recognition = new SpeechRecognition();
             this.recognition.continuous = false;
             this.recognition.interimResults = false;
             this.recognition.lang = 'pt-BR';
-            
             this.recognition.onresult = (event) => {
                 const transcript = event.results[0][0].transcript;
                 this.userInput.value = transcript;
                 this.stopRecording();
             };
-            
-            this.recognition.onerror = (event) => {
-                console.error('Erro no reconhecimento de voz:', event.error);
-                this.stopRecording();
-            };
-            
-            this.recognition.onend = () => {
-                this.stopRecording();
-            };
+            this.recognition.onerror = () => this.stopRecording();
+            this.recognition.onend = () => this.stopRecording();
         } else {
-            console.warn('Web Speech API não suportada neste navegador');
             this.voiceButton.style.display = 'none';
         }
-        
-        // Event listener
         this.voiceButton.addEventListener('click', () => {
-            if (this.isRecording) {
-                this.stopRecording();
-            } else {
-                this.startRecording();
-            }
+            if (this.isRecording) this.stopRecording();
+            else this.startRecording();
         });
     }
     
     startRecording() {
         if (!this.recognition) return;
-        
         this.isRecording = true;
         this.voiceButton.classList.add('bg-red-500', 'hover:bg-red-600');
         this.voiceButton.classList.remove('bg-gray-100', 'dark:bg-gray-700', 'hover:bg-gray-200', 'dark:hover:bg-gray-600');
         this.voiceIcon.textContent = 'stop';
         this.voiceButton.title = 'Parar gravação';
-        
-        try {
-            this.recognition.start();
-        } catch (error) {
-            console.error('Erro ao iniciar gravação:', error);
-            this.stopRecording();
-        }
+        try { this.recognition.start(); } catch (e) { this.stopRecording(); }
     }
     
     stopRecording() {
         if (!this.recognition || !this.isRecording) return;
-        
         this.isRecording = false;
         this.voiceButton.classList.remove('bg-red-500', 'hover:bg-red-600');
         this.voiceButton.classList.add('bg-gray-100', 'dark:bg-gray-700', 'hover:bg-gray-200', 'dark:hover:bg-gray-600');
         this.voiceIcon.textContent = 'mic';
         this.voiceButton.title = 'Gravar áudio';
-        
-        try {
-            this.recognition.stop();
-        } catch (error) {
-            console.error('Erro ao parar gravação:', error);
-        }
+        try { this.recognition.stop(); } catch (e) {}
     }
 }
 
@@ -634,73 +994,30 @@ class ConversationTitleManager {
     constructor() {
         this.conversationTitle = document.getElementById('conversationTitle');
         this.currentChatId = null;
-        
-        console.log('🗣️ ConversationTitleManager inicializado');
-        
-        // Observar mudanças no chat atual
         this.observeChatChanges();
-        
-        // Verificar se há um chat ativo ao carregar
         setTimeout(() => this.updateTitle(), 1000);
     }
     
     observeChatChanges() {
-        // Observar mudanças no container de mensagens
         const messagesContainer = document.getElementById('messagesContainer');
         if (messagesContainer) {
-            const observer = new MutationObserver(() => {
-                this.updateTitle();
-            });
-            
-            observer.observe(messagesContainer, {
-                childList: true,
-                subtree: true,
-                attributes: false,
-                characterData: false
-            });
+            new MutationObserver(() => this.updateTitle()).observe(messagesContainer, { childList: true, subtree: true });
         }
-        
-        // Observar mudanças na lista de chats
         const chatHistoryList = document.getElementById('chatHistoryList');
         if (chatHistoryList) {
-            const observer = new MutationObserver(() => {
-                this.updateTitle();
-            });
-            
-            observer.observe(chatHistoryList, {
-                childList: true,
-                subtree: true,
-                attributes: false,
-                characterData: false
-            });
+            new MutationObserver(() => this.updateTitle()).observe(chatHistoryList, { childList: true, subtree: true });
         }
     }
     
     updateTitle() {
         try {
-            // Tentar obter o chat atual do UI
-            if (window.ui && window.ui.currentChatId) {
-                this.currentChatId = window.ui.currentChatId;
-            }
-            
-            // Se não houver chat ativo, limpar o título
-            if (!this.currentChatId) {
-                this.conversationTitle.textContent = '';
-                return;
-            }
-            
-            // Tentar obter o título do chat atual
+            if (window.ui && window.ui.currentChatId) this.currentChatId = window.ui.currentChatId;
+            if (!this.currentChatId) { this.conversationTitle.textContent = ''; return; }
             let chatTitle = '';
-            
-            // Verificar se há um chat ativo no sistema
             if (window.ui && window.ui.chats) {
                 const currentChat = window.ui.chats.find(chat => chat.id === this.currentChatId);
-                if (currentChat && currentChat.title) {
-                    chatTitle = currentChat.title;
-                }
+                if (currentChat && currentChat.title) chatTitle = currentChat.title;
             }
-            
-            // Se não tiver título, usar a primeira mensagem como título
             if (!chatTitle) {
                 const firstMessage = document.querySelector('#messagesContainer > div:first-child .message-content');
                 if (firstMessage) {
@@ -708,140 +1025,79 @@ class ConversationTitleManager {
                     chatTitle = text.length > 50 ? text.substring(0, 50) + '...' : text;
                 }
             }
-            
-            // Se ainda não tiver título, usar um padrão
-            if (!chatTitle) {
-                chatTitle = 'Nova Conversa';
-            }
-            
+            if (!chatTitle) chatTitle = 'Nova Conversa';
             this.conversationTitle.textContent = chatTitle;
-            
-        } catch (error) {
-            console.error('Erro ao atualizar título da conversa:', error);
-            this.conversationTitle.textContent = '';
-        }
+        } catch (e) { this.conversationTitle.textContent = ''; }
     }
     
-    // Método para ser chamado externamente quando mudar de chat
     setCurrentChat(chatId, title = '') {
         this.currentChatId = chatId;
         this.conversationTitle.textContent = title;
     }
     
-    // Método para limpar o título
     clearTitle() {
         this.currentChatId = null;
         this.conversationTitle.textContent = '';
     }
-    
-    // Método de teste
-    testTitle() {
-        console.log('🧪 Testando título da conversa...');
-        console.log('Elemento do título:', this.conversationTitle);
-        console.log('Conteúdo atual:', this.conversationTitle.textContent);
-        console.log('UI disponível:', !!window.ui);
-        
-        // Testar com um título fixo
-        this.conversationTitle.textContent = 'Conversa de Teste';
-        console.log('✅ Título de teste aplicado!');
-    }
 }
-
 </script>
 <script>
-// Variáveis globais para controle de retry
+// Variáveis globais para retry
 window.apiRetryTimeout = null;
 window.apiRetryCount = 0;
 window.lastFailedMessage = null;
 window.lastFailedFiles = null;
 
-// Funções para o card de erro de API
 function showApiErrorCard() {
     const card = document.getElementById('apiErrorCard');
-    if (card) {
-        card.classList.remove('hidden');
-        card.classList.remove('pointer-events-none');
-    }
+    if (card) { card.classList.remove('hidden'); card.classList.remove('pointer-events-none'); }
 }
-
 function hideApiErrorCard() {
     const card = document.getElementById('apiErrorCard');
-    if (card) {
-        card.classList.add('hidden');
-        card.classList.add('pointer-events-none');
-    }
+    if (card) { card.classList.add('hidden'); card.classList.add('pointer-events-none'); }
 }
-
 function cancelApiRetry() {
-    if (window.apiRetryTimeout) {
-        clearTimeout(window.apiRetryTimeout);
-        window.apiRetryTimeout = null;
-    }
+    if (window.apiRetryTimeout) { clearTimeout(window.apiRetryTimeout); window.apiRetryTimeout = null; }
     hideApiErrorCard();
     window.apiRetryCount = 0;
     window.lastFailedMessage = null;
     window.lastFailedFiles = null;
 }
-
 function updateRetryMessage(seconds) {
     const messageEl = document.getElementById('retryMessage');
-    if (messageEl) {
-        messageEl.textContent = `Tentando novamente em ${seconds} segundos...`;
-    }
+    if (messageEl) messageEl.textContent = `Tentando novamente em ${seconds} segundos...`;
 }
-
 function scheduleApiRetry(message, files) {
-    // Salvar a última tentativa falha
     window.lastFailedMessage = message;
     window.lastFailedFiles = files;
-    
-    // Calcular tempo de espera (10s, 1m20s, 2m30s, etc)
-    let waitTime;
-    if (window.apiRetryCount === 0) {
-        waitTime = 10000; // 10 segundos
-    } else {
-        waitTime = 80000 * (window.apiRetryCount + 1); // 1m20s, 2m40s, 4m, etc
-    }
-    
-    // Mostrar o card
+    let waitTime = window.apiRetryCount === 0 ? 10000 : 80000 * (window.apiRetryCount + 1);
     showApiErrorCard();
-    
-    // Countdown
     let remainingSeconds = Math.floor(waitTime / 1000);
     updateRetryMessage(remainingSeconds);
-    
     const countdownInterval = setInterval(() => {
         remainingSeconds--;
         updateRetryMessage(remainingSeconds);
-        if (remainingSeconds <= 0) {
-            clearInterval(countdownInterval);
-        }
+        if (remainingSeconds <= 0) clearInterval(countdownInterval);
     }, 1000);
-    
-    // Agendar retry
     window.apiRetryTimeout = setTimeout(() => {
         clearInterval(countdownInterval);
         hideApiErrorCard();
         window.apiRetryCount++;
-        
-        // Tentar novamente
         if (window.ui && window.ui.agent) {
             window.ui.agent.processMessage(message, files).catch(error => {
                 console.error('Retry failed:', error);
-                scheduleApiRetry(message, files); // Tentar novamente
+                scheduleApiRetry(message, files);
             });
         }
     }, waitTime);
 }
 
-// Expor funções globalmente para o agent.js poder acessar
 window.showApiErrorCard = showApiErrorCard;
 window.hideApiErrorCard = hideApiErrorCard;
 window.cancelApiRetry = cancelApiRetry;
 window.updateRetryMessage = updateRetryMessage;
 window.scheduleApiRetry = scheduleApiRetry;
 
-// Expor sistema de memória globalmente
 window.memoryStats = () => {
     if (window.ui && window.ui.agent && window.ui.agent.memory) {
         const stats = window.ui.agent.memory.getMemoryStats();
@@ -849,14 +1105,12 @@ window.memoryStats = () => {
         return stats;
     }
 };
-
 window.clearMemory = () => {
     if (window.ui && window.ui.agent && window.ui.agent.memory) {
         window.ui.agent.memory.clearMemory();
-        console.log('🧹 Memória limpa com sucesso!');
+        console.log('🧹 Memória limpa!');
     }
 };
-
 window.showMemory = () => {
     if (window.ui && window.ui.agent && window.ui.agent.memory) {
         const memory = window.ui.agent.memory;
@@ -866,161 +1120,84 @@ window.showMemory = () => {
     }
 };
 
-// Funções globais para o card da família Bilu (definidas antes de qualquer uso)
 function showBiluCard() {
     const card = document.getElementById('biluFamilyCard');
-    if (card) {
-        card.classList.remove('hidden');
-        card.classList.remove('pointer-events-none');
-    }
+    if (card) { card.classList.remove('hidden'); card.classList.remove('pointer-events-none'); }
 }
-
 function hideBiluCard() {
     const card = document.getElementById('biluFamilyCard');
-    if (card) {
-        card.classList.add('hidden');
-        card.classList.add('pointer-events-none');
-    }
+    if (card) { card.classList.add('hidden'); card.classList.add('pointer-events-none'); }
 }
-
 function selectBiluVideo(videoPath, characterName) {
-    // Atualizar o vídeo do input
     const inputVideo = document.getElementById('inputVideo');
-    if (inputVideo) {
-        inputVideo.querySelector('source').src = videoPath;
-        // Não chamar load() para não interromper a reprodução contínua
-    }
-    
-    // Fechar o card
+    if (inputVideo) inputVideo.querySelector('source').src = videoPath;
     hideBiluCard();
-    
-    // Mostrar o vídeo (se já estiver na tela de chat)
     showInputVideo();
 }
 
-// Lógica para mover a caixa de input para baixo quando enviar mensagem
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 DOM carregado, inicializando componentes...');
     new VoiceRecorder();
     
-    // Inicializar ConversationTitleManager após um pequeno delay
     setTimeout(() => {
-        console.log('🗣️ Inicializando ConversationTitleManager...');
         window.conversationTitleManager = new ConversationTitleManager();
-        
-        // Expor função de teste globalmente
         window.testConversationTitle = () => {
-            if (window.conversationTitleManager) {
-                window.conversationTitleManager.testTitle();
-            } else {
-                console.log('❌ ConversationTitleManager não encontrado');
-            }
+            if (window.conversationTitleManager) window.conversationTitleManager.testTitle();
         };
-        
-        console.log('✅ Teste disponível: window.testConversationTitle()');
     }, 500);
     
-    const inputWrapper = document.getElementById('inputWrapper');
     const userInput = document.getElementById('userInput');
+    const sendButton = document.getElementById('sendButton');
     
-    // Função para rolar para a mensagem mais recente
-    function scrollToBottom() {
-        const messagesContainer = document.getElementById('messagesContainer');
-        if (messagesContainer) {
-            setTimeout(() => {
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            }, 100);
-        }
-    }
-    
-    // Função para rolar suavemente para o final
     function smoothScrollToBottom() {
         const messagesContainer = document.getElementById('messagesContainer');
         if (messagesContainer) {
             setTimeout(() => {
-                messagesContainer.scrollTo({
-                    top: messagesContainer.scrollHeight,
-                    behavior: 'smooth'
-                });
+                messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
             }, 100);
         }
     }
     
-    // Observer para detectar novas mensagens
     function setupMessageObserver() {
         const messagesContainer = document.getElementById('messagesContainer');
         if (messagesContainer) {
-            const observer = new MutationObserver((mutations) => {
-                let shouldScroll = false;
-                
-                mutations.forEach((mutation) => {
-                    if (mutation.type === 'childList') {
-                        // Verifica qualquer nó adicionado que não seja apenas texto
-                        Array.from(mutation.addedNodes).forEach(node => {
-                            if (node.nodeType === 1) { // Element node
-                                shouldScroll = true;
-                            }
-                        });
-                    }
-                });
-                
-                if (shouldScroll) {
-                    setTimeout(smoothScrollToBottom, 100);
-                }
-            });
-            
-            observer.observe(messagesContainer, {
-                childList: true,
-                subtree: true,
-                attributes: false,
-                characterData: false
-            });
+            new MutationObserver((mutations) => {
+                let shouldScroll = mutations.some(m => m.type === 'childList' && Array.from(m.addedNodes).some(n => n.nodeType === 1));
+                if (shouldScroll) setTimeout(smoothScrollToBottom, 100);
+            }).observe(messagesContainer, { childList: true, subtree: true });
         }
     }
     
-    // Fallback: verificar periodicamente se há novas mensagens
+    setupMessageObserver();
+    
     let lastMessageCount = 0;
+    let checkInterval;
     function checkForNewMessages() {
         const messagesContainer = document.getElementById('messagesContainer');
         if (messagesContainer) {
             const currentCount = messagesContainer.children.length;
-            if (currentCount > lastMessageCount) {
-                smoothScrollToBottom();
-                lastMessageCount = currentCount;
-            }
+            if (currentCount > lastMessageCount) { smoothScrollToBottom(); lastMessageCount = currentCount; }
         }
     }
-    
-    // Verificar a cada 500ms durante os primeiros 10 segundos de atividade
-    let checkInterval;
     function startPeriodicCheck() {
+        clearInterval(checkInterval);
         checkInterval = setInterval(checkForNewMessages, 500);
+        setTimeout(() => clearInterval(checkInterval), 15000);
     }
     
-    // Rolar para baixo quando enviar mensagem
     if (sendButton) {
         sendButton.addEventListener('click', function() {
-            setTimeout(moveInputDown, 50);
             setTimeout(smoothScrollToBottom, 200);
-            setTimeout(showInputVideo, 100); // Mostrar vídeo após enviar
-            startPeriodicCheck(); // Ativar verificação periódica
+            startPeriodicCheck();
         });
     }
-    
-    // Rolar para baixo quando pressionar Enter
     if (userInput) {
         userInput.addEventListener('keydown', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
-                setTimeout(moveInputDown, 50);
                 setTimeout(smoothScrollToBottom, 200);
-                setTimeout(showInputVideo, 100); // Mostrar vídeo após enviar
-                startPeriodicCheck(); // Ativar verificação periódica
+                startPeriodicCheck();
             }
         });
     }
-    
-    // Opcional: voltar para cima se não houver mensagens
-    // Isso pode ser implementado depois quando tivermos a lógica de mensagens
 });
 </script>
 </body>

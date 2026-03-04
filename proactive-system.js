@@ -95,7 +95,7 @@ ${fileContent.substring(0, 2000)}
                                 </span>
                             </div>
                             <p style="font-size: 0.75rem; color: #4b5563; margin-bottom: 0.5rem;">${s.description}</p>
-                            <button onclick="window.suggestionSystem?.askForImplementation('${s.title}')" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: ${style.bg}; color: ${style.text}; border: none; border-radius: 0.25rem; cursor: pointer; transition: opacity 0.2s; font-weight: 500;">
+                            <button onclick="window.suggestionSystem && window.suggestionSystem.askForImplementation && window.suggestionSystem.askForImplementation('${s.title}')" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: ${style.bg}; color: ${style.text}; border: none; border-radius: 0.25rem; cursor: pointer; transition: opacity 0.2s; font-weight: 500;">
                                 ✨ Aplicar sugestão
                             </button>
                         </div>
