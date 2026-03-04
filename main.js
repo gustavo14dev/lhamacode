@@ -247,7 +247,9 @@ class UI {
                 file: file,
                 preview: e.target.result,
                 name: file.name,
-                type: file.type
+                mime: file.type,
+                type: 'image',
+                content: e.target.result
             };
             
             this.attachedFiles.push(attachment);
@@ -2724,6 +2726,20 @@ ${latexCode}
 
         if (this.attachedFiles && this.attachedFiles.length > 0) {
 
+            const dataUrlToFile = (dataUrl, filename, mimeFallback = 'application/octet-stream') => {
+                const m = String(dataUrl || '').match(/^data:([^;]+);base64,(.*)$/);
+                if (!m) {
+                    // Não é base64; tenta como texto
+                    return new File([String(dataUrl || '')], filename, { type: mimeFallback });
+                }
+                const mime = m[1] || mimeFallback;
+                const b64 = m[2] || '';
+                const binary = atob(b64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                return new File([bytes], filename, { type: mime });
+            };
+
             // Garantir máximo 3 para código, 5 para imagens
 
             const codeFiles = this.attachedFiles.filter(f => f.type === 'code').slice(0, 3);
@@ -2734,17 +2750,32 @@ ${latexCode}
 
             
 
-            sendFiles = this.attachedFiles.map(f => ({ 
+            // IMPORTANT: para Gemini, precisamos enviar File real no FormData
+            sendFiles = this.attachedFiles.map(f => {
+                // Já é File (caso do addAttachment)
+                if (f && f.file instanceof File) {
+                    return { name: f.name, file: f.file, type: f.type, mime: f.mime };
+                }
 
-                name: f.name, 
+                // Código anexado (conteúdo texto)
+                if (f && f.type === 'code') {
+                    const mime = f.mime || 'text/plain';
+                    const fileObj = new File([String(f.content || '')], f.name || `file_${Date.now()}.txt`, { type: mime });
+                    return { name: f.name, file: fileObj, type: f.type, mime };
+                }
 
-                content: f.content,
+                // Imagem anexada como dataURL/base64
+                if (f && f.type === 'image') {
+                    const fileObj = dataUrlToFile(f.content, f.name || `image_${Date.now()}.png`, f.mime || 'image/png');
+                    return { name: f.name, file: fileObj, type: f.type, mime: f.mime };
+                }
 
-                type: f.type,
-
-                mime: f.mime
-
-            }));
+                // Fallback
+                const fallbackName = (f && f.name) ? f.name : `file_${Date.now()}.txt`;
+                const fallbackMime = (f && f.mime) ? f.mime : 'text/plain';
+                const fallbackFile = new File([String((f && f.content) || '')], fallbackName, { type: fallbackMime });
+                return { name: fallbackName, file: fallbackFile, type: (f && f.type) || 'code', mime: fallbackMime };
+            });
 
             console.log('📎 [DEBUG] Anexos prontos para envio:', sendFiles);
             
