@@ -5753,7 +5753,7 @@ ${latexCode}
             this.setThinkingHeader('🔍 Pesquisando...', messageContainer.headerId);
                 
             // Iniciar busca de imagens em paralelo
-            const imagesPromise = this.agent.searchPexelsImages(message);
+            const imagesPromise = this.agent.searchUnsplashImages(message);
                 
             // Obter histórico da conversa atual
             const currentChat = this.chats.find(c => c.id === this.currentChatId);

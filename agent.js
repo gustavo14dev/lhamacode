@@ -296,7 +296,7 @@ export class Agent {
         this.addToHistory('user', userMessage);
         
         // Iniciar busca de imagens em paralelo
-        const imagesPromise = this.searchPexelsImages(userMessage);
+        const imagesPromise = this.searchUnsplashImages(userMessage);
 
         try {
             // Construir prompt com contexto da memória
@@ -400,7 +400,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         try {
             // BUSCAR IMAGENS PRIMEIRO - antes de chamar a API
             console.log('🔄 [DEBUG-IMAGEM] Buscando imagens ANTES da resposta...');
-            const images = await this.searchPexelsImages(userMessage);
+            const images = await this.searchUnsplashImages(userMessage);
             console.log('📦 [DEBUG-IMAGEM] Imagens recebidas:', images);
             
             // Adicionar imagens ANTES da resposta
@@ -452,18 +452,20 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.memory.addConversationMemory('assistant', response);
             this.memory.learnFromInteraction(userMessage, response);
             
+            // PRIMEIRO: Adicionar imagens ANTES da resposta
+            console.log('🔄 [DEBUG] Adicionando imagens ANTES da resposta...');
+            const images = await imagesPromise;
+            console.log('📦 [DEBUG] Imagens recebidas:', images);
+            
+            if (images && images.length > 0) {
+                console.log('✅ [DEBUG] Adicionando imagens ANTES da resposta');
+                this.ui.appendImagesToMessage(messageContainer.responseId, images);
+            } else {
+                console.log('❌ [DEBUG] Nenhuma imagem encontrada ou array vazio');
+            }
+            
+            // SEGUNDO: Adicionar resposta
             this.ui.setResponseText(response, messageContainer.responseId, async () => {
-                // Adicionar imagens DEPOIS do texto (para não serem sobrescritas)
-                console.log('🔄 [DEBUG] Adicionando imagens DEPOIS do texto...');
-                const images = await imagesPromise;
-                console.log('📦 [DEBUG] Imagens recebidas:', images);
-                
-                if (images && images.length > 0) {
-                    console.log('✅ [DEBUG] Adicionando imagens DEPOIS da resposta');
-                    this.ui.appendImagesToMessage(messageContainer.responseId, images);
-                } else {
-                    console.log('❌ [DEBUG] Nenhuma imagem encontrada ou array vazio');
-                }
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
             });
@@ -489,7 +491,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         this.addToHistory('user', userMessage);
         
         // Iniciar busca de imagens em paralelo
-        const imagesPromise = this.searchPexelsImages(userMessage);
+        const imagesPromise = this.searchUnsplashImages(userMessage);
 
         try {
             // Gerar checks antes da chamada Mistral para mostrar raciocínio também neste fluxo
@@ -560,10 +562,13 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.memory.addConversationMemory('assistant', response);
             this.memory.learnFromInteraction(userMessage, response);
             
+            // PRIMEIRO: Adicionar imagens ANTES da resposta
+            await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
+            
+            // SEGUNDO: Adicionar resposta
             this.ui.setResponseText(response, messageContainer.responseId);
             await this.ui.sleep(500);
             this.ui.setResponseText(response, messageContainer.responseId, async () => {
-                await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
             });
@@ -752,7 +757,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             
             // BUSCAR IMAGENS E INFORMAÇÕES WEB EM PARALELO - antes de chamar a API
             console.log('🔄 [DEBUG-RAPIDO] Buscando imagens e informações web ANTES da resposta...');
-            const imagesPromise = this.searchPexelsImages(userMessage);
+            const imagesPromise = this.searchUnsplashImages(userMessage);
             const webSearchPromise = this.searchWebForResponse(userMessage);
             
             const [images, webData] = await Promise.all([imagesPromise, webSearchPromise]);
@@ -843,7 +848,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         
         try {
             // Buscar dados web antes de chamar a API
-            const imagesPromise = this.searchPexelsImages(userMessage);
+            const imagesPromise = this.searchUnsplashImages(userMessage);
             const webSearchPromise = this.searchWebForResponse(userMessage);
             const [images, webData] = await Promise.all([imagesPromise, webSearchPromise]);
             console.log('📦 [RACIOCINIO] Imagens recebidas:', images);
@@ -934,16 +939,19 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.ui.setThinkingHeader('Pensando...', messageContainer.headerId);
             
             // Mostrar resposta final com animação letra por letra
+            // PRIMEIRO: Adicionar imagens ANTES da resposta
+            await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
+            
+            // SEGUNDO: Mostrar resposta
             this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
                 // Limpar "Pensando..." quando terminar
                 this.ui.setThinkingHeader('', messageContainer.headerId);
                 
-                // Adicionar botão de fontes se houver dados web
+                // TERCEIRO: Adicionar botão de fontes se houver dados web
                 if (webData && webData.sources && webData.sources.length > 0) {
                     this.ui.addSourcesButton(messageContainer.responseId, webData.sources, webData.query);
                 }
                 
-                await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);
             });
@@ -1016,7 +1024,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         this.addToHistory('user', userMessage);
         
         // Iniciar busca de imagens e informações web em paralelo
-        const imagesPromise = this.searchPexelsImages(userMessage);
+        const imagesPromise = this.searchUnsplashImages(userMessage);
         const webSearchPromise = this.searchWebForResponse(userMessage);
 
         try {
@@ -1135,8 +1143,13 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
             }
 
             this.addToHistory('assistant', finalResponse);
+            
+            // PRIMEIRO: Exibir imagens ANTES da resposta
+            await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
+            
+            // SEGUNDO: Exibir resposta
             this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
-                // Adicionar botão de fontes se houver dados web
+                // TERCEIRO: Adicionar botão de fontes se houver dados web
                 if (webData && webData.sources && webData.sources.length > 0) {
                     this.ui.addSourcesButton(messageContainer.responseId, webData.sources, webData.query);
                 }
@@ -1152,9 +1165,6 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
             // Fechar raciocínio quando terminar
             await this.ui.sleep(500);
             this.ui.setThinkingHeader('', messageContainer.headerId);
-            
-            // Exibir imagens
-            await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
             
             // Gerar sugestões de acompanhamento
             await this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);
@@ -1526,12 +1536,11 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         }
     }
 
-    async searchPexelsImages(query) {
-        console.log(`🔍 [PEXELS] Buscando imagens para: "${query}"`);
+    async searchUnsplashImages(query) {
+        console.log(`🔍 [UNSPLASH] Buscando imagens para: "${query}"`);
         
-        // Chamar o proxy server-side para a API do Pexels
-        // CORREÇÃO: Apontar para o arquivo correto em api/pexels-search.js
-        const proxyUrl = '/api/pexels-search';
+        // Chamar o proxy server-side para a API do Unsplash
+        const proxyUrl = '/api/unsplash-search';
 
         try {
             const response = await fetch(proxyUrl, {
@@ -1542,30 +1551,30 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 body: JSON.stringify({ query: query })
             });
 
-            console.log(`📡 [PEXELS] Resposta status: ${response.status}`);
+            console.log(`📡 [UNSPLASH] Resposta status: ${response.status}`);
 
             // Verificar se a resposta é válida antes de tentar ler JSON
             if (!response.ok) {
-                console.error('Erro ao buscar imagens do Pexels via proxy:', response.status, response.statusText);
+                console.error('Erro ao buscar imagens do Unsplash via proxy:', response.status, response.statusText);
                 return [];
             }
             
             const data = await response.json();
-            console.log(`📦 [PEXELS] Dados recebidos:`, data);
+            console.log(`📦 [UNSPLASH] Dados recebidos:`, data);
             
             if (data.photos && Array.isArray(data.photos)) {
                 const images = data.photos.map(photo => ({
                     src: photo.src.medium,
                     // Limitar o texto alt para evitar descrições muito longas na UI
-                    alt: photo.alt ? photo.alt.substring(0, 100) : 'Imagem do Pexels'
+                    alt: photo.alt ? photo.alt.substring(0, 100) : 'Imagem do Unsplash'
                 }));
-                console.log(`✅ [PEXELS] ${images.length} imagens processadas`);
+                console.log(`✅ [UNSPLASH] ${images.length} imagens processadas`);
                 return images;
             }
-            console.log(`⚠️ [PEXELS] Nenhuma imagem encontrada`);
+            console.log(`⚠️ [UNSPLASH] Nenhuma imagem encontrada`);
             return [];
         } catch (error) {
-            console.error('Erro ao buscar imagens do Pexels:', error);
+            console.error('Erro ao buscar imagens do Unsplash:', error);
             return [];
         }
     }
