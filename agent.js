@@ -69,6 +69,10 @@ export class Agent {
         // Verificar se o usuário quer gerar uma imagem
         const imageGenerationMatch = userMessage.match(/^(gere|crie|criar|desenhe|produza|faça).*imagem\s+(sobre|de|do|com)?\s*(.+)$/i);
         if (imageGenerationMatch) {
+            console.log('--------------------------------------------------');
+            console.log('🤖 [MODELO UTILIZADO]: GEMINI IMAGEN (Imagen 4.0)');
+            console.log('🎨 MOTIVO: Solicitação de geração de imagem detectada.');
+            console.log('--------------------------------------------------');
             console.log('🎨 [DETECÇÃO] Usuário quer gerar imagem:', imageGenerationMatch[3]);
             await this.processImageGeneration(imageGenerationMatch[3]);
             return;
@@ -156,7 +160,7 @@ export class Agent {
 
     async processGeminiModel(userMessage, attachments = null, relevantContext = []) {
         const messageContainer = this.ui.createAssistantMessageContainer();
-        this.ui.setThinkingHeader('♊ Processando com Gemini...', messageContainer.headerId);
+        this.ui.setThinkingHeader('Raciocinando...', messageContainer.headerId);
         
         try {
             const formData = new FormData();
@@ -199,8 +203,8 @@ export class Agent {
         await this.ui.sleep(500);
 
         try {
-            // Gerar imagem com Stability AI
-            const imageData = await this.generateImageWithStability(prompt);
+            // Gerar imagem com Gemini Imagen
+            const imageData = await this.generateImageWithGemini(prompt);
             
             if (imageData && imageData.imageUrl) {
                 console.log('✅ [IMAGE-GEN] Imagem gerada com sucesso!');
@@ -1582,44 +1586,40 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         }
     }
 
-    async generateImageWithStability(prompt) {
-        console.log(`🎨 [STABILITY] Gerando imagem para: "${prompt}"`);
+    async generateImageWithGemini(prompt) {
+        console.log(`🎨 [GEMINI-IMAGEN] Gerando imagem para: "${prompt}"`);
         
-        // Chamar o proxy server-side para a API Stability AI
-        const proxyUrl = '/api/stability-image';
-
         try {
-            const response = await fetch(proxyUrl, {
+            const response = await fetch('/api/gemini-image', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ prompt: prompt })
+                body: JSON.stringify({
+                    prompt: prompt,
+                    model: 'imagen-4.0-fast-generate-001'
+                })
             });
-
-            console.log(`📡 [STABILITY] Resposta status: ${response.status}`);
-
-            // Verificar se a resposta é válida antes de tentar ler JSON
+            
             if (!response.ok) {
-                console.error('Erro ao gerar imagem:', response.status, response.statusText);
+                console.error('Erro ao gerar imagem com Gemini:', response.status, response.statusText);
                 return null;
             }
             
             const data = await response.json();
-            console.log(`📦 [STABILITY] Dados recebidos:`, data);
             
-            if (data.success && data.imageUrl) {
-                console.log(`✅ [STABILITY] Imagem gerada com sucesso!`);
+            if (data.imageUrl) {
+                console.log(`✅ [GEMINI-IMAGEN] Imagem gerada: ${data.imageUrl}`);
                 return {
                     imageUrl: data.imageUrl,
-                    prompt: prompt,
-                    model: data.model
+                    prompt: prompt
                 };
+            } else {
+                console.log(`⚠️ [GEMINI-IMAGEN] Nenhuma imagem gerada`);
+                return null;
             }
-            console.log(`⚠️ [STABILITY] Nenhuma imagem gerada`);
-            return null;
         } catch (error) {
-            console.error('Erro ao gerar imagem com Stability AI:', error);
+            console.error('Erro ao gerar imagem com Gemini Imagen:', error);
             return null;
         }
     }

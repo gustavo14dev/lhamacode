@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
     console.log('📤 Payload enviado:', JSON.stringify(payload, null, 2));
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-fast-generate-001:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -125,7 +125,7 @@ export default async function handler(req, res) {
       success: true,
       imageUrl: imageUrl,
       prompt: prompt,
-      model: 'gemini-2.0-flash-exp',
+      model: 'imagen-4.0-fast-generate-001',
       message: 'Imagem gerada com sucesso!'
     });
 
