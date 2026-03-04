@@ -120,25 +120,17 @@ class UI {
         console.log('🔧 [ATTACH] attachFileOptionBtn:', !!this.elements.attachFileOptionBtn);
         console.log('🔧 [ATTACH] imageFileInput:', !!this.elements.imageFileInput);
         
-        // Toggle dropdown
+        // Toggle dropdown - AGORA ABRE DIRETO O SELETOR DE ARQUIVOS
         if (this.elements.attachFileBtn) {
             console.log('✅ [ATTACH] Adicionando listener no botão de anexo');
             this.elements.attachFileBtn.addEventListener('click', (e) => {
-                console.log('🖱️ [ATTACH] Botão de anexo clicado!');
+                console.log('🖱️ [ATTACH] Botão de anexo clicado! Abrindo seletor de arquivos...');
                 e.stopPropagation();
-                if (this.elements.attachDropdown) {
-                    const isHidden = this.elements.attachDropdown.classList.contains('hidden');
-                    console.log('🔄 [ATTACH] Toggle dropdown - estado atual:', isHidden);
-                    
-                    if (isHidden) {
-                        // Abrir dropdown
-                        this.elements.attachDropdown.classList.remove('hidden');
-                        console.log('✅ [ATTACH] Dropdown aberto!');
-                    } else {
-                        // Fechar dropdown
-                        this.elements.attachDropdown.classList.add('hidden');
-                        console.log('❌ [ATTACH] Dropdown fechado!');
-                    }
+                // Abre diretamente o seletor de arquivos
+                if (this.elements.imageFileInput) {
+                    this.elements.imageFileInput.click();
+                } else {
+                    console.error('❌ [ATTACH] imageFileInput não encontrado!');
                 }
             });
         } else {
