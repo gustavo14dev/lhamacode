@@ -912,7 +912,12 @@ function toggleWebSearch() {
     const toggle = document.getElementById('webSearchToggle');
     const searchText = document.getElementById('webSearchText');
     const closeIcon = document.getElementById('webSearchClose');
-    const searchIcon = toggle.querySelector('.material-icons-outlined.text-base');
+    const searchIcon = toggle.querySelector('.material-icons-outlined');
+    
+    if (!toggle || !searchText || !closeIcon || !searchIcon) {
+        console.error(' Elementos não encontrados:', { toggle: !!toggle, searchText: !!searchText, closeIcon: !!closeIcon, searchIcon: !!searchIcon });
+        return;
+    }
     
     window.isWebSearchMode = !window.isWebSearchMode;
     
