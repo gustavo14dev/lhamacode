@@ -85,10 +85,18 @@ export class Agent {
         const hasAttachments = attachedFilesFromUI && attachedFilesFromUI.length > 0;
         
         if (hasAttachments) {
-            console.log('📎 Anexos detectados, preparando para Gemini:', attachedFilesFromUI.map(f => f.name));
+            console.log('--------------------------------------------------');
+            console.log('🤖 [MODELO UTILIZADO]: GEMINI (Google)');
+            console.log('📎 MOTIVO: Presença de anexos detectada.');
+            console.log('--------------------------------------------------');
+            console.log('📎 Anexos:', attachedFilesFromUI.map(f => f.name));
             // Para Gemini, mantém os arquivos como estão para processamento
             this.lastParsedFiles = attachedFilesFromUI;
         } else {
+            console.log('--------------------------------------------------');
+            console.log('🤖 [MODELO UTILIZADO]: GROQ (Llama/Mixtral)');
+            console.log('💬 MOTIVO: Apenas texto, sem anexos.');
+            console.log('--------------------------------------------------');
             // Se não há anexos, limpa variáveis
             this.lastParsedFiles = [];
             this.extraMessagesForNextCall = null;
