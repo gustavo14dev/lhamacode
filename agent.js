@@ -81,81 +81,23 @@ export class Agent {
         const relevantContext = this.memory.getRelevantContext(userMessage);
         console.log('🧠 Contexto relevante encontrado:', relevantContext.length, 'memórias');
 
-        // Verificar se há imagens nos anexos
-        const hasImages = attachedFilesFromUI && attachedFilesFromUI.some(f => f.type === 'image');
-        const hasCodeFiles = attachedFilesFromUI && attachedFilesFromUI.some(f => f.type === 'code');
-
-        // Se a UI passou arquivos explicitamente, priorizamos esses (máx 3 para código, 5 para imagens)
-        let parsedFiles = [];
-        if (attachedFilesFromUI && Array.isArray(attachedFilesFromUI) && attachedFilesFromUI.length > 0) {
-            parsedFiles = attachedFilesFromUI.map(f => ({
-                name: f.name,
-                content: (f.content == null) ? '' : String(f.content),
-                type: f.type                                      || 'code',
-                mime: f.mime || ''
-            }));
-            console.log('� Arquivos recebidos diretamente da UI:', parsedFiles.map(f => `${f.name} (${f.type})`));
-            
-            // Preparar blocos para envio ao modelo
-            this.lastParsedFiles = parsedFiles;
-            
-            if (hasImages) {
-                // Para imagens: converter para formato da API Groq
-                const imageMessages = parsedFiles
-                    .filter(f => f.type === 'image')
-                    .map(f => ({
-                        type: "image_url",
-                        image_url: {
-                            url: f.content // Base64 já vem com data:image/...;base64,
-                        }
-                    }));
-                
-                this.extraMessagesForNextCall = [{
-                    role: 'user',
-                    content: [
-                        {
-                            type: "text",
-                            text: userMessage
-                        },
-                        ...imageMessages
-                    ]
-                }];
-                
-                console.log('🖼️ Imagens preparadas para envio:', imageMessages.length, 'imagens');
-                this.useImageModelForThisMessage = true;
-            } else if (hasCodeFiles) {
-                // Para código: usar formato atual
-                this.extraMessagesForNextCall = [{ 
-                    role: 'system', 
-                    content: parsedFiles.map(f => `---FILE: ${f.name}---\n${f.content}\n---END FILE---`).join('\n\n') 
-                }];
-                console.log('📁 Arquivos de código anexados preparados para envio:', parsedFiles.map(f => f.name).join(', '));
-                this.useMistralForThisMessage = true;
-            }
+        // Verificar se há anexos
+        const hasAttachments = attachedFilesFromUI && attachedFilesFromUI.length > 0;
+        
+        if (hasAttachments) {
+            console.log('📎 Anexos detectados, preparando para Gemini:', attachedFilesFromUI.map(f => f.name));
+            // Para Gemini, mantém os arquivos como estão para processamento
+            this.lastParsedFiles = attachedFilesFromUI;
         } else {
+            // Se não há anexos, limpa variáveis
             this.lastParsedFiles = [];
             this.extraMessagesForNextCall = null;
             this.useMistralForThisMessage = false;
             this.useImageModelForThisMessage = false;
-
-            // Se não há anexos do usuário, verificar se o chat tem arquivos gerados anteriormente pelo assistente (para reutilização)
-            try {
-                const chat = this.ui.chats.find(c => c.id === this.ui.currentChatId);
-                if (chat && chat.generatedFiles && chat.generatedFiles.length > 0) {
-                    this.lastParsedFiles = chat.generatedFiles.slice(0, 3).map(f => ({ name: f.name, content: f.content }));
-                    this.extraMessagesForNextCall = [{ role: 'system', content: this.lastParsedFiles.map(f => `---FILE: ${f.name}---\n${f.content}\n---END FILE---`).join('\n\n') }];
-                    console.log('♻️ Reusando arquivos gerados pelo assistente do chat para próxima chamada:', this.lastParsedFiles.map(f => f.name));
-                }
-            } catch (e) {
-                console.warn('⚠️ Erro verificando arquivos gerados do chat:', e);
-            }
         }
 
         this.isGenerating = true;
         this.ui.updateSendButtonToPause();
-        
-        // Lógica simples: COM ANEXO = Gemini, SEM ANEXO = Groq
-        const hasAttachments = attachedFilesFromUI && attachedFilesFromUI.length > 0;
         
         try {
             if (hasAttachments) {
