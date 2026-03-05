@@ -553,12 +553,8 @@
             color: #94a3b8 !important;
             box-shadow: none !important;
         }
-        #scrollToBottomBtn:hover {
-            background: rgba(30,41,59,1) !important;
-            color: #e2e8f0 !important;
-        }
 
-        #toolsToggle {
+        #createToggle {
             border-color: rgba(255,255,255,0.08) !important;
             color: #64748b !important;
             display: flex;
@@ -570,93 +566,103 @@
             font-size: 0.85rem;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             background: rgba(255,255,255,0.03) !important;
-
-            .tools-card {
-                position: absolute;
-                bottom: 100%;
-                right: 0;
-                margin-bottom: 10px;
-                width: 280px;
-                background: #1e293b;
-                border: 1px solid rgba(255,255,255,0.1);
-                border-radius: 12px;
-                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-                z-index: 50;
-                padding: 8px;
-                display: none;
-                animation: slideUp 0.2s ease-out;
-            }
-            .tools-card.show { display: block; }
-            @keyframes slideUp {
-                from { opacity: 0; transform: translateY(10px); }
-                to { opacity: 1; transform: translateY(0); }
-            }
-            margin-bottom: 10px;
-            width: 280px;
-            background: #1e293b;
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-            z-index: 50;
-            padding: 8px;
-            display: none;
-            animation: slideUp 0.2s ease-out;
         }
-        .tools-card.show { display: block; }
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        #createToggle:hover {
+            background: rgba(255,255,255,0.05) !important;
+            color: #94a3b8 !important;
+        }
+        #createToggle.active {
+            background: #2563eb !important;
+            border-color: transparent !important;
+            color: white !important;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+            padding-right: 8px;
+        }
+        #createToggle.active span:first-child {
+            font-size: 1.1rem;
         }
 
-        .tool-item {
-            display: flex;
-            flex-direction: column;
-            padding: 10px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid transparent;
-        }
-        .tool-item:hover {
-            background: rgba(255,255,255,0.05);
-            border-color: rgba(255,255,255,0.1);
-        }
-        .tool-item.active {
-            background: rgba(37, 99, 235, 0.1);
-            border-color: #2563eb;
-        }
-        .tool-item-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 4px;
-        }
-        .tool-name {
-            font-weight: 600;
-            color: #f1f5f9;
-            font-size: 0.9rem;
-        }
-        .tool-badge {
-            font-size: 0.7rem;
-            background: #334155;
-            color: #94a3b8;
-            padding: 2px 6px;
-            border-radius: 4px;
-            text-transform: uppercase;
-        }
-        .tool-desc {
-            font-size: 0.75rem;
-            color: #94a3b8;
-            margin-left: 34px;
-        }
-        .tool-limit {
-            font-size: 0.7rem;
-            color: #ef4444;
-            margin-left: 34px;
-            margin-top: 2px;
-            font-style: italic;
-        }
-    </style>
+.tools-card {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 8px;
+    width: 280px;
+    background: #1e293b;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    z-index: 9999 !important;
+    padding: 8px;
+    display: none;
+    animation: slideUp 0.2s ease-out;
+}
+.tools-card.show { 
+    display: block !important; 
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+.tools-card.hidden {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.tool-item {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+.tool-item:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.1);
+}
+.tool-item.active {
+    background: rgba(37, 99, 235, 0.1);
+    border-color: #2563eb;
+}
+.tool-item-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+.tool-name {
+    font-weight: 600;
+    color: #f1f5f9;
+    font-size: 0.9rem;
+}
+.tool-badge {
+    font-size: 0.7rem;
+    background: #334155;
+    color: #94a3b8;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+.tool-desc {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-left: 34px;
+}
+.tool-limit {
+    font-size: 0.7rem;
+    color: #ef4444;
+    margin-left: 34px;
+    margin-top: 2px;
+    font-style: italic;
+}
+</style>
 </head>
 <body class="custom-bg min-h-screen text-text-main-light dark:text-text-main-dark transition-colors duration-300 dark">
 <nav class="fixed left-0 top-0 bottom-0 w-72 bg-sidebar-light/95 dark:bg-sidebar-dark/95 backdrop-blur-md flex flex-col py-6 px-4 shadow-soft z-50 border-r border-white/50 dark:border-white/10 transition-colors duration-300">
@@ -795,21 +801,14 @@
     </div>
     </div>
 
-    <!-- Web Search -->
-    <button id="webSearchToggle" class="toolbar-btn" onclick="toggleWebSearch()">
-        <span class="material-icons-outlined" style="font-size:1rem">search</span>
-        <span id="webSearchText">Pesquisa Web</span>
-        <span class="material-icons-outlined hidden" style="font-size:0.85rem" id="webSearchClose">close</span>
-    </button>
-
-    <!-- Ferramentas -->
-    <div style="position: relative;">
-        <button id="toolsToggle" class="toolbar-btn" onclick="toggleTools()">
-            <span class="material-icons-outlined" style="font-size:1rem">construction</span>
-            <span>Ferramentas</span>
+    <!-- Criar -->
+    <div style="position: relative;" class="relative">
+        <button id="createToggle" class="toolbar-btn" onclick="console.log('CLICOU NO BOTÃO!'); toggleCreate();">
+            <span class="material-icons-outlined" style="font-size:1rem">add_circle</span>
+            <span>Criar</span>
         </button>
         
-        <div id="toolsCard" class="tools-card">
+        <div id="toolsCard" class="tools-card hidden" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 99999; background: #1e293b; border: 2px solid red; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); padding: 8px; min-width: 280px; min-height: 120px;">
             <div class="tool-item" id="investigateTool" onclick="selectTool('investigate')">
                 <div class="tool-item-header">
                     <span class="material-icons-outlined" style="color:#3b82f6">troubleshoot</span>
@@ -821,6 +820,13 @@
             </div>
         </div>
     </div>
+
+    <!-- Web Search -->
+    <button id="webSearchToggle" class="toolbar-btn" onclick="toggleWebSearch()">
+        <span class="material-icons-outlined" style="font-size:1rem">search</span>
+        <span id="webSearchText">Pesquisa Web</span>
+        <span class="material-icons-outlined hidden" style="font-size:0.85rem" id="webSearchClose">close</span>
+    </button>
 
     <!-- Hidden file inputs -->
     <input type="file" id="codeFileInput" class="hidden" multiple accept=".js,.py,.html,.htm,.css,.md,.txt,.json" />
@@ -1030,53 +1036,45 @@ document.addEventListener('DOMContentLoaded', function() {
 window.isWebSearchMode = false;
 window.isInvestigateMode = false;
 
-function toggleTools() {
+// ✅ FUNÇÃO CORRIGIDA - Agora abre/fecha o card corretamente
+function toggleCreate() {
+    console.log('🔍 [DEBUG] toggleCreate() chamado');
     const card = document.getElementById('toolsCard');
-    if (card) {
-        card.classList.toggle('show');
-    }
-}
-window.toggleTools = toggleTools;
-
-function selectTool(tool) {
-    const investigateTool = document.getElementById('investigateTool');
-    const toolsToggle = document.getElementById('toolsToggle');
-    const toolsCard = document.getElementById('toolsCard');
-    const userInput = document.getElementById('userInput');
+    const createToggle = document.getElementById('createToggle');
     
-    if (tool === 'investigate') {
-        // Se já estiver no modo investigar, desativa
-        if (window.isInvestigateMode) {
-            window.isInvestigateMode = false;
-            investigateTool.classList.remove('active');
-            toolsToggle.classList.remove('active');
-            toolsToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">construction</span><span>Ferramentas</span>';
-            if (userInput) userInput.placeholder = 'Como posso ajudar com seu código hoje?';
-        } else {
-            // Verifica limite de uso (simulado no localstorage)
-            const usageCount = localStorage.getItem('drekee_investigate_usage') || 0;
-            if (parseInt(usageCount) >= 1) {
-                alert('Limite de uso atingido para Drekee Investigate 1.0 (Disponível apenas 1 uso).');
-                toolsCard.classList.remove('show');
-                return;
-            }
-
-            // Desativa modo pesquisa se estiver ativo
-            if (window.isWebSearchMode) toggleWebSearch();
-
-            window.isInvestigateMode = true;
-            investigateTool.classList.add('active');
-            toolsToggle.classList.add('active');
-            // Estilo conforme imagem: azul com ícone de lupa e close
-            toolsToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">search</span><span>Pesquisando</span><span class="material-icons-outlined" style="font-size:0.85rem">close</span>';
-            if (userInput) userInput.placeholder = 'Digite sua investigação para Drekee Investigate 1.0...';
-        }
+    if (!card) {
+        console.log('❌ [DEBUG] toolsCard não encontrado!');
+        return;
     }
     
-    // Fecha o card após selecionar
-    if (toolsCard) toolsCard.classList.remove('show');
+    console.log('🔍 [DEBUG] Estado atual do card:', {
+        hasHidden: card.classList.contains('hidden'),
+        display: card.style.display,
+        className: card.className
+    });
+    
+    // Toggle da visibilidade
+    const isHidden = card.classList.contains('hidden');
+    
+    if (isHidden) {
+        // ABRINDO o card
+        card.classList.remove('hidden');
+        card.style.display = 'block';
+        card.style.visibility = 'visible';
+        card.style.opacity = '1';
+        card.style.pointerEvents = 'auto';
+        console.log('✅ Card ABERTO com sucesso');
+    } else {
+        // FECHANDO o card
+        card.classList.add('hidden');
+        card.style.display = 'none';
+        card.style.visibility = 'hidden';
+        card.style.opacity = '0';
+        card.style.pointerEvents = 'none';
+        console.log('✅ Card FECHADO com sucesso');
+    }
 }
-window.selectTool = selectTool;
+window.toggleCreate = toggleCreate;
 
 function toggleWebSearch() {
     const toggle = document.getElementById('webSearchToggle');
@@ -1109,6 +1107,47 @@ function toggleWebSearch() {
     }
 }
 window.toggleWebSearch = toggleWebSearch;
+
+function selectTool(tool) {
+    const investigateTool = document.getElementById('investigateTool');
+    const createToggle = document.getElementById('createToggle');
+    const toolsCard = document.getElementById('toolsCard');
+    const userInput = document.getElementById('userInput');
+    
+    if (tool === 'investigate') {
+        // Se já estiver no modo investigar, desativa
+        if (window.isInvestigateMode) {
+            window.isInvestigateMode = false;
+            investigateTool.classList.remove('active');
+            createToggle.classList.remove('active');
+            createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">add_circle</span><span>Criar</span>';
+            if (userInput) userInput.placeholder = 'Como posso ajudar com seu código hoje?';
+        } else {
+            // Verifica limite de uso (simulado no localstorage)
+            const usageCount = localStorage.getItem('drekee_investigate_usage') || 0;
+            if (parseInt(usageCount) >= 1) {
+                alert('Limite de uso atingido para Drekee Investigate 1.0 (Disponível apenas 1 uso).');
+                return;
+            }
+
+            // Desativa modo pesquisa se estiver ativo
+            if (window.isWebSearchMode) toggleWebSearch();
+
+            window.isInvestigateMode = true;
+            investigateTool.classList.add('active');
+            createToggle.classList.add('active');
+            createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">search</span><span>Pesquisando</span><span class="material-icons-outlined" style="font-size:0.85rem">close</span>';
+            if (userInput) userInput.placeholder = 'Digite sua investigação para Drekee Investigate 1.0...';
+        }
+    }
+    
+    // Fecha o card após selecionar
+    if (toolsCard) {
+        toolsCard.classList.add('hidden');
+        toolsCard.style.display = 'none';
+    }
+}
+window.selectTool = selectTool;
 
 // Gravação de voz
 class VoiceRecorder {

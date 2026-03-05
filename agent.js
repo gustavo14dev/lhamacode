@@ -68,6 +68,8 @@ export class Agent {
 
         // Verificar se é o modo de investigação
         if (window.isInvestigateMode) {
+            // Obter contexto relevante da memória primeiro
+            const relevantContext = this.memory.getRelevantContext(userMessage);
             await this.processInvestigateModel(userMessage, attachedFilesFromUI, relevantContext);
             return;
         }
