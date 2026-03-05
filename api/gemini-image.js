@@ -30,13 +30,15 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ Erro na ${isFallback ? 'GEMINI_API_KEY_2' : 'GEMINI_API_KEY'}:`, response.status);
+      console.error(`❌ Error response:`, errorText);
+      
       if (response.status === 429) {
         console.log(`⏳ Rate limit na ${isFallback ? 'GEMINI_API_KEY_2' : 'GEMINI_API_KEY'}`);
         throw new Error('RATE_LIMIT');
       }
       
-      const errorData = await response.json().catch(() => ({}));
-      console.error(`❌ Erro na ${isFallback ? 'GEMINI_API_KEY_2' : 'GEMINI_API_KEY'}:`, errorData);
       throw new Error('API_ERROR');
     }
 
@@ -65,10 +67,13 @@ export default async function handler(req, res) {
   try {
     console.log('🎨 === VERIFICAÇÃO GEMINI API ===');
     console.log('🎨 Prompt:', prompt);
+    console.log('🎨 GEMINI_API_KEY existe:', !!process.env.GEMINI_API_KEY);
+    console.log('🎨 GEMINI_API_KEY_2 existe:', !!process.env.GEMINI_API_KEY_2);
     
     // Tentar com GEMINI_API_KEY primeiro
     let imageUrl = null;
     let usedFallback = false;
+    let lastError = null;
     
     if (process.env.GEMINI_API_KEY) {
       console.log('🎨 Tentando GEMINI_API_KEY...');
@@ -76,20 +81,32 @@ export default async function handler(req, res) {
         imageUrl = await tryGenerateImage(prompt, process.env.GEMINI_API_KEY, false);
         console.log('✅ Sucesso com GEMINI_API_KEY');
       } catch (error) {
+        lastError = error;
+        console.error('❌ Erro com GEMINI_API_KEY:', error.message);
         if (error.message === 'RATE_LIMIT' && process.env.GEMINI_API_KEY_2) {
           console.log('🔄 [FALLBACK] GEMINI_API_KEY deu rate limit, tentando GEMINI_API_KEY_2...');
-          imageUrl = await tryGenerateImage(prompt, process.env.GEMINI_API_KEY_2, true);
-          console.log('✅ Sucesso com GEMINI_API_KEY_2 (fallback)');
-          usedFallback = true;
+          try {
+            imageUrl = await tryGenerateImage(prompt, process.env.GEMINI_API_KEY_2, true);
+            console.log('✅ Sucesso com GEMINI_API_KEY_2 (fallback)');
+            usedFallback = true;
+          } catch (fallbackError) {
+            console.error('❌ Erro com GEMINI_API_KEY_2:', fallbackError.message);
+            throw fallbackError;
+          }
         } else {
           throw error;
         }
       }
     } else if (process.env.GEMINI_API_KEY_2) {
       console.log('🎨 GEMINI_API_KEY não configurada, usando GEMINI_API_KEY_2...');
-      imageUrl = await tryGenerateImage(prompt, process.env.GEMINI_API_KEY_2, true);
-      console.log('✅ Sucesso com GEMINI_API_KEY_2');
-      usedFallback = true;
+      try {
+        imageUrl = await tryGenerateImage(prompt, process.env.GEMINI_API_KEY_2, true);
+        console.log('✅ Sucesso com GEMINI_API_KEY_2');
+        usedFallback = true;
+      } catch (error) {
+        console.error('❌ Erro com GEMINI_API_KEY_2:', error.message);
+        throw error;
+      }
     } else {
       console.error('❌ Nenhuma GEMINI_API_KEY configurada!');
       return res.status(500).json({ 
@@ -108,11 +125,23 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error(' Erro ao gerar imagem com Gemini:', error);
+    console.error('❌ Erro geral ao gerar imagem:', error);
+    console.error('❌ Stack completo:', error.stack);
+    
+    // Mensagem amigável para rate limit
+    if (error.message === 'RATE_LIMIT') {
+      return res.status(429).json({ 
+        error: 'Rate limit exceeded',
+        friendly_message: '⏳ Muitas solicitações! Tente novamente em alguns segundos.',
+        details: 'Rate limit da API Gemini'
+      });
+    }
+    
     return res.status(500).json({ 
       error: 'Failed to generate image',
       friendly_message: 'Ocorreu um erro ao gerar a imagem. Tente novamente.',
-      details: error.message
+      details: error.message,
+      stack: error.stack
     });
   }
 }

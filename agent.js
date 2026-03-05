@@ -1666,9 +1666,10 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             if (!response.ok) {
                 if (response.status === 429) {
                     console.error('⏳ Rate limit da Gemini - aguarde alguns segundos');
-                    throw new Error('Muitas solicitações! Tente novamente em alguns segundos.');
+                    throw new Error('RATE_LIMIT');
                 }
-                console.error('Erro ao gerar imagem com Gemini:', response.status, response.statusText);
+                const errorText = await response.text();
+                console.error('Erro ao gerar imagem com Gemini:', response.status, errorText);
                 throw new Error('Não foi possível gerar a imagem');
             }
             
@@ -1686,10 +1687,60 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             }
         } catch (error) {
             console.error('Erro ao gerar imagem com Gemini Imagen:', error);
-            return null;
+            
+            // Se for rate limit, tentar fallback
+            if (error.message === 'RATE_LIMIT') {
+                console.log('🔄 [FALLBACK] Tentando gerar imagem com fallback...');
+                try {
+                    const fallbackResult = await this.generateImageWithFallback(prompt);
+                    if (fallbackResult) {
+                        return fallbackResult;
+                    }
+                } catch (fallbackError) {
+                    console.error('❌ Erro no fallback também:', fallbackError);
+                }
+            }
+            
+            throw new Error('Não foi possível gerar a imagem');
         }
     }
 
+    async generateImageWithFallback(prompt) {
+        console.log('🔄 [FALLBACK] Iniciando geração de imagem com fallback...');
+        
+        const providers = [
+            { name: 'Stability AI', url: '/api/stability-image' },
+            { name: 'OpenRouter', url: '/api/openrouter-image' },
+            { name: 'Image Proxy', url: '/api/image-proxy' }
+        ];
+        
+        for (const provider of providers) {
+            try {
+                console.log(`🔄 [FALLBACK] Tentando ${provider.name}...`);
+                const response = await fetch(provider.url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.imageUrl) {
+                        console.log(`✅ [FALLBACK] Sucesso com ${provider.name}: ${data.imageUrl}`);
+                        return {
+                            imageUrl: data.imageUrl,
+                            prompt: prompt,
+                            provider: provider.name
+                        };
+                    }
+                }
+            } catch (error) {
+                console.error(`❌ [FALLBACK] Erro com ${provider.name}:`, error.message);
+            }
+        }
+        
+        return null;
+    }
     // ==================== UTILITIES ====================
     addToHistory(role, content) {
         this.conversationHistory.push({
