@@ -181,7 +181,7 @@ export class Agent {
             const formData = new FormData();
             formData.append('message', userMessage);
             formData.append('context', JSON.stringify(relevantContext));
-            formData.append('model', 'deep-research-pro-preview-12-2025');
+            formData.append('model', 'gemini-2.5-flash');
             
             if (attachments) {
                 attachments.forEach((file, index) => {

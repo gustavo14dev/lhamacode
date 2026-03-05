@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   console.log('🔍 [GEMINI-DEBUG] GEMINI_API_KEY length:', geminiApiKey?.length || 0);
   
   if (!geminiApiKey) {
-    console.error('❌ [GEMINI-DEBUG] GEMINI_API_KEY não configurada!');
+    console.error(' [GEMINI-DEBUG] GEMINI_API_KEY não configurada!');
     return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
   }
 
@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   
   form.parse(req, async (err, fields, files) => {
     if (err) {
-      console.error('❌ [GEMINI-DEBUG] Error parsing form data:', err);
+      console.error(' [GEMINI-DEBUG] Error parsing form data:', err);
       return res.status(500).json({ error: 'Error parsing form data' });
     }
 
@@ -81,6 +81,9 @@ export default async function handler(req, res) {
 
       console.log(' [GEMINI-DEBUG] Payload enviado para Gemini:', JSON.stringify(payload, null, 2));
 
+      console.log('🔍 [GEMINI-DEBUG] Modelo solicitado:', model);
+      console.log('🔍 [GEMINI-DEBUG] URL completa:', `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`);
+      
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,9 +95,10 @@ export default async function handler(req, res) {
       console.log('🔍 [GEMINI-DEBUG] Resposta headers:', response.headers);
 
       if (!response.ok) {
-        const error = await response.json();
-        console.error('❌ [GEMINI-DEBUG] Erro da API Gemini:', error);
-        throw new Error(error.error?.message || 'Gemini API error');
+        const errorText = await response.text();
+        console.error('❌ [GEMINI-DEBUG] Erro na API Gemini:', response.status);
+        console.error('❌ [GEMINI-DEBUG] Error response:', errorText);
+        return res.status(500).json({ error: 'Erro na API Gemini', details: errorText });
       }
 
       const data = await response.json();
