@@ -113,8 +113,57 @@ class UI {
         this.init();
     }
 
+    // Criar dropdown dinâmico igual ao modelo dropdown
+    setupCreateDropdown() {
+        const createBtn = document.getElementById('createToggle');
+        
+        if (createBtn) {
+            createBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('🔧 [CREATE] Botão criar clicado');
+                
+                // Remover dropdown anterior se existir
+                const existing = document.getElementById('floatingCreateDropdown');
+                if (existing) existing.remove();
+                
+                // Criar dropdown dinâmico
+                const dropdownHTML = `
+                    <div id="floatingCreateDropdown" class="hidden fixed bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[200]" style="min-width: 280px;">
+                        <button class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3 first:rounded-t-lg" onclick="selectTool('investigate')">
+                            <span class="material-icons-outlined text-base text-blue-400 mt-0.5">troubleshoot</span>
+                            <div class="flex-1">
+                                <div class="font-medium">Drekee Investigate 1.0</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Investigação profunda com IA</div>
+                            </div>
+                        </button>
+                    </div>
+                `;
+                
+                // Adicionar ao body
+                document.body.insertAdjacentHTML('beforeend', dropdownHTML);
+                
+                const dropdown = document.getElementById('floatingCreateDropdown');
+                
+                // Posicionar dropdown
+                const rect = createBtn.getBoundingClientRect();
+                dropdown.style.bottom = `${window.innerHeight - rect.top + 8}px`;
+                dropdown.style.left = `${rect.left}px`;
+                dropdown.classList.remove('hidden');
+                
+                console.log('🔧 [CREATE] Dropdown mostrado');
+                
+                // Fechar ao clicar fora
+                document.addEventListener('click', function closeDropdown(e) {
+                    if (!createBtn.contains(e.target) && !dropdown.contains(e.target)) {
+                        dropdown.classList.add('hidden');
+                        document.removeEventListener('click', closeDropdown);
+                    }
+                });
+            });
+        }
+    }
+
     setupAttachListeners() {
-        console.log('🔧 [ATTACH] Configurando listeners de anexo...');
         console.log('🔧 [ATTACH] attachFileBtn:', !!this.elements.attachFileBtn);
         console.log('🔧 [ATTACH] attachDropdown:', !!this.elements.attachDropdown);
         console.log('🔧 [ATTACH] attachFileOptionBtn:', !!this.elements.attachFileOptionBtn);
@@ -564,191 +613,24 @@ class UI {
 
 
         this.elements.sendButton.addEventListener('click', () => this.handleSend());
-
-
-
         this.elements.newChatBtn.addEventListener('click', () => this.createNewChat());
-
-
-
-        // Anexar arquivo removido nesta versão (funcionalidade deletada a pedido) 
-
         
-
+        // Configurar dropdown do botão Criar
+        this.setupCreateDropdown();
+        
         // Botão de Modo Depuração
-
         const debugBtn = document.getElementById('debugModeButton');
-
         if (debugBtn) {
-
             debugBtn.addEventListener('click', () => this.toggleDebugMode());
-
         }
 
 
 
-        // Botão de anexar arquivo com dropdown seletor
-
-        const attachBtn = document.getElementById('attachFileBtn');
-
-        const attachDropdown = document.getElementById('attachDropdown');
-
-        const attachCodeBtn = document.getElementById('attachCodeBtn');
-
-        const attachImageBtn = document.getElementById('attachImageBtn');
-
-        const codeFileInput = document.getElementById('codeFileInput');
-
-        const imageFileInput = document.getElementById('imageFileInput');
-
+        // Botão de anexar arquivo
+        this.setupAttachListeners();
         
-
-        if (attachBtn && attachDropdown) {
-
-            // Toggle dropdown com animação
-
-            attachBtn.addEventListener('click', (e) => {
-
-                e.stopPropagation();
-
-                
-
-                if (attachDropdown.classList.contains('hidden')) {
-
-                    // Mostrar dropdown
-
-                    attachDropdown.classList.remove('hidden');
-
-                    attachDropdown.style.opacity = '0';
-
-                    attachDropdown.style.transform = 'translateY(10px) scale(0.95)';
-
-                    
-
-                    setTimeout(() => {
-
-                        attachDropdown.style.transition = 'all 0.2s ease-out';
-
-                        attachDropdown.style.opacity = '1';
-
-                        attachDropdown.style.transform = 'translateY(0) scale(1)';
-
-                    }, 10);
-
-                } else {
-
-                    // Esconder dropdown
-
-                    attachDropdown.style.transition = 'all 0.15s ease-in';
-
-                    attachDropdown.style.opacity = '0';
-
-                    attachDropdown.style.transform = 'translateY(10px) scale(0.95)';
-
-                    
-
-                    setTimeout(() => {
-
-                        attachDropdown.classList.add('hidden');
-
-                        attachDropdown.style.transition = '';
-
-                    }, 150);
-
-                }
-
-            });
-
-            
-
-            // Anexar código
-
-            if (attachCodeBtn) attachCodeBtn.addEventListener('click', () => {
-
-                attachDropdown.style.transition = 'all 0.15s ease-in';
-
-                attachDropdown.style.opacity = '0';
-
-                attachDropdown.style.transform = 'translateY(10px) scale(0.95)';
-
-                
-
-                setTimeout(() => {
-
-                    attachDropdown.classList.add('hidden');
-
-                    attachDropdown.style.transition = '';
-
-                    codeFileInput.click();
-
-                }, 150);
-
-            });
-
-            
-
-            // Anexar imagem
-
-            if (attachImageBtn) attachImageBtn.addEventListener('click', () => {
-
-                attachDropdown.style.transition = 'all 0.15s ease-in';
-
-                attachDropdown.style.opacity = '0';
-
-                attachDropdown.style.transform = 'translateY(10px) scale(0.95)';
-
-                
-
-                setTimeout(() => {
-
-                    attachDropdown.classList.add('hidden');
-
-                    attachDropdown.style.transition = '';
-
-                    imageFileInput.click();
-
-                }, 150);
-
-            });
-
-            
-
-            // Fechar dropdown ao clicar fora
-
-            document.addEventListener('click', (e) => {
-
-                if (!attachBtn.contains(e.target) && !attachDropdown.contains(e.target)) {
-
-                    if (!attachDropdown.classList.contains('hidden')) {
-
-                        attachDropdown.style.transition = 'all 0.15s ease-in';
-
-                        attachDropdown.style.opacity = '0';
-
-                        attachDropdown.style.transform = 'translateY(10px) scale(0.95)';
-
-                        
-
-                        setTimeout(() => {
-
-                            attachDropdown.classList.add('hidden');
-
-                            attachDropdown.style.transition = '';
-
-                        }, 150);
-
-                    }
-
-                }
-
-            });
-
-        }
-
-        
-
         // Processar arquivos de código
-
+        const codeFileInput = document.getElementById('codeFileInput');
         if (codeFileInput) {
 
             codeFileInput.addEventListener('change', (e) => {
@@ -828,7 +710,7 @@ class UI {
         
 
         // Processar arquivos de imagem
-
+        const imageFileInput = document.getElementById('imageFileInput');
         if (imageFileInput) {
 
             imageFileInput.addEventListener('change', (e) => {
@@ -908,105 +790,45 @@ class UI {
                 }
 
                 e.target.value = null;
-
             });
-
         }
 
         
-
         // Criar dropdown flutuante
-
         this.createFloatingDropdown();
-
         
-
         // Configurar botão de modelo com verificação
-
         const modelBtn = document.getElementById('modelButton');
-
         if (modelBtn) {
-
             modelBtn.addEventListener('click', (e) => {
-
                 e.stopPropagation();
-
                 if (DEBUG) console.log('🖱️ Botão modelo clicado!');
-
                 this.toggleModelDropdown();
-
             });
-
         } else if (DEBUG) {
-
             console.error('❌ Botão de modelo não encontrado!');
-
         }
-
         
-
         // Inicializar o botão de modelo com o padrão "Rápido"
-
         this.setModel(this.currentModel);
-
         
-
-        // Configurar botão de criar com verificação
-
-        const createBtn = document.getElementById('createButton');
-
-        if (createBtn) {
-
-            createBtn.addEventListener('click', (e) => {
-
-                e.stopPropagation();
-
-                if (DEBUG) console.log('🖱️ Botão criar clicado!');
-
-                this.toggleCreateDropdown();
-
-            });
-
-        } else if (DEBUG) {
-
-            console.error('❌ Botão de criar não encontrado!');
-
-        }
-
-        
-
+        // Fechar dropdowns ao clicar fora
         document.addEventListener('click', (e) => {
-
             const floatingDropdown = document.getElementById('floatingModelDropdown');
-
             const floatingCreateDropdown = document.getElementById('floatingCreateDropdown');
-
             const modelBtn = document.getElementById('modelButton');
-
-            const createBtn = document.getElementById('createButton');
-
+            const createBtn = document.getElementById('createToggle');
             
-
             if (floatingDropdown && modelBtn && !floatingDropdown.contains(e.target) && !modelBtn.contains(e.target)) {
-
                 floatingDropdown.classList.add('hidden');
-
             }
-
             
-
             if (floatingCreateDropdown && createBtn && !floatingCreateDropdown.contains(e.target) && !createBtn.contains(e.target)) {
-
                 floatingCreateDropdown.classList.add('hidden');
-
             }
-
         });
-
-
-
+        
         this.setupModelSelector();
-
         this.setupCreateSelector();
 
         
