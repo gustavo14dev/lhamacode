@@ -1694,14 +1694,19 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 try {
                     const fallbackResult = await this.generateImageWithFallback(prompt);
                     if (fallbackResult) {
-                        return fallbackResult;
+                        console.log('✅ [FALLBACK] Imagem gerada com sucesso:', fallbackResult.provider);
+                        this.addToHistory('assistant', `Imagem gerada com sucesso usando ${fallbackResult.provider}.`);
+                        this.ui.setResponseText(`✅ Imagem gerada com sucesso usando ${fallbackResult.provider}!`, messageContainer.responseId);
+                        this.ui.setThinkingHeader('', messageContainer.headerId);
+                        return;
                     }
                 } catch (fallbackError) {
                     console.error('❌ Erro no fallback também:', fallbackError);
                 }
             }
             
-            throw new Error('Não foi possível gerar a imagem');
+            this.ui.setResponseText('❌ Desculpe, ocorreu um erro ao gerar a imagem. Tente novamente em alguns segundos.', messageContainer.responseId);
+            this.ui.setThinkingHeader('', messageContainer.headerId);
         }
     }
 
