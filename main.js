@@ -4301,6 +4301,13 @@ ${latexCode}
 
         
 
+        // REINSERIR MATEMÁTICA ANTES DO escapeHtml - para que os placeholders não sejam escapados
+        if (mathRenders.length > 0) {
+            mathRenders.forEach((html, i) => {
+                cleanText = cleanText.replaceAll(mathPlaceholder(i), html);
+            });
+        }
+
         // Escapar o texto restante
 
         let formatted = this.escapeHtml(cleanText);
@@ -4418,15 +4425,6 @@ ${latexCode}
             formatted = formatted.replace(regex, `<span class="math-symbol text-purple-600 dark:text-purple-400 font-medium">${unicode}</span>`);
 
         });
-
-        
-
-        // Reinserir matemática renderizada (placeholders) no HTML final
-        if (mathRenders.length > 0) {
-            mathRenders.forEach((html, i) => {
-                formatted = formatted.replaceAll(mathPlaceholder(i), html);
-            });
-        }
 
         
 
