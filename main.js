@@ -4255,11 +4255,43 @@ ${latexCode}
 
         
 
+        // Extrair blocos matemáticos ANTES do escapeHtml, renderizando com KaTeX.
+        // Isso evita que entidades HTML (ex: &#x27;) e HTML escapado entrem no parser do KaTeX.
+        const mathRenders = [];
+        const mathPlaceholder = (i) => `___MATH_RENDER_${i}___`;
+        const renderMathToHtml = (math, displayMode) => {
+            try {
+                if (typeof katex !== 'undefined' && katex && typeof katex.renderToString === 'function') {
+                    return katex.renderToString(String(math).trim(), { throwOnError: false, displayMode });
+                }
+            } catch (e) {
+                // fallback abaixo
+            }
+            const safe = this.escapeHtml(String(math));
+            return displayMode
+                ? `<div class="block my-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><span class="block font-mono text-base text-center text-gray-900 dark:text-gray-100">${safe}</span></div>`
+                : `<span class="inline-block font-mono text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600">${safe}</span>`;
+        };
+
+        let textWithMathPlaceholders = String(text);
+        // $$...$$ (display) primeiro
+        textWithMathPlaceholders = textWithMathPlaceholders.replace(/\$\$([\s\S]+?)\$\$/g, (match, math) => {
+            const idx = mathRenders.length;
+            mathRenders.push(renderMathToHtml(math, true));
+            return mathPlaceholder(idx);
+        });
+        // $...$ (inline)
+        textWithMathPlaceholders = textWithMathPlaceholders.replace(/\$([^$\n]+)\$/g, (match, math) => {
+            const idx = mathRenders.length;
+            mathRenders.push(renderMathToHtml(math, false));
+            return mathPlaceholder(idx);
+        });
+
         // Extrair todos os blocos de código e armazená-los
 
         const codeBlocks = [];
 
-        let cleanText = text.replace(/```([\w-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+        let cleanText = textWithMathPlaceholders.replace(/```([\w-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
 
             codeBlocks.push({ lang: lang || 'plaintext', code: code.trim() });
 
@@ -4337,30 +4369,6 @@ ${latexCode}
 
         
 
-        // Processar expressões matemáticas LaTeX (inline e bloco) usando KaTeX
-        // Suporta $$...$$ e $...$ (incluindo casos auto-envelopados acima).
-        const renderMath = (math, displayMode) => {
-            try {
-                if (typeof katex !== 'undefined' && katex && typeof katex.renderToString === 'function') {
-                    return katex.renderToString(math, { throwOnError: false, displayMode });
-                }
-            } catch (e) {
-                // fallback abaixo
-            }
-            // Fallback: mostrar como texto mono (mas sem quebrar o HTML)
-            const safe = this.escapeHtml(math);
-            return displayMode
-                ? `<div class="block my-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><span class="block font-mono text-base text-center text-gray-900 dark:text-gray-100">${safe}</span></div>`
-                : `<span class="inline-block font-mono text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600">${safe}</span>`;
-        };
-
-        // $$...$$ primeiro (display)
-        formatted = formatted.replace(/\$\$([\s\S]+?)\$\$/g, (match, math) => renderMath(math.trim(), true));
-        // $...$ (inline)
-        formatted = formatted.replace(/\$([^$\n]+)\$/g, (match, math) => renderMath(math.trim(), false));
-
-        
-
         // Processar símbolos matemáticos Unicode com fontes apropriadas
 
         const mathSymbols = {
@@ -4413,14 +4421,12 @@ ${latexCode}
 
         
 
-        // Processar frações simples (a/b)
-        // Evitar aplicar dentro de HTML KaTeX já renderizado.
-        formatted = formatted.replace(/(\d+)\/(\d+)/g, (m, a, b, offset) => {
-            const before = formatted.slice(Math.max(0, offset - 50), offset);
-            // Heurística simples: se estamos dentro de um bloco KaTeX, não mexer.
-            if (before.includes('class="katex') || before.includes('class=\'katex')) return m;
-            return '<span class="inline-block text-center"><span class="block text-xs">' + a + '</span><span class="block border-t border-gray-400 dark:border-gray-600">/</span><span class="block text-xs">' + b + '</span></span>';
-        });
+        // Reinserir matemática renderizada (placeholders) no HTML final
+        if (mathRenders.length > 0) {
+            mathRenders.forEach((html, i) => {
+                formatted = formatted.replaceAll(mathPlaceholder(i), html);
+            });
+        }
 
         
 
