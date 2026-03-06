@@ -4236,7 +4236,7 @@ ${latexCode}
                 });
 
                 // 2) Comandos comuns sem argumentos
-                input = input.replace(/(^|[^\\$])\\(times|div|cdot|pm|mp|leq|geq|neq|approx|infty)(?![a-zA-Z])/g, (m, prefix, cmd) => {
+                input = input.replace(/(^|[^\\$])\\(times|div|cdot|pm|mp|leq|geq|neq|approx|infty|sum|int|lim|sqrt|alpha|beta|gamma|delta|epsilon|theta|lambda|mu|pi|sigma|tau|phi|chi|psi|omega)(?![a-zA-Z])/g, (m, prefix, cmd) => {
                     const expr = `\\${cmd}`;
                     return `${prefix}$${expr}$`;
                 });
@@ -4255,43 +4255,11 @@ ${latexCode}
 
         
 
-        // Extrair blocos matemáticos ANTES do escapeHtml, renderizando com KaTeX.
-        // Isso evita que entidades HTML (ex: &#x27;) e HTML escapado entrem no parser do KaTeX.
-        const mathRenders = [];
-        const mathPlaceholder = (i) => `___MATH_RENDER_${i}___`;
-        const renderMathToHtml = (math, displayMode) => {
-            try {
-                if (typeof katex !== 'undefined' && katex && typeof katex.renderToString === 'function') {
-                    return katex.renderToString(String(math).trim(), { throwOnError: false, displayMode });
-                }
-            } catch (e) {
-                // fallback abaixo
-            }
-            const safe = this.escapeHtml(String(math));
-            return displayMode
-                ? `<div class="block my-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><span class="block font-mono text-base text-center text-gray-900 dark:text-gray-100">${safe}</span></div>`
-                : `<span class="inline-block font-mono text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600">${safe}</span>`;
-        };
-
-        let textWithMathPlaceholders = String(text);
-        // $$...$$ (display) primeiro
-        textWithMathPlaceholders = textWithMathPlaceholders.replace(/\$\$([\s\S]+?)\$\$/g, (match, math) => {
-            const idx = mathRenders.length;
-            mathRenders.push(renderMathToHtml(math, true));
-            return mathPlaceholder(idx);
-        });
-        // $...$ (inline)
-        textWithMathPlaceholders = textWithMathPlaceholders.replace(/\$([^$\n]+)\$/g, (match, math) => {
-            const idx = mathRenders.length;
-            mathRenders.push(renderMathToHtml(math, false));
-            return mathPlaceholder(idx);
-        });
-
         // Extrair todos os blocos de código e armazená-los
 
         const codeBlocks = [];
 
-        let cleanText = textWithMathPlaceholders.replace(/```([\w-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+        let cleanText = text.replace(/```([\w-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
 
             codeBlocks.push({ lang: lang || 'plaintext', code: code.trim() });
 
@@ -4421,12 +4389,26 @@ ${latexCode}
 
         
 
-        // Reinserir matemática renderizada (placeholders) no HTML final
-        if (mathRenders.length > 0) {
-            mathRenders.forEach((html, i) => {
-                formatted = formatted.replaceAll(mathPlaceholder(i), html);
-            });
-        }
+        // Renderizar matemática KaTeX (inline e bloco) APÓS todo o escape e formatação
+        // Isso evita interferência com escapeHtml e placeholders
+        const renderMath = (math, displayMode) => {
+            try {
+                if (typeof katex !== 'undefined' && katex && typeof katex.renderToString === 'function') {
+                    return katex.renderToString(String(math).trim(), { throwOnError: false, displayMode });
+                }
+            } catch (e) {
+                // fallback abaixo
+            }
+            const safe = this.escapeHtml(String(math));
+            return displayMode
+                ? `<div class="block my-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><span class="block font-mono text-base text-center text-gray-900 dark:text-gray-100">${safe}</span></div>`
+                : `<span class="inline-block font-mono text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600">${safe}</span>`;
+        };
+
+        // $$...$$ primeiro (display)
+        formatted = formatted.replace(/\$\$([\s\S]+?)\$\$/g, (match, math) => renderMath(math.trim(), true));
+        // $...$ (inline)
+        formatted = formatted.replace(/\$([^$\n]+)\$/g, (match, math) => renderMath(math.trim(), false));
 
         
 
