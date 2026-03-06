@@ -4321,18 +4321,18 @@ ${latexCode}
 
         });
 
-        
-
-        // REINSERIR MATEMÁTICA ANTES DO escapeHtml - para que os placeholders não sejam escapados
-        if (mathRenders.length > 0) {
-            mathRenders.forEach((html, i) => {
-                cleanText = cleanText.replaceAll(mathPlaceholder(i), html);
-            });
-        }
-
         // Escapar o texto restante
 
         let formatted = this.escapeHtml(cleanText);
+
+        // REINSERIR MATEMÁTICA DEPOIS do escapeHtml - os placeholders já foram escapados, precisamos substituir
+        if (mathRenders.length > 0) {
+            mathRenders.forEach((html, i) => {
+                // Substituir o placeholder escapado pelo HTML renderizado
+                const escapedPlaceholder = mathPlaceholder(i).replace(/[_$]/g, '\\$&');
+                formatted = formatted.replace(new RegExp(escapedPlaceholder, 'g'), html);
+            });
+        }
 
         
 
