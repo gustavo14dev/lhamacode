@@ -176,17 +176,25 @@ class UI {
         console.log('🔧 [ATTACH] attachFileOptionBtn:', !!this.elements.attachFileOptionBtn);
         console.log('🔧 [ATTACH] imageFileInput:', !!this.elements.imageFileInput);
         
-        // Toggle dropdown - AGORA ABRE DIRETO O SELETOR DE ARQUIVOS
+        // Toggle dropdown - COMPORTAMENTO DIFERENTE NO MODO RE
         if (this.elements.attachFileBtn) {
             console.log('✅ [ATTACH] Adicionando listener no botão de anexo');
             this.elements.attachFileBtn.addEventListener('click', (e) => {
-                console.log('🖱️ [ATTACH] Botão de anexo clicado! Abrindo seletor de arquivos...');
+                console.log('🖱️ [ATTACH] Botão de anexo clicado!');
                 e.stopPropagation();
-                // Abre diretamente o seletor de arquivos
-                if (this.elements.imageFileInput) {
-                    this.elements.imageFileInput.click();
+                
+                // VERIFICAR SE ESTÁ NO MODO RE
+                if (window.isREMode) {
+                    console.log('🧮 [RE] Abrindo card de opções de anexo...');
+                    this.showREAttachCard();
                 } else {
-                    console.error('❌ [ATTACH] imageFileInput não encontrado!');
+                    console.log('💬 [NORMAL] Abrindo seletor de arquivos...');
+                    // Abre diretamente o seletor de arquivos (modo normal)
+                    if (this.elements.imageFileInput) {
+                        this.elements.imageFileInput.click();
+                    } else {
+                        console.error('❌ [ATTACH] imageFileInput não encontrado!');
+                    }
                 }
             });
         } else {
@@ -338,6 +346,86 @@ class UI {
                 </button>
             </div>
         `).join('');
+    }
+
+    // MODO RE - Card especial de anexos
+    showREAttachCard() {
+        // Remover card anterior se existir
+        const existing = document.getElementById('reAttachCard');
+        if (existing) existing.remove();
+        
+        // Criar card de opções
+        const cardHTML = `
+            <div id="reAttachCard" class="fixed bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[200]" style="min-width: 280px; bottom: 80px; right: 20px;">
+                <div class="p-2">
+                    <button class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3 first:rounded-t-lg" onclick="window.ui.selectREFile()">
+                        <span class="material-icons-outlined text-base text-blue-400 mt-0.5">attach_file</span>
+                        <div class="flex-1">
+                            <div class="font-medium">Selecionar Arquivo</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Escolher imagem ou documento</div>
+                        </div>
+                    </button>
+                    <button class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3 last:rounded-b-lg" onclick="window.ui.openRECamera()">
+                        <span class="material-icons-outlined text-base text-green-400 mt-0.5">photo_camera</span>
+                        <div class="flex-1">
+                            <div class="font-medium">Tirar Foto</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Usar câmera do dispositivo</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Adicionar ao body
+        document.body.insertAdjacentHTML('beforeend', cardHTML);
+        
+        // Fechar ao clicar fora
+        setTimeout(() => {
+            document.addEventListener('click', this.closeREAttachCard.bind(this), { once: true });
+        }, 100);
+    }
+    
+    closeREAttachCard(e) {
+        if (e) {
+            const card = document.getElementById('reAttachCard');
+            const attachBtn = this.elements.attachFileBtn;
+            
+            if (!card || !attachBtn) return;
+            
+            // Não fechar se clicou no card ou no botão
+            if (card.contains(e.target) || attachBtn.contains(e.target)) {
+                // Re-adicionar listener
+                setTimeout(() => {
+                    document.addEventListener('click', this.closeREAttachCard.bind(this), { once: true });
+                }, 100);
+                return;
+            }
+        }
+        
+        const card = document.getElementById('reAttachCard');
+        if (card) card.remove();
+    }
+    
+    // MODO RE - Selecionar arquivo
+    selectREFile() {
+        console.log(' [RE] Selecionando arquivo...');
+        const card = document.getElementById('reAttachCard');
+        if (card) card.remove();
+        
+        // Abrir seletor de arquivos
+        if (this.elements.imageFileInput) {
+            this.elements.imageFileInput.click();
+        }
+    }
+    
+    // MODO RE - Abrir câmera
+    openRECamera() {
+        console.log(' [RE] Abrindo câmera...');
+        const card = document.getElementById('reAttachCard');
+        if (card) card.remove();
+        
+        // Abrir câmera
+        this.openCamera();
     }
 
     loadChats() {
@@ -1494,26 +1582,27 @@ class UI {
 
 
     async handleCreateRequest(message) {
+        if (!this.isTransitioned) {
+            if (!this.currentChatId) {
+                this.createNewChat();
+            }
+        }
 
-if (!this.isTransitioned) {
+        // MODO RE - Resolução de Exercícios
+        if (window.isREMode) {
+            await this.handleREMode(message);
+            this.elements.userInput.value = '';
+            return;
+        }
 
-if (!this.currentChatId) {
-this.createNewChat();
-}
-
-// MODO RE - Resolução de Exercícios
-if (window.isREMode) {
-this.handleREMode(message);
-this.elements.userInput.value = '';
-return;
-}
-
-// Adicionar mensagem do usuário ao chat
-this.addUserMessage(message);
+        // Adicionar mensagem do usuário ao chat
+        this.addUserMessage(message);
         
-// Mostrar mensagem de processamento E OBTER O ID CORRETO
-const processingId = this.addAssistantMessage('Gerando conteúdo...');
+        // Mostrar mensagem de processamento E OBTER O ID CORRETO
+        const processingId = this.addAssistantMessage('Gerando conteúdo...');
 
+        // Continuar com o fluxo normal de criação (slides, documentos, etc.)
+        const type = this.currentCreateType;
         const systemPrompt = {
             role: 'system',
             content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional Beamer' : type === 'document' ? 'documento acadêmico' : 'tabela técnica'} sobre: "${message}". 
@@ -1790,25 +1879,15 @@ ${latexCode}
 
         }
 
-    
+        console.log('🔒 LaTeX gerado internamente (segredo):', latexCode.substring(0, 200) + '...');
 
-    console.log('🔒 LaTeX gerado internamente (segredo):', latexCode.substring(0, 200) + '...');
+        console.log('🔍 Código LaTeX completo:', latexCode);
 
-    console.log('🔍 Código LaTeX completo:', latexCode);
-
-    return latexCode;
-
-}
-
-
+        return latexCode;
 
     }
 
-
-
     async compileLatexToPDF(latexCode, messageId) {
-
-        // Usar renderização KaTeX simples
 
         try {
 
@@ -1817,8 +1896,6 @@ ${latexCode}
             this.renderLatexWithKaTeX(latexCode, messageId, this.currentCreateType);
 
             return;
-
-            
 
         } catch (error) {
 
@@ -1831,8 +1908,6 @@ ${latexCode}
         }
 
     }
-
-
 
     createSimulatedContent(latexCode) {
 
@@ -6128,6 +6203,142 @@ ${latexCode}
         }
         this.isTransitioned = true;
     }
+
+    // MODO RE - Resolução de Exercícios
+    async handleREMode(message) {
+        console.log('🚀 Modo RE ativado para:', message);
+        
+        // Verificar se há anexos no modo RE
+        let sendFiles = null;
+        let attachmentsSnapshot = null;
+        
+        if (this.attachedFiles && this.attachedFiles.length > 0) {
+            console.log('📎 [RE] Processando anexos no modo RE...');
+            
+            // Preparar arquivos para envio
+            sendFiles = this.attachedFiles.map(f => {
+                if (f && f.file instanceof File) {
+                    return { name: f.name, file: f.file, type: f.type, mime: f.mime };
+                }
+                if (f && f.type === 'code') {
+                    const mime = f.mime || 'text/plain';
+                    const fileObj = new File([String(f.content || '')], f.name || `file_${Date.now()}.txt`, { type: mime });
+                    return { name: f.name, file: fileObj, type: f.type, mime: f.mime };
+                }
+                if (f && f.type === 'image') {
+                    const dataUrlToFile = (dataUrl, filename, mimeFallback = 'application/octet-stream') => {
+                        const m = String(dataUrl || '').match(/^data:([^;]+);base64,(.*)$/);
+                        if (!m) {
+                            return new File([String(dataUrl || '')], filename, { type: mimeFallback });
+                        }
+                        const mime = m[1] || mimeFallback;
+                        const b64 = m[2] || '';
+                        const binary = atob(b64);
+                        const bytes = new Uint8Array(binary.length);
+                        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                        return new File([bytes], filename, { type: mime });
+                    };
+                    const fileObj = dataUrlToFile(f.content, f.name || `image_${Date.now()}.png`, f.mime || 'image/png');
+                    return { name: f.name, file: fileObj, type: f.type, mime: f.mime };
+                }
+                return { name: f.name, file: new File([String(f.content || '')], f.name), type: f.type, mime: f.mime };
+            });
+            
+            attachmentsSnapshot = this.attachedFiles.map(f => ({ 
+                name: f.name, 
+                mime: f.mime,
+                type: f.type
+            }));
+        }
+        
+        // Adicionar mensagem do usuário
+        this.addUserMessage(message, attachmentsSnapshot);
+        
+        // Mostrar processamento
+        const processingId = this.addAssistantMessage('🧮 Resolvendo exercício...');
+        
+        try {
+            // Gerar resposta com sistema especializado
+            const response = await this.generateREResponse(message, sendFiles);
+            
+            // Atualizar com a resposta completa
+            this.updateProcessingMessage(processingId, response);
+            
+        } catch (error) {
+            console.error('❌ Erro no modo RE:', error);
+            this.updateProcessingMessage(processingId, `❌ Erro ao processar exercício: ${error.message}`);
+        }
+        
+        // Limpar anexos após envio
+        this.attachedFiles = [];
+        this.renderAttachedFiles();
+    }
+    
+    // Gerar resposta no formato RE
+    async generateREResponse(exercise, sendFiles = null) {
+        const systemPrompt = `Você é um especialista acadêmico em resolução de exercícios com abordagem puramente técnica e objetiva.
+
+REGRAS ESTRITAS PARA O MODO RE (RESOLUÇÃO DE EXERCÍCIOS):
+
+1. ESTRUTURA OBRIGATÓRIA - USE EXATAMENTE ESTAS SEÇÕES:
+   **Raciocínio Lógico:** [Explicação técnica direta da estratégia de resolução]
+   
+   **Passo a Passo (Memória de Cálculo):** [Todas as etapas detalhadas com cálculos explícitos]
+   
+   **Resultado Final:** [A resposta final destacada]
+   
+   **Justificativa:** [O fundamento técnico do resultado]
+
+2. TOM E ESTILO:
+   - Puramente utilitário e objetivo
+   - Sem saudações, cumprimentos ou frases motivacionais
+   - Foco exclusivo na resolução técnica
+
+3. CÁLCULOS DETALHADOS:
+   - Mostre as contas passo a passo (ex: 2+2=4, não apenas "o resultado é 4")
+   - Use LaTeX extensivamente: $$\frac{a}{b}$$, $$\sqrt{x}$$, $$\int f(x)dx$$
+   - Use \[ \] para blocos matemáticos e \( \) para inline
+
+4. RESULTADO FINAL:
+   - Coloque a resposta final dentro de um card amarelo destacado
+   - Use HTML: <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 15px 0;"><strong>RESPOSTA FINAL:</strong> [valor]</div>
+   - Esta é a resposta para "colocar no livro"
+
+5. LATEX AVANÇADO:
+   - Frações: \frac{numerador}{denominador}
+   - Raízes: \sqrt{n} ou \sqrt[n]{x}
+   - Integrais: \int_{a}^{b} f(x)dx
+   - Somatórios: \sum_{i=1}^{n}
+   - Limites: \lim_{x \to \infty}
+   - Matrizes: \begin{pmatrix} a & b \\ c & d \end{pmatrix}
+
+Exercício: ${exercise}`;
+
+        // Escolher API baseado na presença de anexos
+        if (sendFiles && sendFiles.length > 0) {
+            console.log('📎 [RE] Usando Gemini com anexos...');
+            const response = await this.agent.processMessage(exercise, sendFiles, systemPrompt);
+            return response;
+        } else {
+            console.log('🧮 [RE] Usando Groq sem anexos...');
+            const response = await this.callAPI(systemPrompt, exercise);
+            return response;
+        }
+    }
+
+    // Método auxiliar para chamadas de API
+    async callAPI(systemPrompt, userMessage) {
+        try {
+            const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userMessage }
+            ]);
+            return response;
+        } catch (error) {
+            console.error('❌ Erro na chamada da API:', error);
+            throw error;
+        }
+    }
 }
 
 console.log("Teste rápido no navegador: anexe até 3 arquivos de texto no chat e envie uma mensagem — quando houver anexos, o sistema tentará usar 'codestral-latest' via Groq.");
@@ -6135,7 +6346,7 @@ console.log("Teste via Node (recomendado): node code/test_codestral.js SUA_CHAVE
 
 // Inicialização do app
 document.addEventListener('DOMContentLoaded', () => {
-    new UI();
+    window.ui = new UI();
 });
 
 
