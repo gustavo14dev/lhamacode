@@ -668,14 +668,26 @@ font-style: italic;
 
 /* ── KaTeX Styling ───────────────────────────── */
 .katex {
-    font-size: 1.1em !important;
-    line-height: 1.4 !important;
+    font-size: 1.25em !important;
+    line-height: 1.6 !important;
 }
 
+/* Frações - estilo mais visível e bonito */
 .katex .frac-line {
-    border-bottom-width: 1px !important;
-    border-bottom-color: #374151 !important;
+    border-bottom-width: 2px !important;
+    border-bottom-color: currentColor !important;
     border-bottom-style: solid !important;
+}
+
+/* Numerador e denominador com mais espaçamento */
+.katex .numerator,
+.katex .denominator {
+    padding: 0.15em 0.3em !important;
+}
+
+/* Tamanho maior para frações inline */
+.katex .mfrac {
+    font-size: 1.1em !important;
 }
 
 .katex .sqrt > .root {
@@ -684,7 +696,9 @@ font-style: italic;
 }
 
 .katex-display {
-    margin: 1em 0;
+    margin: 1.2em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 /* Evitar linhas duplicadas */
@@ -693,13 +707,69 @@ font-style: italic;
     display: none !important;
 }
 
-/* Dark mode KaTeX */
-.dark .katex .frac-line {
-    border-bottom-color: #9ca3af !important;
+/* Dark mode KaTeX - cores mais brilhantes */
+.dark .katex {
+    color: #f8fafc !important;
 }
 
-.dark .katex {
-    color: #e5e7eb !important;
+.dark .katex .frac-line {
+    border-bottom-color: #f8fafc !important;
+}
+
+/* Estilo especial para matemática em mensagens */
+.message-math {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 0.2em;
+}
+
+/* Destaque especial para frações em resoluções passo a passo */
+.katex .mfrac {
+    font-size: 1.2em !important;
+    font-weight: 500 !important;
+}
+
+/* Frações inline com barra mais grossa e visível */
+.katex .mfrac .frac-line {
+    border-bottom-width: 2.5px !important;
+}
+
+/* Aumentar espaçamento entre numerador e barra */
+.katex .mfrac .vlist-t > .vlist-r:first-child .vlist {
+    margin-bottom: 0.1em !important;
+}
+
+/* Aumentar espaçamento entre barra e denominador */
+.katex .mfrac .vlist-t > .vlist-r:last-child .vlist {
+    margin-top: 0.1em !important;
+}
+
+/* Alinhamento vertical perfeito para frações inline */
+.katex .mfrac > .vlist-t {
+    vertical-align: -0.25em !important;
+}
+
+/* Estilo para expressões matemáticas em modo display (maior destaque) */
+.katex-display {
+    margin: 1.2em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    text-align: center;
+}
+
+/* Para expressões complexas em linha, permitir scroll horizontal */
+.katex-display .katex {
+    white-space: nowrap;
+}
+
+/* Estilo para parênteses e colchetes em frações */
+.katex .delimsizing.size1 {
+    font-size: 1.2em !important;
+}
+
+/* Símbolos matemáticos com mais destaque */
+.katex .mrel, .katex .mbin {
+    margin: 0 0.2em !important;
 }
 
 /* ── RE Mode Highlighting ───────────────────── */

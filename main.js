@@ -4262,7 +4262,29 @@ ${latexCode}
         const renderMathToHtml = (math, displayMode) => {
             try {
                 if (typeof katex !== 'undefined' && katex && typeof katex.renderToString === 'function') {
-                    return katex.renderToString(String(math).trim(), { throwOnError: false, displayMode });
+                    // Detectar se é uma fração complexa ou expressão matemática extensa
+                    const hasFraction = /\\frac\{/.test(math);
+                    const hasMultipleFractions = (math.match(/\\frac\{/g) || []).length > 1;
+                    const hasParentheses = /[\(\)]/.test(math);
+                    const hasBrackets = /[\[\]]/.test(math);
+                    const hasPowers = /\^\{/.test(math);
+                    const isLong = math.length > 15;
+                    
+                    // Usar displayMode true para:
+                    // 1. Expressões já marcadas como display
+                    // 2. Múltiplas frações
+                    // 3. Frações com parênteses/colchetes
+                    // 4. Frações com potências
+                    // 5. Expressões longas com frações
+                    const shouldUseDisplayMode = displayMode || 
+                        hasMultipleFractions || 
+                        (hasFraction && (hasParentheses || hasBrackets || hasPowers)) ||
+                        (hasFraction && isLong);
+                    
+                    return katex.renderToString(String(math).trim(), { 
+                        throwOnError: false, 
+                        displayMode: shouldUseDisplayMode 
+                    });
                 }
             } catch (e) {
                 // fallback abaixo
