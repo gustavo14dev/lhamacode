@@ -136,6 +136,13 @@ class UI {
                                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Investigação profunda com IA</div>
                             </div>
                         </button>
+                        <button class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3" onclick="selectTool('re')">
+                            <span class="material-icons-outlined text-base text-green-400 mt-0.5">calculate</span>
+                            <div class="flex-1">
+                                <div class="font-medium">Resolução de Exercícios</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Resolução completa de questões com cálculo detalhado e justificativa técnica</div>
+                            </div>
+                        </button>
                     </div>
                 `;
                 
@@ -1486,111 +1493,29 @@ class UI {
 
 
 
-    
+    async handleCreateRequest(message) {
 
+if (!this.isTransitioned) {
 
-    handleCreateRequest(message) {
+if (!this.currentChatId) {
+this.createNewChat();
+}
 
-        if (!this.isTransitioned) {
+// MODO RE - Resolução de Exercícios
+if (window.isREMode) {
+this.handleREMode(message);
+this.elements.userInput.value = '';
+return;
+}
 
-            this.createNewChat();
-
-            this.sleep(300);
-
-        }
-
-
-
-        if (!this.currentChatId) {
-
-            this.createNewChat();
-
-        }
-
-
-
-        // Adicionar mensagem do usuário ao chat
-
-        this.addUserMessage(message);
-
+// Adicionar mensagem do usuário ao chat
+this.addUserMessage(message);
         
-
-        // Mostrar mensagem de processamento E OBTER O ID CORRETO
-
-        const processingId = this.addAssistantMessage('Gerando conteúdo...');
-
-        
-
-        // Aguardar um pouco para o DOM ser atualizado
-
-        this.sleep(100);
-
-        
-
-        // Atualizar mensagem para mostrar processamento LaTeX
-
-        this.updateProcessingMessage(processingId, 'Gerando conteúdo...');
-
-        
-
-        try {
-
-            // Gerar código LaTeX internamente (NUNCA MOSTRAR PARA O USUÁRIO)
-
-            console.log('🚀 Iniciando geração LaTeX para:', this.currentCreateType, '-', message);
-
-            const latexCode = this.generateLatexContent(message, this.currentCreateType);
-
-            console.log('✅ LaTeX gerado, iniciando compilação...');
-
-            
-
-            // Compilar LaTeX para PDF (usando renderização direta)
-
-            const compiledData = this.compileLatexToPDF(latexCode, processingId);
-
-            console.log('✅ Compilação concluída, exibindo resultado...');
-
-            
-
-            // Mostrar resultado visual para o usuário
-
-            this.displayCompiledContent(processingId, compiledData, this.currentCreateType, message);
-
-            console.log('✅ Processo concluído com sucesso!');
-
-            
-
-        } catch (error) {
-
-            console.error('❌ Erro ao gerar conteúdo:', error);
-
-            console.error('❌ Stack trace:', error.stack);
-
-            this.updateProcessingMessage(processingId, `❌ Erro ao gerar ${this.getCreateTypeName()}: ${error.message}`);
-
-        }
-
-        
-
-        // Resetar tipo de criação após uso
-
-        this.currentCreateType = null;
-
-        this.resetCreateButton();
-
-    }
-
-
-
-    async generateLatexContent(message, type) {
-
-        // Prompt interno para gerar LaTeX - ISSO FICA SECRETO
+// Mostrar mensagem de processamento E OBTER O ID CORRETO
+const processingId = this.addAssistantMessage('Gerando conteúdo...');
 
         const systemPrompt = {
-
             role: 'system',
-
             content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional Beamer' : type === 'document' ? 'documento acadêmico' : 'tabela técnica'} sobre: "${message}". 
 
             
@@ -1874,6 +1799,10 @@ ${latexCode}
     return latexCode;
 
 }
+
+
+
+    }
 
 
 

@@ -1015,6 +1015,7 @@ setRandomTitle();
 // Controle do modo de pesquisa web
 window.isWebSearchMode = false;
 window.isInvestigateMode = false;
+window.isREMode = false;
 
 // ✅ FUNÇÃO CORRIGIDA - Agora abre/fecha o card corretamente
 function toggleCreate() {
@@ -1118,6 +1119,27 @@ window.isInvestigateMode = true;
 if (createToggle) createToggle.classList.add('active');
 if (createToggle) createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">search</span><span>Pesquisando</span><span class="material-icons-outlined" style="font-size:0.85rem">close</span>';
 if (userInput) userInput.placeholder = 'Digite sua investigação para Drekee Investigate 1.0...';
+}
+}
+
+// MODO RE (RESOLUÇÃO DE EXERCÍCIOS)
+if (tool === 're') {
+// Se já estiver no modo RE, desativa
+if (window.isREMode) {
+window.isREMode = false;
+if (createToggle) createToggle.classList.remove('active');
+if (createToggle) createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">add_circle</span><span>Criar</span>';
+if (userInput) userInput.placeholder = 'Como posso ajudar com seu código hoje?';
+} else {
+// Desativa outros modos se estiverem ativos
+if (window.isInvestigateMode) selectTool('investigate');
+if (window.isWebSearchMode) toggleWebSearch();
+
+// Ativa modo RE
+window.isREMode = true;
+if (createToggle) createToggle.classList.add('active');
+if (createToggle) createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">calculate</span><span>RE</span><span class="material-icons-outlined" style="font-size:0.85rem">close</span>';
+if (userInput) userInput.placeholder = 'Digite o exercício para Resolução Completa...';
 }
 }
 
