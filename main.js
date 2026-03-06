@@ -4262,29 +4262,7 @@ ${latexCode}
         const renderMathToHtml = (math, displayMode) => {
             try {
                 if (typeof katex !== 'undefined' && katex && typeof katex.renderToString === 'function') {
-                    // Detectar se é uma fração complexa ou expressão matemática extensa
-                    const hasFraction = /\\frac\{/.test(math);
-                    const hasMultipleFractions = (math.match(/\\frac\{/g) || []).length > 1;
-                    const hasParentheses = /[\(\)]/.test(math);
-                    const hasBrackets = /[\[\]]/.test(math);
-                    const hasPowers = /\^\{/.test(math);
-                    const isLong = math.length > 15;
-                    
-                    // Usar displayMode true para:
-                    // 1. Expressões já marcadas como display
-                    // 2. Múltiplas frações
-                    // 3. Frações com parênteses/colchetes
-                    // 4. Frações com potências
-                    // 5. Expressões longas com frações
-                    const shouldUseDisplayMode = displayMode || 
-                        hasMultipleFractions || 
-                        (hasFraction && (hasParentheses || hasBrackets || hasPowers)) ||
-                        (hasFraction && isLong);
-                    
-                    return katex.renderToString(String(math).trim(), { 
-                        throwOnError: false, 
-                        displayMode: shouldUseDisplayMode 
-                    });
+                    return katex.renderToString(String(math).trim(), { throwOnError: false, displayMode });
                 }
             } catch (e) {
                 // fallback abaixo
@@ -4321,18 +4299,18 @@ ${latexCode}
 
         });
 
+        
+
+        // REINSERIR MATEMÁTICA ANTES DO escapeHtml - para que os placeholders não sejam escapados
+        if (mathRenders.length > 0) {
+            mathRenders.forEach((html, i) => {
+                cleanText = cleanText.replaceAll(mathPlaceholder(i), html);
+            });
+        }
+
         // Escapar o texto restante
 
         let formatted = this.escapeHtml(cleanText);
-
-        // REINSERIR MATEMÁTICA DEPOIS do escapeHtml - os placeholders já foram escapados, precisamos substituir
-        if (mathRenders.length > 0) {
-            mathRenders.forEach((html, i) => {
-                // Substituir o placeholder escapado pelo HTML renderizado
-                const escapedPlaceholder = mathPlaceholder(i).replace(/[_$]/g, '\\$&');
-                formatted = formatted.replace(new RegExp(escapedPlaceholder, 'g'), html);
-            });
-        }
 
         
 
