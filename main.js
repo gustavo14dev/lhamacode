@@ -2962,15 +2962,16 @@ ${latexCode}
 
                     try {
 
-                        // Procurar por expressões matemáticas LaTeX no conteúdo
-                        let content = element.innerHTML;
+                        // Salvar o conteúdo original
+                        let originalContent = element.innerHTML;
                         
-                        // Renderizar expressões entre $$ (display mode)
-                        content = content.replace(/\$\$([^$]+)\$\$/g, (match, math) => {
+                        // Primeiro, renderizar expressões entre $$ (display mode)
+                        originalContent = originalContent.replace(/\$\$([^$]+)\$\$/g, (match, math) => {
                             try {
-                                return katex.renderToString(math, {
+                                return katex.renderToString(math.trim(), {
                                     throwOnError: false,
-                                    displayMode: true
+                                    displayMode: true,
+                                    output: 'html'
                                 });
                             } catch (e) {
                                 console.warn('Erro KaTeX display:', e);
@@ -2978,12 +2979,13 @@ ${latexCode}
                             }
                         });
                         
-                        // Renderizar expressões entre $ (inline mode)
-                        content = content.replace(/\$([^$]+)\$/g, (match, math) => {
+                        // Depois, renderizar expressões entre $ (inline mode)
+                        originalContent = originalContent.replace(/\$([^$]+)\$/g, (match, math) => {
                             try {
-                                return katex.renderToString(math, {
+                                return katex.renderToString(math.trim(), {
                                     throwOnError: false,
-                                    displayMode: false
+                                    displayMode: false,
+                                    output: 'html'
                                 });
                             } catch (e) {
                                 console.warn('Erro KaTeX inline:', e);
@@ -2992,11 +2994,12 @@ ${latexCode}
                         });
                         
                         // Renderizar expressões entre \[ \] (display mode)
-                        content = content.replace(/\\\[([^\\]+)\\\]/g, (match, math) => {
+                        originalContent = originalContent.replace(/\\\[([^\\]+)\\\]/g, (match, math) => {
                             try {
-                                return katex.renderToString(math, {
+                                return katex.renderToString(math.trim(), {
                                     throwOnError: false,
-                                    displayMode: true
+                                    displayMode: true,
+                                    output: 'html'
                                 });
                             } catch (e) {
                                 console.warn('Erro KaTeX display brackets:', e);
@@ -3005,11 +3008,12 @@ ${latexCode}
                         });
                         
                         // Renderizar expressões entre \( \) (inline mode)
-                        content = content.replace(/\\\(([^\\]+)\\\)/g, (match, math) => {
+                        originalContent = originalContent.replace(/\\\(([^\\]+)\\\)/g, (match, math) => {
                             try {
-                                return katex.renderToString(math, {
+                                return katex.renderToString(math.trim(), {
                                     throwOnError: false,
-                                    displayMode: false
+                                    displayMode: false,
+                                    output: 'html'
                                 });
                             } catch (e) {
                                 console.warn('Erro KaTeX inline brackets:', e);
@@ -3017,7 +3021,8 @@ ${latexCode}
                             }
                         });
                         
-                        element.innerHTML = content;
+                        // Atualizar apenas uma vez
+                        element.innerHTML = originalContent;
 
                     } catch (e) {
 
@@ -3033,7 +3038,7 @@ ${latexCode}
 
             }
 
-        }, 100);
+        }, 200);
 
     }
 
@@ -3615,8 +3620,44 @@ ${latexCode}
             if (text.trim().startsWith('<')) {
 
                 // Texto HTML vindo de fontes internas ou widgets. Sanitizar antes de inserir.
-
-                responseDiv.innerHTML = this.sanitizeHtml(text);
+                let processedText = this.sanitizeHtml(text);
+                
+                // Verificar se é uma resposta RE e precisa de destaque amarelo
+                if (processedText.includes('Raciocínio Lógico:') || 
+                    processedText.includes('Passo a Passo') ||
+                    processedText.includes('Resultado Final:') ||
+                    processedText.includes('Justificativa:')) {
+                    
+                    // Se não tem destaque amarelo, adicionar automaticamente
+                    if (!processedText.includes('re-final-answer')) {
+                        const lines = processedText.split('\n');
+                        let finalAnswerLine = -1;
+                        
+                        // Procurar por linha que parece ser resposta final
+                        for (let i = lines.length - 1; i >= 0; i--) {
+                            const line = lines[i].trim();
+                            if (line.includes('Resultado Final:') || 
+                                line.includes('RESPOSTA FINAL:') ||
+                                line.includes('Resposta:') ||
+                                (line.match(/^\d+[\.\)]/) && line.includes('='))) {
+                                finalAnswerLine = i;
+                                break;
+                            }
+                        }
+                        
+                        if (finalAnswerLine >= 0) {
+                            // Adicionar destaque amarelo à resposta final
+                            const cleanLine = lines[finalAnswerLine].replace(/^.*?[:\)]\s*/, '').replace(/<[^>]*>/g, '');
+                            lines[finalAnswerLine] = `<div class="re-final-answer"><strong>RESPOSTA FINAL:</strong> ${cleanLine}</div>`;
+                            processedText = lines.join('\n');
+                        } else {
+                            // Se não encontrou linha clara, adicionar no final
+                            processedText += `\n\n<div class="re-final-answer"><strong>RESPOSTA FINAL:</strong> Verificar resposta acima</div>`;
+                        }
+                    }
+                }
+                
+                responseDiv.innerHTML = processedText;
 
             } else {
 
@@ -6312,7 +6353,35 @@ ${latexCode}
         
         try {
             // Gerar resposta com sistema especializado
-            const response = await this.generateREResponse(message, sendFiles);
+            let response = await this.generateREResponse(message, sendFiles);
+            
+            // GARANTIR que TODAS as respostas RE tenham destaque amarelo
+            if (!response.includes('re-final-answer')) {
+                // Se a IA não incluiu o destaque, adicionar automaticamente
+                const lines = response.split('\n');
+                let finalAnswerLine = -1;
+                
+                // Procurar por linha que parece ser resposta final
+                for (let i = lines.length - 1; i >= 0; i--) {
+                    const line = lines[i].trim();
+                    if (line.includes('Resultado Final:') || 
+                        line.includes('RESPOSTA FINAL:') ||
+                        line.includes('Resposta:') ||
+                        (line.match(/^\d+[\.\)]/) && line.includes('='))) {
+                        finalAnswerLine = i;
+                        break;
+                    }
+                }
+                
+                if (finalAnswerLine >= 0) {
+                    // Adicionar destaque amarelo à resposta final
+                    lines[finalAnswerLine] = `<div class="re-final-answer"><strong>RESPOSTA FINAL:</strong> ${lines[finalAnswerLine].replace(/^.*?[:\)]\s*/, '')}</div>`;
+                    response = lines.join('\n');
+                } else {
+                    // Se não encontrou linha clara, adicionar no final
+                    response += `\n\n<div class="re-final-answer"><strong>RESPOSTA FINAL:</strong> Verificar resposta acima</div>`;
+                }
+            }
             
             // Atualizar com a resposta completa
             this.updateProcessingMessage(processingId, response);

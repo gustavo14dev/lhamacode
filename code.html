@@ -673,8 +673,9 @@ font-style: italic;
 }
 
 .katex .frac-line {
-    border-bottom-width: 1.5px !important;
+    border-bottom-width: 1px !important;
     border-bottom-color: #374151 !important;
+    border-bottom-style: solid !important;
 }
 
 .katex .sqrt > .root {
@@ -684,6 +685,12 @@ font-style: italic;
 
 .katex-display {
     margin: 1em 0;
+}
+
+/* Evitar linhas duplicadas */
+.katex .frac-line::before,
+.katex .frac-line::after {
+    display: none !important;
 }
 
 /* Dark mode KaTeX */
