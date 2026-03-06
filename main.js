@@ -4222,6 +4222,37 @@ ${latexCode}
 
         }
 
+        // Heurística: quando a IA envia LaTeX cru (ex: \frac{3}{5}, \times, \div) sem delimitadores,
+        // envelopar em $...$ para permitir renderização KaTeX.
+        // (Evita exibir o código literal no chat.)
+        if (typeof text === 'string') {
+            const wrapIfRawLatex = (input) => {
+                // Não tentar mexer em blocos com ``` (serão removidos/extraídos depois)
+                // e evitar duplicar $ quando já existe.
+                // 1) Frações
+                input = input.replace(/(^|[^\\$])\\frac\{[^\n{}]+\}\{[^\n{}]+\}/g, (m, prefix) => {
+                    const expr = m.slice(prefix.length);
+                    return `${prefix}$${expr}$`;
+                });
+
+                // 2) Comandos comuns sem argumentos
+                input = input.replace(/(^|[^\\$])\\(times|div|cdot|pm|mp|leq|geq|neq|approx|infty)(?![a-zA-Z])/g, (m, prefix, cmd) => {
+                    const expr = `\\${cmd}`;
+                    return `${prefix}$${expr}$`;
+                });
+
+                // 3) Comandos com um argumento {...}
+                input = input.replace(/(^|[^\\$])\\(sqrt|text)\{[^\n{}]+\}/g, (m, prefix) => {
+                    const expr = m.slice(prefix.length);
+                    return `${prefix}$${expr}$`;
+                });
+
+                return input;
+            };
+
+            text = wrapIfRawLatex(text);
+        }
+
         
 
         // Extrair todos os blocos de código e armazená-los
@@ -4306,11 +4337,27 @@ ${latexCode}
 
         
 
-        // Processar expressões matemáticas LaTeX (inline e bloco) com suporte completo
+        // Processar expressões matemáticas LaTeX (inline e bloco) usando KaTeX
+        // Suporta $$...$$ e $...$ (incluindo casos auto-envelopados acima).
+        const renderMath = (math, displayMode) => {
+            try {
+                if (typeof katex !== 'undefined' && katex && typeof katex.renderToString === 'function') {
+                    return katex.renderToString(math, { throwOnError: false, displayMode });
+                }
+            } catch (e) {
+                // fallback abaixo
+            }
+            // Fallback: mostrar como texto mono (mas sem quebrar o HTML)
+            const safe = this.escapeHtml(math);
+            return displayMode
+                ? `<div class="block my-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><span class="block font-mono text-base text-center text-gray-900 dark:text-gray-100">${safe}</span></div>`
+                : `<span class="inline-block font-mono text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600">${safe}</span>`;
+        };
 
-        formatted = formatted.replace(/\$([^$\n]+)\$/g, '<span class="inline-block font-mono text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 math-inline">$1</span>');
-
-        formatted = formatted.replace(/\$\$([^$\n]+)\$\$/g, '<div class="block my-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><span class="block font-mono text-base text-center text-gray-900 dark:text-gray-100 math-block">$1</span></div>');
+        // $$...$$ primeiro (display)
+        formatted = formatted.replace(/\$\$([\s\S]+?)\$\$/g, (match, math) => renderMath(math.trim(), true));
+        // $...$ (inline)
+        formatted = formatted.replace(/\$([^$\n]+)\$/g, (match, math) => renderMath(math.trim(), false));
 
         
 
@@ -4367,8 +4414,13 @@ ${latexCode}
         
 
         // Processar frações simples (a/b)
-
-        formatted = formatted.replace(/(\d+)\/(\d+)/g, '<span class="inline-block text-center"><span class="block text-xs">$1</span><span class="block border-t border-gray-400 dark:border-gray-600">—</span><span class="block text-xs">$2</span></span>');
+        // Evitar aplicar dentro de HTML KaTeX já renderizado.
+        formatted = formatted.replace(/(\d+)\/(\d+)/g, (m, a, b, offset) => {
+            const before = formatted.slice(Math.max(0, offset - 50), offset);
+            // Heurística simples: se estamos dentro de um bloco KaTeX, não mexer.
+            if (before.includes('class="katex') || before.includes('class=\'katex')) return m;
+            return '<span class="inline-block text-center"><span class="block text-xs">' + a + '</span><span class="block border-t border-gray-400 dark:border-gray-600">/</span><span class="block text-xs">' + b + '</span></span>';
+        });
 
         
 
@@ -6383,8 +6435,37 @@ ${latexCode}
                 }
             }
             
-            // Atualizar com a resposta completa
-            this.updateProcessingMessage(processingId, response);
+            // Montar HTML final do RE:
+            // - O corpo passa por formatResponse (para formatação + KaTeX)
+            // - O card amarelo é HTML real (não pode passar pelo escape do formatResponse)
+            const responseBodyHtml = this.formatResponse(response);
+
+            let finalAnswerText = null;
+            const rawLines = String(response || '').split(/\r?\n/);
+            for (let i = rawLines.length - 1; i >= 0; i--) {
+                const line = rawLines[i].trim();
+                if (!line) continue;
+                if (line.includes('Resultado Final:') || line.includes('RESPOSTA FINAL:')) {
+                    finalAnswerText = line.replace(/^.*?:\s*/, '').trim();
+                    break;
+                }
+            }
+            if (!finalAnswerText) {
+                // fallback simples: pega a última linha não vazia
+                for (let i = rawLines.length - 1; i >= 0; i--) {
+                    const line = rawLines[i].trim();
+                    if (line) {
+                        finalAnswerText = line;
+                        break;
+                    }
+                }
+            }
+
+            const finalAnswerHtml = `<div class="re-final-answer"><strong>RESPOSTA FINAL:</strong> ${this.escapeHtml(finalAnswerText || 'Verificar resposta acima')}</div>`;
+            const finalHtml = `<div>${responseBodyHtml}${finalAnswerHtml}</div>`;
+
+            // Atualizar com a resposta completa (como HTML)
+            this.updateProcessingMessage(processingId, finalHtml);
             
         } catch (error) {
             console.error('❌ Erro no modo RE:', error);
