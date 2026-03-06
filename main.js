@@ -2962,13 +2962,62 @@ ${latexCode}
 
                     try {
 
-                        katex.render(element.textContent, element, {
-
-                            throwOnError: false,
-
-                            displayMode: false
-
+                        // Procurar por expressões matemáticas LaTeX no conteúdo
+                        let content = element.innerHTML;
+                        
+                        // Renderizar expressões entre $$ (display mode)
+                        content = content.replace(/\$\$([^$]+)\$\$/g, (match, math) => {
+                            try {
+                                return katex.renderToString(math, {
+                                    throwOnError: false,
+                                    displayMode: true
+                                });
+                            } catch (e) {
+                                console.warn('Erro KaTeX display:', e);
+                                return match;
+                            }
                         });
+                        
+                        // Renderizar expressões entre $ (inline mode)
+                        content = content.replace(/\$([^$]+)\$/g, (match, math) => {
+                            try {
+                                return katex.renderToString(math, {
+                                    throwOnError: false,
+                                    displayMode: false
+                                });
+                            } catch (e) {
+                                console.warn('Erro KaTeX inline:', e);
+                                return match;
+                            }
+                        });
+                        
+                        // Renderizar expressões entre \[ \] (display mode)
+                        content = content.replace(/\\\[([^\\]+)\\\]/g, (match, math) => {
+                            try {
+                                return katex.renderToString(math, {
+                                    throwOnError: false,
+                                    displayMode: true
+                                });
+                            } catch (e) {
+                                console.warn('Erro KaTeX display brackets:', e);
+                                return match;
+                            }
+                        });
+                        
+                        // Renderizar expressões entre \( \) (inline mode)
+                        content = content.replace(/\\\(([^\\]+)\\\)/g, (match, math) => {
+                            try {
+                                return katex.renderToString(math, {
+                                    throwOnError: false,
+                                    displayMode: false
+                                });
+                            } catch (e) {
+                                console.warn('Erro KaTeX inline brackets:', e);
+                                return match;
+                            }
+                        });
+                        
+                        element.innerHTML = content;
 
                     } catch (e) {
 
@@ -2977,6 +3026,10 @@ ${latexCode}
                     }
 
                 });
+
+            } else {
+
+                console.warn('KaTeX não carregado');
 
             }
 
@@ -6301,7 +6354,7 @@ REGRAS ESTRITAS PARA O MODO RE (RESOLUÇÃO DE EXERCÍCIOS):
 
 4. RESULTADO FINAL:
    - Coloque a resposta final dentro de um card amarelo destacado
-   - Use HTML: <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 15px 0;"><strong>RESPOSTA FINAL:</strong> [valor]</div>
+   - Use HTML: <div class="re-final-answer"><strong>RESPOSTA FINAL:</strong> [valor]</div>
    - Esta é a resposta para "colocar no livro"
 
 5. LATEX AVANÇADO:

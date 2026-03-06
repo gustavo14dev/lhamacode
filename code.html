@@ -9,6 +9,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<!-- KaTeX CSS and JS for mathematical expressions -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <!-- Supabase JS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -661,6 +664,70 @@ color: #ef4444;
 margin-left: 34px;
 margin-top: 2px;
 font-style: italic;
+}
+
+/* ── KaTeX Styling ───────────────────────────── */
+.katex {
+    font-size: 1.1em !important;
+    line-height: 1.4 !important;
+}
+
+.katex .frac-line {
+    border-bottom-width: 1.5px !important;
+    border-bottom-color: #374151 !important;
+}
+
+.katex .sqrt > .root {
+    margin-left: 0.1em;
+    margin-right: -0.3em;
+}
+
+.katex-display {
+    margin: 1em 0;
+}
+
+/* Dark mode KaTeX */
+.dark .katex .frac-line {
+    border-bottom-color: #9ca3af !important;
+}
+
+.dark .katex {
+    color: #e5e7eb !important;
+}
+
+/* ── RE Mode Highlighting ───────────────────── */
+.re-final-answer {
+    background: #fef3c7 !important;
+    border: 2px solid #f59e0b !important;
+    border-radius: 8px !important;
+    padding: 15px !important;
+    margin: 15px 0 !important;
+    font-weight: 600 !important;
+    color: #92400e !important;
+}
+
+.dark .re-final-answer {
+    background: #451a03 !important;
+    border-color: #f59e0b !important;
+    color: #fef3c7 !important;
+}
+
+/* ── LaTeX Content Styling ───────────────────── */
+.latex-content {
+    font-size: 1.05em;
+    line-height: 1.6;
+}
+
+.latex-content p {
+    margin: 0.8em 0;
+}
+
+.latex-slide {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.latex-document {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
 }
 </style>
 </head>
