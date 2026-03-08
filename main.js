@@ -2928,20 +2928,37 @@ ${latexCode}
                     messages: [
                         {
                             role: 'system',
-                            content: 'Você é um especialista em LaTeX e documentos acadêmicos. Gere um documento LaTeX completo e bem formatado sobre: "' + message + '".' +
+                            content: 'Você é um especialista em LaTeX e documentos acadêmicos. Gere um documento LaTeX COMPLETO e COMPILÁVEL sobre: "' + message + '".' +
 
-'REGRAS IMPORTANTES:' +
-'- Use \\documentclass{article} com pacotes padrão' +
-'- Inclua título, autor, data e seções' +
-'- Use formatação rica: \\textbf{negrito}, \\textit{itálico}, \\underline{sublinhado}' +
-'- Use listas com \\begin{itemize} e \\item' +
-'- Use citações com \\cite{} se necessário' +
-'- Use equações matemáticas com $...$ para inline e $$...$$ para display' +
-'- Use tabelas se apropriado com \\begin{tabular}' +
-'- O documento deve ser compilável com pdflatex' +
-'- NÃO inclua explicações fora do código LaTeX' +
-'- Retorne APENAS o código LaTeX puro, sem marcadores ```' +
-'- Estrutura: título, resumo, introdução, desenvolvimento, conclusão, referências'
+'IMPORTANTE: O código LaTeX DEVE ser compilável com pdflatex SEM ERROS.' +
+
+'REGRAS CRÍTICAS:' +
+'- Use EXATAMENTE esta estrutura:' +
+'\\documentclass[12pt,a4paper]{article}' +
+'\\usepackage[utf8]{inputenc}' +
+'\\usepackage[T1]{fontenc}' +
+'\\usepackage{amsmath,amssymb}' +
+'\\usepackage{graphicx}' +
+'\\usepackage{hyperref}' +
+'\\title{' + message + '}' +
+'\\author{IA}' +
+'\\date{\\today}' +
+'\\begin{document}' +
+'\\maketitle' +
+'[conteúdo do documento aqui]' +
+'\\end{document}' +
+
+'- Use SOMENTE comandos LaTeX padrão' +
+'- Escape caracteres especiais: # $ % ^ & _ { } ~ \\' +
+'- Use \\textbf{texto} para negrito' +
+'- Use \\textit{texto} para itálico' +
+'- Use \\section{Nome} para seções' +
+'- Use \\begin{itemize} \\item texto \\end{itemize} para listas' +
+'- Use $equação$ para matemática inline' +
+'- Use $$equação$$ para matemática display' +
+'- NÃO use comandos personalizados' +
+'- NÃO use pacotes não listados acima' +
+'- Retorne APENAS o código LaTeX, sem explicações'
                         },
                         {
                             role: 'user',
@@ -2959,15 +2976,76 @@ ${latexCode}
             // Limpar código LaTeX
             latexCode = latexCode.replace(/```latex/gi, '').replace(/```/g, '').trim();
             
-            console.log('📄 [DOCUMENTO] LaTeX gerado:', latexCode.substring(0, 200) + '...');
+            console.log('📄 [DOCUMENTO] LaTeX bruto:', latexCode.substring(0, 400) + '...');
+            
+            // Validar e corrigir LaTeX
+            latexCode = this.validateAndFixLatex(latexCode);
+            
+            console.log('📄 [DOCUMENTO] LaTeX corrigido:', latexCode.substring(0, 200) + '...');
             
             // Renderizar documento bonito
             this.renderDocument(latexCode, processingId);
             
         } catch (error) {
             console.error('📄 [DOCUMENTO] Erro:', error);
-            this.updateProcessingMessage(processingId, '❌ Erro ao gerar documento. Tente novamente.');
+            console.log('📄 [DOCUMENTO] Código LaTeX que falhou:', latexCode);
+            
+            // Fallback: mostrar código LaTeX bruto em formato legível
+            this.showLatexFallback(latexCode, processingId, error.message);
         }
+    }
+    
+    validateAndFixLatex(latexCode) {
+        console.log('🔧 [LATEX] Validando e corrigindo código...');
+        
+        let fixedCode = latexCode;
+        
+        // Garantir estrutura básica
+        if (!fixedCode.includes('\\documentclass')) {
+            fixedCode = '\\documentclass[12pt,a4paper]{article}\n' + fixedCode;
+        }
+        
+        if (!fixedCode.includes('\\usepackage[utf8]{inputenc}')) {
+            fixedCode = fixedCode.replace('\\documentclass', '\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\documentclass');
+        }
+        
+        if (!fixedCode.includes('\\begin{document}')) {
+            fixedCode += '\n\n\\begin{document}\n\\maketitle\n\n[Conteúdo do documento]\n\n\\end{document}';
+        }
+        
+        // Adicionar título se não existir
+        if (!fixedCode.includes('\\title{')) {
+            fixedCode = fixedCode.replace('\\begin{document}', '\\title{Documento Gerado}\n\\author{IA}\n\\date{\\today}\n\\begin{document}');
+        }
+        
+        // Corrigir erros comuns
+        fixedCode = fixedCode.replace(/\\maketitle/g, '\\maketitle\n\n');
+        
+        // Remover quebras de linha extras
+        fixedCode = fixedCode.replace(/\n{3,}/g, '\n\n');
+        
+        // Garantir que \\end{document} esteja no final
+        if (fixedCode.includes('\\end{document}')) {
+            fixedCode = fixedCode.replace(/\\end{document}[\s\S]*$/, '\\end{document}');
+        } else {
+            fixedCode += '\n\\end{document}';
+        }
+        
+        // Verificar seções estão bem formadas
+        fixedCode = fixedCode.replace(/\\section\{([^}]*)\}/g, '\\section{$1}\n');
+        fixedCode = fixedCode.replace(/\\subsection\{([^}]*)\}/g, '\\subsection{$1}\n');
+        
+        // Corrigir listas
+        fixedCode = fixedCode.replace(/\\begin\{itemize\}\s*\\item/g, '\\begin{itemize}\n\\item');
+        fixedCode = fixedCode.replace(/\\item\s*\\end\{itemize\}/g, '\\item\n\\end{itemize}');
+        
+        // Escapar caracteres especiais problemáticos
+        fixedCode = fixedCode.replace(/#/g, '\\#');
+        fixedCode = fixedCode.replace(/&(?![a-zA-Z])/g, '\\&');
+        fixedCode = fixedCode.replace(/%/g, '\\%');
+        
+        console.log('🔧 [LATEX] Código validado e corrigido');
+        return fixedCode.trim();
     }
     
     renderDocument(latexCode, messageId) {
@@ -3111,6 +3189,70 @@ ${latexCode}
         };
         
         console.log('📄 [DOCUMENTO] Documento renderizado com sucesso');
+        this.scrollToBottom();
+    }
+    
+    showLatexFallback(latexCode, messageId, errorMessage) {
+        console.log('📄 [DOCUMENTO] Mostrando fallback LaTeX...');
+        
+        const fallbackHTML = '<div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">' +
+            '<div class="bg-gradient-to-r from-orange-500 to-red-500 text-white p-6">' +
+                '<div class="flex items-center gap-3">' +
+                    '<span class="material-icons-outlined text-2xl">warning</span>' +
+                    '<div>' +
+                        '<h1 class="text-xl font-bold">Documento LaTeX (Fallback)</h1>' +
+                        '<p class="text-orange-100 text-sm">Ocorreu um erro na renderização, mas o código foi gerado</p>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            
+            '<div class="p-6">' +
+                '<div class="mb-4">' +
+                    '<h3 class="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">Código LaTeX Gerado:</h3>' +
+                    '<div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">' +
+                        '<pre class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">' + 
+                            this.escapeHtml(latexCode) + 
+                        '</pre>' +
+                    '</div>' +
+                '</div>' +
+                
+                '<div class="mb-4">' +
+                    '<h3 class="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">Informações:</h3>' +
+                    '<ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1">' +
+                        '<li>O código LaTeX foi gerado com sucesso pela IA</li>' +
+                        '<li>Você pode copiar e compilar em um editor LaTeX</li>' +
+                        '<li>Use Overleaf, TeXstudio, ou outro compilador LaTeX</li>' +
+                        '<li>Erro: ' + this.escapeHtml(errorMessage) + '</li>' +
+                    '</ul>' +
+                '</div>' +
+                
+                '<div class="flex gap-2">' +
+                    '<button onclick="navigator.clipboard.writeText(`' + latexCode.replace(/`/g, '\\`').replace(/\n/g, '\\n') + '`); alert(\'Código copiado!\');" ' +
+                            'class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">' +
+                        '<span class="material-icons-outlined">content_copy</span>' +
+                        'Copiar Código' +
+                    '</button>' +
+                    '<button onclick="window.downloadLatexCode(`' + latexCode.replace(/`/g, '\\`').replace(/\n/g, '\\n') + '`);" ' +
+                            'class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">' +
+                        '<span class="material-icons-outlined">download</span>' +
+                        'Baixar .tex' +
+                    '</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+        
+        // Adicionar função de download global
+        window.downloadLatexCode = function(code) {
+            const blob = new Blob([code], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'documento.tex';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+        
+        this.updateProcessingMessage(messageId, fallbackHTML);
         this.scrollToBottom();
     }
 
