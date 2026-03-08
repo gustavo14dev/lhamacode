@@ -128,19 +128,33 @@ class UI {
                 
                 // Criar dropdown dinâmico
                 const dropdownHTML = `
-                    <div id="floatingCreateDropdown" class="hidden fixed bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[200]" style="min-width: 280px;">
-                        <button class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3 first:rounded-t-lg" onclick="selectTool('investigate')">
+                    <div id="floatingCreateDropdown" class="hidden fixed bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[200]" style="min-width: 200px;">
+                        <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3 first:rounded-t-lg" onclick="selectTool('investigate')">
                             <span class="material-icons-outlined text-base text-blue-400 mt-0.5">troubleshoot</span>
                             <div class="flex-1">
                                 <div class="font-medium">Drekee Investigate 1.0</div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Investigação profunda com IA</div>
                             </div>
                         </button>
-                        <button class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3" onclick="selectTool('re')">
+                        <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3" onclick="selectTool('re')">
                             <span class="material-icons-outlined text-base text-green-400 mt-0.5">calculate</span>
                             <div class="flex-1">
                                 <div class="font-medium">Resolução de Exercícios</div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Resolução completa de questões com cálculo detalhado e justificativa técnica</div>
+                            </div>
+                        </button>
+                        <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3" onclick="toggleCreateSubcard()">
+                            <span class="material-icons-outlined text-base text-purple-400 mt-0.5">add_box</span>
+                            <div class="flex-1">
+                                <div class="font-medium">Criar</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Apresentações, Documentos e Mapas Mentais</div>
+                            </div>
+                        </button>
+                        <button id="deactivateFunctionBtn" class="hidden w-full text-left px-2 py-3 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-start gap-3 last:rounded-b-lg" onclick="deactivateCurrentFunction()">
+                            <span class="material-icons-outlined text-base text-red-500 mt-0.5">close</span>
+                            <div class="flex-1">
+                                <div class="font-medium">DESATIVAR FUNÇÃO</div>
+                                <div class="text-xs text-red-400 dark:text-red-500 mt-0.5">Parar funcionalidade atual</div>
                             </div>
                         </button>
                     </div>
@@ -157,6 +171,11 @@ class UI {
                 dropdown.style.left = `${rect.left}px`;
                 dropdown.classList.remove('hidden');
                 
+                // Atualizar botão de desativação ao abrir o dropdown
+                if (window.updateDeactivateButton) {
+                    setTimeout(window.updateDeactivateButton, 50);
+                }
+                
                 console.log('🔧 [CREATE] Dropdown mostrado');
                 
                 // Fechar ao clicar fora
@@ -168,6 +187,88 @@ class UI {
                 });
             });
         }
+    }
+
+    // Função para abrir/fechar subcard de criação
+    toggleCreateSubcard() {
+        console.log('🔧 [CREATE] Subcard Criar clicado');
+        
+        // Se modo Documento está ativo -> DESATIVA direto
+        if (window.isDocumentModeActive) {
+            console.log('🔧 [CREATE] Modo Documento ativo, desativando...');
+            
+            // Chamar função de desativação
+            if (window.selectCreateType) {
+                window.selectCreateType('document');
+            }
+            return;
+        }
+        
+        // Remover subcard anterior se existir
+        const existingSubcard = document.getElementById('floatingCreateSubcard');
+        if (existingSubcard) {
+            existingSubcard.remove();
+            return;
+        }
+        
+        // Criar subcard dinâmico
+        const subcardHTML = `
+            <div id="floatingCreateSubcard" class="hidden fixed bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[201]" style="min-width: 200px;">
+                <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-400 dark:text-gray-500 cursor-not-allowed transition-colors flex items-start gap-3 first:rounded-t-lg" disabled>
+                    <span class="material-icons-outlined text-base text-gray-400 mt-0.5">slideshow</span>
+                    <div class="flex-1">
+                        <div class="font-medium">Apresentação</div>
+                        <div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Em breve...</div>
+                    </div>
+                </button>
+                <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3" onclick="activateDocumentMode()">
+                    <span class="material-icons-outlined text-base text-blue-400 mt-0.5">description</span>
+                    <div class="flex-1">
+                        <div class="font-medium">Documento</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Criar documento acadêmico</div>
+                    </div>
+                    <span id="documentCloseIcon" class="material-icons-outlined text-base text-gray-500 dark:text-gray-400 mt-0.5 hidden">close</span>
+                </button>
+                <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-400 dark:text-gray-500 cursor-not-allowed transition-colors flex items-start gap-3 last:rounded-b-lg" disabled>
+                    <span class="material-icons-outlined text-base text-gray-400 mt-0.5">psychology</span>
+                    <div class="flex-1">
+                        <div class="font-medium">Mapa Mental</div>
+                        <div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Em breve...</div>
+                    </div>
+                </button>
+            </div>
+        `;
+        
+        // Adicionar ao body
+        document.body.insertAdjacentHTML('beforeend', subcardHTML);
+        
+        const subcard = document.getElementById('floatingCreateSubcard');
+        const createDropdown = document.getElementById('floatingCreateDropdown');
+        
+        // Posicionar subcard ao lado do dropdown principal
+        if (createDropdown && subcard) {
+            const rect = createDropdown.getBoundingClientRect();
+            subcard.style.bottom = `${window.innerHeight - rect.top + 8}px`;
+            subcard.style.left = `${rect.right + 8}px`;
+            subcard.classList.remove('hidden');
+        }
+        
+        console.log('🔧 [CREATE] Subcard Criar mostrado');
+        
+        // Atualizar botão de desativação ao abrir subcard
+        if (window.updateDeactivateButton) {
+            setTimeout(window.updateDeactivateButton, 50);
+        }
+        
+        // Fechar ao clicar fora
+        setTimeout(() => {
+            document.addEventListener('click', function closeSubcard(e) {
+                if (!subcard.contains(e.target) && !createDropdown.contains(e.target)) {
+                    subcard.remove();
+                    document.removeEventListener('click', closeSubcard);
+                }
+            });
+        }, 100);
     }
 
     setupAttachListeners() {
@@ -2433,7 +2534,7 @@ ${latexCode}
 
             if (icon) {
 
-                icon.textContent = 'add_circle';
+                icon.textContent = 'edit';
 
                 icon.className = 'material-icons-outlined text-base';
 
@@ -2441,7 +2542,7 @@ ${latexCode}
 
             if (text) {
 
-                text.textContent = 'Criar';
+                text.textContent = 'Ferramentas';
 
             }
 
@@ -2518,6 +2619,13 @@ ${latexCode}
 
             return;
 
+        }
+        
+        // Verificar se modo Documento está ativo
+        if (window.isDocumentModeActive && message) {
+            await this.generateDocument(message);
+            this.elements.userInput.value = '';
+            return;
         }
 
 
@@ -2797,6 +2905,214 @@ ${latexCode}
     }
 
 
+
+    // ==================== FUNÇÃO DE GERAÇÃO DE DOCUMENTOS (NOVA) ====================
+    
+    async generateDocument(message) {
+        console.log('📄 [DOCUMENTO] Gerando documento:', message);
+        
+        // Adicionar mensagem do usuário
+        this.addUserMessage(message);
+        
+        // Mostrar processamento
+        const processingId = this.addAssistantMessage('📄 Gerando documento acadêmico...');
+        
+        try {
+            // Chamar API Groq com prompt especial para LaTeX
+            const response = await fetch('/api/groq-proxy', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'Você é um especialista em LaTeX e documentos acadêmicos. Gere um documento LaTeX completo e bem formatado sobre: "' + message + '".' +
+
+'REGRAS IMPORTANTES:' +
+'- Use \\documentclass{article} com pacotes padrão' +
+'- Inclua título, autor, data e seções' +
+'- Use formatação rica: \\textbf{negrito}, \\textit{itálico}, \\underline{sublinhado}' +
+'- Use listas com \\begin{itemize} e \\item' +
+'- Use citações com \\cite{} se necessário' +
+'- Use equações matemáticas com $...$ para inline e $$...$$ para display' +
+'- Use tabelas se apropriado com \\begin{tabular}' +
+'- O documento deve ser compilável com pdflatex' +
+'- NÃO inclua explicações fora do código LaTeX' +
+'- Retorne APENAS o código LaTeX puro, sem marcadores ```' +
+'- Estrutura: título, resumo, introdução, desenvolvimento, conclusão, referências'
+                        },
+                        {
+                            role: 'user',
+                            content: message
+                        }
+                    ],
+                    model: 'llama-3.1-8b-instant',
+                    temperature: 0.7
+                })
+            });
+            
+            const data = await response.json();
+            let latexCode = data.choices[0].message.content;
+            
+            // Limpar código LaTeX
+            latexCode = latexCode.replace(/```latex/gi, '').replace(/```/g, '').trim();
+            
+            console.log('📄 [DOCUMENTO] LaTeX gerado:', latexCode.substring(0, 200) + '...');
+            
+            // Renderizar documento bonito
+            this.renderDocument(latexCode, processingId);
+            
+        } catch (error) {
+            console.error('📄 [DOCUMENTO] Erro:', error);
+            this.updateProcessingMessage(processingId, '❌ Erro ao gerar documento. Tente novamente.');
+        }
+    }
+    
+    renderDocument(latexCode, messageId) {
+        console.log('📄 [DOCUMENTO] Renderizando documento...');
+        
+        // Processar LaTeX para HTML
+        let htmlContent = latexCode;
+        
+        // Extrair título
+        const titleMatch = latexCode.match(/\\title\{([^}]+)\}/);
+        const title = titleMatch ? titleMatch[1] : 'Documento Gerado';
+        
+        // Remover preâmbulo LaTeX
+        htmlContent = htmlContent.replace(/\\documentclass[^{]*\{[^}]*\}/g, '');
+        htmlContent = htmlContent.replace(/\\usepackage[^{]*\{[^}]*\}/g, '');
+        htmlContent = htmlContent.replace(/\\author\{[^}]*\}/g, '');
+        htmlContent = htmlContent.replace(/\\date\{[^}]*\}/g, '');
+        htmlContent = htmlContent.replace(/\\title\{[^}]*\}/g, '');
+        htmlContent = htmlContent.replace(/\\begin\{document\}/g, '');
+        htmlContent = htmlContent.replace(/\\end\{document\}/g, '');
+        
+        // Converter comandos LaTeX para HTML
+        htmlContent = htmlContent.replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>');
+        htmlContent = htmlContent.replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>');
+        htmlContent = htmlContent.replace(/\\underline\{([^}]+)\}/g, '<u>$1</u>');
+        htmlContent = htmlContent.replace(/\\texttt\{([^}]+)\}/g, '<code>$1</code>');
+        htmlContent = htmlContent.replace(/``([^`]+)``/g, '<code>$1</code>');
+        htmlContent = htmlContent.replace(/`([^`]+)`/g, '<code>$1</code>');
+        
+        // Converter seções
+        htmlContent = htmlContent.replace(/\\section\{([^}]+)\}/g, '<h2 class="text-xl font-bold mt-6 mb-3 text-gray-800 dark:text-gray-200">$1</h2>');
+        htmlContent = htmlContent.replace(/\\subsection\{([^}]+)\}/g, '<h3 class="text-lg font-semibold mt-4 mb-2 text-gray-700 dark:text-gray-300">$1</h3>');
+        htmlContent = htmlContent.replace(/\\subsubsection\{([^}]+)\}/g, '<h4 class="text-base font-medium mt-3 mb-2 text-gray-600 dark:text-gray-400">$1</h4>');
+        
+        // Converter listas
+        htmlContent = htmlContent.replace(/\\begin\{itemize\}/g, '<ul class="list-disc list-inside my-3 space-y-1">');
+        htmlContent = htmlContent.replace(/\\end\{itemize\}/g, '</ul>');
+        htmlContent = htmlContent.replace(/\\item\s+([^\n]+)/g, '<li class="ml-4">$1</li>');
+        htmlContent = htmlContent.replace(/\\item/g, '<li class="ml-4">');
+        
+        // Converter parágrafos
+        htmlContent = htmlContent.replace(/\n\n+/g, '</p><p class="mb-4 leading-relaxed text-gray-700 dark:text-gray-300">');
+        htmlContent = htmlContent.replace(/^/, '<p class="mb-4 leading-relaxed text-gray-700 dark:text-gray-300">');
+        htmlContent = htmlContent.replace(/$/, '</p>');
+        
+        // Limpar quebras de linha extras
+        htmlContent = htmlContent.replace(/\n/g, ' ');
+        
+        // Criar HTML do documento
+        const documentHTML = '<div id="document-' + messageId + '" class="document-viewer bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">' +
+            '<!-- Cabeçalho do documento -->' +
+            '<div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">' +
+                '<div class="flex items-center gap-3">' +
+                    '<span class="material-icons-outlined text-2xl">description</span>' +
+                    '<div>' +
+                        '<h1 class="text-xl font-bold">' + this.escapeHtml(title) + '</h1>' +
+                        '<p class="text-blue-100 text-sm">Documento acadêmico gerado por IA</p>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            
+            '<!-- Conteúdo do documento com paginação -->' +
+            '<div class="document-pages max-h-96 overflow-y-auto" style="scrollbar-width: thin;">' +
+                '<div class="p-8 space-y-4">' +
+                    htmlContent +
+                '</div>' +
+            '</div>' +
+            
+            '<!-- Barra de ações -->' +
+            '<div class="bg-gray-50 dark:bg-gray-800 p-4 border-t border-gray-200 dark:border-gray-700">' +
+                '<div class="flex items-center justify-between">' +
+                    '<div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">' +
+                        '<span class="material-icons-outlined text-base">info</span>' +
+                        '<span>Documento LaTeX renderizado</span>' +
+                    '</div>' +
+                    '<div class="flex gap-2">' +
+                        '<button onclick="window.downloadDocument(\'' + messageId + '\', \'' + title + '.tex\')" ' +
+                                'class="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm">' +
+                            '<span class="material-icons-outlined">download</span>' +
+                            'Baixar LaTeX' +
+                        '</button>' +
+                        '<button onclick="window.printDocument(\'' + messageId + '\')" ' +
+                                'class="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">' +
+                            '<span class="material-icons-outlined">print</span>' +
+                            'Imprimir' +
+                        '</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+        
+        // Atualizar mensagem com o documento renderizado
+        this.updateProcessingMessage(messageId, documentHTML);
+        
+        // Adicionar funções globais para download e impressão
+        window.downloadDocument = function(msgId, filename) {
+            const element = document.getElementById('document-' + msgId);
+            if (element) {
+                const content = element.querySelector('.document-pages').innerHTML;
+                const blob = new Blob([latexCode], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        };
+        
+        window.printDocument = function(msgId) {
+            const element = document.getElementById('document-' + msgId);
+            if (element) {
+                const printContent = element.querySelector('.document-pages').innerHTML;
+                const printWindow = window.open('', 'width=800,height=600');
+                printWindow.document.write(
+                    '<html>' +
+                        '<head>' +
+                            '<title>' + title + '</title>' +
+                            '<style>' +
+                                'body { font-family: serif; line-height: 1.6; margin: 20px; }' +
+                                'h1 { color: #333; }' +
+                                'h2 { color: #444; margin-top: 20px; }' +
+                                'h3 { color: #555; margin-top: 15px; }' +
+                                'strong { font-weight: bold; }' +
+                                'em { font-style: italic; }' +
+                                'u { text-decoration: underline; }' +
+                                'code { background: #f4f4f4; padding: 2px 4px; border-radius: 3px; }' +
+                                'ul { margin-left: 20px; }' +
+                                'li { margin-bottom: 5px; }' +
+                            '</style>' +
+                        '</head>' +
+                        '<body>' +
+                            '<h1>' + title + '</h1>' +
+                            printContent +
+                        '</body>' +
+                    '</html>'
+                );
+                printWindow.document.close();
+                printWindow.print();
+            }
+        };
+        
+        console.log('📄 [DOCUMENTO] Documento renderizado com sucesso');
+        this.scrollToBottom();
+    }
 
     // ==================== FUNÇÕES DE RENDERIZAÇÃO LATEX SIMPLES ====================
 
@@ -3435,6 +3751,30 @@ ${latexCode}
 
 
     addUserMessage(text, files = null) {
+
+        // Se o modo Documento está ativo, desativar ao enviar mensagem
+        if (window.isDocumentModeActive) {
+            console.log('🔧 [CREATE] Desativando modo Documento ao enviar mensagem');
+            window.isDocumentModeActive = false;
+            
+            // Resetar botão principal
+            const createToggle = document.getElementById('createToggle');
+            if (createToggle) {
+                createToggle.classList.remove('active');
+                createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
+            }
+            
+            // Resetar placeholder
+            const userInput = document.getElementById('userInput');
+            if (userInput) {
+                userInput.placeholder = 'Como posso ajudar com seu código hoje?';
+            }
+            
+            // Resetar na UI
+            if (this.setCreateType) {
+                this.setCreateType(null);
+            }
+        }
 
         // Se houver arquivos, criar um pequeno card de anexos acima da mensagem (visual)
 

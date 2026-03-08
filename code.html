@@ -870,8 +870,8 @@ INPUT WRAPPER — sempre fixo no rodapé, nunca sobrepõe o título
 <!-- Criar -->
 <div style="position: relative;" class="relative">
 <button id="createToggle" class="toolbar-btn" onclick="console.log('CLICOU NO BOTÃO!');">
-<span class="material-icons-outlined" style="font-size:1rem">add_circle</span>
-<span>Criar</span>
+<span class="material-icons-outlined" style="font-size:1rem">edit</span>
+<span>Ferramentas</span>
 </button>
 </div>
 
@@ -1090,6 +1090,7 @@ setRandomTitle();
 window.isWebSearchMode = false;
 window.isInvestigateMode = false;
 window.isREMode = false;
+window.isDocumentModeActive = false;
 
 // ✅ FUNÇÃO CORRIGIDA - Agora abre/fecha o card corretamente
 function toggleCreate() {
@@ -1175,7 +1176,7 @@ if (window.isInvestigateMode) {
 window.isInvestigateMode = false;
 // investigateTool.classList removido
 if (createToggle) createToggle.classList.remove('active');
-if (createToggle) createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">add_circle</span><span>Criar</span>';
+if (createToggle) createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
 if (userInput) userInput.placeholder = 'Como posso ajudar com seu código hoje?';
 } else {
 // Verifica limite de uso (simulado no localstorage)
@@ -1202,7 +1203,7 @@ if (tool === 're') {
 if (window.isREMode) {
 window.isREMode = false;
 if (createToggle) createToggle.classList.remove('active');
-if (createToggle) createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">add_circle</span><span>Criar</span>';
+if (createToggle) createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
 if (userInput) userInput.placeholder = 'Como posso ajudar com seu código hoje?';
 } else {
 // Desativa outros modos se estiverem ativos
@@ -1224,6 +1225,161 @@ if (userInput) userInput.placeholder = 'Digite o exercício para Resolução Com
 
 }
 window.selectTool = selectTool;
+
+function selectCreateType(createType) {
+    console.log('🔧 [CREATE] Tipo selecionado:', createType);
+    
+    // Se o modo Documento JÁ está ativo -> DESATIVA
+    if (window.isDocumentModeActive && createType === 'document') {
+        console.log('🔧 [CREATE] DESATIVANDO modo Documento');
+        window.isDocumentModeActive = false;
+        
+        // Resetar botão principal
+        const createToggle = document.getElementById('createToggle');
+        if (createToggle) {
+            createToggle.classList.remove('active');
+            createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
+        }
+        
+        // Resetar placeholder
+        const userInput = document.getElementById('userInput');
+        if (userInput) {
+            userInput.placeholder = 'Como posso ajudar com seu código hoje?';
+        }
+        
+        // Resetar na UI
+        if (window.ui && window.ui.setCreateType) {
+            window.ui.setCreateType(null);
+        }
+        
+        // Atualizar botão de desativação
+        updateDeactivateButton();
+        
+        return; // SAI - não abre NADA
+    }
+    
+    // Se chegou aqui, o modo está INATIVO -> ABRE CARD para ativar
+    console.log('🔧 [CREATE] Modo inativo, abrindo card...');
+    
+    // Abrir subcard com opções
+    if (window.ui && window.ui.toggleCreateSubcard) {
+        window.ui.toggleCreateSubcard();
+    }
+}
+
+function activateDocumentMode() {
+    console.log('🔧 [CREATE] ATIVANDO modo Documento');
+    
+    // Fechar subcard
+    const subcard = document.getElementById('floatingCreateSubcard');
+    if (subcard) subcard.remove();
+    
+    // Fechar dropdown principal
+    const dropdown = document.getElementById('floatingCreateDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+    
+    // Ativar modo
+    window.isDocumentModeActive = true;
+    
+    // Definir tipo na UI
+    if (window.ui && window.ui.setCreateType) {
+        window.ui.setCreateType('document');
+    }
+    
+    // Atualizar botão principal
+    const createToggle = document.getElementById('createToggle');
+    if (createToggle) {
+        createToggle.classList.add('active');
+        createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">description</span><span>Documento</span>';
+    }
+    
+    // Atualizar placeholder
+    const userInput = document.getElementById('userInput');
+    if (userInput) {
+        userInput.placeholder = 'Descreva o documento acadêmico que deseja criar...';
+    }
+    
+    // Mostrar ícone X e atualizar botão de desativação imediatamente
+    const closeIcon = document.getElementById('documentCloseIcon');
+    if (closeIcon) {
+        closeIcon.classList.remove('hidden');
+    }
+    // Atualizar botão de desativação imediatamente
+    updateDeactivateButton();
+}
+
+function deactivateCurrentFunction() {
+    console.log('🔧 [CREATE] Desativando função atual...');
+    
+    // Desativar modo Documento se estiver ativo
+    if (window.isDocumentModeActive) {
+        window.isDocumentModeActive = false;
+        
+        // Resetar botão principal
+        const createToggle = document.getElementById('createToggle');
+        if (createToggle) {
+            createToggle.classList.remove('active');
+            createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
+        }
+        
+        // Resetar placeholder
+        const userInput = document.getElementById('userInput');
+        if (userInput) {
+            userInput.placeholder = 'Como posso ajudar com seu código hoje?';
+        }
+        
+        // Resetar na UI
+        if (window.ui && window.ui.setCreateType) {
+            window.ui.setCreateType(null);
+        }
+    }
+    
+    // Desativar outros modos se estiverem ativos
+    if (window.isInvestigateMode) {
+        selectTool('investigate');
+    }
+    if (window.isREMode) {
+        selectTool('re');
+    }
+    if (window.isWebSearchMode) {
+        toggleWebSearch();
+    }
+    
+    // Fechar dropdown
+    const dropdown = document.getElementById('floatingCreateDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+    
+    // Atualizar botão de desativação
+    updateDeactivateButton();
+}
+
+function updateDeactivateButton() {
+    const deactivateBtn = document.getElementById('deactivateFunctionBtn');
+    if (!deactivateBtn) return;
+    
+    // Mostrar botão se algum modo estiver ativo
+    const hasActiveMode = window.isDocumentModeActive || window.isInvestigateMode || window.isREMode || window.isWebSearchMode;
+    
+    if (hasActiveMode) {
+        deactivateBtn.classList.remove('hidden');
+    } else {
+        deactivateBtn.classList.add('hidden');
+    }
+}
+
+window.selectCreateType = selectCreateType;
+window.activateDocumentMode = activateDocumentMode;
+window.deactivateCurrentFunction = deactivateCurrentFunction;
+window.updateDeactivateButton = updateDeactivateButton;
+window.toggleCreateSubcard = toggleCreateSubcard;
+
+function toggleCreateSubcard() {
+    if (window.ui && window.ui.toggleCreateSubcard) {
+        window.ui.toggleCreateSubcard();
+        // Atualizar botão de desativação ao abrir
+        setTimeout(updateDeactivateButton, 100);
+    }
+}
 
 // Gravação de voz
 class VoiceRecorder {
