@@ -1984,6 +1984,12 @@ ${latexCode}
 
         console.log('🔍 Código LaTeX completo:', latexCode);
 
+        // Renderizar o documento IMEDIATAMENTE
+        this.renderDocument(latexCode, processingId);
+        
+        // Resetar o modo de criação após concluir
+        this.currentCreateType = null;
+
         return latexCode;
 
     }
