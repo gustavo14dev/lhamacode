@@ -3209,7 +3209,7 @@ ${latexCode}
             const documentHTML = `
                 <div id="document-${messageId}" class="document-viewer bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
                     <div class="document-pages bg-gray-100 dark:bg-gray-950 p-0">
-                        <div class="max-w-4xl mx-auto space-y-4">
+                        <div class="max-w-4xl mx-auto">
                             <!-- Página 1 -->
                             <div class="bg-white dark:bg-gray-800 min-h-[842px] shadow-lg rounded-sm p-12">
                                 <div class="space-y-6">
