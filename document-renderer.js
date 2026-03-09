@@ -60,10 +60,14 @@ class DocumentRenderer {
             .replace(/\\end\{thebibliography\}/g, '')
             .replace(/\\begin\{titlepage\}/g, '')
             .replace(/\\end\{titlepage\}/g, '')
+            .replace(/\\begin\{center\}/g, '')
+            .replace(/\\end\{center\}/g, '')
             .replace(/\\begin\{tabular\}[^{]*\{[^}]*\}/g, '')
             .replace(/\\end\{tabular\}/g, '')
             .replace(/\\begin\{table\}\[h\]/g, '')
             .replace(/\\end\{table\}/g, '')
+            .replace(/\\(?:vspace|hspace)\*?\{[^}]*\}/g, '')
+            .replace(/\\(?:bigskip|medskip|smallskip|noindent|newpage|clearpage|pagebreak|tableofcontents|fill)\b/g, '')
             .replace(/\\begin\{enumerate\}/g, '<ol class="list-decimal list-inside my-3 space-y-2">')
             .replace(/\\end\{enumerate\}/g, '</ol>')
             .replace(/\\rowcolor[^{]*\{[^}]*\}/g, '')
@@ -121,6 +125,14 @@ class DocumentRenderer {
         
         // Remover parágrafos vazios
         htmlContent = htmlContent.replace(/<p class="mb-4[^>]*">\s*<\/p>/g, '');
+        htmlContent = htmlContent
+            .replace(/^(?:\s|<br\s*\/?>|<\/?p[^>]*>)+/i, '')
+            .replace(/(<br\s*\/?>\s*){3,}/gi, '<br><br>')
+            .trim();
+        htmlContent = htmlContent
+            .replace(/<h2 class="text-xl font-bold mt-6 mb-3"/i, '<h2 class="text-xl font-bold mt-2 mb-3"')
+            .replace(/<h3 class="text-lg font-semibold mt-4 mb-2"/i, '<h3 class="text-lg font-semibold mt-2 mb-2"')
+            .replace(/<p class="mb-4" style="color: black;">/i, '<p class="mb-4 mt-1" style="color: black;">');
         
         return htmlContent;
     }
@@ -139,12 +151,12 @@ class DocumentRenderer {
                     <!-- Página 1 -->
                     <div class="bg-white min-h-[842px] px-6 pt-4 pb-6" style="background-color: white; color: black;">
                         <!-- Título do Documento -->
-                        <div class="text-center mb-1">
-                            <h1 class="text-3xl font-bold" style="color: black;">${formattedTitle}</h1>
+                        <div class="text-center mb-2">
+                            <h1 class="text-3xl font-bold leading-tight m-0" style="color: black; margin: 0;">${formattedTitle}</h1>
                         </div>
                         
                         <!-- Conteúdo -->
-                        <div class="space-y-3">
+                        <div class="space-y-2">
                             ${htmlContent}
                         </div>
                     </div>
