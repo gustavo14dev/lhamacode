@@ -137,14 +137,14 @@ class DocumentRenderer {
             <div id="document-${messageId}" class="document-viewer bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
                 <div class="document-pages p-0" style="background-image: url('arame.png'); background-size: cover; background-position: center;">
                     <!-- Página 1 -->
-                    <div class="bg-white min-h-[842px] p-12" style="background-color: white; color: black;">
+                    <div class="bg-white min-h-[842px] px-6 pt-4 pb-6" style="background-color: white; color: black;">
                         <!-- Título do Documento -->
-                        <div class="text-center mb-0">
+                        <div class="text-center mb-1">
                             <h1 class="text-3xl font-bold" style="color: black;">${formattedTitle}</h1>
                         </div>
                         
                         <!-- Conteúdo -->
-                        <div class="space-y-4">
+                        <div class="space-y-3">
                             ${htmlContent}
                         </div>
                     </div>
