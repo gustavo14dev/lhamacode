@@ -76,17 +76,17 @@ class DocumentRenderer {
         
         // Conversões para HTML
         htmlContent = htmlContent
-            .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
-            .replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>')
-            .replace(/\\section\*?\{([^}]+)\}/g, '<h2 class="text-xl font-bold mt-6 mb-3 text-gray-800 dark:text-gray-200">$1</h2>')
-            .replace(/\\subsection\*?\{([^}]+)\}/g, '<h3 class="text-lg font-semibold mt-4 mb-2 text-gray-700 dark:text-gray-300">$1</h3>')
+            .replace(/\\textbf\{([^}]+)\}/g, '<strong style="color: black;">$1</strong>')
+            .replace(/\\textit\{([^}]+)\}/g, '<em style="color: black;">$1</em>')
+            .replace(/\\section\*?\{([^}]+)\}/g, '<h2 class="text-xl font-bold mt-6 mb-3" style="color: black;">$1</h2>')
+            .replace(/\\subsection\*?\{([^}]+)\}/g, '<h3 class="text-lg font-semibold mt-4 mb-2" style="color: black;">$1</h3>')
             .replace(/\\begin\{itemize\}/g, '<ul class="list-disc list-inside my-3 space-y-1">')
             .replace(/\\end\{itemize\}/g, '</ul>')
-            .replace(/\\item\s+([^\n]+)/g, '<li class="mb-1">$1</li>')
+            .replace(/\\item\s+([^\n]+)/g, '<li class="mb-1" style="color: black;">$1</li>')
             // Processar tabelas
-            .replace(/([^&\n]+)&\s*([^&\n]+)&\s*([^&\n]+)\s*\n/g, '<div class="grid grid-cols-3 gap-4 my-2"><div class="font-semibold">$1</div><div>$2</div><div>$3</div></div>')
+            .replace(/([^&\n]+)&\s*([^&\n]+)&\s*([^&\n]+)\s*\n/g, '<div class="grid grid-cols-3 gap-4 my-2"><div class="font-semibold" style="color: black;">$1</div><div style="color: black;">$2</div><div style="color: black;">$3</div></div>')
             // Processar itens de enumerate
-            .replace(/\\item\s+([^\n]+)/g, '<li class="mb-2">$1</li>')
+            .replace(/\\item\s+([^\n]+)/g, '<li class="mb-2" style="color: black;">$1</li>')
             .replace(/\\&/g, '&')
             .replace(/\\%/g, '%')
             .replace(/\\$/g, '$')
@@ -115,8 +115,8 @@ class DocumentRenderer {
         
         // Limpar quebras de linha e formatar parágrafos
         htmlContent = htmlContent
-            .replace(/\n\s*\n/g, '</p><p class="mb-4 text-gray-700 dark:text-gray-300">')
-            .replace(/^\s*/, '<p class="mb-4 text-gray-700 dark:text-gray-300">')
+            .replace(/\n\s*\n/g, '</p><p class="mb-4" style="color: black;">')
+            .replace(/^\s*/, '<p class="mb-4" style="color: black;">')
             .replace(/\s*$/, '</p>');
         
         // Remover parágrafos vazios
@@ -135,12 +135,12 @@ class DocumentRenderer {
         
         return `
             <div id="document-${messageId}" class="document-viewer bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div class="document-pages p-0">
+                <div class="document-pages p-0" style="background-image: url('arame.png'); background-size: cover; background-position: center;">
                     <!-- Página 1 -->
-                    <div class="bg-white dark:bg-gray-800 min-h-[842px] p-12">
+                    <div class="bg-white min-h-[842px] p-12" style="background-color: white; color: black;">
                         <!-- Título do Documento -->
-                        <div class="text-center mb-8">
-                            <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-200">${formattedTitle}</h1>
+                        <div class="text-center mb-4">
+                            <h1 class="text-3xl font-bold" style="color: black;">${formattedTitle}</h1>
                         </div>
                         
                         <!-- Conteúdo -->
