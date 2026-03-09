@@ -139,13 +139,35 @@ class DocumentRenderer {
                     <!-- Página 1 -->
                     <div class="bg-white min-h-[842px] p-12" style="background-color: white; color: black;">
                         <!-- Título do Documento -->
-                        <div class="text-center mb-4">
+                        <div class="text-center mb-2">
                             <h1 class="text-3xl font-bold" style="color: black;">${formattedTitle}</h1>
                         </div>
                         
                         <!-- Conteúdo -->
                         <div class="space-y-6">
                             ${htmlContent}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Botões -->
+                <div class="bg-gray-50 dark:bg-gray-800 px-3 py-2 border-t border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                            <span class="material-icons-outlined text-sm">info</span>
+                            <span>LaTeX</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="window.printDocument('${messageId}')" 
+                                    class="flex items-center gap-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm">
+                                <span class="material-icons-outlined text-sm">print</span>
+                                Imprimir
+                            </button>
+                            <button onclick="navigator.clipboard.writeText(\`${title.replace(/`/g, '\\`')}\`); alert('Título copiado!');" 
+                                    class="flex items-center gap-2 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm">
+                                <span class="material-icons-outlined text-sm">content_copy</span>
+                                Copiar
+                            </button>
                         </div>
                     </div>
                 </div>
