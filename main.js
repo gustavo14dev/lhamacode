@@ -2977,14 +2977,9 @@ ${latexCode}
             // Limpar código LaTeX
             latexCode = latexCode.replace(/```latex/gi, '').replace(/```/g, '').trim();
             
-            console.log('📄 [DOCUMENTO] LaTeX bruto:', latexCode.substring(0, 400) + '...');
+            console.log('📄 [DOCUMENTO] LaTeX recebido:', latexCode.substring(0, 200) + '...');
             
-            // Validar e corrigir LaTeX
-            latexCode = this.validateAndFixLatex(latexCode);
-            
-            console.log('📄 [DOCUMENTO] LaTeX corrigido:', latexCode.substring(0, 200) + '...');
-            
-            // Renderizar documento bonito
+            // Renderizar IMEDIATAMENTE sem validação complexa
             this.renderDocument(latexCode, processingId);
             
         } catch (error) {
@@ -3056,172 +3051,122 @@ ${latexCode}
     
     renderDocument(latexCode, messageId) {
         console.log('📄 [DOCUMENTO] Renderizando documento...');
-        console.log('📄 [DOCUMENTO] messageId:', messageId);
-        console.log('📄 [DOCUMENTO] latexCode length:', latexCode.length);
         
         try {
-            // Processar LaTeX para HTML
-            let htmlContent = latexCode;
-            
-            // Extrair título
+            // Extração rápida do título
             const titleMatch = latexCode.match(/\\title\{([^}]+)\}/);
             const title = titleMatch ? titleMatch[1] : 'Documento Gerado';
             
-            console.log('📄 [DOCUMENTO] Título extraído:', title);
+            // Processamento simples - remover preâmbulo
+            let htmlContent = latexCode
+                .replace(/\\documentclass[^{]*\{[^}]*\}/g, '')
+                .replace(/\\usepackage[^{]*\{[^}]*\}/g, '')
+                .replace(/\\author\{[^}]*\}/g, '')
+                .replace(/\\date\{[^}]*\}/g, '')
+                .replace(/\\title\{[^}]*\}/g, '')
+                .replace(/\\begin\{document\}/g, '')
+                .replace(/\\end\{document\}/g, '');
             
-            // Remover preâmbulo LaTeX
-            htmlContent = htmlContent.replace(/\\documentclass[^{]*\{[^}]*\}/g, '');
-            htmlContent = htmlContent.replace(/\\usepackage[^{]*\{[^}]*\}/g, '');
-            htmlContent = htmlContent.replace(/\\author\{[^}]*\}/g, '');
-            htmlContent = htmlContent.replace(/\\date\{[^}]*\}/g, '');
-            htmlContent = htmlContent.replace(/\\title\{[^}]*\}/g, '');
-            htmlContent = htmlContent.replace(/\\begin\{document\}/g, '');
-            htmlContent = htmlContent.replace(/\\end\{document\}/g, '');
-            
-            console.log('📄 [DOCUMENTO] HTML após remoção preâmbulo:', htmlContent.substring(0, 100) + '...');
-            
-            // Converter comandos LaTeX para HTML
-            htmlContent = htmlContent.replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>');
-            htmlContent = htmlContent.replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>');
-            htmlContent = htmlContent.replace(/\\underline\{([^}]+)\}/g, '<u>$1</u>');
-            htmlContent = htmlContent.replace(/\\texttt\{([^}]+)\}/g, '<code>$1</code>');
-            htmlContent = htmlContent.replace(/``([^`]+)``/g, '<code>$1</code>');
-            htmlContent = htmlContent.replace(/`([^`]+)`/g, '<code>$1</code>');
-            
-            // Converter seções
-            htmlContent = htmlContent.replace(/\\section\{([^}]+)\}/g, '<h2 class="text-xl font-bold mt-6 mb-3 text-gray-800 dark:text-gray-200">$1</h2>');
-            htmlContent = htmlContent.replace(/\\subsection\{([^}]+)\}/g, '<h3 class="text-lg font-semibold mt-4 mb-2 text-gray-700 dark:text-gray-300">$1</h3>');
-            htmlContent = htmlContent.replace(/\\subsubsection\{([^}]+)\}/g, '<h4 class="text-base font-medium mt-3 mb-2 text-gray-600 dark:text-gray-400">$1</h4>');
-            
-            // Converter listas
-            htmlContent = htmlContent.replace(/\\begin\{itemize\}/g, '<ul class="list-disc list-inside my-3 space-y-1">');
-            htmlContent = htmlContent.replace(/\\end\{itemize\}/g, '</ul>');
-            htmlContent = htmlContent.replace(/\\item\s+([^\n]+)/g, '<li class="ml-4">$1</li>');
-            htmlContent = htmlContent.replace(/\\item/g, '<li class="ml-4">');
-            
-            // Converter tabelas (suporte básico para tabular)
-            htmlContent = htmlContent.replace(/\\begin\{tabular\}\{[^}]*\}/g, '<table class="border-collapse border border-gray-300 my-4">');
-            htmlContent = htmlContent.replace(/\\end\{tabular\}/g, '</table>');
-            htmlContent = htmlContent.replace(/\\\\/g, '</tr><tr>');
-            htmlContent = htmlContent.replace(/&/g, '</td><td class="border border-gray-300 px-4 py-2">');
-            htmlContent = htmlContent.replace(/<tr>/g, '<tr><td class="border border-gray-300 px-4 py-2">');
-            htmlContent = htmlContent.replace(/<\/tr><\/table>/g, '</tr></table>');
-            
-            // Converter parágrafos
-            htmlContent = htmlContent.replace(/\n\n+/g, '</p><p class="mb-4 leading-relaxed text-gray-700 dark:text-gray-300">');
-            htmlContent = htmlContent.replace(/^/, '<p class="mb-4 leading-relaxed text-gray-700 dark:text-gray-300">');
-            htmlContent = htmlContent.replace(/$/, '</p>');
-            
-            // Limpar quebras de linha extras
-            htmlContent = htmlContent.replace(/\n/g, ' ');
-            
-            console.log('📄 [DOCUMENTO] HTML final gerado:', htmlContent.substring(0, 200) + '...');
+            // Conversões rápidas
+            htmlContent = htmlContent
+                .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
+                .replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>')
+                .replace(/\\section\{([^}]+)\}/g, '<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>')
+                .replace(/\\subsection\{([^}]+)\}/g, '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>')
+                .replace(/\\begin\{itemize\}/g, '<ul class="list-disc list-inside my-3">')
+                .replace(/\\end\{itemize\}/g, '</ul>')
+                .replace(/\\item\s+([^\n]+)/g, '<li>$1</li>')
+                .replace(/\n\n+/g, '</p><p class="mb-4">')
+                .replace(/^/, '<p class="mb-4">')
+                .replace(/$/, '</p>');
             
             // Criar HTML do documento
-            const documentHTML = '<div id="document-' + messageId + '" class="document-viewer bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">' +
-                '<!-- Cabeçalho do documento -->' +
-                '<div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">' +
-                    '<div class="flex items-center gap-3">' +
-                        '<span class="material-icons-outlined text-2xl">description</span>' +
-                        '<div>' +
-                            '<h1 class="text-xl font-bold">' + this.escapeHtml(title) + '</h1>' +
-                            '<p class="text-blue-100 text-sm">Documento acadêmico gerado por IA</p>' +
-                        '</div>' +
-                    '</div>' +
-                '</div>' +
-                
-                '<!-- Conteúdo do documento com paginação -->' +
-                '<div class="document-pages max-h-96 overflow-y-auto" style="scrollbar-width: thin;">' +
-                    '<div class="p-8 space-y-4">' +
-                        htmlContent +
-                    '</div>' +
-                '</div>' +
-                
-                '<!-- Barra de ações -->' +
-                '<div class="bg-gray-50 dark:bg-gray-800 p-4 border-t border-gray-200 dark:border-gray-700">' +
-                    '<div class="flex items-center justify-between">' +
-                        '<div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">' +
-                            '<span class="material-icons-outlined text-base">info</span>' +
-                            '<span>Documento LaTeX renderizado</span>' +
-                        '</div>' +
-                        '<div class="flex gap-2">' +
-                            '<button onclick="window.downloadDocument(\'' + messageId + '\', \'' + title + '.tex\')" ' +
-                                    'class="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm">' +
-                                '<span class="material-icons-outlined">download</span>' +
-                                'Baixar LaTeX' +
-                            '</button>' +
-                            '<button onclick="window.printDocument(\'' + messageId + '\')" ' +
-                                    'class="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">' +
-                                '<span class="material-icons-outlined">print</span>' +
-                                'Imprimir' +
-                            '</button>' +
-                        '</div>' +
-                    '</div>' +
-                '</div>' +
-            '</div>';
+            const documentHTML = `
+                <div id="document-${messageId}" class="document-viewer bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">
+                        <div class="flex items-center gap-3">
+                            <span class="material-icons-outlined text-2xl">description</span>
+                            <div>
+                                <h1 class="text-xl font-bold">${this.escapeHtml(title)}</h1>
+                                <p class="text-blue-100 text-sm">Documento acadêmico gerado por IA</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="document-pages max-h-96 overflow-y-auto p-8">
+                        <div class="space-y-4">
+                            ${htmlContent}
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 dark:bg-gray-800 p-4 border-t border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                <span class="material-icons-outlined text-base">info</span>
+                                <span>Documento LaTeX renderizado</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="window.downloadDocument('${messageId}', '${title}.tex')" 
+                                        class="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm">
+                                    <span class="material-icons-outlined">download</span>
+                                    Baixar LaTeX
+                                </button>
+                                <button onclick="window.printDocument('${messageId}')" 
+                                        class="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                                    <span class="material-icons-outlined">print</span>
+                                    Imprimir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
             
-            console.log('📄 [DOCUMENTO] documentHTML length:', documentHTML.length);
-            console.log('📄 [DOCUMENTO] Chamando updateProcessingMessage...');
-            
-            // Atualizar mensagem com o documento renderizado
+            // Atualizar mensagem imediatamente
             this.updateProcessingMessage(messageId, documentHTML);
             
-            // Adicionar funções globais para download e impressão
-            window.downloadDocument = function(msgId, filename) {
-                const element = document.getElementById('document-' + msgId);
-                if (element) {
-                    const content = element.querySelector('.document-pages').innerHTML;
-                    const blob = new Blob([latexCode], { type: 'text/plain' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                }
+            // Funções de download/impressão
+            window.downloadDocument = (msgId, filename) => {
+                const blob = new Blob([latexCode], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
             };
             
-            window.printDocument = function(msgId) {
-                const element = document.getElementById('document-' + msgId);
-                if (element) {
-                    const printContent = element.querySelector('.document-pages').innerHTML;
-                    const printWindow = window.open('', 'width=800,height=600');
-                    printWindow.document.write(
-                        '<html>' +
-                            '<head>' +
-                                '<title>' + title + '</title>' +
-                                '<style>' +
-                                    'body { font-family: serif; line-height: 1.6; margin: 20px; }' +
-                                    'h1 { color: #333; }' +
-                                    'h2 { color: #444; margin-top: 20px; }' +
-                                    'h3 { color: #555; margin-top: 15px; }' +
-                                    'strong { font-weight: bold; }' +
-                                    'em { font-style: italic; }' +
-                                    'u { text-decoration: underline; }' +
-                                    'code { background: #f4f4f4; padding: 2px 4px; border-radius: 3px; }' +
-                                    'ul { margin-left: 20px; }' +
-                                    'li { margin-bottom: 5px; }' +
-                                '</style>' +
-                            '</head>' +
-                            '<body>' +
-                                '<h1>' + title + '</h1>' +
-                                printContent +
-                            '</body>' +
-                        '</html>'
-                    );
-                    printWindow.document.close();
-                    printWindow.print();
-                }
+            window.printDocument = (msgId) => {
+                const printWindow = window.open('', 'width=800,height=600');
+                printWindow.document.write(`
+                    <html>
+                        <head><title>${title}</title>
+                            <style>
+                                body { font-family: serif; line-height: 1.6; margin: 20px; }
+                                h1 { color: #333; }
+                                h2 { color: #444; margin-top: 20px; }
+                                h3 { color: #555; margin-top: 15px; }
+                                strong { font-weight: bold; }
+                                em { font-style: italic; }
+                                ul { margin-left: 20px; }
+                                li { margin-bottom: 5px; }
+                            </style>
+                        </head>
+                        <body>
+                            <h1>${title}</h1>
+                            ${htmlContent}
+                        </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                printWindow.print();
             };
             
-            console.log('📄 [DOCUMENTO] Documento renderizado com sucesso');
+            console.log('📄 [DOCUMENTO] Documento renderizado com sucesso!');
             this.scrollToBottom();
             
         } catch (renderError) {
             console.error('📄 [DOCUMENTO] Erro na renderização:', renderError);
-            console.log('📄 [DOCUMENTO] Chamando fallback...');
-            
-            // Chamar fallback se renderização falhar
             this.showLatexFallback(latexCode, messageId, renderError.message);
         }
     }
