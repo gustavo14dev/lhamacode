@@ -3193,19 +3193,13 @@ ${latexCode}
             // Criar HTML do documento
             const documentHTML = `
                 <div id="document-${messageId}" class="document-viewer bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-3">
-                        <div class="flex items-center gap-2">
-                            <span class="material-icons-outlined text-lg">description</span>
-                            <div>
-                                <h1 class="text-lg font-bold">${this.escapeHtml(title)}</h1>
-                                <p class="text-blue-100 text-xs">Documento acadêmico gerado por IA</p>
+                    <div class="document-pages p-0">
+                        <div class="bg-white dark:bg-gray-800 min-h-[800px] shadow-inner">
+                            <div class="p-12 max-w-4xl mx-auto">
+                                <div class="space-y-6">
+                                    ${htmlContent}
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    
-                    <div class="document-pages max-h-96 overflow-y-auto p-8">
-                        <div class="space-y-4">
-                            ${htmlContent}
                         </div>
                     </div>
                     
