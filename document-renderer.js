@@ -139,12 +139,12 @@ class DocumentRenderer {
                     <!-- Página 1 -->
                     <div class="bg-white min-h-[842px] p-12" style="background-color: white; color: black;">
                         <!-- Título do Documento -->
-                        <div class="text-center mb-2">
+                        <div class="text-center mb-0">
                             <h1 class="text-3xl font-bold" style="color: black;">${formattedTitle}</h1>
                         </div>
                         
                         <!-- Conteúdo -->
-                        <div class="space-y-6">
+                        <div class="space-y-4">
                             ${htmlContent}
                         </div>
                     </div>
