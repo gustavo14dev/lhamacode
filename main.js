@@ -3208,13 +3208,11 @@ ${latexCode}
             // Criar HTML do documento com páginas simuladas
             const documentHTML = `
                 <div id="document-${messageId}" class="document-viewer bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div class="document-pages bg-gray-100 dark:bg-gray-950 p-0">
-                        <div class="max-w-4xl mx-auto">
-                            <!-- Página 1 -->
-                            <div class="bg-white dark:bg-gray-800 min-h-[842px] shadow-lg rounded-sm p-12">
-                                <div class="space-y-6">
-                                    ${htmlContent}
-                                </div>
+                    <div class="document-pages p-0">
+                        <!-- Página 1 -->
+                        <div class="bg-white dark:bg-gray-800 min-h-[842px] p-12">
+                            <div class="space-y-6">
+                                ${htmlContent}
                             </div>
                         </div>
                     </div>
