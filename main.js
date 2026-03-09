@@ -3233,12 +3233,12 @@ ${latexCode}
                             </div>
                             <div class="flex gap-1">
                                 <button onclick="window.downloadDocument('${messageId}', '${title}.tex')" 
-                                        class="flex items-center gap-1 px-1 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors text-xs">
-                                    <span class="material-icons-outlined text-xs">download</span>
+                                        class="flex items-center gap-1 px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors text-xs">
+                                    <span class="material-icons-outlined text-sm">download</span>
                                 </button>
                                 <button onclick="window.printDocument('${messageId}')" 
-                                        class="flex items-center gap-1 px-1 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs">
-                                    <span class="material-icons-outlined text-xs">print</span>
+                                        class="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs">
+                                    <span class="material-icons-outlined text-sm">print</span>
                                 </button>
                             </div>
                         </div>
