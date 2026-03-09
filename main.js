@@ -3083,11 +3083,47 @@ ${latexCode}
         fixedCode = fixedCode.replace(/#/g, '\\#');
         fixedCode = fixedCode.replace(/&(?![a-zA-Z])/g, '\\&');
         fixedCode = fixedCode.replace(/%/g, '\\%');
+        fixedCode = fixedCode.replace(/_/g, '\\_');
+        fixedCode = fixedCode.replace(/{/g, '\\{');
+        fixedCode = fixedCode.replace(/}/g, '\\}');
+        fixedCode = fixedCode.replace(/~/g, '\\~');
+        fixedCode = fixedCode.replace(/\\/g, '\\backslash');
         
         console.log('🔧 [LATEX] Código validado e corrigido');
         return fixedCode.trim();
     }
     
+    processLatexTables(htmlContent) {
+        // Processar tabelas LaTeX
+        return htmlContent.replace(/\\begin\{table\}\[h\]\s*\\centering\s*\\begin\{tabular\}\{([^}]+)\}([\s\S]*?)\\end\{tabular\}\s*\\caption\{([^}]+)\}\s*\\end\{table\}/g, (match, columns, tableContent, caption) => {
+            // Limpar o conteúdo da tabela
+            const rows = tableContent
+                .replace(/\\\\hline/g, '')
+                .replace(/\\\\/g, '')
+                .split('\\\\')
+                .map(row => row.trim())
+                .filter(row => row && !row.includes('\\hline'));
+            
+            // Processar cada linha
+            const tableRows = rows.map(row => {
+                const cells = row.split('&').map(cell => cell.trim());
+                const cellHtml = cells.map(cell => `<td class="border border-gray-300 px-4 py-2 text-sm">${cell}</td>`).join('');
+                return `<tr>${cellHtml}</tr>`;
+            }).join('');
+            
+            return `
+                <div class="my-6 overflow-x-auto">
+                    <table class="min-w-full border-collapse border border-gray-300 bg-white dark:bg-gray-800">
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-2 italic text-center">${caption}</p>
+                </div>
+            `;
+        });
+    }
+
     renderDocument(latexCode, messageId) {
         console.log('📄 [DOCUMENTO] Renderizando documento...');
         
@@ -3106,28 +3142,63 @@ ${latexCode}
                 .replace(/\\begin\{document\}/g, '')
                 .replace(/\\end\{document\}/g, '');
             
-            // Conversões rápidas
+            // Conversões rápidas melhoradas
             htmlContent = htmlContent
                 .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
                 .replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>')
-                .replace(/\\section\{([^}]+)\}/g, '<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>')
-                .replace(/\\subsection\{([^}]+)\}/g, '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>')
-                .replace(/\\begin\{itemize\}/g, '<ul class="list-disc list-inside my-3">')
+                .replace(/\\section\*?\{([^}]+)\}/g, '<h2 class="text-xl font-bold mt-6 mb-3 text-gray-800 dark:text-gray-200">$1</h2>')
+                .replace(/\\subsection\*?\{([^}]+)\}/g, '<h3 class="text-lg font-semibold mt-4 mb-2 text-gray-700 dark:text-gray-300">$1</h3>')
+                .replace(/\\begin\{itemize\}/g, '<ul class="list-disc list-inside my-3 space-y-1">')
                 .replace(/\\end\{itemize\}/g, '</ul>')
-                .replace(/\\item\s+([^\n]+)/g, '<li>$1</li>')
-                .replace(/\n\n+/g, '</p><p class="mb-4">')
-                .replace(/^/, '<p class="mb-4">')
-                .replace(/$/, '</p>');
+                .replace(/\\item\s+([^\n]+)/g, '<li class="mb-1">$1</li>')
+                .replace(/\\\\/g, '<br>')
+                .replace(/\\&/g, '&')
+                .replace(/\\%/g, '%')
+                .replace(/\\$/g, '$')
+                .replace(/\\_/g, '_')
+                .replace(/\\^/g, '^')
+                .replace(/\\#/g, '#')
+                .replace(/\\{/g, '{')
+                .replace(/\\}/g, '}');
+            
+            // Processar tabelas LaTeX
+            htmlContent = this.processLatexTables(htmlContent);
+            
+            // Processar bibliografia
+            htmlContent = htmlContent.replace(/\\begin\{thebibliography\}\{[^}]*\}([\s\S]*?)\\end\{thebibliography\}/g, (match, content) => {
+                const items = content.match(/\\bibitem\{[^}]+\}([^\n]+)/g) || [];
+                const bibliographyItems = items.map(item => {
+                    const cleanItem = item.replace(/\\bibitem\{[^}]+\}/, '').trim();
+                    return `<li class="mb-2 text-sm text-gray-600 dark:text-gray-400">${cleanItem}</li>`;
+                }).join('');
+                return `
+                    <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200">Referências</h3>
+                        <ol class="list-decimal list-inside space-y-2">
+                            ${bibliographyItems}
+                        </ol>
+                    </div>
+                `;
+            });
+            
+            // Limpar quebras de linha e formatar parágrafos
+            htmlContent = htmlContent
+                .replace(/\n\s*\n/g, '</p><p class="mb-4 text-gray-700 dark:text-gray-300">')
+                .replace(/^\s*/, '<p class="mb-4 text-gray-700 dark:text-gray-300">')
+                .replace(/\s*$/, '</p>');
+            
+            // Remover parágrafos vazios
+            htmlContent = htmlContent.replace(/<p class="mb-4[^>]*">\s*<\/p>/g, '');
             
             // Criar HTML do documento
             const documentHTML = `
                 <div id="document-${messageId}" class="document-viewer bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">
-                        <div class="flex items-center gap-3">
-                            <span class="material-icons-outlined text-2xl">description</span>
+                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-3">
+                        <div class="flex items-center gap-2">
+                            <span class="material-icons-outlined text-lg">description</span>
                             <div>
-                                <h1 class="text-xl font-bold">${this.escapeHtml(title)}</h1>
-                                <p class="text-blue-100 text-sm">Documento acadêmico gerado por IA</p>
+                                <h1 class="text-lg font-bold">${this.escapeHtml(title)}</h1>
+                                <p class="text-blue-100 text-xs">Documento acadêmico gerado por IA</p>
                             </div>
                         </div>
                     </div>
