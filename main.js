@@ -2299,26 +2299,31 @@ ${latexCode}
         
 
         if (messageElement) {
+            // Se o texto contém HTML completo (como documentos renderizados), usar diretamente
+            if (text.includes('<div') && text.includes('</div>')) {
+                messageElement.innerHTML = text;
+            } else {
+                // Para mensagens de processamento simples, mostrar com animação
+                messageElement.innerHTML = `
 
-            messageElement.innerHTML = `
+                    <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
 
-                <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                        <div class="flex gap-1">
 
-                    <div class="flex gap-1">
+                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0s"></div>
 
-                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
 
-                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
 
-                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                        </div>
+
+                        <span class="text-sm font-medium">${text}</span>
 
                     </div>
 
-                    <span class="text-sm font-medium">${text}</span>
-
-                </div>
-
-            `;
+                `;
+            }
 
             console.log('✅ Mensagem de processamento atualizada:', text);
 
@@ -2984,10 +2989,38 @@ ${latexCode}
             
         } catch (error) {
             console.error('📄 [DOCUMENTO] Erro:', error);
-            console.log('📄 [DOCUMENTO] Código LaTeX que falhou:', latexCode);
             
-            // Fallback: mostrar código LaTeX bruto em formato legível
-            this.showLatexFallback(latexCode, processingId, error.message);
+            // Fallback: mostrar erro ao usuário
+            const errorHTML = `
+                <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-6">
+                        <div class="flex items-center gap-3">
+                            <span class="material-icons-outlined text-2xl">error</span>
+                            <div>
+                                <h1 class="text-xl font-bold">Erro na Geração</h1>
+                                <p class="text-red-100 text-sm">Não foi possível gerar o documento</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6">
+                        <div class="mb-4">
+                            <h3 class="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">Detalhes do Erro:</h3>
+                            <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+                                <p class="text-sm text-red-700 dark:text-red-300">${this.escapeHtml(error.message)}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="text-sm text-gray-600 dark:text-gray-400">
+                            <p>• Verifique sua conexão com a internet</p>
+                            <p>• Tente novamente com um texto mais simples</p>
+                            <p>• Se o problema persistir, contate o suporte</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            this.updateProcessingMessage(processingId, errorHTML);
         }
     }
     
