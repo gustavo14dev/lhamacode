@@ -44,6 +44,31 @@ class DocumentRenderer {
      * Processa o código LaTeX removendo comandos e convertendo para HTML
      */
     processLatex(latexCode) {
+        let bibliographyHTML = '';
+
+        latexCode = latexCode.replace(/\\begin\{thebibliography\}\{[^}]*\}([\s\S]*?)\\end\{thebibliography\}/g, (match, content) => {
+            const items = content.match(/\\bibitem\{[^}]+\}([\s\S]*?)(?=\\bibitem\{|$)/g) || [];
+            const bibliographyItems = items.map(item => {
+                const cleanItem = item
+                    .replace(/\\bibitem\{[^}]+\}/, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                return `<li class="mb-2 text-sm leading-relaxed" style="color: black;">${cleanItem}</li>`;
+            }).join('');
+
+            bibliographyHTML = bibliographyItems
+                ? `
+                    <div class="mt-6 rounded-lg border border-gray-200 p-4" style="background: #f8fafc;">
+                        <h3 class="text-lg font-semibold mb-3" style="color: black;">Referências</h3>
+                        <ol class="list-decimal list-inside space-y-2">
+                            ${bibliographyItems}
+                        </ol>
+                    </div>
+                `
+                : '';
+
+            return bibliographyHTML ? '\n\n__DOCUMENT_BIBLIOGRAPHY__\n\n' : '';
+        });
         // Remover preâmbulo e comandos LaTeX
         let htmlContent = latexCode
             .replace(/\\documentclass[^{]*\{[^}]*\}/g, '')
@@ -56,8 +81,6 @@ class DocumentRenderer {
             .replace(/\\end\{document\}/g, '')
             .replace(/\\begin\{abstract\}/g, '')
             .replace(/\\end\{abstract\}/g, '')
-            .replace(/\\begin\{thebibliography\}[^}]*\}/g, '')
-            .replace(/\\end\{thebibliography\}/g, '')
             .replace(/\\begin\{titlepage\}/g, '')
             .replace(/\\end\{titlepage\}/g, '')
             .replace(/\\begin\{center\}/g, '')
@@ -73,6 +96,7 @@ class DocumentRenderer {
             .replace(/\\rowcolor[^{]*\{[^}]*\}/g, '')
             .replace(/\\multicolumn[^{]*\{[^}]*\}\{[^}]*\}\{[^}]*\}/g, '')
             .replace(/\\cellcolor[^{]*\{[^}]*\}/g, '')
+            .replace(/\\bibitem\{[^}]+\}/g, '')
             .replace(/\\hline/g, '')
             .replace(/\\Huge\{([^}]+)\}/g, '<h1 class="text-3xl font-bold text-center mb-6">$1</h1>')
             .replace(/\\centering/g, '')
@@ -133,6 +157,9 @@ class DocumentRenderer {
             .replace(/<h2 class="text-xl font-bold mt-6 mb-3"/i, '<h2 class="text-xl font-bold mt-2 mb-3"')
             .replace(/<h3 class="text-lg font-semibold mt-4 mb-2"/i, '<h3 class="text-lg font-semibold mt-2 mb-2"')
             .replace(/<p class="mb-4" style="color: black;">/i, '<p class="mb-4 mt-1" style="color: black;">');
+        htmlContent = htmlContent.replace(/<p class="mb-4" style="color: black;">\s*__DOCUMENT_BIBLIOGRAPHY__\s*<\/p>/g, bibliographyHTML);
+        htmlContent = htmlContent.replace(/<p class="mb-4 mt-1" style="color: black;">\s*__DOCUMENT_BIBLIOGRAPHY__\s*<\/p>/g, bibliographyHTML);
+        htmlContent = htmlContent.replace(/__DOCUMENT_BIBLIOGRAPHY__/g, bibliographyHTML);
         
         return htmlContent;
     }
@@ -146,10 +173,10 @@ class DocumentRenderer {
                                      .replace(/\\textit\{([^}]+)\}/g, '$1');
         
         return `
-            <div id="document-${messageId}" class="document-viewer bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div class="document-pages p-0" style="background-image: url('arame.png'); background-size: cover; background-position: center;">
+            <div id="document-${messageId}" class="document-viewer rounded-xl shadow-lg border overflow-hidden" style="background: linear-gradient(180deg, #08152f 0%, #0b1d3b 100%); border-color: rgba(96, 165, 250, 0.18);">
+                <div class="document-pages p-3" style="background: linear-gradient(180deg, rgba(8, 21, 47, 0.96) 0%, rgba(11, 29, 59, 0.92) 100%);">
                     <!-- Página 1 -->
-                    <div class="bg-white min-h-[842px] px-6 pt-4 pb-6" style="background-color: white; color: black;">
+                    <div class="bg-white min-h-[842px] px-6 pt-4 pb-6 rounded-t-lg" style="background-color: white; color: black;">
                         <!-- Título do Documento -->
                         <div class="text-center mb-2">
                             <h1 class="text-3xl font-bold leading-tight m-0" style="color: black; margin: 0;">${formattedTitle}</h1>
@@ -163,21 +190,23 @@ class DocumentRenderer {
                 </div>
                 
                 <!-- Botões -->
-                <div class="bg-gray-50 dark:bg-gray-800 px-3 py-2 border-t border-gray-200 dark:border-gray-700">
+                <div class="px-3 py-1.5 border-t" style="background: rgba(15, 23, 42, 0.92); border-color: rgba(96, 165, 250, 0.14);">
                     <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                            <span class="material-icons-outlined text-sm">info</span>
-                            <span>LaTeX</span>
+                        <div class="flex items-center gap-1 text-[11px]" style="color: rgba(191, 219, 254, 0.72);">
+                            <span class="material-icons-outlined text-xs">description</span>
+                            <span>Documento</span>
                         </div>
-                        <div class="flex gap-2">
+                        <div class="flex gap-1.5">
                             <button onclick="window.printDocument('${messageId}')" 
-                                    class="flex items-center gap-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm">
-                                <span class="material-icons-outlined text-sm">print</span>
+                                    class="flex items-center gap-1 px-2 py-0.5 text-white rounded-md transition-colors text-xs"
+                                    style="background: #2563eb;">
+                                <span class="material-icons-outlined text-xs">print</span>
                                 Imprimir
                             </button>
                             <button onclick="navigator.clipboard.writeText(\`${title.replace(/`/g, '\\`')}\`); alert('Título copiado!');" 
-                                    class="flex items-center gap-2 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm">
-                                <span class="material-icons-outlined text-sm">content_copy</span>
+                                    class="flex items-center gap-1 px-2 py-0.5 text-white rounded-md transition-colors text-xs"
+                                    style="background: #16a34a;">
+                                <span class="material-icons-outlined text-xs">content_copy</span>
                                 Copiar
                             </button>
                         </div>
