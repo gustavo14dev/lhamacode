@@ -3145,7 +3145,18 @@ ${latexCode}
                 .replace(/\\begin\{abstract\}/g, '')
                 .replace(/\\end\{abstract\}/g, '')
                 .replace(/\\begin\{thebibliography\}[^}]*\}/g, '')
-                .replace(/\\end\{thebibliography\}/g, '');
+                .replace(/\\end\{thebibliography\}/g, '')
+                .replace(/\\begin\{titlepage\}/g, '')
+                .replace(/\\end\{titlepage\}/g, '')
+                .replace(/\\begin\{tabular\}[^{]*\{[^}]*\}/g, '')
+                .replace(/\\end\{tabular\}/g, '')
+                .replace(/\\rowcolor[^{]*\{[^}]*\}/g, '')
+                .replace(/\\multicolumn[^{]*\{[^}]*\}\{[^}]*\}\{[^}]*\}/g, '')
+                .replace(/\\cellcolor[^{]*\{[^}]*\}/g, '')
+                .replace(/\\hline/g, '')
+                .replace(/\\Huge\{([^}]+)\}/g, '<h1 class="text-3xl font-bold text-center mb-6">$1</h1>')
+                .replace(/\\centering/g, '')
+                .replace(/\\\\/g, '<br>');
             
             // Conversões rápidas melhoradas
             htmlContent = htmlContent
@@ -3156,7 +3167,6 @@ ${latexCode}
                 .replace(/\\begin\{itemize\}/g, '<ul class="list-disc list-inside my-3 space-y-1">')
                 .replace(/\\end\{itemize\}/g, '</ul>')
                 .replace(/\\item\s+([^\n]+)/g, '<li class="mb-1">$1</li>')
-                .replace(/\\\\/g, '<br>')
                 .replace(/\\&/g, '&')
                 .replace(/\\%/g, '%')
                 .replace(/\\$/g, '$')
@@ -3198,7 +3208,7 @@ ${latexCode}
             // Criar HTML do documento com páginas simuladas
             const documentHTML = `
                 <div id="document-${messageId}" class="document-viewer bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div class="document-pages bg-gray-100 dark:bg-gray-950 p-8">
+                    <div class="document-pages bg-gray-100 dark:bg-gray-950 p-0">
                         <div class="max-w-4xl mx-auto space-y-4">
                             <!-- Página 1 -->
                             <div class="bg-white dark:bg-gray-800 min-h-[842px] shadow-lg rounded-sm p-12">
