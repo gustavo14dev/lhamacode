@@ -2940,6 +2940,7 @@ ${latexCode}
 '\\usepackage{amsmath,amssymb}' +
 '\\usepackage{graphicx}' +
 '\\usepackage{hyperref}' +
+'\\usepackage{tabular}' +
 '\\title{' + message + '}' +
 '\\author{IA}' +
 '\\date{\\today}' +
@@ -3006,7 +3007,12 @@ ${latexCode}
         }
         
         if (!fixedCode.includes('\\usepackage[utf8]{inputenc}')) {
-            fixedCode = fixedCode.replace('\\documentclass', '\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\documentclass');
+            fixedCode = fixedCode.replace('\\documentclass', '\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{tabular}\n\\documentclass');
+        }
+        
+        // Garantir que o pacote tabular esteja presente
+        if (!fixedCode.includes('\\usepackage{tabular}') && !fixedCode.includes('\\usepackage{booktabs}')) {
+            fixedCode = fixedCode.replace('\\usepackage{hyperref}', '\\usepackage{hyperref}\n\\usepackage{tabular}');
         }
         
         if (!fixedCode.includes('\\begin{document}')) {
@@ -3092,6 +3098,14 @@ ${latexCode}
             htmlContent = htmlContent.replace(/\\end\{itemize\}/g, '</ul>');
             htmlContent = htmlContent.replace(/\\item\s+([^\n]+)/g, '<li class="ml-4">$1</li>');
             htmlContent = htmlContent.replace(/\\item/g, '<li class="ml-4">');
+            
+            // Converter tabelas (suporte básico para tabular)
+            htmlContent = htmlContent.replace(/\\begin\{tabular\}\{[^}]*\}/g, '<table class="border-collapse border border-gray-300 my-4">');
+            htmlContent = htmlContent.replace(/\\end\{tabular\}/g, '</table>');
+            htmlContent = htmlContent.replace(/\\\\/g, '</tr><tr>');
+            htmlContent = htmlContent.replace(/&/g, '</td><td class="border border-gray-300 px-4 py-2">');
+            htmlContent = htmlContent.replace(/<tr>/g, '<tr><td class="border border-gray-300 px-4 py-2">');
+            htmlContent = htmlContent.replace(/<\/tr><\/table>/g, '</tr></table>');
             
             // Converter parágrafos
             htmlContent = htmlContent.replace(/\n\n+/g, '</p><p class="mb-4 leading-relaxed text-gray-700 dark:text-gray-300">');
