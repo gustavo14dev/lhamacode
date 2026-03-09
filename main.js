@@ -3225,22 +3225,20 @@ ${latexCode}
                         </div>
                     </div>
                     
-                    <div class="bg-gray-50 dark:bg-gray-800 px-3 py-2 border-t border-gray-200 dark:border-gray-700">
+                    <div class="bg-gray-50 dark:bg-gray-800 px-2 py-1 border-t border-gray-200 dark:border-gray-700">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                                <span class="material-icons-outlined text-sm">info</span>
-                                <span>LaTeX renderizado</span>
+                                <span class="material-icons-outlined text-xs">info</span>
+                                <span>LaTeX</span>
                             </div>
                             <div class="flex gap-1">
                                 <button onclick="window.downloadDocument('${messageId}', '${title}.tex')" 
-                                        class="flex items-center gap-1 px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors text-xs">
-                                    <span class="material-icons-outlined text-sm">download</span>
-                                    <span class="hidden sm:inline">Baixar</span>
+                                        class="flex items-center gap-1 px-1 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors text-xs">
+                                    <span class="material-icons-outlined text-xs">download</span>
                                 </button>
                                 <button onclick="window.printDocument('${messageId}')" 
-                                        class="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs">
-                                    <span class="material-icons-outlined text-sm">print</span>
-                                    <span class="hidden sm:inline">Imprimir</span>
+                                        class="flex items-center gap-1 px-1 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs">
+                                    <span class="material-icons-outlined text-xs">print</span>
                                 </button>
                             </div>
                         </div>
