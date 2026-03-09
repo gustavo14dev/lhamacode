@@ -3132,15 +3132,20 @@ ${latexCode}
             const titleMatch = latexCode.match(/\\title\{([^}]+)\}/);
             const title = titleMatch ? titleMatch[1] : 'Documento Gerado';
             
-            // Processamento simples - remover preâmbulo
+            // Processamento simples - remover preâmbulo e comandos LaTeX
             let htmlContent = latexCode
                 .replace(/\\documentclass[^{]*\{[^}]*\}/g, '')
                 .replace(/\\usepackage[^{]*\{[^}]*\}/g, '')
                 .replace(/\\author\{[^}]*\}/g, '')
                 .replace(/\\date\{[^}]*\}/g, '')
                 .replace(/\\title\{[^}]*\}/g, '')
+                .replace(/\\maketitle/g, '')
                 .replace(/\\begin\{document\}/g, '')
-                .replace(/\\end\{document\}/g, '');
+                .replace(/\\end\{document\}/g, '')
+                .replace(/\\begin\{abstract\}/g, '')
+                .replace(/\\end\{abstract\}/g, '')
+                .replace(/\\begin\{thebibliography\}[^}]*\}/g, '')
+                .replace(/\\end\{thebibliography\}/g, '');
             
             // Conversões rápidas melhoradas
             htmlContent = htmlContent
@@ -3190,12 +3195,13 @@ ${latexCode}
             // Remover parágrafos vazios
             htmlContent = htmlContent.replace(/<p class="mb-4[^>]*">\s*<\/p>/g, '');
             
-            // Criar HTML do documento
+            // Criar HTML do documento com páginas simuladas
             const documentHTML = `
                 <div id="document-${messageId}" class="document-viewer bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div class="document-pages p-0">
-                        <div class="bg-white dark:bg-gray-800 min-h-[800px] shadow-inner">
-                            <div class="p-12 max-w-4xl mx-auto">
+                    <div class="document-pages bg-gray-100 dark:bg-gray-950 p-8">
+                        <div class="max-w-4xl mx-auto space-y-4">
+                            <!-- Página 1 -->
+                            <div class="bg-white dark:bg-gray-800 min-h-[842px] shadow-lg rounded-sm p-12">
                                 <div class="space-y-6">
                                     ${htmlContent}
                                 </div>
@@ -3203,22 +3209,22 @@ ${latexCode}
                         </div>
                     </div>
                     
-                    <div class="bg-gray-50 dark:bg-gray-800 p-4 border-t border-gray-200 dark:border-gray-700">
+                    <div class="bg-gray-50 dark:bg-gray-800 px-3 py-2 border-t border-gray-200 dark:border-gray-700">
                         <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                                <span class="material-icons-outlined text-base">info</span>
-                                <span>Documento LaTeX renderizado</span>
+                            <div class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                                <span class="material-icons-outlined text-sm">info</span>
+                                <span>LaTeX renderizado</span>
                             </div>
-                            <div class="flex gap-2">
+                            <div class="flex gap-1">
                                 <button onclick="window.downloadDocument('${messageId}', '${title}.tex')" 
-                                        class="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm">
-                                    <span class="material-icons-outlined">download</span>
-                                    Baixar LaTeX
+                                        class="flex items-center gap-1 px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors text-xs">
+                                    <span class="material-icons-outlined text-sm">download</span>
+                                    <span class="hidden sm:inline">Baixar</span>
                                 </button>
                                 <button onclick="window.printDocument('${messageId}')" 
-                                        class="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
-                                    <span class="material-icons-outlined">print</span>
-                                    Imprimir
+                                        class="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs">
+                                    <span class="material-icons-outlined text-sm">print</span>
+                                    <span class="hidden sm:inline">Imprimir</span>
                                 </button>
                             </div>
                         </div>
