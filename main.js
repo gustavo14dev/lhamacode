@@ -3029,6 +3029,7 @@ ${latexCode}
             latexCode = this.normalizeDocumentLatex(latexCode, topic);
             latexCode = this.stripLatexReferenceSections(latexCode);
             latexCode = this.injectLatexBibliography(latexCode, referencesLatex);
+            latexCode = this.sanitizeLatexInput(latexCode);
 
             await this.renderDocumentOutput(latexCode, processingId, topic);
         } catch (error) {
@@ -3118,6 +3119,7 @@ ${latexCode}
 
             latexCode = this.normalizeDocumentLatex(latexCode, topic);
             latexCode = this.stripLatexReferenceSections(latexCode);
+            latexCode = this.sanitizeLatexInput(latexCode);
 
             await this.renderDocumentOutput(latexCode, processingId, topic);
         } catch (error) {
@@ -3667,7 +3669,11 @@ ${latexCode}
             .replace(/^sobre\s+/i, '')
             .replace(/^["']|["']$/g, '')
             .trim();
-        return cleaned || raw;
+        const normalized = cleaned || raw;
+        if (/^ia$/i.test(normalized)) {
+            return 'Inteligência Artificial';
+        }
+        return normalized;
     }
 
     isMarkdownContentSufficient(markdownSource) {
@@ -4093,6 +4099,8 @@ ${chunk}${bibliographyBlock}
             normalized = `\\title{${this.escapeLatexText(title)}}\n\\author{IA}\n\\date{\\today}\n${normalized}`;
         }
 
+        normalized = normalized.replace(/\\author\{\s*\}/g, '\\author{Drekee AI}');
+
         if (!/\\begin\{document\}/.test(normalized)) {
             if (/\\date\{[^}]*\}/.test(normalized)) {
                 normalized = normalized.replace(/\\date\{[^}]*\}/, '$&\n\\begin{document}\n\\maketitle\n');
@@ -4151,12 +4159,18 @@ ${chunk}${bibliographyBlock}
 
     escapeLatexText(text) {
         return String(text || '')
-            .replace(/[\u200E\u200F\u202A-\u202E]/g, '')
+            .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u206F]/g, '')
             .replace(/\s+/g, ' ')
             .replace(/\\/g, '/')
             .replace(/([#$%&_{}])/g, '\\$1')
             .replace(/\^/g, '')
             .replace(/~/g, '');
+    }
+
+    sanitizeLatexInput(latexCode) {
+        return String(latexCode || '')
+            .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u206F]/g, '')
+            .replace(/\r/g, '');
     }
     
     validateAndFixLatex(latexCode) {
