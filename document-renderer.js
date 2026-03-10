@@ -83,6 +83,12 @@ class DocumentRenderer {
             .replace(/\\end\{abstract\}/g, '')
             .replace(/\\begin\{titlepage\}/g, '')
             .replace(/\\end\{titlepage\}/g, '')
+            .replace(/\\begin\{frame\}(?:\[[^\]]*\])?/g, '')
+            .replace(/\\end\{frame\}/g, '')
+            .replace(/\\begin\{columns\}/g, '')
+            .replace(/\\end\{columns\}/g, '')
+            .replace(/\\begin\{column\}\{[^}]+\}/g, '')
+            .replace(/\\end\{column\}/g, '')
             .replace(/\\begin\{center\}/g, '')
             .replace(/\\end\{center\}/g, '')
             .replace(/\\begin\{tabular\}[^{]*\{[^}]*\}/g, '')
@@ -106,6 +112,7 @@ class DocumentRenderer {
         htmlContent = htmlContent
             .replace(/\\textbf\{([^}]+)\}/g, '<strong style="color: black;">$1</strong>')
             .replace(/\\textit\{([^}]+)\}/g, '<em style="color: black;">$1</em>')
+            .replace(/\\frametitle\{([^}]+)\}/g, '<h2 class="text-xl font-bold mt-6 mb-3" style="color: black;">$1</h2>')
             .replace(/\\section\*?\{([^}]+)\}/g, '<h2 class="text-xl font-bold mt-6 mb-3" style="color: black;">$1</h2>')
             .replace(/\\subsection\*?\{([^}]+)\}/g, '<h3 class="text-lg font-semibold mt-4 mb-2" style="color: black;">$1</h3>')
             .replace(/\\begin\{itemize\}/g, '<ul class="list-disc list-inside my-3 space-y-1">')
@@ -178,12 +185,12 @@ class DocumentRenderer {
                     <!-- Página 1 -->
                     <div class="bg-white min-h-[842px] px-6 pt-2 pb-6 rounded-t-lg" style="background-color: white; color: black;">
                         <!-- Título do Documento -->
-                        <div class="text-center mb-0.5">
+                        <div class="text-center mb-0">
                             <h1 class="text-3xl font-bold leading-tight m-0" style="color: black; margin: 0;">${formattedTitle}</h1>
                         </div>
                         
                         <!-- Conteúdo -->
-                        <div class="space-y-1" style="margin-top: 0;">
+                        <div class="space-y-1" style="margin-top: -6px;">
                             ${htmlContent}
                         </div>
                     </div>

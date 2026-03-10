@@ -2997,6 +2997,7 @@ ${latexCode}
             
             // Limpar código LaTeX
             latexCode = latexCode.replace(/```latex/gi, '').replace(/```/g, '').trim();
+            latexCode = this.normalizeDocumentLatex(latexCode, message);
             latexCode = this.injectWebReferencesIntoLatex(latexCode, webResearch.sources || []);
             
             console.log('📄 [DOCUMENTO] LaTeX recebido:', latexCode.substring(0, 200) + '...');
@@ -3124,6 +3125,70 @@ ${latexCode}
         }
 
         return `${latexCode}${bibliographyBlock}`;
+    }
+
+    normalizeDocumentLatex(latexCode, title) {
+        let normalized = String(latexCode || '').trim();
+
+        normalized = normalized
+            .replace(/\\documentclass(?:\[[^\]]*\])?\{beamer\}/g, '\\documentclass[12pt,a4paper]{article}')
+            .replace(/\\frame\{\\titlepage\}/g, '\\maketitle')
+            .replace(/\\titlepage/g, '\\maketitle')
+            .replace(/\\frametitle\{([^}]+)\}/g, '\\section{$1}')
+            .replace(/\\framesubtitle\{[^}]+\}/g, '')
+            .replace(/\\begin\{frame\}(?:\[[^\]]*\])?/g, '')
+            .replace(/\\end\{frame\}/g, '')
+            .replace(/\\begin\{columns\}/g, '')
+            .replace(/\\end\{columns\}/g, '')
+            .replace(/\\begin\{column\}\{[^}]+\}/g, '')
+            .replace(/\\end\{column\}/g, '')
+            .replace(/\\pause/g, '')
+            .replace(/\\tableofcontents/g, '')
+            .replace(/\\vfill/g, '')
+            .replace(/\\vspace\*?\{[^}]*\}/g, '')
+            .replace(/\\hspace\*?\{[^}]*\}/g, '')
+            .replace(/\\centering/g, '');
+
+        if (!/\\documentclass/.test(normalized)) {
+            normalized = '\\documentclass[12pt,a4paper]{article}\n' + normalized;
+        }
+
+        if (!/\\usepackage\[utf8\]\{inputenc\}/.test(normalized)) {
+            normalized = normalized.replace(
+                /\\documentclass(?:\[[^\]]*\])?\{article\}/,
+                '\\documentclass[12pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{tabular}'
+            );
+        }
+
+        if (!/\\title\{/.test(normalized)) {
+            normalized = `\\title{${this.escapeLatexText(title)}}\n\\author{IA}\n\\date{\\today}\n${normalized}`;
+        }
+
+        if (!/\\begin\{document\}/.test(normalized)) {
+            if (/\\date\{[^}]*\}/.test(normalized)) {
+                normalized = normalized.replace(/\\date\{[^}]*\}/, '$&\n\\begin{document}\n\\maketitle\n');
+            } else if (/\\title\{[^}]*\}/.test(normalized)) {
+                normalized = normalized.replace(/\\title\{[^}]*\}/, '$&\n\\author{IA}\n\\date{\\today}\n\\begin{document}\n\\maketitle\n');
+            } else {
+                normalized = `\\documentclass[12pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{tabular}\n\\title{${this.escapeLatexText(title)}}\n\\author{IA}\n\\date{\\today}\n\\begin{document}\n\\maketitle\n\n${normalized}`;
+            }
+        }
+
+        if (!/\\maketitle/.test(normalized) && /\\begin\{document\}/.test(normalized)) {
+            normalized = normalized.replace(/\\begin\{document\}/, '\\begin{document}\n\\maketitle\n');
+        }
+
+        if (!/\\end\{document\}/.test(normalized)) {
+            normalized = `${normalized}\n\\end{document}`;
+        }
+
+        normalized = normalized
+            .replace(/\n{3,}/g, '\n\n')
+            .replace(/\\section\{([^}]+)\}\s*\\section\{\1\}/g, '\\section{$1}')
+            .replace(/^\s+/, '')
+            .trim();
+
+        return normalized;
     }
 
     escapeLatexText(text) {
