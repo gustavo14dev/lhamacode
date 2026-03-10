@@ -48,6 +48,19 @@ class DocumentRenderer {
         }
     }
 
+    renderMarkdownDocument(htmlContent, title, messageId) {
+        console.log('[MARKDOWN] Renderizando documento Markdown...');
+
+        try {
+            const documentHTML = this.createMarkdownDocumentHTML(htmlContent, title, messageId);
+            this.updateProcessingMessage(messageId, documentHTML);
+            this.addMarkdownGlobalFunctions(title, htmlContent);
+            this.scrollToBottom();
+        } catch (renderError) {
+            console.error('[MARKDOWN] Erro ao renderizar documento:', renderError);
+        }
+    }
+
     /**
      * Renderiza um documento LaTeX como HTML
      */
@@ -353,6 +366,76 @@ class DocumentRenderer {
                 </div>
             </div>
         `;
+    }
+
+    createMarkdownDocumentHTML(htmlContent, title, messageId) {
+        const safeTitle = title.replace(/\\textbf\{([^}]+)\}/g, '$1')
+                               .replace(/\\textit\{([^}]+)\}/g, '$1');
+
+        return `
+            <div id="markdown-doc-${messageId}" class="document-viewer rounded-xl shadow-lg border overflow-hidden" style="background: linear-gradient(180deg, #08152f 0%, #0b1d3b 100%); border-color: rgba(96, 165, 250, 0.18);">
+                <div class="document-pages p-3" style="background: linear-gradient(180deg, rgba(8, 21, 47, 0.96) 0%, rgba(11, 29, 59, 0.92) 100%);">
+                    <div class="rounded-lg overflow-hidden shadow-sm" style="background: #ffffff; max-width: 760px; margin: 0 auto;">
+                        <div class="px-8 pt-6 pb-8" style="background: #ffffff; color: #0f172a; min-height: 842px;">
+                            <div class="text-center mb-4">
+                                <h1 class="text-3xl font-bold leading-tight m-0" style="color: #0f172a; margin: 0;">${safeTitle}</h1>
+                            </div>
+                            <div class="markdown-body prose max-w-none" style="color: #0f172a;">
+                                ${htmlContent}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="px-3 py-1.5 border-t" style="background: rgba(15, 23, 42, 0.92); border-color: rgba(96, 165, 250, 0.14);">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-1 text-[11px]" style="color: rgba(191, 219, 254, 0.72);">
+                            <span class="material-icons-outlined text-xs">description</span>
+                            <span>Markdown</span>
+                        </div>
+                        <div class="flex gap-1.5">
+                            <button onclick="window.printMarkdownDocument('${messageId}', '${safeTitle.replace(/`/g, '\\`')}')" 
+                                    class="flex items-center gap-1 px-2 py-0.5 text-white rounded-md transition-colors text-xs"
+                                    style="background: #2563eb;">
+                                <span class="material-icons-outlined text-xs">print</span>
+                                Imprimir
+                            </button>
+                            <button onclick="navigator.clipboard.writeText(\`${safeTitle.replace(/`/g, '\\`')}\`); alert('Título copiado!');" 
+                                    class="flex items-center gap-1 px-2 py-0.5 text-white rounded-md transition-colors text-xs"
+                                    style="background: #16a34a;">
+                                <span class="material-icons-outlined text-xs">content_copy</span>
+                                Copiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    addMarkdownGlobalFunctions(title, htmlContent) {
+        window.printMarkdownDocument = (messageId, docTitle) => {
+            const printWindow = window.open('', 'width=800,height=600');
+            printWindow.document.write(`
+                <html>
+                    <head>
+                        <title>${docTitle || title}</title>
+                        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+                        <style>
+                            body { font-family: "Times New Roman", serif; line-height: 1.6; margin: 24px; color: #0f172a; }
+                            h1, h2, h3, h4 { color: #0f172a; }
+                            .prose { max-width: 760px; margin: 0 auto; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>${docTitle || title}</h1>
+                        <div class="prose">${htmlContent}</div>
+                    </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        };
     }
 
     /**

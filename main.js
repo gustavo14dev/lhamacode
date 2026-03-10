@@ -1705,7 +1705,7 @@ class UI {
         // Continuar com o fluxo normal de criação (slides, documentos, etc.)
         const type = this.currentCreateType;
         if (type === 'document') {
-            await this.generateTypstDocument(message, processingId, { skipUserMessage: true });
+            await this.generateMarkdownDocument(message, processingId, { skipUserMessage: true });
             this.currentCreateType = null;
             return;
         }
@@ -2929,7 +2929,7 @@ ${latexCode}
         // Mostrar processamento
         const processingId = this.addAssistantMessage('📄 Gerando documento acadêmico...');
         
-        await this.generateTypstDocument(message, processingId, { skipUserMessage: true });
+        await this.generateMarkdownDocument(message, processingId, { skipUserMessage: true });
     }
 
     async generateTypstDocument(message, processingId, { skipUserMessage = false } = {}) {
@@ -3014,6 +3014,102 @@ ${latexCode}
                             <div>
                                 <h1 class="text-xl font-bold">Erro na Geração</h1>
                                 <p class="text-red-100 text-sm">Não foi possível gerar o documento Typst</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div class="mb-4">
+                            <h3 class="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">Detalhes do Erro:</h3>
+                            <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+                                <p class="text-sm text-red-700 dark:text-red-300">${this.escapeHtml(error.message)}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            this.updateProcessingMessage(processingId, errorHTML);
+        }
+    }
+
+    async generateMarkdownDocument(message, processingId, { skipUserMessage = false } = {}) {
+        try {
+            if (!skipUserMessage) {
+                this.addUserMessage(message);
+            }
+
+            this.updateProcessingMessage(processingId, '🔎 Pesquisando fontes na web...');
+            const webResearch = await this.fetchDocumentWebResearch(message);
+            const webContext = this.buildDocumentWebContext(webResearch);
+            const referencesMarkdown = this.buildMarkdownReferences(webResearch.sources || []);
+
+            this.updateProcessingMessage(processingId, '🧠 Gerando documento em Markdown...');
+            const response = await fetch('/api/groq-proxy', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'Você é um especialista em documentos acadêmicos. Gere um documento COMPLETO em Markdown sobre: "' + message + '".' +
+
+'IMPORTANTE: Retorne APENAS o Markdown, sem explicações, sem markdown extra.' +
+'Use as fontes da pesquisa web para embasar o conteúdo. Não invente fontes.' +
+
+'REGRAS OBRIGATORIAS:' +
+'- Use Markdown puro (sem LaTeX/Typst).' +
+'- Comece com um titulo: "# Titulo do Documento".' +
+'- Inclua obrigatoriamente as seções: "## Introducao", "## Desenvolvimento", "## Conclusao", "## Referencias".' +
+'- Dentro de Desenvolvimento, crie pelo menos 3 subsecoes: "### ..." com texto corrido.' +
+'- Use listas quando fizer sentido: "- item".' +
+'- Se houver matematica, use $$E = mc^2$$.' +
+'- Referencias: lista de links no final.' +
+'- Escreva paragrafos completos (nao apenas topicos).' +
+
+'\n\nCONTEXTO DE PESQUISA WEB:\n' + webContext +
+'\n\nREFERENCIAS DISPONIVEIS (use na seção final):\n' + referencesMarkdown
+                        },
+                        {
+                            role: 'user',
+                            content: 'Tema do documento: ' + message + '\n\nGere em Markdown e use as referências fornecidas.'
+                        }
+                    ],
+                    model: 'llama-3.1-8b-instant',
+                    temperature: 0.7
+                })
+            });
+
+            const data = await response.json();
+            let markdownSource = (data.choices?.[0]?.message?.content || '').trim();
+            markdownSource = markdownSource.replace(/```markdown/gi, '').replace(/```/g, '').trim();
+
+            if (!this.isMarkdownContentSufficient(markdownSource)) {
+                markdownSource = this.buildMarkdownFallbackDocument(message, webResearch);
+            }
+
+            markdownSource = this.injectMarkdownReferences(markdownSource, webResearch.sources || []);
+            markdownSource = this.normalizeMarkdownDocument(markdownSource, message);
+
+            const marked = await this.loadMarkdownRenderer();
+            const html = marked.parse(markdownSource);
+
+            if (window.documentRenderer?.renderMarkdownDocument) {
+                window.documentRenderer.renderMarkdownDocument(html, message, processingId);
+                await this.renderMathInElement(`markdown-doc-${processingId}`);
+            } else {
+                throw new Error('Renderizador Markdown não disponível');
+            }
+        } catch (error) {
+            console.error('📄 [MARKDOWN] Erro:', error);
+            const errorHTML = `
+                <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-6">
+                        <div class="flex items-center gap-3">
+                            <span class="material-icons-outlined text-2xl">error</span>
+                            <div>
+                                <h1 class="text-xl font-bold">Erro na Geração</h1>
+                                <p class="text-red-100 text-sm">Não foi possível gerar o documento em Markdown</p>
                             </div>
                         </div>
                     </div>
@@ -3152,6 +3248,146 @@ ${latexCode}
             console.warn('⚠️ [TYPST] Falha na compilação:', error.message);
             return null;
         }
+    }
+
+    async loadMarkdownRenderer() {
+        if (!this._markedPromise) {
+            this._markedPromise = import('https://esm.sh/marked@9.1.6?bundle&target=es2020').then((mod) => {
+                const marked = mod.marked || mod.default || mod;
+                if (marked?.setOptions) {
+                    marked.setOptions({ mangle: false, headerIds: true });
+                }
+                return marked;
+            });
+        }
+        return this._markedPromise;
+    }
+
+    async loadKatexRenderer() {
+        if (!this._katexPromise) {
+            this._katexPromise = (async () => {
+                this.loadExternalCss('https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css');
+                const katexModule = await import('https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.mjs');
+                const autoRenderModule = await import('https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.mjs');
+                return {
+                    katex: katexModule.default || katexModule,
+                    renderMathInElement: autoRenderModule.renderMathInElement || autoRenderModule.default
+                };
+            })();
+        }
+        return this._katexPromise;
+    }
+
+    async renderMathInElement(elementId) {
+        const container = document.getElementById(elementId);
+        if (!container) {
+            return;
+        }
+        try {
+            const { renderMathInElement } = await this.loadKatexRenderer();
+            if (typeof renderMathInElement === 'function') {
+                renderMathInElement(container, {
+                    delimiters: [
+                        { left: '$$', right: '$$', display: true },
+                        { left: '$', right: '$', display: false }
+                    ],
+                    throwOnError: false
+                });
+            }
+        } catch (error) {
+            console.warn('⚠️ [KATEX] Falha ao renderizar matemática:', error.message);
+        }
+    }
+
+    loadExternalCss(url) {
+        if (!this._loadedCss) {
+            this._loadedCss = new Set();
+        }
+        if (this._loadedCss.has(url)) {
+            return;
+        }
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = url;
+        document.head.appendChild(link);
+        this._loadedCss.add(url);
+    }
+
+    buildMarkdownReferences(sources) {
+        if (!Array.isArray(sources) || sources.length === 0) {
+            return '- Nenhuma fonte disponível.';
+        }
+        return sources.slice(0, 6).map((source, index) => {
+            const title = (source.title || `Fonte ${index + 1}`).replace(/\s+/g, ' ').trim();
+            const url = source.url || '';
+            const snippet = (source.content || source.snippet || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+            return `- [${title}](${url})${snippet ? ` - ${snippet}` : ''}`.trim();
+        }).join('\n');
+    }
+
+    injectMarkdownReferences(markdownSource, sources) {
+        if (!Array.isArray(sources) || sources.length === 0) {
+            return markdownSource;
+        }
+        if (/^##\s*Referencias/m.test(markdownSource)) {
+            return markdownSource;
+        }
+        const references = this.buildMarkdownReferences(sources);
+        return `${markdownSource}\n\n## Referencias\n${references}`;
+    }
+
+    normalizeMarkdownDocument(markdownSource, title) {
+        let normalized = markdownSource.trim();
+        if (!/^# /m.test(normalized)) {
+            normalized = `# ${title}\n\n${normalized}`;
+        }
+        return normalized;
+    }
+
+    isMarkdownContentSufficient(markdownSource) {
+        if (!markdownSource || markdownSource.length < 200) {
+            return false;
+        }
+        const hasTitle = /^# /m.test(markdownSource);
+        const sections = (markdownSource.match(/^## /gm) || []).length;
+        const hasReferencesOnly = /^##\s*Referencias\b/m.test(markdownSource) && sections <= 1;
+        return hasTitle && sections >= 2 && !hasReferencesOnly && markdownSource.length >= 500;
+    }
+
+    buildMarkdownFallbackDocument(message, webResearch) {
+        const summary = webResearch?.response
+            ? webResearch.response.replace(/\s+/g, ' ').trim()
+            : '';
+        const sources = (webResearch?.sources || []).slice(0, 6).map((source, index) => {
+            const title = (source.title || `Fonte ${index + 1}`).replace(/\s+/g, ' ').trim();
+            const snippet = (source.content || source.snippet || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+            return `- **${title}**: ${snippet}`;
+        }).join('\n');
+
+        return `
+# ${message}
+
+## Introducao
+${summary || 'Este documento apresenta uma visao geral do tema solicitado, com base nas fontes consultadas.'}
+
+## Desenvolvimento
+${summary || 'As secoes seguintes detalham conceitos, contexto historico e aplicacoes praticas.'}
+
+### Contexto
+${summary || 'Contextualizacao do tema com base nas fontes mais relevantes.'}
+
+### Conceitos principais
+${summary || 'Resumo dos conceitos-chave e definicoes mais aceitas.'}
+
+### Impactos e aplicacoes
+${summary || 'Aplicacoes praticas e impactos observados no tema.'}
+
+## Conclusao
+Este texto sintetiza os pontos principais discutidos ao longo do documento.
+
+## Referencias
+${sources || '- Nenhuma fonte disponivel.'}
+        `.trim();
     }
 
     buildTypstReferences(sources) {
