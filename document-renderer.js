@@ -61,6 +61,18 @@ class DocumentRenderer {
         }
     }
 
+    renderPdfJsViewer(pdfUrl, title, messageId) {
+        console.log('[PDF.js] Renderizando viewer...');
+
+        try {
+            const html = this.createPdfJsViewerHTML(pdfUrl, title, messageId);
+            this.updateProcessingMessage(messageId, html);
+            this.scrollToBottom();
+        } catch (renderError) {
+            console.error('[PDF.js] Erro ao renderizar viewer:', renderError);
+        }
+    }
+
     /**
      * Renderiza um documento LaTeX como HTML
      */
@@ -418,6 +430,45 @@ class DocumentRenderer {
                                     style="background: #16a34a;">
                                 <span class="material-icons-outlined text-xs">content_copy</span>
                                 Copiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    createPdfJsViewerHTML(pdfUrl, title, messageId) {
+        const safeTitle = title.replace(/\\textbf\{([^}]+)\}/g, '$1')
+                               .replace(/\\textit\{([^}]+)\}/g, '$1');
+        const viewerUrl = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`;
+
+        return `
+            <div id="pdfjs-doc-${messageId}" class="document-viewer rounded-xl shadow-lg border overflow-hidden" style="background: linear-gradient(180deg, #08152f 0%, #0b1d3b 100%); border-color: rgba(96, 165, 250, 0.18);">
+                <div class="document-pages p-3" style="background: linear-gradient(180deg, rgba(8, 21, 47, 0.96) 0%, rgba(11, 29, 59, 0.92) 100%);">
+                    <div class="rounded-lg overflow-hidden shadow-sm" style="background: #ffffff;">
+                        <iframe src="${viewerUrl}" style="width: 100%; height: 80vh; border: none; display: block;"></iframe>
+                    </div>
+                </div>
+
+                <div class="px-3 py-1.5 border-t" style="background: rgba(15, 23, 42, 0.92); border-color: rgba(96, 165, 250, 0.14);">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-1 text-[11px]" style="color: rgba(191, 219, 254, 0.72);">
+                            <span class="material-icons-outlined text-xs">picture_as_pdf</span>
+                            <span>PDF.js</span>
+                        </div>
+                        <div class="flex gap-1.5">
+                            <button onclick="window.open('${viewerUrl}', '_blank')" 
+                                    class="flex items-center gap-1 px-2 py-0.5 text-white rounded-md transition-colors text-xs"
+                                    style="background: #2563eb;">
+                                <span class="material-icons-outlined text-xs">open_in_new</span>
+                                Abrir
+                            </button>
+                            <button onclick="window.open('${pdfUrl}', '_blank')" 
+                                    class="flex items-center gap-1 px-2 py-0.5 text-white rounded-md transition-colors text-xs"
+                                    style="background: #16a34a;">
+                                <span class="material-icons-outlined text-xs">download</span>
+                                Baixar
                             </button>
                         </div>
                     </div>

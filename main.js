@@ -1705,7 +1705,7 @@ class UI {
         // Continuar com o fluxo normal de criação (slides, documentos, etc.)
         const type = this.currentCreateType;
         if (type === 'document') {
-            await this.generateMarkdownDocument(message, processingId, { skipUserMessage: true });
+            await this.generateLatexDocument(message, processingId, { skipUserMessage: true });
             this.currentCreateType = null;
             return;
         }
@@ -1995,26 +1995,28 @@ ${latexCode}
 
     }
 
-    async compileLatexToPDF(latexCode, messageId) {
-
+    async compileLatexToPDF(latexCode) {
         try {
+            const response = await fetch('/api/latex-pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ latex: latexCode })
+            });
 
-            console.log('🎯 Usando renderização KaTeX simples...');
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => '');
+                throw new Error(errorText || `Falha ao compilar PDF: ${response.status}`);
+            }
 
-            this.renderLatexWithKaTeX(latexCode, messageId, this.currentCreateType);
-
-            return;
-
+            const buffer = await response.arrayBuffer();
+            const blob = new Blob([buffer], { type: 'application/pdf' });
+            return URL.createObjectURL(blob);
         } catch (error) {
-
-            console.warn('⚠️ Erro na renderização KaTeX, usando fallback:', error.message);
-
-            const simulatedData = this.createSimulatedContent(latexCode);
-
-            this.displayCompiledContent(messageId, simulatedData, this.currentCreateType, '');
-
+            console.warn('⚠️ [LATEX] Falha ao compilar PDF:', error.message);
+            return null;
         }
-
     }
 
     createSimulatedContent(latexCode) {
@@ -2929,7 +2931,101 @@ ${latexCode}
         // Mostrar processamento
         const processingId = this.addAssistantMessage('📄 Gerando documento acadêmico...');
         
-        await this.generateMarkdownDocument(message, processingId, { skipUserMessage: true });
+        await this.generateLatexDocument(message, processingId, { skipUserMessage: true });
+    }
+
+    async generateLatexDocument(message, processingId, { skipUserMessage = false } = {}) {
+        try {
+            if (!skipUserMessage) {
+                this.addUserMessage(message);
+            }
+
+            const topic = this.normalizeDocumentTopic(message);
+            this.updateProcessingMessage(processingId, '🔎 Pesquisando fontes na web...');
+            const webResearch = await this.fetchDocumentWebResearch(topic);
+            const webContext = this.buildDocumentWebContext(webResearch);
+
+            this.updateProcessingMessage(processingId, '🧠 Gerando documento em LaTeX...');
+            const response = await fetch('/api/groq-proxy', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'Você é um especialista acadêmico em LaTeX. Gere um documento LaTeX COMPLETO sobre: "' + topic + '".' +
+
+'IMPORTANTE: Retorne APENAS o código LaTeX, sem explicações, sem markdown.' +
+'Use as fontes da pesquisa web para embasar o conteúdo. Não invente fontes.' +
+
+'REGRAS OBRIGATORIAS:' +
+'- Use \\documentclass[12pt,a4paper]{article}.' +
+'- Inclua \\usepackage[utf8]{inputenc}, \\usepackage[T1]{fontenc}, \\usepackage{amsmath,amssymb}, \\usepackage{graphicx}, \\usepackage{hyperref}, \\usepackage[a4paper,margin=1.5cm]{geometry}.' +
+'- Comece com \\title{...} e \\maketitle.' +
+'- Inclua obrigatoriamente as seções: Introdução, Desenvolvimento, Conclusão.' +
+'- No Desenvolvimento, crie pelo menos 3 subseções.' +
+'- Use \\textbf{}, \\textit{}, \\underline{} e listas (itemize) quando fizer sentido.' +
+'- Se houver matemática, use $$E = mc^2$$.' +
+'- Escreva parágrafos completos (não apenas tópicos).' +
+'- NÃO use ambiente beamer.' +
+
+'\n\nCONTEXTO DE PESQUISA WEB:\n' + webContext
+                        },
+                        {
+                            role: 'user',
+                            content: 'Tema do documento: ' + topic + '\n\nGere em LaTeX e use as referências fornecidas.'
+                        }
+                    ],
+                    model: 'llama-3.1-8b-instant',
+                    temperature: 0.7
+                })
+            });
+
+            const data = await response.json();
+            let latexCode = (data.choices?.[0]?.message?.content || '').trim();
+            latexCode = latexCode.replace(/```latex/gi, '').replace(/```/g, '').trim();
+
+            const latexStart = latexCode.indexOf('\\documentclass');
+            if (latexStart > 0) {
+                latexCode = latexCode.substring(latexStart);
+            }
+
+            const latexEnd = latexCode.lastIndexOf('\\end{document}');
+            if (latexEnd > -1 && latexEnd < latexCode.length - 20) {
+                latexCode = latexCode.substring(0, latexEnd + 15);
+            }
+
+            latexCode = this.normalizeDocumentLatex(latexCode, topic);
+            latexCode = this.injectWebReferencesIntoLatex(latexCode, webResearch.sources || []);
+
+            await this.renderDocumentOutput(latexCode, processingId, topic);
+        } catch (error) {
+            console.error('📄 [LATEX] Erro:', error);
+            const errorHTML = `
+                <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-6">
+                        <div class="flex items-center gap-3">
+                            <span class="material-icons-outlined text-2xl">error</span>
+                            <div>
+                                <h1 class="text-xl font-bold">Erro na Geração</h1>
+                                <p class="text-red-100 text-sm">Não foi possível gerar o documento LaTeX</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div class="mb-4">
+                            <h3 class="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">Detalhes do Erro:</h3>
+                            <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+                                <p class="text-sm text-red-700 dark:text-red-300">${this.escapeHtml(error.message)}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            this.updateProcessingMessage(processingId, errorHTML);
+        }
     }
 
     async generateTypstDocument(message, processingId, { skipUserMessage = false } = {}) {
@@ -3098,7 +3194,12 @@ ${latexCode}
             const marked = await this.loadMarkdownRenderer();
             const html = marked.parse(markdownSource);
 
-            if (window.documentRenderer?.renderMarkdownDocument) {
+            this.updateProcessingMessage(processingId, '📄 Gerando PDF...');
+            const pdfUrl = await this.generatePdfFromMarkdown(html, topic, processingId);
+
+            if (pdfUrl && window.documentRenderer?.renderPdfJsViewer) {
+                window.documentRenderer.renderPdfJsViewer(pdfUrl, topic, processingId);
+            } else if (window.documentRenderer?.renderMarkdownDocument) {
                 window.documentRenderer.renderMarkdownDocument(html, topic, processingId);
                 await this.renderMathInElement(`markdown-doc-${processingId}`);
             } else {
@@ -3303,6 +3404,70 @@ ${latexCode}
         }
     }
 
+    async loadHtml2Pdf() {
+        if (!this._html2pdfPromise) {
+            this._html2pdfPromise = (async () => {
+                await this.loadExternalScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js');
+                return window.html2pdf;
+            })();
+        }
+        return this._html2pdfPromise;
+    }
+
+    async generatePdfFromMarkdown(htmlContent, title, messageId) {
+        try {
+            const html2pdf = await this.loadHtml2Pdf();
+            if (!html2pdf) {
+                throw new Error('html2pdf não carregou');
+            }
+
+            const container = document.createElement('div');
+            container.id = `markdown-pdf-${messageId}`;
+            container.style.position = 'fixed';
+            container.style.left = '-9999px';
+            container.style.top = '0';
+            container.style.width = '794px'; // A4 @ 96dpi
+            container.style.padding = '48px 48px 56px';
+            container.style.background = '#ffffff';
+            container.style.color = '#0f172a';
+            container.innerHTML = `
+                <style>
+                    #markdown-pdf-${messageId} { font-family: "Times New Roman", serif; line-height: 1.6; }
+                    #markdown-pdf-${messageId} h1 { text-align: center; margin: 0 0 16px; }
+                    #markdown-pdf-${messageId} h2 { margin: 20px 0 8px; }
+                    #markdown-pdf-${messageId} h3 { margin: 16px 0 6px; }
+                    #markdown-pdf-${messageId} ul { margin: 8px 0 8px 18px; }
+                    #markdown-pdf-${messageId} ol { margin: 8px 0 8px 18px; }
+                    #markdown-pdf-${messageId} blockquote { border-left: 4px solid #94a3b8; padding-left: 12px; color: #334155; background: #f8fafc; margin: 12px 0; }
+                    #markdown-pdf-${messageId} table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+                    #markdown-pdf-${messageId} th, #markdown-pdf-${messageId} td { border: 1px solid #e2e8f0; padding: 6px 8px; }
+                    #markdown-pdf-${messageId} th { background: #f1f5f9; text-align: left; }
+                </style>
+                <h1>${this.escapeHtml(title)}</h1>
+                <div>${htmlContent}</div>
+            `;
+            document.body.appendChild(container);
+
+            await this.renderMathInElement(container.id);
+
+            const opt = {
+                margin: [10, 10, 12, 10],
+                filename: `${title || 'documento'}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            const pdfBlob = await html2pdf().from(container).set(opt).output('blob');
+            const url = URL.createObjectURL(pdfBlob);
+            container.remove();
+            return url;
+        } catch (error) {
+            console.warn('⚠️ [PDF] Falha ao gerar PDF:', error.message);
+            return null;
+        }
+    }
+
     loadExternalCss(url) {
         if (!this._loadedCss) {
             this._loadedCss = new Set();
@@ -3315,6 +3480,25 @@ ${latexCode}
         link.href = url;
         document.head.appendChild(link);
         this._loadedCss.add(url);
+    }
+
+    async loadExternalScriptOnce(url) {
+        if (!this._loadedScripts) {
+            this._loadedScripts = new Map();
+        }
+        if (this._loadedScripts.has(url)) {
+            return this._loadedScripts.get(url);
+        }
+        const promise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = url;
+            script.async = true;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error(`Falha ao carregar script: ${url}`));
+            document.head.appendChild(script);
+        });
+        this._loadedScripts.set(url, promise);
+        return promise;
     }
 
     buildMarkdownReferences(sources) {
@@ -3570,6 +3754,15 @@ ${sources || '- Nenhuma fonte disponivel.'}
     }
 
     async renderDocumentOutput(latexCode, messageId, title) {
+        const isArticle = /\\documentclass(?:\[[^\]]*\])?\{article\}/i.test(latexCode);
+        if (isArticle) {
+            const pdfUrl = await this.compileLatexToPDF(latexCode);
+            if (pdfUrl && window.documentRenderer?.renderPdfJsViewer) {
+                window.documentRenderer.renderPdfJsViewer(pdfUrl, title || 'Documento Gerado', messageId);
+                return;
+            }
+        }
+
         const imageUrls = await this.compileDocumentWithQuickLatex(latexCode, title);
 
         if (Array.isArray(imageUrls) && imageUrls.length > 0 && window.documentRenderer?.renderDocumentImages) {
