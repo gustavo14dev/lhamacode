@@ -255,6 +255,7 @@ class DocumentRenderer {
         const safeTitle = title.replace(/\\textbf\{([^}]+)\}/g, '$1')
                                .replace(/\\textit\{([^}]+)\}/g, '$1');
         const pages = Array.isArray(imageUrls) ? imageUrls : [imageUrls];
+        const primaryImageUrl = pages[0] || '';
         const pageHtml = pages.map((imageUrl, index) => `
             <div style="max-width: 640px; margin: 0 auto ${index < pages.length - 1 ? '16px' : '0'};">
                 <div class="rounded-lg overflow-hidden shadow-sm" style="background: #ffffff; aspect-ratio: 1 / 1.414; display: flex; align-items: flex-start; justify-content: center; padding: 12px;">
@@ -277,7 +278,7 @@ class DocumentRenderer {
                             <span>QuickLaTeX</span>
                         </div>
                         <div class="flex gap-1.5">
-                            <button onclick="window.open('${imageUrl}', '_blank')" 
+                            <button onclick="window.open('${primaryImageUrl}', '_blank')" 
                                     class="flex items-center gap-1 px-2 py-0.5 text-white rounded-md transition-colors text-xs"
                                     style="background: #2563eb;">
                                 <span class="material-icons-outlined text-xs">open_in_new</span>
