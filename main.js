@@ -1718,7 +1718,7 @@ REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
 
 - NÃO inclua marcadores como \`\`\`latex ou \`\`\`
 
-- Use pacotes padrão (beamer para slides, article para documentos, tabular para tabelas)
+- Use pacotes padrão (beamer para slides, article para documentos)
 
 - O código deve ser compilável com pdflatex
 
@@ -1726,7 +1726,7 @@ REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
 
 - Para documentos: use \\documentclass{article}
 
-- Para tabelas: use \\documentclass{article} com tabular environment
+- Para tabelas: use \\documentclass{article} com ambiente tabular
 
 
 
@@ -2958,7 +2958,6 @@ ${latexCode}
 '\\usepackage{graphicx}' +
 '\\usepackage{hyperref}' +
 '\\usepackage[a4paper,margin=1.5cm]{geometry}' +
-'\\usepackage{tabular}' +
 '\\title{' + message + '}' +
 '\\author{IA}' +
 '\\date{\\today}' +
@@ -3181,9 +3180,13 @@ ${latexCode}
             .replace(/^[\s\S]*?\\begin\{document\}/, '')
             .replace(/\\end\{document\}\s*$/, '')
             .trim();
+        const cleanedBody = body
+            .replace(/\\pagestyle\{[^}]*\}\s*/g, '')
+            .replace(/\\fontsize\{[^}]+\}\{[^}]+\}\\selectfont\s*/g, '')
+            .trim();
         const bibliographyMatch = body.match(/\\begin\{thebibliography\}\{[^}]*\}[\s\S]*?\\end\{thebibliography\}/);
         const bibliography = bibliographyMatch ? bibliographyMatch[0] : '';
-        const bodyWithoutBibliography = bibliography ? body.replace(bibliography, '').trim() : body;
+        const bodyWithoutBibliography = bibliography ? cleanedBody.replace(bibliography, '').trim() : cleanedBody;
 
         const blocks = [];
         let cursor = bodyWithoutBibliography;
@@ -3235,6 +3238,8 @@ ${latexCode}
 
             return `${preamble}
 ${titleBlock}\\begin{document}
+\\pagestyle{empty}
+\\fontsize{14}{18}\\selectfont
 ${index === 0 ? '\\maketitle\n\n' : ''}
 ${chunk}${bibliographyBlock}
 
@@ -3271,7 +3276,7 @@ ${chunk}${bibliographyBlock}
         if (!/\\usepackage\[utf8\]\{inputenc\}/.test(normalized)) {
                 normalized = normalized.replace(
                     /\\documentclass(?:\[[^\]]*\])?\{article\}/,
-                '\\documentclass[12pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage[a4paper,margin=1.5cm]{geometry}\n\\usepackage{tabular}'
+                '\\documentclass[12pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage[a4paper,margin=1.5cm]{geometry}'
             );
         }
 
@@ -3285,7 +3290,7 @@ ${chunk}${bibliographyBlock}
             } else if (/\\title\{[^}]*\}/.test(normalized)) {
                 normalized = normalized.replace(/\\title\{[^}]*\}/, '$&\n\\author{IA}\n\\date{\\today}\n\\begin{document}\n\\maketitle\n');
             } else {
-                normalized = `\\documentclass[12pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage[a4paper,margin=1.5cm]{geometry}\n\\usepackage{tabular}\n\\title{${this.escapeLatexText(title)}}\n\\author{IA}\n\\date{\\today}\n\\begin{document}\n\\maketitle\n\n${normalized}`;
+                normalized = `\\documentclass[12pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage[a4paper,margin=1.5cm]{geometry}\n\\title{${this.escapeLatexText(title)}}\n\\author{IA}\n\\date{\\today}\n\\begin{document}\n\\maketitle\n\n${normalized}`;
             }
         }
 
@@ -3297,7 +3302,9 @@ ${chunk}${bibliographyBlock}
             normalized = normalized.replace(/\\usepackage\{hyperref\}/, '\\usepackage{hyperref}\n\\usepackage[a4paper,margin=1.5cm]{geometry}');
         }
 
-        normalized = normalized.replace(/\\begin\{document\}/, '\\begin{document}\n\\pagestyle{empty}\n\\fontsize{14}{18}\\selectfont\n');
+        normalized = normalized
+            .replace(/\\usepackage\{tabular\}\s*/g, '')
+            .replace(/\\begin\{document\}/, '\\begin{document}\n\\pagestyle{empty}\n\\fontsize{14}{18}\\selectfont\n');
 
         if (!/\\end\{document\}/.test(normalized)) {
             normalized = `${normalized}\n\\end{document}`;
@@ -3332,13 +3339,11 @@ ${chunk}${bibliographyBlock}
         }
         
         if (!fixedCode.includes('\\usepackage[utf8]{inputenc}')) {
-            fixedCode = fixedCode.replace('\\documentclass', '\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{tabular}\n\\documentclass');
+            fixedCode = fixedCode.replace('\\documentclass', '\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\documentclass');
         }
         
-        // Garantir que o pacote tabular esteja presente
-        if (!fixedCode.includes('\\usepackage{tabular}') && !fixedCode.includes('\\usepackage{booktabs}')) {
-            fixedCode = fixedCode.replace('\\usepackage{hyperref}', '\\usepackage{hyperref}\n\\usepackage{tabular}');
-        }
+        // Remover pacote tabular se estiver presente (inexistente em alguns compiladores)
+        fixedCode = fixedCode.replace(/\\usepackage\{tabular\}\s*/g, '');
         
         if (!fixedCode.includes('\\begin{document}')) {
             fixedCode += '\n\n\\begin{document}\n\\maketitle\n\n[Conteúdo do documento]\n\n\\end{document}';
