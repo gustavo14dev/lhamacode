@@ -2955,6 +2955,7 @@ ${latexCode}
             this.updateProcessingMessage(processingId, '🔎 Pesquisando fontes na web...');
             const webResearch = await this.fetchDocumentWebResearch(topic);
             const webContext = this.buildDocumentWebContext(webResearch);
+            const referencesLatex = this.buildLatexBibliography(webResearch.sources || []);
 
             this.updateProcessingMessage(processingId, '🧠 Gerando documento em LaTeX...');
             const response = await fetch('/api/groq-proxy', {
@@ -2981,6 +2982,9 @@ ${latexCode}
 '- Se houver matemática, use $$E = mc^2$$.' +
 '- Escreva parágrafos completos (não apenas tópicos).' +
 '- NÃO use ambiente beamer.' +
+'- NÃO escreva referências no corpo do texto. Use apenas o ambiente thebibliography fornecido abaixo.' +
+
+'\n\nREFERENCIAS (use exatamente estas, sem alterar):\n' + referencesLatex +
 
 '\n\nCONTEXTO DE PESQUISA WEB:\n' + webContext
                         },
@@ -3010,7 +3014,7 @@ ${latexCode}
 
             latexCode = this.normalizeDocumentLatex(latexCode, topic);
             latexCode = this.stripLatexReferenceSections(latexCode);
-            latexCode = this.injectWebReferencesIntoLatex(latexCode, webResearch.sources || []);
+            latexCode = this.injectLatexBibliography(latexCode, referencesLatex);
 
             await this.renderDocumentOutput(latexCode, processingId, topic);
         } catch (error) {
@@ -3763,6 +3767,46 @@ ${sources || '- Nenhuma fonte disponivel.'}
         }
 
         return `${latexCode}${bibliographyBlock}`;
+    }
+
+    buildLatexBibliography(sources) {
+        if (!Array.isArray(sources) || sources.length === 0) {
+            return '\\begin{thebibliography}{99}\n\\bibitem{web1} Fonte não disponível.\n\\end{thebibliography}';
+        }
+
+        const unique = [];
+        for (const source of sources) {
+            if (source?.url && !unique.find((item) => item.url === source.url)) {
+                unique.push(source);
+            }
+        }
+
+        const items = unique.slice(0, 6).map((source, index) => {
+            const title = this.escapeLatexText(source.title || `Fonte ${index + 1}`);
+            const url = this.escapeLatexText(source.url || '');
+            const snippetRaw = (source.content || source.snippet || '').replace(/\s+/g, ' ').trim();
+            const snippet = this.escapeLatexText(snippetRaw.slice(0, 180));
+            const accessDate = '9 de março de 2026';
+            const parts = [title];
+            if (snippet) parts.push(snippet);
+            if (url) parts.push(`Disponível em: \\url{${url}}. Acesso em: ${accessDate}.`);
+            return `\\bibitem{web${index + 1}} ${parts.join(' ')}`;
+        }).join('\n');
+
+        return `\\begin{thebibliography}{99}\n${items}\n\\end{thebibliography}`;
+    }
+
+    injectLatexBibliography(latexCode, bibliographyBlock) {
+        if (!bibliographyBlock || !bibliographyBlock.trim()) {
+            return latexCode;
+        }
+        if (/\\begin\{thebibliography\}/.test(latexCode)) {
+            return latexCode.replace(/\\begin\{thebibliography\}\{[^}]*\}[\s\S]*?\\end\{thebibliography\}/, bibliographyBlock.trim());
+        }
+        if (/\\end\{document\}/.test(latexCode)) {
+            return latexCode.replace(/\\end\{document\}/, `${bibliographyBlock}\n\\end{document}`);
+        }
+        return `${latexCode}\n${bibliographyBlock}`;
     }
 
     stripLatexReferenceSections(latexCode) {
