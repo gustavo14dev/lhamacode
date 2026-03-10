@@ -1704,6 +1704,11 @@ class UI {
 
         // Continuar com o fluxo normal de criação (slides, documentos, etc.)
         const type = this.currentCreateType;
+        if (type === 'document') {
+            await this.generateTypstDocument(message, processingId, { skipUserMessage: true });
+            this.currentCreateType = null;
+            return;
+        }
         const systemPrompt = {
             role: 'system',
             content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional Beamer' : type === 'document' ? 'documento acadêmico' : 'tabela técnica'} sobre: "${message}". 
@@ -2928,12 +2933,21 @@ ${latexCode}
         // Mostrar processamento
         const processingId = this.addAssistantMessage('📄 Gerando documento acadêmico...');
         
+        await this.generateTypstDocument(message, processingId, { skipUserMessage: true });
+    }
+
+    async generateTypstDocument(message, processingId, { skipUserMessage = false } = {}) {
         try {
+            if (!skipUserMessage) {
+                this.addUserMessage(message);
+            }
+
             this.updateProcessingMessage(processingId, '🔎 Pesquisando fontes na web...');
             const webResearch = await this.fetchDocumentWebResearch(message);
             const webContext = this.buildDocumentWebContext(webResearch);
+            const referencesTypst = this.buildTypstReferences(webResearch.sources || []);
 
-            this.updateProcessingMessage(processingId, '🧠 Gerando documento com base nas fontes encontradas...');
+            this.updateProcessingMessage(processingId, '🧠 Gerando documento em Typst...');
             const response = await fetch('/api/groq-proxy', {
                 method: 'POST',
                 headers: {
@@ -2943,73 +2957,54 @@ ${latexCode}
                     messages: [
                         {
                             role: 'system',
-                            content: 'Você é um especialista em LaTeX e documentos acadêmicos. Gere um documento LaTeX COMPLETO e COMPILÁVEL sobre: "' + message + '".' +
+                            content: 'Você é um especialista em Typst e documentos acadêmicos. Gere um documento Typst COMPLETO sobre: "' + message + '".' +
 
-'IMPORTANTE: O código LaTeX DEVE ser compilável com pdflatex SEM ERROS.' +
-'BASEIE o documento nas informações de pesquisa fornecidas. Não invente fontes.' +
-'Use as evidências da web para sustentar o conteúdo.' +
+'IMPORTANTE: Retorne APENAS o código Typst, sem explicações.' +
+'Use as fontes da pesquisa web para embasar o conteúdo. Não invente fontes.' +
 
-'REGRAS CRÍTICAS:' +
-'- Use EXATAMENTE esta estrutura:' +
-'\\documentclass[12pt,a4paper]{article}' +
-'\\usepackage[utf8]{inputenc}' +
-'\\usepackage[T1]{fontenc}' +
-'\\usepackage{amsmath,amssymb}' +
-'\\usepackage{graphicx}' +
-'\\usepackage{hyperref}' +
-'\\usepackage[a4paper,margin=1.5cm]{geometry}' +
-'\\title{' + message + '}' +
-'\\author{IA}' +
-'\\date{\\today}' +
-'\\begin{document}' +
-'\\maketitle' +
-'[conteúdo do documento aqui]' +
-'\\end{document}' +
+'REGRAS:' +
+'- Use Typst puro (sem LaTeX).' +
+'- Título: "= Título do Documento"' +
+'- Seções: "== Seção", "=== Subseção"' +
+'- Listas: "- item"' +
+'- Matemática: "$E = mc^2$"' +
+'- Referências: seção "== Referencias" com lista de links' +
+'- Estrutura sugerida: Introdução, Desenvolvimento (3-4 seções), Conclusão, Referencias' +
 
-'- Use SOMENTE comandos LaTeX padrão' +
-'- Escape caracteres especiais: # $ % ^ & _ { } ~ \\' +
-'- Use \\textbf{texto} para negrito' +
-'- Use \\textit{texto} para itálico' +
-'- Use \\section{Nome} para seções' +
-'- Use \\begin{itemize} \\item texto \\end{itemize} para listas' +
-'- Use $equação$ para matemática inline' +
-'- Use $$equação$$ para matemática display' +
-'- NÃO crie capa, titlepage, centralização excessiva, \\vfill, \\vspace grande ou páginas separadas para o título' +
-'- O conteúdo deve começar logo após \\maketitle' +
-'- Inclua uma seção final de referências em formato thebibliography SOMENTE se houver fontes fornecidas' +
-'- NÃO use comandos personalizados' +
-'- NÃO use pacotes não listados acima' +
-'- Retorne APENAS o código LaTeX, sem explicações' +
-'\n\nCONTEXTO DE PESQUISA WEB:\n' + webContext
+'\n\nCONTEXTO DE PESQUISA WEB:\n' + webContext +
+'\n\nREFERENCIAS DISPONIVEIS (use na seção final):\n' + referencesTypst
                         },
                         {
                             role: 'user',
-                            content: 'Tema do documento: ' + message + '\n\nUse os resultados da pesquisa web fornecidos para escrever o documento e manter as referências consistentes.'
+                            content: 'Tema do documento: ' + message + '\n\nGere em Typst e use as referências fornecidas.'
                         }
                     ],
                     model: 'llama-3.1-8b-instant',
                     temperature: 0.7
                 })
             });
-            
+
             const data = await response.json();
-            let latexCode = data.choices[0].message.content;
-            
-            // Limpar código LaTeX
-            latexCode = latexCode.replace(/```latex/gi, '').replace(/```/g, '').trim();
-            latexCode = this.normalizeDocumentLatex(latexCode, message);
-            latexCode = this.injectWebReferencesIntoLatex(latexCode, webResearch.sources || []);
-            
-            console.log('📄 [DOCUMENTO] LaTeX recebido:', latexCode.substring(0, 200) + '...');
-            
-            // Renderizar IMEDIATAMENTE sem validação complexa
-            this.updateProcessingMessage(processingId, '🖼️ Compilando documento no QuickLaTeX...');
-            await this.renderDocumentOutput(latexCode, processingId, message);
-            
+            let typstSource = (data.choices?.[0]?.message?.content || '').trim();
+            typstSource = typstSource.replace(/```typst/gi, '').replace(/```/g, '').trim();
+
+            typstSource = this.injectTypstReferences(typstSource, webResearch.sources || []);
+            typstSource = this.normalizeTypstDocument(typstSource, message);
+
+            this.updateProcessingMessage(processingId, '📄 Compilando PDF Typst...');
+            const pdfUrl = await this.compileTypstToPdf(typstSource);
+
+            if (!pdfUrl) {
+                throw new Error('Falha ao compilar Typst no navegador');
+            }
+
+            if (window.documentRenderer?.renderTypstPdf) {
+                window.documentRenderer.renderTypstPdf(pdfUrl, message, processingId);
+            } else {
+                throw new Error('Renderizador Typst não disponível');
+            }
         } catch (error) {
-            console.error('📄 [DOCUMENTO] Erro:', error);
-            
-            // Fallback: mostrar erro ao usuário
+            console.error('📄 [TYPST] Erro:', error);
             const errorHTML = `
                 <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
                     <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-6">
@@ -3017,11 +3012,10 @@ ${latexCode}
                             <span class="material-icons-outlined text-2xl">error</span>
                             <div>
                                 <h1 class="text-xl font-bold">Erro na Geração</h1>
-                                <p class="text-red-100 text-sm">Não foi possível gerar o documento</p>
+                                <p class="text-red-100 text-sm">Não foi possível gerar o documento Typst</p>
                             </div>
                         </div>
                     </div>
-                    
                     <div class="p-6">
                         <div class="mb-4">
                             <h3 class="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">Detalhes do Erro:</h3>
@@ -3029,18 +3023,76 @@ ${latexCode}
                                 <p class="text-sm text-red-700 dark:text-red-300">${this.escapeHtml(error.message)}</p>
                             </div>
                         </div>
-                        
-                        <div class="text-sm text-gray-600 dark:text-gray-400">
-                            <p>• Verifique sua conexão com a internet</p>
-                            <p>• Tente novamente com um texto mais simples</p>
-                            <p>• Se o problema persistir, contate o suporte</p>
-                        </div>
                     </div>
                 </div>
             `;
-            
             this.updateProcessingMessage(processingId, errorHTML);
         }
+    }
+
+    async loadTypstCompiler() {
+        if (!this._typstCompilerPromise) {
+            this._typstCompilerPromise = (async () => {
+                const mod = await import('https://esm.sh/@myriaddreamin/typst.ts');
+                const TypstCompiler = mod.TypstCompiler || mod.default?.TypstCompiler;
+                if (!TypstCompiler) {
+                    throw new Error('TypstCompiler não encontrado no módulo typst.ts');
+                }
+                const compiler = new TypstCompiler();
+                if (typeof compiler.init === 'function') {
+                    await compiler.init();
+                }
+                return compiler;
+            })();
+        }
+        return this._typstCompilerPromise;
+    }
+
+    async compileTypstToPdf(typstSource) {
+        try {
+            const compiler = await this.loadTypstCompiler();
+            const pdf = await compiler.compile(typstSource);
+            const pdfBytes = pdf instanceof Uint8Array ? pdf : new Uint8Array(pdf);
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            return URL.createObjectURL(blob);
+        } catch (error) {
+            console.warn('⚠️ [TYPST] Falha na compilação:', error.message);
+            return null;
+        }
+    }
+
+    buildTypstReferences(sources) {
+        if (!Array.isArray(sources) || sources.length === 0) {
+            return 'Nenhuma fonte disponível.';
+        }
+        return sources.slice(0, 6).map((source, index) => {
+            const title = (source.title || `Fonte ${index + 1}`).replace(/\s+/g, ' ').trim();
+            const url = source.url || '';
+            const snippet = (source.content || source.snippet || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+            return `- [${title}](${url}) ${snippet ? '- ' + snippet : ''}`.trim();
+        }).join('\n');
+    }
+
+    injectTypstReferences(typstSource, sources) {
+        if (!Array.isArray(sources) || sources.length === 0) {
+            return typstSource;
+        }
+        if (/^==\s*Referencias/m.test(typstSource)) {
+            return typstSource;
+        }
+        const references = this.buildTypstReferences(sources);
+        return `${typstSource}\n\n== Referencias\n${references}`;
+    }
+
+    normalizeTypstDocument(typstSource, title) {
+        let normalized = typstSource.trim();
+        if (!/^= /m.test(normalized)) {
+            normalized = `= ${title}\n\n${normalized}`;
+        }
+        if (!/^#set page/m.test(normalized)) {
+            normalized = `#set page(size: \"a4\", margin: 1.5cm)\n#set text(size: 14pt, leading: 1.3em)\n\n${normalized}`;
+        }
+        return normalized;
     }
 
     async fetchDocumentWebResearch(message) {
