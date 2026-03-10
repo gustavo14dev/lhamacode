@@ -2012,11 +2012,22 @@ ${latexCode}
 
             const buffer = await response.arrayBuffer();
             const blob = new Blob([buffer], { type: 'application/pdf' });
-            return URL.createObjectURL(blob);
+            const blobUrl = URL.createObjectURL(blob);
+            const dataUrl = await this.blobToDataUrl(blob);
+            return { blobUrl, dataUrl };
         } catch (error) {
             console.warn('⚠️ [LATEX] Falha ao compilar PDF:', error.message);
             return null;
         }
+    }
+
+    blobToDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('Falha ao converter PDF para data URL'));
+            reader.readAsDataURL(blob);
+        });
     }
 
     createSimulatedContent(latexCode) {
@@ -3756,9 +3767,9 @@ ${sources || '- Nenhuma fonte disponivel.'}
     async renderDocumentOutput(latexCode, messageId, title) {
         const isArticle = /\\documentclass(?:\[[^\]]*\])?\{article\}/i.test(latexCode);
         if (isArticle) {
-            const pdfUrl = await this.compileLatexToPDF(latexCode);
-            if (pdfUrl && window.documentRenderer?.renderPdfJsViewer) {
-                window.documentRenderer.renderPdfJsViewer(pdfUrl, title || 'Documento Gerado', messageId);
+            const pdfData = await this.compileLatexToPDF(latexCode);
+            if (pdfData && window.documentRenderer?.renderPdfJsViewer) {
+                window.documentRenderer.renderPdfJsViewer(pdfData, title || 'Documento Gerado', messageId);
                 return;
             }
         }

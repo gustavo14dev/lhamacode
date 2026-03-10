@@ -61,11 +61,11 @@ class DocumentRenderer {
         }
     }
 
-    renderPdfJsViewer(pdfUrl, title, messageId) {
+    renderPdfJsViewer(pdfData, title, messageId) {
         console.log('[PDF.js] Renderizando viewer...');
 
         try {
-            const html = this.createPdfJsViewerHTML(pdfUrl, title, messageId);
+            const html = this.createPdfJsViewerHTML(pdfData, title, messageId);
             this.updateProcessingMessage(messageId, html);
             this.scrollToBottom();
         } catch (renderError) {
@@ -438,10 +438,12 @@ class DocumentRenderer {
         `;
     }
 
-    createPdfJsViewerHTML(pdfUrl, title, messageId) {
+    createPdfJsViewerHTML(pdfData, title, messageId) {
         const safeTitle = title.replace(/\\textbf\{([^}]+)\}/g, '$1')
                                .replace(/\\textit\{([^}]+)\}/g, '$1');
-        const viewerUrl = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`;
+        const fileUrl = typeof pdfData === 'string' ? pdfData : (pdfData.dataUrl || pdfData.blobUrl || '');
+        const downloadUrl = typeof pdfData === 'string' ? pdfData : (pdfData.blobUrl || pdfData.dataUrl || '');
+        const viewerUrl = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/web/viewer.html?file=${encodeURIComponent(fileUrl)}`;
 
         return `
             <div id="pdfjs-doc-${messageId}" class="document-viewer rounded-xl shadow-lg border overflow-hidden" style="background: linear-gradient(180deg, #08152f 0%, #0b1d3b 100%); border-color: rgba(96, 165, 250, 0.18);">
@@ -464,7 +466,7 @@ class DocumentRenderer {
                                 <span class="material-icons-outlined text-xs">open_in_new</span>
                                 Abrir
                             </button>
-                            <button onclick="window.open('${pdfUrl}', '_blank')" 
+                            <button onclick="window.open('${downloadUrl}', '_blank')" 
                                     class="flex items-center gap-1 px-2 py-0.5 text-white rounded-md transition-colors text-xs"
                                     style="background: #16a34a;">
                                 <span class="material-icons-outlined text-xs">download</span>
