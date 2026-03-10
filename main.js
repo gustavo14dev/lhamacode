@@ -3080,6 +3080,8 @@ ${latexCode}
                 'Use \\textbf{}, \\textit{}, \\underline{} e listas (itemize) quando fizer sentido.',
                 'Se houver matemática, use $$E = mc^2$$.',
                 'NÃO escreva referências no corpo do texto.'
+                'NÃO use \\includegraphics ou imagens externas.',
+                'O documento deve ter entre 3 e 5 páginas (aprox. 1500-2000 palavras).'
             ].join(' ');
 
             const formData = new FormData();
@@ -5367,6 +5369,8 @@ ${chunk}${bibliographyBlock}
             }
 
         }
+
+        return uniqueId;
 
     }
 

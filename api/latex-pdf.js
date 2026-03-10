@@ -11,9 +11,6 @@ export default async function handler(req, res) {
         }
 
         const encoded = encodeURIComponent(latex);
-        if (encoded.length > 8000) {
-            return res.status(413).json({ error: 'LaTeX muito longo para compilação remota.' });
-        }
         const url = `https://latexonline.cc/compile?text=${encoded}`;
         const response = await fetch(url);
 
