@@ -2988,6 +2988,10 @@ ${latexCode}
             let typstSource = (data.choices?.[0]?.message?.content || '').trim();
             typstSource = typstSource.replace(/```typst/gi, '').replace(/```/g, '').trim();
 
+            if (!this.isTypstContentSufficient(typstSource)) {
+                typstSource = this.buildTypstFallbackDocument(message, webResearch);
+            }
+
             typstSource = this.injectTypstReferences(typstSource, webResearch.sources || []);
             typstSource = this.normalizeTypstDocument(typstSource, message);
 
@@ -3093,6 +3097,40 @@ ${latexCode}
             normalized = `#set page(size: \"a4\", margin: 1.5cm)\n#set text(size: 14pt, leading: 1.3em)\n\n${normalized}`;
         }
         return normalized;
+    }
+
+    isTypstContentSufficient(typstSource) {
+        if (!typstSource || typstSource.length < 200) {
+            return false;
+        }
+        return /^= /m.test(typstSource) || /^== /m.test(typstSource);
+    }
+
+    buildTypstFallbackDocument(message, webResearch) {
+        const summary = webResearch?.response
+            ? webResearch.response.replace(/\s+/g, ' ').trim()
+            : '';
+        const sources = (webResearch?.sources || []).slice(0, 6).map((source, index) => {
+            const title = (source.title || `Fonte ${index + 1}`).replace(/\s+/g, ' ').trim();
+            const snippet = (source.content || source.snippet || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+            return `- *${title}*: ${snippet}`;
+        }).join('\n');
+
+        return `
+= ${message}
+
+== Introducao
+${summary || 'Este documento apresenta uma visao geral do tema solicitado, com base nas fontes consultadas.'}
+
+== Desenvolvimento
+${summary || 'As secoes seguintes detalham conceitos, contexto historico e aplicacoes praticas.'}
+
+== Conclusao
+Este texto sintetiza os pontos principais discutidos ao longo do documento.
+
+== Referencias
+${sources || '- Nenhuma fonte disponivel.'}
+        `.trim();
     }
 
     async fetchDocumentWebResearch(message) {
