@@ -11,6 +11,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@myriaddreamin/typst.ts": "^0.6.0",
     "multiparty": "^4.2.3"
   },
   "devDependencies": {

@@ -1697,7 +1697,7 @@ class UI {
         }
 
         // Adicionar mensagem do usuário ao chat
-        this.addUserMessage(message);
+        this.addUserMessage(message, null, { preserveCreateMode: true });
         
         // Mostrar mensagem de processamento E OBTER O ID CORRETO
         const processingId = this.addAssistantMessage('Gerando conteúdo...');
@@ -1711,7 +1711,7 @@ class UI {
         }
         const systemPrompt = {
             role: 'system',
-            content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional Beamer' : type === 'document' ? 'documento acadêmico' : 'tabela técnica'} sobre: "${message}". 
+            content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional Beamer' : 'tabela técnica'} sobre: "${message}". 
 
             
 
@@ -1728,8 +1728,6 @@ REGRAS CRÍTICAS - OBEDEÇA RIGIDOSAMENTE:
 - O código deve ser compilável com pdflatex
 
 - Para slides: use \\documentclass[10pt,aspectratio=169]{beamer}
-
-- Para documentos: use \\documentclass{article}
 
 - Para tabelas: use \\documentclass{article} com ambiente tabular
 
@@ -1760,8 +1758,6 @@ CONTEÚDO ESPECÍFICO E DE ALTA QUALIDADE:
 - ATENÇÃO: Se o usuário pedir algo específico como "3 slides" ou "apresentação curta", RESPEITE e gere exatamente o solicitado
 
 - Para tabelas: dados reais, específicos e técnicos sobre o tema
-
-- Para documentos: texto acadêmico com introdução, desenvolvimento (3-4 seções) e conclusão
 
 - NUNCA use placeholders genéricos como "Exemplo 1", "Conteúdo da tabela"
 
@@ -2959,17 +2955,18 @@ ${latexCode}
                             role: 'system',
                             content: 'Você é um especialista em Typst e documentos acadêmicos. Gere um documento Typst COMPLETO sobre: "' + message + '".' +
 
-'IMPORTANTE: Retorne APENAS o código Typst, sem explicações.' +
+'IMPORTANTE: Retorne APENAS o código Typst, sem explicações, sem markdown.' +
 'Use as fontes da pesquisa web para embasar o conteúdo. Não invente fontes.' +
 
-'REGRAS:' +
+'REGRAS OBRIGATORIAS:' +
 '- Use Typst puro (sem LaTeX).' +
-'- Título: "= Título do Documento"' +
-'- Seções: "== Seção", "=== Subseção"' +
-'- Listas: "- item"' +
-'- Matemática: "$E = mc^2$"' +
-'- Referências: seção "== Referencias" com lista de links' +
-'- Estrutura sugerida: Introdução, Desenvolvimento (3-4 seções), Conclusão, Referencias' +
+'- Comece com um titulo: "= Titulo do Documento".' +
+'- Inclua obrigatoriamente as seções: "== Introducao", "== Desenvolvimento", "== Conclusao", "== Referencias".' +
+'- Dentro de Desenvolvimento, crie pelo menos 3 subsecoes: "=== ..." com texto corrido.' +
+'- Use listas quando fizer sentido: "- item".' +
+'- Se houver matematica, use $E = mc^2$.' +
+'- Referencias: lista de links no final.' +
+'- Escreva paragrafos completos (nao apenas topicos).' +
 
 '\n\nCONTEXTO DE PESQUISA WEB:\n' + webContext +
 '\n\nREFERENCIAS DISPONIVEIS (use na seção final):\n' + referencesTypst
@@ -3103,7 +3100,10 @@ ${latexCode}
         if (!typstSource || typstSource.length < 200) {
             return false;
         }
-        return /^= /m.test(typstSource) || /^== /m.test(typstSource);
+        const hasTitle = /^= /m.test(typstSource);
+        const sections = (typstSource.match(/^== /gm) || []).length;
+        const hasReferencesOnly = /^==\s*Referencias\b/m.test(typstSource) && sections <= 1;
+        return hasTitle && sections >= 2 && !hasReferencesOnly && typstSource.length >= 500;
     }
 
     buildTypstFallbackDocument(message, webResearch) {
