@@ -2928,7 +2928,7 @@ ${latexCode}
         console.log('📄 [DOCUMENTO] Gerando documento:', message);
         
         // Adicionar mensagem do usuário
-        this.addUserMessage(message);
+        this.addUserMessage(message, null, { preserveCreateMode: true });
         
         // Mostrar processamento
         const processingId = this.addAssistantMessage('📄 Gerando documento acadêmico...');
@@ -4084,10 +4084,10 @@ ${chunk}${bibliographyBlock}
 
 
 
-    addUserMessage(text, files = null) {
+    addUserMessage(text, files = null, opts = {}) {
 
         // Se o modo Documento está ativo, desativar ao enviar mensagem
-        if (window.isDocumentModeActive) {
+        if (window.isDocumentModeActive && !opts.preserveCreateMode) {
             console.log('🔧 [CREATE] Desativando modo Documento ao enviar mensagem');
             window.isDocumentModeActive = false;
             
