@@ -498,7 +498,7 @@ class DocumentRenderer {
             return;
         }
 
-        const baseTag = '<base href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/web/">';
+        const baseTag = '<base href="https://mozilla.github.io/pdf.js/web/">';
         let html = template;
 
         if (!/<base\s+/i.test(html)) {

@@ -1,11 +1,12 @@
-import fs from 'fs';
-import path from 'path';
-
 export default async function handler(req, res) {
     try {
-        const viewerPath = path.join(process.cwd(), 'node_modules', 'pdfjs-dist', 'web', 'viewer.html');
-        let html = fs.readFileSync(viewerPath, 'utf8');
-        const baseTag = '<base href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/web/">';
+        const response = await fetch('https://mozilla.github.io/pdf.js/web/viewer.html');
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            return res.status(502).send(errorText || 'Failed to load viewer.html');
+        }
+        let html = await response.text();
+        const baseTag = '<base href="https://mozilla.github.io/pdf.js/web/">';
         if (!/<base\s+/i.test(html)) {
             html = html.replace(/<head>/i, `<head>${baseTag}`);
         }
