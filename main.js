@@ -3184,29 +3184,47 @@ ${latexCode}
         const bibliographyMatch = body.match(/\\begin\{thebibliography\}\{[^}]*\}[\s\S]*?\\end\{thebibliography\}/);
         const bibliography = bibliographyMatch ? bibliographyMatch[0] : '';
         const bodyWithoutBibliography = bibliography ? body.replace(bibliography, '').trim() : body;
-        const sections = bodyWithoutBibliography
-            .split(/(?=\\section\{)/g)
-            .map(part => part.trim())
-            .filter(Boolean);
 
-        if (sections.length === 0) {
-            return [latexCode];
+        const blocks = [];
+        let cursor = bodyWithoutBibliography;
+        const envRegex = /\\begin\{([a-zA-Z*]+)\}[\s\S]*?\\end\{\1\}/;
+
+        while (cursor.length > 0) {
+            const envMatch = cursor.match(envRegex);
+            if (!envMatch) {
+                const remainder = cursor.trim();
+                if (remainder) blocks.push(remainder);
+                break;
+            }
+
+            const before = cursor.slice(0, envMatch.index).trim();
+            if (before) {
+                const splitBefore = before.split(/(?=\\section\{)|(?=\\subsection\{)/g).map(s => s.trim()).filter(Boolean);
+                blocks.push(...splitBefore);
+            }
+
+            blocks.push(envMatch[0].trim());
+            cursor = cursor.slice(envMatch.index + envMatch[0].length);
         }
 
         const chunks = [];
         let current = '';
-        const targetSize = 2200;
+        const targetSize = 1400;
 
-        for (const section of sections) {
-            if ((current + '\n\n' + section).length > targetSize && current.trim()) {
+        for (const block of blocks) {
+            if ((current + '\n\n' + block).length > targetSize && current.trim()) {
                 chunks.push(current.trim());
-                current = section;
+                current = block;
             } else {
-                current = current ? `${current}\n\n${section}` : section;
+                current = current ? `${current}\n\n${block}` : block;
             }
         }
         if (current.trim()) {
             chunks.push(current.trim());
+        }
+
+        if (chunks.length === 0) {
+            return [latexCode];
         }
 
         return chunks.map((chunk, index) => {
@@ -3279,7 +3297,7 @@ ${chunk}${bibliographyBlock}
             normalized = normalized.replace(/\\usepackage\{hyperref\}/, '\\usepackage{hyperref}\n\\usepackage[a4paper,margin=1.5cm]{geometry}');
         }
 
-        normalized = normalized.replace(/\\begin\{document\}/, '\\begin{document}\n\\pagestyle{empty}\n\\fontsize{13}{16}\\selectfont\n');
+        normalized = normalized.replace(/\\begin\{document\}/, '\\begin{document}\n\\pagestyle{empty}\n\\fontsize{14}{18}\\selectfont\n');
 
         if (!/\\end\{document\}/.test(normalized)) {
             normalized = `${normalized}\n\\end{document}`;

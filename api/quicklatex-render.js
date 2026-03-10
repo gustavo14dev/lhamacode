@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const body = `formula=${encodeURIComponent(latex)}&mode=1&fsize=22px`;
+        const body = `formula=${encodeURIComponent(latex)}&mode=1&fsize=24px`;
 
         const response = await fetch('https://quicklatex.com/latex3.f', {
             method: 'POST',
