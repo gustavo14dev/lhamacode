@@ -3914,7 +3914,9 @@ ${sources || '- Nenhuma fonte disponivel.'}
         let stripped = latexCode;
         stripped = stripped.replace(/\\section\*?\{Refer[eê]ncias\}[\s\S]*?(?=\\section\*?\{|\\end\{document\})/gi, '');
         stripped = stripped.replace(/\\subsection\*?\{Refer[eê]ncias\}[\s\S]*?(?=\\section\*?\{|\\subsection\*?\{|\\end\{document\})/gi, '');
-        stripped = stripped.replace(/(^|\n)\s*Refer[eê]ncias\s*\n[\s\S]*?(?=\\end\{document\})/gi, '$1');
+        stripped = stripped.replace(/(^|\n)\s*Refer[eê]ncias\s*:?[^\n]*\n\s*\\begin\{(enumerate|itemize)\}[\s\S]*?\\end\{\2\}/gi, '$1');
+        stripped = stripped.replace(/(^|\n)\s*Refer[eê]ncias\s*:?[^\n]*\n[\s\S]*?(?=\\section\*?\{|\\end\{document\})/gi, '$1');
+        stripped = stripped.replace(/(^|\n)\s*Refer[eê]ncias\s*:?[^\n]*\n/gi, '$1');
         return stripped;
     }
 
