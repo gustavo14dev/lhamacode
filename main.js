@@ -2929,7 +2929,11 @@ ${latexCode}
         const processingId = this.addAssistantMessage('📄 Gerando documento acadêmico...');
         
         try {
-            // Chamar API Groq com prompt especial para LaTeX
+            this.updateProcessingMessage(processingId, '🔎 Pesquisando fontes na web...');
+            const webResearch = await this.fetchDocumentWebResearch(message);
+            const webContext = this.buildDocumentWebContext(webResearch);
+
+            this.updateProcessingMessage(processingId, '🧠 Gerando documento com base nas fontes encontradas...');
             const response = await fetch('/api/groq-proxy', {
                 method: 'POST',
                 headers: {
@@ -2942,6 +2946,8 @@ ${latexCode}
                             content: 'Você é um especialista em LaTeX e documentos acadêmicos. Gere um documento LaTeX COMPLETO e COMPILÁVEL sobre: "' + message + '".' +
 
 'IMPORTANTE: O código LaTeX DEVE ser compilável com pdflatex SEM ERROS.' +
+'BASEIE o documento nas informações de pesquisa fornecidas. Não invente fontes.' +
+'Use as evidências da web para sustentar o conteúdo.' +
 
 'REGRAS CRÍTICAS:' +
 '- Use EXATAMENTE esta estrutura:' +
@@ -2968,13 +2974,17 @@ ${latexCode}
 '- Use \\begin{itemize} \\item texto \\end{itemize} para listas' +
 '- Use $equação$ para matemática inline' +
 '- Use $$equação$$ para matemática display' +
+'- NÃO crie capa, titlepage, centralização excessiva, \\vfill, \\vspace grande ou páginas separadas para o título' +
+'- O conteúdo deve começar logo após \\maketitle' +
+'- Inclua uma seção final de referências em formato thebibliography SOMENTE se houver fontes fornecidas' +
 '- NÃO use comandos personalizados' +
 '- NÃO use pacotes não listados acima' +
-'- Retorne APENAS o código LaTeX, sem explicações'
+'- Retorne APENAS o código LaTeX, sem explicações' +
+'\n\nCONTEXTO DE PESQUISA WEB:\n' + webContext
                         },
                         {
                             role: 'user',
-                            content: message
+                            content: 'Tema do documento: ' + message + '\n\nUse os resultados da pesquisa web fornecidos para escrever o documento e manter as referências consistentes.'
                         }
                     ],
                     model: 'llama-3.1-8b-instant',
@@ -2987,6 +2997,7 @@ ${latexCode}
             
             // Limpar código LaTeX
             latexCode = latexCode.replace(/```latex/gi, '').replace(/```/g, '').trim();
+            latexCode = this.injectWebReferencesIntoLatex(latexCode, webResearch.sources || []);
             
             console.log('📄 [DOCUMENTO] LaTeX recebido:', latexCode.substring(0, 200) + '...');
             
@@ -3028,6 +3039,100 @@ ${latexCode}
             
             this.updateProcessingMessage(processingId, errorHTML);
         }
+    }
+
+    async fetchDocumentWebResearch(message) {
+        try {
+            const response = await fetch('/api/web-search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    query: message,
+                    useTavily: true
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `Falha na pesquisa web: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return {
+                response: data.answer || '',
+                sources: Array.isArray(data.results) ? data.results.slice(0, 6) : []
+            };
+        } catch (error) {
+            console.warn('⚠️ [DOCUMENTO] Falha ao buscar fontes web:', error.message);
+            return {
+                response: '',
+                sources: []
+            };
+        }
+    }
+
+    buildDocumentWebContext(webResearch) {
+        if (!webResearch || (!webResearch.response && (!webResearch.sources || webResearch.sources.length === 0))) {
+            return 'Nenhuma fonte web confiável foi encontrada.';
+        }
+
+        const sourceLines = (webResearch.sources || []).map((source, index) => {
+            const title = source.title || `Fonte ${index + 1}`;
+            const url = source.url || 'URL não informada';
+            const content = (source.content || source.snippet || '').replace(/\s+/g, ' ').trim().slice(0, 500);
+            return `[${index + 1}] ${title}\nURL: ${url}\nResumo: ${content}`;
+        });
+
+        return [
+            webResearch.response ? `Resumo consolidado da pesquisa:\n${webResearch.response}` : '',
+            sourceLines.length ? `Fontes encontradas:\n${sourceLines.join('\n\n')}` : ''
+        ].filter(Boolean).join('\n\n');
+    }
+
+    injectWebReferencesIntoLatex(latexCode, sources) {
+        if (!Array.isArray(sources) || sources.length === 0) {
+            return latexCode;
+        }
+
+        const bibliographyItems = sources.slice(0, 6).map((source, index) => {
+            const title = this.escapeLatexText(source.title || `Fonte ${index + 1}`);
+            const url = this.escapeLatexText(source.url || '');
+            const snippet = this.escapeLatexText((source.content || source.snippet || '').replace(/\s+/g, ' ').trim().slice(0, 240));
+            const accessDate = '9 de março de 2026';
+            const parts = [title];
+
+            if (snippet) parts.push(snippet);
+            if (url) parts.push(`Disponível em: ${url}. Acesso em: ${accessDate}.`);
+
+            return `\\bibitem{web${index + 1}} ${parts.join(' ')}`;
+        }).join('\n');
+
+        if (!bibliographyItems.trim()) {
+            return latexCode;
+        }
+
+        const bibliographyBlock = `\n\\begin{thebibliography}{99}\n${bibliographyItems}\n\\end{thebibliography}\n`;
+
+        if (/\\begin\{thebibliography\}/.test(latexCode)) {
+            return latexCode.replace(/\\begin\{thebibliography\}\{[^}]*\}[\s\S]*?\\end\{thebibliography\}/, bibliographyBlock.trim());
+        }
+
+        if (/\\end\{document\}/.test(latexCode)) {
+            return latexCode.replace(/\\end\{document\}/, `${bibliographyBlock}\\end{document}`);
+        }
+
+        return `${latexCode}${bibliographyBlock}`;
+    }
+
+    escapeLatexText(text) {
+        return String(text || '')
+            .replace(/\s+/g, ' ')
+            .replace(/\\/g, '/')
+            .replace(/([#$%&_{}])/g, '\\$1')
+            .replace(/\^/g, '')
+            .replace(/~/g, '');
     }
     
     validateAndFixLatex(latexCode) {

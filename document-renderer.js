@@ -154,9 +154,9 @@ class DocumentRenderer {
             .replace(/(<br\s*\/?>\s*){3,}/gi, '<br><br>')
             .trim();
         htmlContent = htmlContent
-            .replace(/<h2 class="text-xl font-bold mt-6 mb-3"/i, '<h2 class="text-xl font-bold mt-2 mb-3"')
-            .replace(/<h3 class="text-lg font-semibold mt-4 mb-2"/i, '<h3 class="text-lg font-semibold mt-2 mb-2"')
-            .replace(/<p class="mb-4" style="color: black;">/i, '<p class="mb-4 mt-1" style="color: black;">');
+            .replace(/<h2 class="text-xl font-bold mt-6 mb-3" style="color: black;">/i, '<h2 class="text-xl font-bold mt-0 mb-3" style="color: black; margin-top: 0;">')
+            .replace(/<h3 class="text-lg font-semibold mt-4 mb-2" style="color: black;">/i, '<h3 class="text-lg font-semibold mt-0 mb-2" style="color: black; margin-top: 0;">')
+            .replace(/<p class="mb-4" style="color: black;">/i, '<p class="mb-4 mt-0" style="color: black; margin-top: 0;">');
         htmlContent = htmlContent.replace(/<p class="mb-4" style="color: black;">\s*__DOCUMENT_BIBLIOGRAPHY__\s*<\/p>/g, bibliographyHTML);
         htmlContent = htmlContent.replace(/<p class="mb-4 mt-1" style="color: black;">\s*__DOCUMENT_BIBLIOGRAPHY__\s*<\/p>/g, bibliographyHTML);
         htmlContent = htmlContent.replace(/__DOCUMENT_BIBLIOGRAPHY__/g, bibliographyHTML);
@@ -176,14 +176,14 @@ class DocumentRenderer {
             <div id="document-${messageId}" class="document-viewer rounded-xl shadow-lg border overflow-hidden" style="background: linear-gradient(180deg, #08152f 0%, #0b1d3b 100%); border-color: rgba(96, 165, 250, 0.18);">
                 <div class="document-pages p-3" style="background: linear-gradient(180deg, rgba(8, 21, 47, 0.96) 0%, rgba(11, 29, 59, 0.92) 100%);">
                     <!-- Página 1 -->
-                    <div class="bg-white min-h-[842px] px-6 pt-4 pb-6 rounded-t-lg" style="background-color: white; color: black;">
+                    <div class="bg-white min-h-[842px] px-6 pt-2 pb-6 rounded-t-lg" style="background-color: white; color: black;">
                         <!-- Título do Documento -->
-                        <div class="text-center mb-2">
+                        <div class="text-center mb-0.5">
                             <h1 class="text-3xl font-bold leading-tight m-0" style="color: black; margin: 0;">${formattedTitle}</h1>
                         </div>
                         
                         <!-- Conteúdo -->
-                        <div class="space-y-2">
+                        <div class="space-y-1" style="margin-top: 0;">
                             ${htmlContent}
                         </div>
                     </div>
