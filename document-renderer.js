@@ -257,8 +257,8 @@ class DocumentRenderer {
         const pages = Array.isArray(imageUrls) ? imageUrls : [imageUrls];
         const primaryImageUrl = pages[0] || '';
         const pageHtml = pages.map((imageUrl, index) => `
-            <div style="max-width: 640px; margin: 0 auto ${index < pages.length - 1 ? '16px' : '0'};">
-                <div class="rounded-lg overflow-hidden shadow-sm" style="background: #ffffff; aspect-ratio: 1 / 1.414; display: flex; align-items: flex-start; justify-content: center; padding: 12px;">
+            <div style="max-width: 760px; margin: 0 auto ${index < pages.length - 1 ? '16px' : '0'};">
+                <div class="rounded-lg overflow-hidden shadow-sm" style="background: #ffffff; aspect-ratio: 1 / 1.414; display: flex; align-items: flex-start; justify-content: center; padding: 8px;">
                     <img src="${imageUrl}" alt="${safeTitle} - página ${index + 1}" style="display: block; width: 100%; height: auto; max-width: 100%; background: white; object-fit: contain;">
                 </div>
                 <div style="text-align: center; color: rgba(191, 219, 254, 0.72); font-size: 11px; margin-top: 6px;">Página ${index + 1} de ${pages.length}</div>

@@ -2957,7 +2957,7 @@ ${latexCode}
 '\\usepackage{amsmath,amssymb}' +
 '\\usepackage{graphicx}' +
 '\\usepackage{hyperref}' +
-'\\usepackage[a4paper,margin=2cm]{geometry}' +
+'\\usepackage[a4paper,margin=1.5cm]{geometry}' +
 '\\usepackage{tabular}' +
 '\\title{' + message + '}' +
 '\\author{IA}' +
@@ -3194,8 +3194,19 @@ ${latexCode}
         }
 
         const chunks = [];
-        for (let i = 0; i < sections.length; i += 2) {
-            chunks.push(sections.slice(i, i + 2).join('\n\n'));
+        let current = '';
+        const targetSize = 2200;
+
+        for (const section of sections) {
+            if ((current + '\n\n' + section).length > targetSize && current.trim()) {
+                chunks.push(current.trim());
+                current = section;
+            } else {
+                current = current ? `${current}\n\n${section}` : section;
+            }
+        }
+        if (current.trim()) {
+            chunks.push(current.trim());
         }
 
         return chunks.map((chunk, index) => {
@@ -3242,7 +3253,7 @@ ${chunk}${bibliographyBlock}
         if (!/\\usepackage\[utf8\]\{inputenc\}/.test(normalized)) {
                 normalized = normalized.replace(
                     /\\documentclass(?:\[[^\]]*\])?\{article\}/,
-                '\\documentclass[12pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage[a4paper,margin=2cm]{geometry}\n\\usepackage{tabular}'
+                '\\documentclass[12pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage[a4paper,margin=1.5cm]{geometry}\n\\usepackage{tabular}'
             );
         }
 
@@ -3256,7 +3267,7 @@ ${chunk}${bibliographyBlock}
             } else if (/\\title\{[^}]*\}/.test(normalized)) {
                 normalized = normalized.replace(/\\title\{[^}]*\}/, '$&\n\\author{IA}\n\\date{\\today}\n\\begin{document}\n\\maketitle\n');
             } else {
-                normalized = `\\documentclass[12pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage[a4paper,margin=2cm]{geometry}\n\\usepackage{tabular}\n\\title{${this.escapeLatexText(title)}}\n\\author{IA}\n\\date{\\today}\n\\begin{document}\n\\maketitle\n\n${normalized}`;
+                normalized = `\\documentclass[12pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage[a4paper,margin=1.5cm]{geometry}\n\\usepackage{tabular}\n\\title{${this.escapeLatexText(title)}}\n\\author{IA}\n\\date{\\today}\n\\begin{document}\n\\maketitle\n\n${normalized}`;
             }
         }
 
@@ -3265,10 +3276,10 @@ ${chunk}${bibliographyBlock}
         }
 
         if (!/\\usepackage(?:\[[^\]]*\])?\{geometry\}/.test(normalized)) {
-            normalized = normalized.replace(/\\usepackage\{hyperref\}/, '\\usepackage{hyperref}\n\\usepackage[a4paper,margin=2cm]{geometry}');
+            normalized = normalized.replace(/\\usepackage\{hyperref\}/, '\\usepackage{hyperref}\n\\usepackage[a4paper,margin=1.5cm]{geometry}');
         }
 
-        normalized = normalized.replace(/\\begin\{document\}/, '\\begin{document}\n\\pagestyle{empty}\n\\quicklatex{size=18}\n');
+        normalized = normalized.replace(/\\begin\{document\}/, '\\begin{document}\n\\pagestyle{empty}\n\\fontsize{13}{16}\\selectfont\n');
 
         if (!/\\end\{document\}/.test(normalized)) {
             normalized = `${normalized}\n\\end{document}`;
