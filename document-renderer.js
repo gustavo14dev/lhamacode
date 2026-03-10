@@ -487,16 +487,14 @@ class DocumentRenderer {
 
         const template = await this.getPdfJsViewerTemplate();
         if (!template) {
-            iframe.src = 'https://mozilla.github.io/pdf.js/web/viewer.html';
-            iframe.addEventListener('load', () => {
-                try {
-                    if (iframe.contentWindow?.PDFViewerApplication) {
-                        iframe.contentWindow.PDFViewerApplication.open({ url: fileUrl });
-                    }
-                } catch (err) {
-                    console.warn('[PDF.js] Falha ao abrir PDF via fallback:', err);
-                }
-            }, { once: true });
+            iframe.srcdoc = `
+                <html>
+                    <body style="font-family: sans-serif; padding: 16px;">
+                        <p>Não foi possível carregar o visualizador PDF.js.</p>
+                        <p><a href="${fileUrl}" target="_blank">Abrir PDF em nova aba</a></p>
+                    </body>
+                </html>
+            `;
             return;
         }
 

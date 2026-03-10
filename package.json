@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@myriaddreamin/typst.ts": "^0.6.0",
-    "multiparty": "^4.2.3"
+    "multiparty": "^4.2.3",
+    "pdfjs-dist": "^3.11.174"
   },
   "devDependencies": {
     "@tailwindcss/container-queries": "^0.1.1",
