@@ -3772,6 +3772,12 @@ ${sources || '- Nenhuma fonte disponivel.'}
                 window.documentRenderer.renderPdfJsViewer(pdfData, title || 'Documento Gerado', messageId);
                 return;
             }
+            if (window.documentRenderer?.showLatexFallback) {
+                window.documentRenderer.showLatexFallback(latexCode, messageId, 'Falha ao compilar PDF para PDF.js.');
+                return;
+            }
+            window.documentRenderer.renderDocument(latexCode, messageId);
+            return;
         }
 
         const imageUrls = await this.compileDocumentWithQuickLatex(latexCode, title);

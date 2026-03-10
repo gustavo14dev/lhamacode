@@ -10,14 +10,12 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'latex is required' });
         }
 
-        const body = `text=${encodeURIComponent(latex)}`;
-        const response = await fetch('https://latexonline.cc/compile', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body
-        });
+        const encoded = encodeURIComponent(latex);
+        if (encoded.length > 8000) {
+            return res.status(413).json({ error: 'LaTeX muito longo para compilação remota.' });
+        }
+        const url = `https://latexonline.cc/compile?text=${encoded}`;
+        const response = await fetch(url);
 
         if (!response.ok) {
             const errorText = await response.text().catch(() => '');

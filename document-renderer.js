@@ -61,12 +61,13 @@ class DocumentRenderer {
         }
     }
 
-    renderPdfJsViewer(pdfData, title, messageId) {
+    async renderPdfJsViewer(pdfData, title, messageId) {
         console.log('[PDF.js] Renderizando viewer...');
 
         try {
             const html = this.createPdfJsViewerHTML(pdfData, title, messageId);
             this.updateProcessingMessage(messageId, html);
+            await this.attachPdfJsViewer(pdfData, messageId);
             this.scrollToBottom();
         } catch (renderError) {
             console.error('[PDF.js] Erro ao renderizar viewer:', renderError);
@@ -441,15 +442,13 @@ class DocumentRenderer {
     createPdfJsViewerHTML(pdfData, title, messageId) {
         const safeTitle = title.replace(/\\textbf\{([^}]+)\}/g, '$1')
                                .replace(/\\textit\{([^}]+)\}/g, '$1');
-        const fileUrl = typeof pdfData === 'string' ? pdfData : (pdfData.dataUrl || pdfData.blobUrl || '');
         const downloadUrl = typeof pdfData === 'string' ? pdfData : (pdfData.blobUrl || pdfData.dataUrl || '');
-        const viewerUrl = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/web/viewer.html?file=${encodeURIComponent(fileUrl)}`;
 
         return `
             <div id="pdfjs-doc-${messageId}" class="document-viewer rounded-xl shadow-lg border overflow-hidden" style="background: linear-gradient(180deg, #08152f 0%, #0b1d3b 100%); border-color: rgba(96, 165, 250, 0.18);">
                 <div class="document-pages p-3" style="background: linear-gradient(180deg, rgba(8, 21, 47, 0.96) 0%, rgba(11, 29, 59, 0.92) 100%);">
                     <div class="rounded-lg overflow-hidden shadow-sm" style="background: #ffffff;">
-                        <iframe src="${viewerUrl}" style="width: 100%; height: 80vh; border: none; display: block;"></iframe>
+                        <iframe id="pdfjs-frame-${messageId}" style="width: 100%; height: 80vh; border: none; display: block;"></iframe>
                     </div>
                 </div>
 
@@ -460,11 +459,11 @@ class DocumentRenderer {
                             <span>PDF.js</span>
                         </div>
                         <div class="flex gap-1.5">
-                            <button onclick="window.open('${viewerUrl}', '_blank')" 
+                            <button onclick="window.open('${downloadUrl}', '_blank')" 
                                     class="flex items-center gap-1 px-2 py-0.5 text-white rounded-md transition-colors text-xs"
                                     style="background: #2563eb;">
                                 <span class="material-icons-outlined text-xs">open_in_new</span>
-                                Abrir
+                                Abrir PDF
                             </button>
                             <button onclick="window.open('${downloadUrl}', '_blank')" 
                                     class="flex items-center gap-1 px-2 py-0.5 text-white rounded-md transition-colors text-xs"
@@ -477,6 +476,46 @@ class DocumentRenderer {
                 </div>
             </div>
         `;
+    }
+
+    async attachPdfJsViewer(pdfData, messageId) {
+        const iframe = document.getElementById(`pdfjs-frame-${messageId}`);
+        if (!iframe) return;
+
+        const fileUrl = typeof pdfData === 'string' ? pdfData : (pdfData.blobUrl || pdfData.dataUrl || '');
+        if (!fileUrl) return;
+
+        const template = await this.getPdfJsViewerTemplate();
+        const baseTag = '<base href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/web/">';
+        let html = template;
+
+        if (!/<base\s+/i.test(html)) {
+            html = html.replace(/<head>/i, `<head>${baseTag}`);
+        }
+
+        const injection = `
+<script>
+  window.addEventListener('load', function () {
+    try {
+      if (window.PDFViewerApplication) {
+        window.PDFViewerApplication.open({ url: ${JSON.stringify(fileUrl)} });
+      }
+    } catch (err) {}
+  });
+</script>`;
+        html = html.replace(/<\/body>/i, `${injection}</body>`);
+
+        iframe.setAttribute('srcdoc', html);
+    }
+
+    async getPdfJsViewerTemplate() {
+        if (this._pdfJsTemplate) {
+            return this._pdfJsTemplate;
+        }
+        const response = await fetch('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/web/viewer.html');
+        const html = await response.text();
+        this._pdfJsTemplate = html;
+        return html;
     }
 
     addMarkdownGlobalFunctions(title, htmlContent) {
