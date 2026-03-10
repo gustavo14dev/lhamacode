@@ -12,12 +12,26 @@ class DocumentRenderer {
         console.log('🖼️ [DOCUMENTO] Renderizando imagem compilada do QuickLaTeX...');
 
         try {
-            const documentHTML = this.createDocumentImageHTML(imageUrl, title, messageId);
+            const documentHTML = this.createDocumentImageHTML([imageUrl], title, messageId);
             this.updateProcessingMessage(messageId, documentHTML);
             this.addGlobalFunctions(title, latexCode, imageUrl);
             this.scrollToBottom();
         } catch (renderError) {
             console.error('🖼️ [DOCUMENTO] Erro ao renderizar imagem:', renderError);
+            this.renderDocument(latexCode, messageId);
+        }
+    }
+
+    renderDocumentImages(imageUrls, title, messageId, latexCode) {
+        console.log('🖼️ [DOCUMENTO] Renderizando múltiplas páginas do QuickLaTeX...');
+
+        try {
+            const documentHTML = this.createDocumentImageHTML(imageUrls, title, messageId);
+            this.updateProcessingMessage(messageId, documentHTML);
+            this.addGlobalFunctions(title, latexCode, Array.isArray(imageUrls) ? imageUrls[0] : imageUrls);
+            this.scrollToBottom();
+        } catch (renderError) {
+            console.error('🖼️ [DOCUMENTO] Erro ao renderizar páginas:', renderError);
             this.renderDocument(latexCode, messageId);
         }
     }
@@ -237,18 +251,23 @@ class DocumentRenderer {
         `;
     }
 
-    createDocumentImageHTML(imageUrl, title, messageId) {
+    createDocumentImageHTML(imageUrls, title, messageId) {
         const safeTitle = title.replace(/\\textbf\{([^}]+)\}/g, '$1')
                                .replace(/\\textit\{([^}]+)\}/g, '$1');
+        const pages = Array.isArray(imageUrls) ? imageUrls : [imageUrls];
+        const pageHtml = pages.map((imageUrl, index) => `
+            <div style="max-width: 640px; margin: 0 auto ${index < pages.length - 1 ? '16px' : '0'};">
+                <div class="rounded-lg overflow-hidden shadow-sm" style="background: #ffffff; aspect-ratio: 1 / 1.414; display: flex; align-items: flex-start; justify-content: center; padding: 12px;">
+                    <img src="${imageUrl}" alt="${safeTitle} - página ${index + 1}" style="display: block; width: 100%; height: auto; max-width: 100%; background: white; object-fit: contain;">
+                </div>
+                <div style="text-align: center; color: rgba(191, 219, 254, 0.72); font-size: 11px; margin-top: 6px;">Página ${index + 1} de ${pages.length}</div>
+            </div>
+        `).join('');
 
         return `
             <div id="document-image-${messageId}" class="document-viewer rounded-xl shadow-lg border overflow-hidden" style="background: linear-gradient(180deg, #08152f 0%, #0b1d3b 100%); border-color: rgba(96, 165, 250, 0.18);">
                 <div class="document-pages p-3" style="background: linear-gradient(180deg, rgba(8, 21, 47, 0.96) 0%, rgba(11, 29, 59, 0.92) 100%);">
-                    <div style="max-width: 794px; margin: 0 auto;">
-                        <div class="rounded-lg overflow-hidden" style="background: #ffffff; aspect-ratio: 1 / 1.414; display: flex; align-items: flex-start; justify-content: center; padding: 16px;">
-                            <img src="${imageUrl}" alt="${safeTitle}" style="display: block; width: 100%; height: auto; max-width: 100%; background: white; object-fit: contain;">
-                        </div>
-                    </div>
+                    ${pageHtml}
                 </div>
 
                 <div class="px-3 py-1.5 border-t" style="background: rgba(15, 23, 42, 0.92); border-color: rgba(96, 165, 250, 0.14);">

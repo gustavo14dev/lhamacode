@@ -3130,38 +3130,87 @@ ${latexCode}
     }
 
     async renderDocumentOutput(latexCode, messageId, title) {
-        const imageUrl = await this.compileDocumentWithQuickLatex(latexCode);
+        const imageUrls = await this.compileDocumentWithQuickLatex(latexCode, title);
 
-        if (imageUrl && window.documentRenderer?.renderDocumentImage) {
-            window.documentRenderer.renderDocumentImage(imageUrl, title || 'Documento Gerado', messageId, latexCode);
+        if (Array.isArray(imageUrls) && imageUrls.length > 0 && window.documentRenderer?.renderDocumentImages) {
+            window.documentRenderer.renderDocumentImages(imageUrls, title || 'Documento Gerado', messageId, latexCode);
             return;
         }
 
         window.documentRenderer.renderDocument(latexCode, messageId);
     }
 
-    async compileDocumentWithQuickLatex(latexCode) {
+    async compileDocumentWithQuickLatex(latexCode, title) {
         try {
-            const response = await fetch('/api/quicklatex-render', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ latex: latexCode })
-            });
+            const pageLatexList = this.splitLatexIntoQuickLatexPages(latexCode, title);
+            const imageUrls = [];
 
-            const data = await response.json().catch(() => ({}));
+            for (const pageLatex of pageLatexList) {
+                const response = await fetch('/api/quicklatex-render', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ latex: pageLatex })
+                });
 
-            if (!response.ok || !data.imageUrl) {
-                console.warn('⚠️ [QUICKLATEX] Falha na compilação remota:', data.details || data.message || response.status);
-                return null;
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok || !data.imageUrl) {
+                    console.warn('⚠️ [QUICKLATEX] Falha na compilação remota:', data.details || data.message || response.status);
+                    return null;
+                }
+
+                imageUrls.push(data.imageUrl);
             }
 
-            return data.imageUrl;
+            return imageUrls;
         } catch (error) {
             console.warn('⚠️ [QUICKLATEX] Erro ao compilar documento:', error.message);
             return null;
         }
+    }
+
+    splitLatexIntoQuickLatexPages(latexCode, title) {
+        const preambleMatch = latexCode.match(/^[\s\S]*?\\begin\{document\}/);
+        const preamble = (preambleMatch ? preambleMatch[0].replace(/\\begin\{document\}/, '') : '')
+            .replace(/\\title\{[^}]*\}\s*/g, '')
+            .replace(/\\author\{[^}]*\}\s*/g, '')
+            .replace(/\\date\{[^}]*\}\s*/g, '');
+        const body = latexCode
+            .replace(/^[\s\S]*?\\begin\{document\}/, '')
+            .replace(/\\end\{document\}\s*$/, '')
+            .trim();
+        const bibliographyMatch = body.match(/\\begin\{thebibliography\}\{[^}]*\}[\s\S]*?\\end\{thebibliography\}/);
+        const bibliography = bibliographyMatch ? bibliographyMatch[0] : '';
+        const bodyWithoutBibliography = bibliography ? body.replace(bibliography, '').trim() : body;
+        const sections = bodyWithoutBibliography
+            .split(/(?=\\section\{)/g)
+            .map(part => part.trim())
+            .filter(Boolean);
+
+        if (sections.length === 0) {
+            return [latexCode];
+        }
+
+        const chunks = [];
+        for (let i = 0; i < sections.length; i += 2) {
+            chunks.push(sections.slice(i, i + 2).join('\n\n'));
+        }
+
+        return chunks.map((chunk, index) => {
+            const titleBlock = index === 0
+                ? `\\title{${this.escapeLatexText(title || 'Documento Gerado')}}\n\\author{IA}\n\\date{\\today}\n`
+                : '';
+            const bibliographyBlock = index === chunks.length - 1 && bibliography ? `\n\n${bibliography}` : '';
+
+            return `${preamble}
+${titleBlock}\\begin{document}
+${index === 0 ? '\\maketitle\n\n' : ''}
+${chunk}${bibliographyBlock}
+
+\\end{document}`.trim();
+        });
     }
 
     normalizeDocumentLatex(latexCode, title) {
