@@ -486,6 +486,20 @@ class DocumentRenderer {
         if (!fileUrl) return;
 
         const template = await this.getPdfJsViewerTemplate();
+        if (!template) {
+            iframe.src = 'https://mozilla.github.io/pdf.js/web/viewer.html';
+            iframe.addEventListener('load', () => {
+                try {
+                    if (iframe.contentWindow?.PDFViewerApplication) {
+                        iframe.contentWindow.PDFViewerApplication.open({ url: fileUrl });
+                    }
+                } catch (err) {
+                    console.warn('[PDF.js] Falha ao abrir PDF via fallback:', err);
+                }
+            }, { once: true });
+            return;
+        }
+
         const baseTag = '<base href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/web/">';
         let html = template;
 
@@ -512,10 +526,18 @@ class DocumentRenderer {
         if (this._pdfJsTemplate) {
             return this._pdfJsTemplate;
         }
-        const response = await fetch('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/web/viewer.html');
-        const html = await response.text();
-        this._pdfJsTemplate = html;
-        return html;
+        try {
+            const response = await fetch('/api/pdfjs-viewer');
+            if (!response.ok) {
+                throw new Error(`Falha ao buscar viewer: ${response.status}`);
+            }
+            const html = await response.text();
+            this._pdfJsTemplate = html;
+            return html;
+        } catch (error) {
+            console.warn('[PDF.js] Falha ao carregar template viewer:', error.message);
+            return null;
+        }
     }
 
     addMarkdownGlobalFunctions(title, htmlContent) {
