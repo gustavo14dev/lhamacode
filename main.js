@@ -1985,7 +1985,7 @@ ${latexCode}
         console.log('🔍 Código LaTeX completo:', latexCode);
 
         // Renderizar o documento IMEDIATAMENTE
-        window.documentRenderer.renderDocument(latexCode, processingId);
+        await this.renderDocumentOutput(latexCode, processingId, message);
         
         // Resetar o modo de criação após concluir
         this.currentCreateType = null;
@@ -3003,7 +3003,8 @@ ${latexCode}
             console.log('📄 [DOCUMENTO] LaTeX recebido:', latexCode.substring(0, 200) + '...');
             
             // Renderizar IMEDIATAMENTE sem validação complexa
-            window.documentRenderer.renderDocument(latexCode, processingId);
+            this.updateProcessingMessage(processingId, '🖼️ Compilando documento no QuickLaTeX...');
+            await this.renderDocumentOutput(latexCode, processingId, message);
             
         } catch (error) {
             console.error('📄 [DOCUMENTO] Erro:', error);
@@ -3125,6 +3126,41 @@ ${latexCode}
         }
 
         return `${latexCode}${bibliographyBlock}`;
+    }
+
+    async renderDocumentOutput(latexCode, messageId, title) {
+        const imageUrl = await this.compileDocumentWithQuickLatex(latexCode);
+
+        if (imageUrl && window.documentRenderer?.renderDocumentImage) {
+            window.documentRenderer.renderDocumentImage(imageUrl, title || 'Documento Gerado', messageId, latexCode);
+            return;
+        }
+
+        window.documentRenderer.renderDocument(latexCode, messageId);
+    }
+
+    async compileDocumentWithQuickLatex(latexCode) {
+        try {
+            const response = await fetch('/api/quicklatex-render', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ latex: latexCode })
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok || !data.imageUrl) {
+                console.warn('⚠️ [QUICKLATEX] Falha na compilação remota:', data.details || data.message || response.status);
+                return null;
+            }
+
+            return data.imageUrl;
+        } catch (error) {
+            console.warn('⚠️ [QUICKLATEX] Erro ao compilar documento:', error.message);
+            return null;
+        }
     }
 
     normalizeDocumentLatex(latexCode, title) {

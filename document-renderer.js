@@ -8,6 +8,20 @@ class DocumentRenderer {
         this.initialized = false;
     }
 
+    renderDocumentImage(imageUrl, title, messageId, latexCode) {
+        console.log('🖼️ [DOCUMENTO] Renderizando imagem compilada do QuickLaTeX...');
+
+        try {
+            const documentHTML = this.createDocumentImageHTML(imageUrl, title, messageId);
+            this.updateProcessingMessage(messageId, documentHTML);
+            this.addGlobalFunctions(title, latexCode, imageUrl);
+            this.scrollToBottom();
+        } catch (renderError) {
+            console.error('🖼️ [DOCUMENTO] Erro ao renderizar imagem:', renderError);
+            this.renderDocument(latexCode, messageId);
+        }
+    }
+
     /**
      * Renderiza um documento LaTeX como HTML
      */
@@ -223,10 +237,54 @@ class DocumentRenderer {
         `;
     }
 
+    createDocumentImageHTML(imageUrl, title, messageId) {
+        const safeTitle = title.replace(/\\textbf\{([^}]+)\}/g, '$1')
+                               .replace(/\\textit\{([^}]+)\}/g, '$1');
+
+        return `
+            <div id="document-image-${messageId}" class="document-viewer rounded-xl shadow-lg border overflow-hidden" style="background: linear-gradient(180deg, #08152f 0%, #0b1d3b 100%); border-color: rgba(96, 165, 250, 0.18);">
+                <div class="document-pages p-3" style="background: linear-gradient(180deg, rgba(8, 21, 47, 0.96) 0%, rgba(11, 29, 59, 0.92) 100%);">
+                    <div class="rounded-lg overflow-hidden" style="background: #ffffff;">
+                        <img src="${imageUrl}" alt="${safeTitle}" style="display: block; width: 100%; height: auto; background: white;">
+                    </div>
+                </div>
+
+                <div class="px-3 py-1.5 border-t" style="background: rgba(15, 23, 42, 0.92); border-color: rgba(96, 165, 250, 0.14);">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-1 text-[11px]" style="color: rgba(191, 219, 254, 0.72);">
+                            <span class="material-icons-outlined text-xs">image</span>
+                            <span>QuickLaTeX</span>
+                        </div>
+                        <div class="flex gap-1.5">
+                            <button onclick="window.open('${imageUrl}', '_blank')" 
+                                    class="flex items-center gap-1 px-2 py-0.5 text-white rounded-md transition-colors text-xs"
+                                    style="background: #2563eb;">
+                                <span class="material-icons-outlined text-xs">open_in_new</span>
+                                Abrir
+                            </button>
+                            <button onclick="window.printDocument('${messageId}')" 
+                                    class="flex items-center gap-1 px-2 py-0.5 text-white rounded-md transition-colors text-xs"
+                                    style="background: #0f766e;">
+                                <span class="material-icons-outlined text-xs">print</span>
+                                Imprimir
+                            </button>
+                            <button onclick="navigator.clipboard.writeText(\`${title.replace(/`/g, '\\`')}\`); alert('Título copiado!');" 
+                                    class="flex items-center gap-1 px-2 py-0.5 text-white rounded-md transition-colors text-xs"
+                                    style="background: #16a34a;">
+                                <span class="material-icons-outlined text-xs">content_copy</span>
+                                Copiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     /**
      * Adiciona funções globais para download e impressão
      */
-    addGlobalFunctions(title, latexCode) {
+    addGlobalFunctions(title, latexCode, imageUrl = null) {
         window.downloadDocument = (msgId, filename) => {
             const blob = new Blob([latexCode], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
@@ -239,6 +297,9 @@ class DocumentRenderer {
         
         window.printDocument = (msgId) => {
             const printWindow = window.open('', 'width=800,height=600');
+            const printableContent = imageUrl
+                ? `<img src="${imageUrl}" style="max-width: 100%; height: auto;" alt="${title}">`
+                : `<h1>${title}</h1><div class="content">${this.processLatex(latexCode)}</div>`;
             printWindow.document.write(`
                 <html>
                     <head><title>${title}</title>
@@ -254,8 +315,7 @@ class DocumentRenderer {
                         </style>
                     </head>
                     <body>
-                        <h1>${title}</h1>
-                        <div class="content">${this.processLatex(latexCode)}</div>
+                        ${printableContent}
                     </body>
                 </html>
             `);
