@@ -3034,15 +3034,42 @@ ${latexCode}
     async loadTypstCompiler() {
         if (!this._typstCompilerPromise) {
             this._typstCompilerPromise = (async () => {
-                const mod = await import('https://esm.sh/@myriaddreamin/typst.ts');
-                const TypstCompiler = mod.TypstCompiler || mod.default?.TypstCompiler;
-                if (!TypstCompiler) {
+                const mod = await import('https://esm.sh/@myriaddreamin/typst.ts?target=browser');
+
+                const candidate =
+                    mod.TypstCompiler ||
+                    mod.Compiler ||
+                    mod.createTypstCompiler ||
+                    mod.createCompiler ||
+                    mod.default?.TypstCompiler ||
+                    mod.default;
+
+                let compiler = null;
+
+                if (typeof candidate === 'function') {
+                    const maybeInstance = candidate();
+                    compiler = maybeInstance?.compile ? maybeInstance : new candidate();
+                } else if (candidate && typeof candidate.compile === 'function') {
+                    compiler = candidate;
+                }
+
+                if (!compiler) {
+                    const exportsList = Object.values(mod);
+                    compiler = exportsList.find((val) => val && typeof val.compile === 'function') || null;
+                }
+
+                if (!compiler) {
                     throw new Error('TypstCompiler não encontrado no módulo typst.ts');
                 }
-                const compiler = new TypstCompiler();
+
+                if (typeof mod.init === 'function') {
+                    await mod.init();
+                }
+
                 if (typeof compiler.init === 'function') {
                     await compiler.init();
                 }
+
                 return compiler;
             })();
         }
