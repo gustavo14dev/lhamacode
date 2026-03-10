@@ -244,8 +244,10 @@ class DocumentRenderer {
         return `
             <div id="document-image-${messageId}" class="document-viewer rounded-xl shadow-lg border overflow-hidden" style="background: linear-gradient(180deg, #08152f 0%, #0b1d3b 100%); border-color: rgba(96, 165, 250, 0.18);">
                 <div class="document-pages p-3" style="background: linear-gradient(180deg, rgba(8, 21, 47, 0.96) 0%, rgba(11, 29, 59, 0.92) 100%);">
-                    <div class="rounded-lg overflow-hidden" style="background: #ffffff;">
-                        <img src="${imageUrl}" alt="${safeTitle}" style="display: block; width: 100%; height: auto; background: white;">
+                    <div style="max-width: 794px; margin: 0 auto;">
+                        <div class="rounded-lg overflow-hidden" style="background: #ffffff; aspect-ratio: 1 / 1.414; display: flex; align-items: flex-start; justify-content: center; padding: 16px;">
+                            <img src="${imageUrl}" alt="${safeTitle}" style="display: block; width: 100%; height: auto; max-width: 100%; background: white; object-fit: contain;">
+                        </div>
                     </div>
                 </div>
 

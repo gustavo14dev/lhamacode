@@ -19,7 +19,9 @@ export default async function handler(req, res) {
 
     try {
         const body = new URLSearchParams({
-            formula: latex
+            formula: latex,
+            mode: '1',
+            fsize: '18px'
         }).toString();
 
         const response = await fetch('https://quicklatex.com/latex3.f', {
