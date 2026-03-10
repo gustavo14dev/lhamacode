@@ -4125,11 +4125,33 @@ ${chunk}${bibliographyBlock}
             .replace(/^\s+/, '')
             .trim();
 
+        if (!/\\begin\{document\}/.test(normalized)) {
+            const preamble = `\\documentclass[12pt,a4paper]{article}
+\\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
+\\usepackage{amsmath,amssymb}
+\\usepackage{graphicx}
+\\usepackage{hyperref}
+\\usepackage[a4paper,margin=1.5cm]{geometry}
+\\title{${this.escapeLatexText(title)}}
+\\author{IA}
+\\date{\\today}
+\\begin{document}
+\\maketitle
+`;
+            normalized = `${preamble}\n${normalized}`;
+        }
+
+        if (!/\\end\{document\}/.test(normalized)) {
+            normalized = `${normalized}\n\\end{document}`;
+        }
+
         return normalized;
     }
 
     escapeLatexText(text) {
         return String(text || '')
+            .replace(/[\u200E\u200F\u202A-\u202E]/g, '')
             .replace(/\s+/g, ' ')
             .replace(/\\/g, '/')
             .replace(/([#$%&_{}])/g, '\\$1')
