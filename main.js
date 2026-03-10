@@ -3009,6 +3009,7 @@ ${latexCode}
             }
 
             latexCode = this.normalizeDocumentLatex(latexCode, topic);
+            latexCode = this.stripLatexReferenceSections(latexCode);
             latexCode = this.injectWebReferencesIntoLatex(latexCode, webResearch.sources || []);
 
             await this.renderDocumentOutput(latexCode, processingId, topic);
@@ -3742,7 +3743,7 @@ ${sources || '- Nenhuma fonte disponivel.'}
             const parts = [title];
 
             if (snippet) parts.push(snippet);
-            if (url) parts.push(`Disponível em: ${url}. Acesso em: ${accessDate}.`);
+            if (url) parts.push(`Disponível em: \\url{${url}}. Acesso em: ${accessDate}.`);
 
             return `\\bibitem{web${index + 1}} ${parts.join(' ')}`;
         }).join('\n');
@@ -3762,6 +3763,14 @@ ${sources || '- Nenhuma fonte disponivel.'}
         }
 
         return `${latexCode}${bibliographyBlock}`;
+    }
+
+    stripLatexReferenceSections(latexCode) {
+        let stripped = latexCode;
+        stripped = stripped.replace(/\\section\*?\{Refer[eê]ncias\}[\s\S]*?(?=\\section\*?\{|\\end\{document\})/gi, '');
+        stripped = stripped.replace(/\\subsection\*?\{Refer[eê]ncias\}[\s\S]*?(?=\\section\*?\{|\\subsection\*?\{|\\end\{document\})/gi, '');
+        stripped = stripped.replace(/(^|\n)\s*Refer[eê]ncias\s*\n[\s\S]*?(?=\\end\{document\})/gi, '$1');
+        return stripped;
     }
 
     async renderDocumentOutput(latexCode, messageId, title) {
@@ -3902,7 +3911,7 @@ ${chunk}${bibliographyBlock}
         let normalized = String(latexCode || '').trim();
 
         normalized = normalized
-            .replace(/\\documentclass(?:\[[^\]]*\])?\{beamer\}/g, '\\documentclass[12pt,a4paper]{article}')
+            .replace(/\\documentclass(?:\[[^\]]*\])?\{[^}]+\}/g, '\\documentclass[12pt,a4paper]{article}')
             .replace(/\\frame\{\\titlepage\}/g, '\\maketitle')
             .replace(/\\titlepage/g, '\\maketitle')
             .replace(/\\frametitle\{([^}]+)\}/g, '\\section{$1}')
