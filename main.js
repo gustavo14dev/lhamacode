@@ -1705,7 +1705,14 @@ class UI {
         // Continuar com o fluxo normal de criação (slides, documentos, etc.)
         const type = this.currentCreateType;
         if (type === 'document') {
-            await this.generateLatexDocument(message, processingId, { skipUserMessage: true });
+            const attachments = this.attachedFiles && this.attachedFiles.length > 0 ? [...this.attachedFiles] : [];
+            if (attachments.length > 0) {
+                await this.generateLatexDocumentWithGemini(message, processingId, attachments, { skipUserMessage: true });
+            } else {
+                await this.generateLatexDocument(message, processingId, { skipUserMessage: true });
+            }
+            this.attachedFiles = [];
+            this.renderAttachments();
             this.currentCreateType = null;
             return;
         }
@@ -2942,7 +2949,14 @@ ${latexCode}
         // Mostrar processamento
         const processingId = this.addAssistantMessage('📄 Gerando documento acadêmico...');
         
-        await this.generateLatexDocument(message, processingId, { skipUserMessage: true });
+        const attachments = this.attachedFiles && this.attachedFiles.length > 0 ? [...this.attachedFiles] : [];
+        if (attachments.length > 0) {
+            await this.generateLatexDocumentWithGemini(message, processingId, attachments, { skipUserMessage: true });
+        } else {
+            await this.generateLatexDocument(message, processingId, { skipUserMessage: true });
+        }
+        this.attachedFiles = [];
+        this.renderAttachments();
     }
 
     async generateLatexDocument(message, processingId, { skipUserMessage = false } = {}) {
@@ -3027,6 +3041,93 @@ ${latexCode}
                             <div>
                                 <h1 class="text-xl font-bold">Erro na Geração</h1>
                                 <p class="text-red-100 text-sm">Não foi possível gerar o documento LaTeX</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div class="mb-4">
+                            <h3 class="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">Detalhes do Erro:</h3>
+                            <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+                                <p class="text-sm text-red-700 dark:text-red-300">${this.escapeHtml(error.message)}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            this.updateProcessingMessage(processingId, errorHTML);
+        }
+    }
+
+    async generateLatexDocumentWithGemini(message, processingId, attachments = [], { skipUserMessage = false } = {}) {
+        try {
+            if (!skipUserMessage) {
+                this.addUserMessage(message);
+            }
+
+            const topic = this.normalizeDocumentTopic(message);
+            this.updateProcessingMessage(processingId, '🧠 Gerando documento em LaTeX (Gemini)...');
+
+            const systemPrompt = [
+                'Você é um especialista acadêmico em LaTeX.',
+                `Gere um documento LaTeX COMPLETO sobre: "${topic}".`,
+                'Use estritamente o conteúdo dos arquivos anexados como base.',
+                'Retorne APENAS o código LaTeX, sem explicações e sem markdown.',
+                'Use \\documentclass[12pt,a4paper]{article}.',
+                'Inclua \\usepackage[utf8]{inputenc}, \\usepackage[T1]{fontenc}, \\usepackage{amsmath,amssymb}, \\usepackage{graphicx}, \\usepackage{hyperref}, \\usepackage[a4paper,margin=1.5cm]{geometry}.',
+                'Comece com \\title{...} e \\maketitle.',
+                'Inclua as seções: Introdução, Desenvolvimento, Conclusão.',
+                'No Desenvolvimento, crie pelo menos 3 subseções.',
+                'Use \\textbf{}, \\textit{}, \\underline{} e listas (itemize) quando fizer sentido.',
+                'Se houver matemática, use $$E = mc^2$$.',
+                'NÃO escreva referências no corpo do texto.'
+            ].join(' ');
+
+            const formData = new FormData();
+            formData.append('message', `${systemPrompt}\n\nTema: ${topic}`);
+            formData.append('context', JSON.stringify([]));
+
+            attachments.forEach((file, index) => {
+                formData.append(`file_${index}`, file.file || file);
+            });
+
+            const response = await fetch('/api/gemini-chat', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => '');
+                throw new Error(errorText || 'Erro na API Gemini');
+            }
+
+            const data = await response.json();
+            let latexCode = (data.text || data.response || '').trim();
+            latexCode = latexCode.replace(/```latex/gi, '').replace(/```/g, '').trim();
+
+            const latexStart = latexCode.indexOf('\\documentclass');
+            if (latexStart > 0) {
+                latexCode = latexCode.substring(latexStart);
+            }
+
+            const latexEnd = latexCode.lastIndexOf('\\end{document}');
+            if (latexEnd > -1 && latexEnd < latexCode.length - 20) {
+                latexCode = latexCode.substring(0, latexEnd + 15);
+            }
+
+            latexCode = this.normalizeDocumentLatex(latexCode, topic);
+            latexCode = this.stripLatexReferenceSections(latexCode);
+
+            await this.renderDocumentOutput(latexCode, processingId, topic);
+        } catch (error) {
+            console.error('📄 [LATEX/GEMINI] Erro:', error);
+            const errorHTML = `
+                <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-6">
+                        <div class="flex items-center gap-3">
+                            <span class="material-icons-outlined text-2xl">error</span>
+                            <div>
+                                <h1 class="text-xl font-bold">Erro na Geração</h1>
+                                <p class="text-red-100 text-sm">Não foi possível gerar o documento com Gemini</p>
                             </div>
                         </div>
                     </div>

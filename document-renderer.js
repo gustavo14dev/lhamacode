@@ -451,29 +451,6 @@ class DocumentRenderer {
                         <iframe id="pdfjs-frame-${messageId}" style="width: 100%; height: 80vh; border: none; display: block;"></iframe>
                     </div>
                 </div>
-
-                <div class="px-3 py-1.5 border-t" style="background: rgba(15, 23, 42, 0.92); border-color: rgba(96, 165, 250, 0.14);">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-1 text-[11px]" style="color: rgba(191, 219, 254, 0.72);">
-                            <span class="material-icons-outlined text-xs">picture_as_pdf</span>
-                            <span>PDF.js</span>
-                        </div>
-                        <div class="flex gap-1.5">
-                            <button onclick="window.open('${downloadUrl}', '_blank')" 
-                                    class="flex items-center gap-1 px-2 py-0.5 text-white rounded-md transition-colors text-xs"
-                                    style="background: #2563eb;">
-                                <span class="material-icons-outlined text-xs">open_in_new</span>
-                                Abrir PDF
-                            </button>
-                            <button onclick="window.open('${downloadUrl}', '_blank')" 
-                                    class="flex items-center gap-1 px-2 py-0.5 text-white rounded-md transition-colors text-xs"
-                                    style="background: #16a34a;">
-                                <span class="material-icons-outlined text-xs">download</span>
-                                Baixar
-                            </button>
-                        </div>
-                    </div>
-                </div>
             </div>
         `;
     }
