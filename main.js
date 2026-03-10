@@ -3034,13 +3034,59 @@ ${latexCode}
     async loadTypstCompiler() {
         if (!this._typstCompilerPromise) {
             this._typstCompilerPromise = (async () => {
-                const mod = await import('https://esm.sh/@myriaddreamin/typst.ts?target=browser');
+                const moduleCandidates = [
+                    'https://esm.sh/@myriaddreamin/typst.ts@0.6.0?bundle&target=es2020&conditions=browser&external=fs&external=node:fs',
+                    'https://esm.sh/@myriaddreamin/typst.ts@0.6.0?bundle&target=es2020&conditions=browser',
+                    'https://esm.sh/@myriaddreamin/typst.ts@0.6.0?bundle&target=browser',
+                    'https://unpkg.com/@myriaddreamin/typst.ts@0.6.0/dist/typst.web.mjs',
+                    'https://unpkg.com/@myriaddreamin/typst.ts@0.6.0/dist/typst.web.js?module',
+                    'https://cdn.jsdelivr.net/npm/@myriaddreamin/typst.ts@0.6.0/dist/typst.web.mjs'
+                ];
+                const scriptCandidates = [
+                    'https://cdn.jsdelivr.net/npm/@myriaddreamin/typst.ts@0.6.0/dist/typst.web.js',
+                    'https://unpkg.com/@myriaddreamin/typst.ts@0.6.0/dist/typst.web.js',
+                    'https://cdn.jsdelivr.net/npm/@myriaddreamin/typst.ts@0.6.0/dist/typst.js',
+                    'https://unpkg.com/@myriaddreamin/typst.ts@0.6.0/dist/typst.js'
+                ];
+
+                let mod = null;
+                let lastError = null;
+
+                for (const url of moduleCandidates) {
+                    try {
+                        mod = await import(url);
+                        if (mod) {
+                            break;
+                        }
+                    } catch (err) {
+                        lastError = err;
+                    }
+                }
+
+                if (!mod) {
+                    for (const url of scriptCandidates) {
+                        try {
+                            await this.loadExternalScript(url);
+                            mod = window.Typst || window.typst || window.typstTs || window.typstCompiler;
+                            if (mod) {
+                                break;
+                            }
+                        } catch (err) {
+                            lastError = err;
+                        }
+                    }
+                }
+
+                if (!mod) {
+                    throw lastError || new Error('Falha ao carregar typst.ts');
+                }
 
                 const candidate =
                     mod.TypstCompiler ||
                     mod.Compiler ||
                     mod.createTypstCompiler ||
                     mod.createCompiler ||
+                    mod.typstCompiler ||
                     mod.default?.TypstCompiler ||
                     mod.default;
 
@@ -3074,6 +3120,25 @@ ${latexCode}
             })();
         }
         return this._typstCompilerPromise;
+    }
+
+    async loadExternalScript(url) {
+        if (!this._typstScriptPromises) {
+            this._typstScriptPromises = new Map();
+        }
+        if (this._typstScriptPromises.has(url)) {
+            return this._typstScriptPromises.get(url);
+        }
+        const promise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = url;
+            script.async = true;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error(`Falha ao carregar script: ${url}`));
+            document.head.appendChild(script);
+        });
+        this._typstScriptPromises.set(url, promise);
+        return promise;
     }
 
     async compileTypstToPdf(typstSource) {
