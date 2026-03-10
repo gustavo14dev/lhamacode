@@ -377,6 +377,19 @@ class DocumentRenderer {
                 <div class="document-pages p-3" style="background: linear-gradient(180deg, rgba(8, 21, 47, 0.96) 0%, rgba(11, 29, 59, 0.92) 100%);">
                     <div class="rounded-lg overflow-hidden shadow-sm" style="background: #ffffff; max-width: 760px; margin: 0 auto;">
                         <div class="px-8 pt-6 pb-8" style="background: #ffffff; color: #0f172a; min-height: 842px;">
+                            <style>
+                                #markdown-doc-${messageId} .markdown-body h2 { font-size: 1.4rem; margin-top: 1.4rem; margin-bottom: 0.6rem; }
+                                #markdown-doc-${messageId} .markdown-body h3 { font-size: 1.1rem; margin-top: 1.1rem; margin-bottom: 0.4rem; }
+                                #markdown-doc-${messageId} .markdown-body p { margin: 0.6rem 0; line-height: 1.6; }
+                                #markdown-doc-${messageId} .markdown-body ul { list-style: disc; padding-left: 1.2rem; margin: 0.6rem 0; }
+                                #markdown-doc-${messageId} .markdown-body ol { list-style: decimal; padding-left: 1.2rem; margin: 0.6rem 0; }
+                                #markdown-doc-${messageId} .markdown-body blockquote { border-left: 4px solid #93c5fd; padding-left: 0.8rem; color: #334155; background: #f8fafc; margin: 0.8rem 0; }
+                                #markdown-doc-${messageId} .markdown-body table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; }
+                                #markdown-doc-${messageId} .markdown-body th, #markdown-doc-${messageId} .markdown-body td { border: 1px solid #e2e8f0; padding: 6px 8px; }
+                                #markdown-doc-${messageId} .markdown-body th { background: #f1f5f9; text-align: left; }
+                                #markdown-doc-${messageId} .markdown-body strong { color: #0f172a; }
+                                #markdown-doc-${messageId} .markdown-body u { text-decoration: underline; }
+                            </style>
                             <div class="text-center mb-4">
                                 <h1 class="text-3xl font-bold leading-tight m-0" style="color: #0f172a; margin: 0;">${safeTitle}</h1>
                             </div>

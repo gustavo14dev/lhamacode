@@ -3037,8 +3037,9 @@ ${latexCode}
                 this.addUserMessage(message);
             }
 
+            const topic = this.normalizeDocumentTopic(message);
             this.updateProcessingMessage(processingId, '🔎 Pesquisando fontes na web...');
-            const webResearch = await this.fetchDocumentWebResearch(message);
+            const webResearch = await this.fetchDocumentWebResearch(topic);
             const webContext = this.buildDocumentWebContext(webResearch);
             const referencesMarkdown = this.buildMarkdownReferences(webResearch.sources || []);
 
@@ -3052,7 +3053,7 @@ ${latexCode}
                     messages: [
                         {
                             role: 'system',
-                            content: 'Você é um especialista em documentos acadêmicos. Gere um documento COMPLETO em Markdown sobre: "' + message + '".' +
+                            content: 'Você é um especialista em documentos acadêmicos. Gere um documento COMPLETO em Markdown sobre: "' + topic + '".' +
 
 'IMPORTANTE: Retorne APENAS o Markdown, sem explicações, sem markdown extra.' +
 'Use as fontes da pesquisa web para embasar o conteúdo. Não invente fontes.' +
@@ -3066,13 +3067,16 @@ ${latexCode}
 '- Se houver matematica, use $$E = mc^2$$.' +
 '- Referencias: lista de links no final.' +
 '- Escreva paragrafos completos (nao apenas topicos).' +
+'- Destaque termos importantes com **negrito** e *italico*.' +
+'- Use pelo menos 1 bloco de cita ("> ...") e 1 tabela simples.' +
+'- Use sublinhado em pelo menos 1 termo com <u>texto</u>.' +
 
 '\n\nCONTEXTO DE PESQUISA WEB:\n' + webContext +
 '\n\nREFERENCIAS DISPONIVEIS (use na seção final):\n' + referencesMarkdown
                         },
                         {
                             role: 'user',
-                            content: 'Tema do documento: ' + message + '\n\nGere em Markdown e use as referências fornecidas.'
+                            content: 'Tema do documento: ' + topic + '\n\nGere em Markdown e use as referências fornecidas.'
                         }
                     ],
                     model: 'llama-3.1-8b-instant',
@@ -3085,17 +3089,17 @@ ${latexCode}
             markdownSource = markdownSource.replace(/```markdown/gi, '').replace(/```/g, '').trim();
 
             if (!this.isMarkdownContentSufficient(markdownSource)) {
-                markdownSource = this.buildMarkdownFallbackDocument(message, webResearch);
+                markdownSource = this.buildMarkdownFallbackDocument(topic, webResearch);
             }
 
-            markdownSource = this.injectMarkdownReferences(markdownSource, webResearch.sources || []);
-            markdownSource = this.normalizeMarkdownDocument(markdownSource, message);
+            markdownSource = this.replaceMarkdownReferences(markdownSource, referencesMarkdown);
+            markdownSource = this.normalizeMarkdownDocument(markdownSource, topic);
 
             const marked = await this.loadMarkdownRenderer();
             const html = marked.parse(markdownSource);
 
             if (window.documentRenderer?.renderMarkdownDocument) {
-                window.documentRenderer.renderMarkdownDocument(html, message, processingId);
+                window.documentRenderer.renderMarkdownDocument(html, topic, processingId);
                 await this.renderMathInElement(`markdown-doc-${processingId}`);
             } else {
                 throw new Error('Renderizador Markdown não disponível');
@@ -3317,7 +3321,13 @@ ${latexCode}
         if (!Array.isArray(sources) || sources.length === 0) {
             return '- Nenhuma fonte disponível.';
         }
-        return sources.slice(0, 6).map((source, index) => {
+        const unique = [];
+        for (const source of sources) {
+            if (source?.url && !unique.find((item) => item.url === source.url)) {
+                unique.push(source);
+            }
+        }
+        return unique.slice(0, 6).map((source, index) => {
             const title = (source.title || `Fonte ${index + 1}`).replace(/\s+/g, ' ').trim();
             const url = source.url || '';
             const snippet = (source.content || source.snippet || '').replace(/\s+/g, ' ').trim().slice(0, 200);
@@ -3325,15 +3335,14 @@ ${latexCode}
         }).join('\n');
     }
 
-    injectMarkdownReferences(markdownSource, sources) {
-        if (!Array.isArray(sources) || sources.length === 0) {
+    replaceMarkdownReferences(markdownSource, referencesMarkdown) {
+        if (!referencesMarkdown || !referencesMarkdown.trim()) {
             return markdownSource;
         }
         if (/^##\s*Referencias/m.test(markdownSource)) {
-            return markdownSource;
+            return markdownSource.replace(/##\s*Referencias[\s\S]*$/m, `## Referencias\n${referencesMarkdown}`);
         }
-        const references = this.buildMarkdownReferences(sources);
-        return `${markdownSource}\n\n## Referencias\n${references}`;
+        return `${markdownSource}\n\n## Referencias\n${referencesMarkdown}`;
     }
 
     normalizeMarkdownDocument(markdownSource, title) {
@@ -3342,6 +3351,20 @@ ${latexCode}
             normalized = `# ${title}\n\n${normalized}`;
         }
         return normalized;
+    }
+
+    normalizeDocumentTopic(message) {
+        const raw = String(message || '').trim();
+        if (!raw) {
+            return 'Documento';
+        }
+        const cleaned = raw
+            .replace(/^(gere|gera|crie|criar|faça|faca|produza|escreva)\s+(um|uma)\s+documento\s+sobre\s+/i, '')
+            .replace(/^documento\s+sobre\s+/i, '')
+            .replace(/^sobre\s+/i, '')
+            .replace(/^["']|["']$/g, '')
+            .trim();
+        return cleaned || raw;
     }
 
     isMarkdownContentSufficient(markdownSource) {
