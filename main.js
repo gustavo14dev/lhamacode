@@ -240,12 +240,13 @@ class UI {
                     </div>
                     <span id="documentCloseIcon" class="material-icons-outlined text-base text-gray-500 dark:text-gray-400 mt-0.5 hidden">close</span>
                 </button>
-                <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-400 dark:text-gray-500 cursor-not-allowed transition-colors flex items-start gap-3 last:rounded-b-lg" disabled>
-                    <span class="material-icons-outlined text-base text-gray-400 mt-0.5">psychology</span>
+                <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3 last:rounded-b-lg" onclick="activateMindMapMode()">
+                    <span class="material-icons-outlined text-base text-purple-400 mt-0.5">psychology</span>
                     <div class="flex-1">
                         <div class="font-medium">Mapa Mental</div>
-                        <div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Em breve...</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Criar mapa mental</div>
                     </div>
+                    <span id="mindmapCloseIcon" class="material-icons-outlined text-base text-gray-500 dark:text-gray-400 mt-0.5 hidden">close</span>
                 </button>
             </div>
         `;
@@ -1628,7 +1629,9 @@ class UI {
 
             'document': 'Documento',
 
-            'table': 'Tabela'
+            'table': 'Tabela',
+
+            'mindmap': 'Mapa Mental'
 
         };
 
@@ -1637,7 +1640,8 @@ class UI {
         const createIcons = {
             'slides': 'slideshow',
             'document': 'description',
-            'table': 'table_chart'
+            'table': 'table_chart',
+            'mindmap': 'psychology'
         };
 
         
@@ -1645,7 +1649,8 @@ class UI {
         const createColors = {
             'slides': 'text-green-400',
             'document': 'text-blue-400',
-            'table': 'text-purple-400'
+            'table': 'text-purple-400',
+            'mindmap': 'text-purple-400'
         };
         
         // Atualizar botão principal
@@ -1725,6 +1730,11 @@ class UI {
             }
             this.attachedFiles = [];
             this.renderAttachments();
+            this.currentCreateType = null;
+            return;
+        }
+        if (type === 'mindmap') {
+            await this.generateMindMap(normalizedTopic || message, processingId, { skipUserMessage: true });
             this.currentCreateType = null;
             return;
         }
@@ -2679,6 +2689,14 @@ ${latexCode}
             this.elements.userInput.value = '';
             return;
         }
+
+        // Verificar se modo Mapa Mental está ativo
+        if (window.isMindMapModeActive && message) {
+            this.currentCreateType = 'mindmap';
+            await this.handleCreateRequest(message);
+            this.elements.userInput.value = '';
+            return;
+        }
         
         // Verificar se modo Documento está ativo
         if (window.isDocumentModeActive && message) {
@@ -2984,6 +3002,46 @@ ${latexCode}
         }
         this.attachedFiles = [];
         this.renderAttachments();
+    }
+
+    async generateMindMap(message, processingId, { skipUserMessage = false } = {}) {
+        try {
+            if (!skipUserMessage) {
+                this.addUserMessage(message);
+            }
+
+            const topic = this.normalizeMindMapTopic(message);
+            this.updateProcessingMessage(processingId, '🧠 Gerando mapa mental...');
+
+            const systemPrompt = [
+                'Você é especialista em mapas mentais usando Mermaid.',
+                `Gere um diagrama Mermaid do tipo mindmap sobre: "${topic}".`,
+                'Retorne APENAS o código Mermaid puro, sem markdown.',
+                'Use a sintaxe: mindmap -> root((Tema)) -> ramos.',
+                'No máximo 5 ramos principais e no máximo 3 níveis de profundidade.',
+                'Use palavras curtas e objetivas.',
+                'Não use caracteres especiais que quebrem o Mermaid.'
+            ].join(' ');
+
+            const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: topic }
+            ]);
+
+            let mermaidCode = response.trim();
+            mermaidCode = mermaidCode.replace(/```mermaid/gi, '').replace(/```/g, '').trim();
+            mermaidCode = this.normalizeMermaidMindmap(mermaidCode, topic);
+
+            if (window.documentRenderer?.renderMindMapMermaid) {
+                window.documentRenderer.renderMindMapMermaid(mermaidCode, topic, processingId);
+                return;
+            }
+
+            this.updateProcessingMessage(processingId, '<div>Mermaid não disponível.</div>');
+        } catch (error) {
+            console.error('[MINDMAP] Erro:', error);
+            this.updateProcessingMessage(processingId, `<div>Erro ao gerar mapa mental: ${this.escapeHtml(error.message)}</div>`);
+        }
     }
 
     async generateLatexDocument(message, processingId, { skipUserMessage = false } = {}) {
@@ -4176,6 +4234,52 @@ ${chunk}${bibliographyBlock}
         return topic || message;
     }
 
+    normalizeMindMapTopic(message) {
+        let topic = String(message || '').trim();
+        if (!topic) return '';
+
+        const patterns = [
+            /^crie\s+um\s+mapa\s+mental\s+sobre\s+/i,
+            /^criar\s+um\s+mapa\s+mental\s+sobre\s+/i,
+            /^gere\s+um\s+mapa\s+mental\s+sobre\s+/i,
+            /^fa(?:ç|c)a\s+um\s+mapa\s+mental\s+sobre\s+/i,
+            /^mapa\s+mental\s+sobre\s+/i,
+            /^mapa\s+mental\s+de\s+/i
+        ];
+
+        patterns.forEach((pattern) => {
+            topic = topic.replace(pattern, '');
+        });
+
+        topic = topic.replace(/^[\s:;-]+/, '');
+        topic = topic.replace(/\s+/g, ' ').trim();
+
+        return topic || message;
+    }
+
+    normalizeMermaidMindmap(mermaidCode, topic) {
+        let code = String(mermaidCode || '').trim();
+        if (!code) {
+            return `mindmap\n  root((${topic || 'Mapa Mental'}))\n    Ideias`;
+        }
+
+        if (!/^mindmap\b/i.test(code)) {
+            const lines = code.split('\n').map(line => line.trim()).filter(Boolean);
+            const children = lines.length > 0
+                ? lines.map(line => `    ${line}`)
+                : ['    Ideias'];
+            return `mindmap\n  root((${topic || 'Mapa Mental'}))\n${children.join('\n')}`;
+        }
+
+        if (!/\broot\(\(/i.test(code)) {
+            const lines = code.split('\n');
+            const header = lines.shift();
+            return [header, `  root((${topic || 'Mapa Mental'}))`, ...lines].join('\n');
+        }
+
+        return code;
+    }
+
     normalizeDocumentLatex(latexCode, title) {
         let normalized = String(latexCode || '').trim();
 
@@ -5034,6 +5138,27 @@ ${chunk}${bibliographyBlock}
         if (window.isSlidesModeActive && !opts.preserveCreateMode) {
             console.log('🔧 [CREATE] Desativando modo Apresentação ao enviar mensagem');
             window.isSlidesModeActive = false;
+
+            const createToggle = document.getElementById('createToggle');
+            if (createToggle) {
+                createToggle.classList.remove('active');
+                createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
+            }
+
+            const userInput = document.getElementById('userInput');
+            if (userInput) {
+                userInput.placeholder = 'Como posso ajudar com seu código hoje?';
+            }
+
+            if (this.setCreateType) {
+                this.setCreateType(null);
+            }
+        }
+
+        // Se o modo Mapa Mental está ativo, desativar ao enviar mensagem
+        if (window.isMindMapModeActive && !opts.preserveCreateMode) {
+            console.log('🔧 [CREATE] Desativando modo Mapa Mental ao enviar mensagem');
+            window.isMindMapModeActive = false;
 
             const createToggle = document.getElementById('createToggle');
             if (createToggle) {
