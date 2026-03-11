@@ -80,24 +80,26 @@ class DocumentRenderer {
         console.log('[MERMAID] Renderizando mapa mental...');
 
         try {
-            const html = this.createMindMapHTML(title, messageId);
-            this.updateProcessingMessage(messageId, html);
+            const safeMessageId = this.ensureResponseTarget(messageId);
+            const html = this.createMindMapHTML(title, safeMessageId);
+            this.updateProcessingMessage(safeMessageId, html);
 
             const mermaid = await this.ensureMermaid();
             if (!mermaid) {
                 throw new Error('Mermaid não disponível');
             }
 
-            const container = document.getElementById(`mindmap-diagram-${messageId}`);
+            const container = document.getElementById(`mindmap-diagram-${safeMessageId}`);
             if (!container) return;
 
-            const id = `mindmap-${messageId}`;
+            const id = `mindmap-${safeMessageId}`;
             const { svg } = await mermaid.render(id, mermaidCode);
             container.innerHTML = svg;
             this.scrollToBottom();
         } catch (renderError) {
             console.error('[MERMAID] Erro ao renderizar mapa mental:', renderError);
-            this.updateProcessingMessage(messageId, `
+            const fallbackId = this.ensureResponseTarget(messageId);
+            this.updateProcessingMessage(fallbackId, `
                 <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
                     <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-6">
                         <div class="flex items-center gap-3">
@@ -114,6 +116,29 @@ class DocumentRenderer {
                 </div>
             `);
         }
+    }
+
+    ensureResponseTarget(messageId) {
+        if (messageId) {
+            const existing = document.getElementById(`responseText_${messageId}`);
+            if (existing) return messageId;
+        }
+
+        const newId = `msg_${Date.now()}`;
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'mb-6 flex justify-start animate-slideIn';
+        messageDiv.innerHTML = `
+            <div class="w-full max-w-[85%] px-5 py-4 overflow-hidden">
+                <div class="text-base leading-relaxed text-gray-700 dark:text-gray-200 whitespace-pre-wrap break-words overflow-wrap-anywhere" id="responseText_${newId}"></div>
+            </div>
+        `;
+
+        const messagesContainer = document.getElementById('messagesContainer');
+        if (messagesContainer) {
+            messagesContainer.appendChild(messageDiv);
+        }
+
+        return newId;
     }
 
     createMindMapHTML(title, messageId) {
