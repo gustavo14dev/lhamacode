@@ -1763,6 +1763,8 @@ SINTAXE BEAMER OBRIGATÓRIA:
 
 - Use apenas pacotes essenciais: inputenc, amsmath, graphicx
 
+- NÃO use imagens ou \\includegraphics (não há arquivos locais disponíveis)
+
 
 
 CONTEÚDO ESPECÍFICO E DE ALTA QUALIDADE:
@@ -4264,6 +4266,8 @@ ${chunk}${bibliographyBlock}
             .replace(/[–—]/g, '-')
             .replace(/…/g, '...')
             .replace(/\\usepackage\{tabular\}\s*/g, '')
+            .replace(/\\begin\{figure\*?\}[\s\S]*?\\end\{figure\*?\}/g, '')
+            .replace(/\\includegraphics(?:\[[^\]]*\])?\{[^}]*\}/g, '')
             .replace(/\r/g, '');
     }
     
