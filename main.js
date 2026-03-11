@@ -3017,7 +3017,8 @@ ${latexCode}
                 'Você é especialista em mapas mentais usando Mermaid.',
                 `Gere um diagrama Mermaid do tipo mindmap sobre: "${topic}".`,
                 'Retorne APENAS o código Mermaid puro, sem markdown.',
-                'Use a sintaxe: mindmap -> root((Tema)) -> ramos.',
+                'Use a sintaxe: mindmap e indentação (sem setas).',
+                'NÃO use flowchart, graph, nem setas (->, -->).',
                 'No máximo 5 ramos principais e no máximo 3 níveis de profundidade.',
                 'Use palavras curtas e objetivas.',
                 'Não use caracteres especiais que quebrem o Mermaid.'
@@ -4258,26 +4259,55 @@ ${chunk}${bibliographyBlock}
     }
 
     normalizeMermaidMindmap(mermaidCode, topic) {
-        let code = String(mermaidCode || '').trim();
-        if (!code) {
+        let raw = String(mermaidCode || '').trim();
+        if (!raw) {
             return `mindmap\n  root((${topic || 'Mapa Mental'}))\n    Ideias`;
         }
 
-        if (!/^mindmap\b/i.test(code)) {
-            const lines = code.split('\n').map(line => line.trim()).filter(Boolean);
-            const children = lines.length > 0
-                ? lines.map(line => `    ${line}`)
-                : ['    Ideias'];
-            return `mindmap\n  root((${topic || 'Mapa Mental'}))\n${children.join('\n')}`;
+        const sanitizeNode = (value) => {
+            return String(value || '')
+                .replace(/[`"'<>]/g, '')
+                .replace(/[-–—:]+$/g, '')
+                .replace(/^\s*[-*•\d.]+\s*/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        };
+
+        const lines = raw.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+        let header = lines[0] || '';
+        let rest = lines.slice(1);
+
+        if (!/^mindmap\b/i.test(header)) {
+            rest = [header, ...rest];
+            header = 'mindmap';
         }
 
-        if (!/\broot\(\(/i.test(code)) {
-            const lines = code.split('\n');
-            const header = lines.shift();
-            return [header, `  root((${topic || 'Mapa Mental'}))`, ...lines].join('\n');
+        rest = rest.filter(line => !/^(graph|flowchart|sequenceDiagram|classDiagram)\b/i.test(line));
+
+        let rootLine = rest.find(line => /\broot\(\(/i.test(line));
+        if (!rootLine) {
+            rootLine = `root((${sanitizeNode(topic || 'Mapa Mental')}))`;
         }
 
-        return code;
+        const output = [header, `  ${rootLine.replace(/^\s+/, '')}`];
+
+        rest.forEach((line) => {
+            if (!line || /\broot\(\(/i.test(line)) return;
+
+            if (/--?>/.test(line)) {
+                const chain = line.split(/--?>/).map(part => sanitizeNode(part)).filter(Boolean);
+                chain.forEach((node, idx) => {
+                    output.push(`${'  '.repeat(idx + 2)}${node}`);
+                });
+                return;
+            }
+
+            const cleaned = sanitizeNode(line);
+            if (!cleaned) return;
+            output.push(`    ${cleaned}`);
+        });
+
+        return output.join('\n');
     }
 
     normalizeDocumentLatex(latexCode, title) {
