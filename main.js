@@ -2002,6 +2002,7 @@ ${latexCode}
         console.log('🔒 LaTeX gerado internamente (segredo):', latexCode.substring(0, 200) + '...');
 
         console.log('🔍 Código LaTeX completo:', latexCode);
+        latexCode = this.sanitizeLatexInput(latexCode);
 
         // Renderizar o documento IMEDIATAMENTE
         await this.renderDocumentOutput(latexCode, processingId, message);
@@ -4194,6 +4195,11 @@ ${chunk}${bibliographyBlock}
     escapeLatexText(text) {
         return String(text || '')
             .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u206F]/g, '')
+            .replace(/✓|✔/g, 'OK')
+            .replace(/✗|✘/g, 'X')
+            .replace(/•/g, '-')
+            .replace(/[–—]/g, '-')
+            .replace(/…/g, '...')
             .replace(/\s+/g, ' ')
             .replace(/\\/g, '/')
             .replace(/([#$%&_{}])/g, '\\$1')
@@ -4204,6 +4210,12 @@ ${chunk}${bibliographyBlock}
     sanitizeLatexInput(latexCode) {
         return String(latexCode || '')
             .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u206F]/g, '')
+            .replace(/✓|✔/g, 'OK')
+            .replace(/✗|✘/g, 'X')
+            .replace(/•/g, '-')
+            .replace(/[–—]/g, '-')
+            .replace(/…/g, '...')
+            .replace(/\\usepackage\{tabular\}\s*/g, '')
             .replace(/\r/g, '');
     }
     
