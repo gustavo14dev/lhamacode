@@ -3011,7 +3011,8 @@ ${latexCode}
             }
 
             const topic = this.normalizeMindMapTopic(message);
-            this.updateProcessingMessage(processingId, '🧠 Gerando mapa mental...');
+            const messageId = processingId || this.addAssistantMessage('🧠 Gerando mapa mental...');
+            this.updateProcessingMessage(messageId, '🧠 Gerando mapa mental...');
 
             const systemPrompt = [
                 'Você é especialista em mapas mentais usando Mermaid.',
@@ -3034,14 +3035,15 @@ ${latexCode}
             mermaidCode = this.normalizeMermaidMindmap(mermaidCode, topic);
 
             if (window.documentRenderer?.renderMindMapMermaid) {
-                window.documentRenderer.renderMindMapMermaid(mermaidCode, topic, processingId);
+                window.documentRenderer.renderMindMapMermaid(mermaidCode, topic, messageId);
                 return;
             }
 
-            this.updateProcessingMessage(processingId, '<div>Mermaid não disponível.</div>');
+            this.updateProcessingMessage(messageId, '<div>Mermaid não disponível.</div>');
         } catch (error) {
             console.error('[MINDMAP] Erro:', error);
-            this.updateProcessingMessage(processingId, `<div>Erro ao gerar mapa mental: ${this.escapeHtml(error.message)}</div>`);
+            const fallbackId = processingId || this.addAssistantMessage('Erro ao gerar mapa mental.');
+            this.updateProcessingMessage(fallbackId, `<div>Erro ao gerar mapa mental: ${this.escapeHtml(error.message)}</div>`);
         }
     }
 
