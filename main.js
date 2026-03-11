@@ -1715,6 +1715,7 @@ class UI {
 
         // Continuar com o fluxo normal de criação (slides, documentos, etc.)
         const type = this.currentCreateType;
+        const normalizedTopic = type === 'slides' ? this.normalizeSlidesTopic(message) : message;
         if (type === 'document') {
             const attachments = this.attachedFiles && this.attachedFiles.length > 0 ? [...this.attachedFiles] : [];
             if (attachments.length > 0) {
@@ -1729,7 +1730,7 @@ class UI {
         }
         const systemPrompt = {
             role: 'system',
-            content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional Beamer' : 'tabela técnica'} sobre: "${message}". 
+            content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional Beamer' : 'tabela técnica'} sobre: "${normalizedTopic}". 
 
             
 
@@ -1881,7 +1882,7 @@ RETORNE APENAS O CÓDIGO LATEX, SEM NENHUM TEXTO ADICIONAL!`
 
 
 
-        const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [systemPrompt, { role: 'user', content: message }]);
+        const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [systemPrompt, { role: 'user', content: normalizedTopic }]);
 
         
 
@@ -1941,7 +1942,7 @@ RETORNE APENAS O CÓDIGO LATEX, SEM NENHUM TEXTO ADICIONAL!`
 
 
 
-\\title{${message}}
+                    \\title{${normalizedTopic}}
 
 \\author{Drekee AI 1}
 
@@ -2002,7 +2003,7 @@ ${latexCode}
         }
 
         if (type === 'slides') {
-            latexCode = this.normalizeSlidesLatex(latexCode, message);
+            latexCode = this.normalizeSlidesLatex(latexCode, normalizedTopic);
         }
 
         console.log('🔒 LaTeX gerado internamente (segredo):', latexCode.substring(0, 200) + '...');
@@ -2011,7 +2012,7 @@ ${latexCode}
         latexCode = this.sanitizeLatexInput(latexCode);
 
         // Renderizar o documento IMEDIATAMENTE
-        await this.renderDocumentOutput(latexCode, processingId, message);
+        await this.renderDocumentOutput(latexCode, processingId, normalizedTopic);
         
         // Resetar o modo de criação após concluir
         this.currentCreateType = null;
@@ -4145,6 +4146,34 @@ ${chunk}${bibliographyBlock}
         }
 
         return normalized;
+    }
+
+    normalizeSlidesTopic(message) {
+        let topic = String(message || '').trim();
+        if (!topic) return '';
+
+        const patterns = [
+            /^crie\s+uma\s+apresenta(?:ç|c)ão\s+sobre\s+/i,
+            /^criar\s+uma\s+apresenta(?:ç|c)ão\s+sobre\s+/i,
+            /^fa(?:ç|c)a\s+uma\s+apresenta(?:ç|c)ão\s+sobre\s+/i,
+            /^gere\s+uma\s+apresenta(?:ç|c)ão\s+sobre\s+/i,
+            /^monte\s+uma\s+apresenta(?:ç|c)ão\s+sobre\s+/i,
+            /^produza\s+uma\s+apresenta(?:ç|c)ão\s+sobre\s+/i,
+            /^apresenta(?:ç|c)ão\s+sobre\s+/i,
+            /^slides\s+sobre\s+/i,
+            /^crie\s+slides\s+sobre\s+/i,
+            /^gere\s+slides\s+sobre\s+/i,
+            /^fa(?:ç|c)a\s+slides\s+sobre\s+/i
+        ];
+
+        patterns.forEach((pattern) => {
+            topic = topic.replace(pattern, '');
+        });
+
+        topic = topic.replace(/^[\s:;-]+/, '');
+        topic = topic.replace(/\s+/g, ' ').trim();
+
+        return topic || message;
     }
 
     normalizeDocumentLatex(latexCode, title) {

@@ -154,9 +154,9 @@ class DocumentRenderer {
                         </div>
                     </div>
                 </div>
-                <div class="document-pages p-3" style="background: linear-gradient(180deg, rgba(8, 21, 47, 0.96) 0%, rgba(11, 29, 59, 0.92) 100%);">
-                    <div class="rounded-lg overflow-hidden shadow-sm" style="background: #ffffff;">
-                        <div class="flex items-center justify-center" style="min-height: 60vh;">
+                <div class="document-pages" style="padding: 8px; background: linear-gradient(180deg, rgba(8, 21, 47, 0.96) 0%, rgba(11, 29, 59, 0.92) 100%);">
+                    <div class="rounded-lg overflow-hidden shadow-sm" style="background: #ffffff; margin-top: 4px;">
+                        <div class="flex items-start justify-center" style="min-height: 0; padding: 8px 0;">
                             <canvas id="pdfjs-slide-canvas-${messageId}" style="display:block; width:100%; height:auto; background:#ffffff;"></canvas>
                         </div>
                     </div>
