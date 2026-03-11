@@ -1999,6 +1999,10 @@ ${latexCode}
 
         }
 
+        if (type === 'slides') {
+            latexCode = this.normalizeSlidesLatex(latexCode, message);
+        }
+
         console.log('🔒 LaTeX gerado internamente (segredo):', latexCode.substring(0, 200) + '...');
 
         console.log('🔍 Código LaTeX completo:', latexCode);
@@ -4095,6 +4099,50 @@ ${chunk}${bibliographyBlock}
 
 \\end{document}`.trim();
         });
+    }
+
+    normalizeSlidesLatex(latexCode, title) {
+        let normalized = String(latexCode || '').trim();
+
+        if (!/\\documentclass(?:\[[^\]]*\])?\{beamer\}/i.test(normalized)) {
+            return normalized;
+        }
+
+        if (!/\\setbeamertemplate\{navigation symbols\}\{\}/i.test(normalized)) {
+            normalized = normalized.replace(/\\documentclass[^\n]*\n?/, (match) => `${match}\\setbeamertemplate{navigation symbols}{}\n`);
+        }
+
+        const safeTitle = this.escapeLatexText(title || 'Apresentação');
+        const titleBlock = `\\title{${safeTitle}}\n\\author{Drekee AI}\n\\date{\\today}\n`;
+
+        if (!/\\title\{/.test(normalized)) {
+            if (/\\begin\{document\}/.test(normalized)) {
+                normalized = normalized.replace(/\\begin\{document\}/, `${titleBlock}\\begin{document}\n`);
+            } else {
+                normalized = `${normalized}\n${titleBlock}\\begin{document}\n`;
+            }
+        } else {
+            if (!/\\author\{/.test(normalized)) {
+                normalized = normalized.replace(/\\title\{[^}]*\}/, (match) => `${match}\n\\author{Drekee AI}`);
+            }
+            if (!/\\date\{/.test(normalized)) {
+                normalized = normalized.replace(/\\author\{[^}]*\}/, (match) => `${match}\n\\date{\\today}`);
+            }
+        }
+
+        if (!/\\begin\{document\}/.test(normalized)) {
+            normalized = `${normalized}\n\\begin{document}\n`;
+        }
+
+        if (!/\\frame\{\\titlepage\}|\\titlepage|\\maketitle/.test(normalized)) {
+            normalized = normalized.replace(/\\begin\{document\}/, '\\begin{document}\n\\frame{\\titlepage}\n');
+        }
+
+        if (!/\\end\{document\}/.test(normalized)) {
+            normalized = `${normalized}\n\\end{document}`;
+        }
+
+        return normalized;
     }
 
     normalizeDocumentLatex(latexCode, title) {

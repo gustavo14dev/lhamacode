@@ -105,7 +105,7 @@ class DocumentRenderer {
                 pdf,
                 messageId,
                 pageNum: 1,
-                scale: 1.2,
+                scale: 1,
                 renderTask: null
             };
 
@@ -150,8 +150,6 @@ class DocumentRenderer {
                             <button id="pdfjs-slide-prev-${messageId}" class="px-2 py-1 text-xs rounded-md text-white" style="background:#2563eb;">Anterior</button>
                             <span id="pdfjs-slide-page-${messageId}" class="text-xs" style="color: rgba(191, 219, 254, 0.85);">1 / 1</span>
                             <button id="pdfjs-slide-next-${messageId}" class="px-2 py-1 text-xs rounded-md text-white" style="background:#2563eb;">Próximo</button>
-                            <button id="pdfjs-slide-zoomout-${messageId}" class="px-2 py-1 text-xs rounded-md text-white" style="background:#0f766e;">-</button>
-                            <button id="pdfjs-slide-zoomin-${messageId}" class="px-2 py-1 text-xs rounded-md text-white" style="background:#0f766e;">+</button>
                             <button id="pdfjs-slide-open-${messageId}" class="px-2 py-1 text-xs rounded-md text-white" style="background:#16a34a;">Abrir PDF</button>
                         </div>
                     </div>
@@ -202,8 +200,6 @@ class DocumentRenderer {
         const { messageId } = state;
         const prevBtn = document.getElementById(`pdfjs-slide-prev-${messageId}`);
         const nextBtn = document.getElementById(`pdfjs-slide-next-${messageId}`);
-        const zoomOutBtn = document.getElementById(`pdfjs-slide-zoomout-${messageId}`);
-        const zoomInBtn = document.getElementById(`pdfjs-slide-zoomin-${messageId}`);
         const openBtn = document.getElementById(`pdfjs-slide-open-${messageId}`);
 
         if (prevBtn) {
@@ -218,20 +214,6 @@ class DocumentRenderer {
             nextBtn.addEventListener('click', async () => {
                 if (state.pageNum >= state.pdf.numPages) return;
                 state.pageNum += 1;
-                await this.renderPdfJsSlidePage(state);
-            });
-        }
-
-        if (zoomOutBtn) {
-            zoomOutBtn.addEventListener('click', async () => {
-                state.scale = Math.max(0.8, +(state.scale - 0.1).toFixed(2));
-                await this.renderPdfJsSlidePage(state);
-            });
-        }
-
-        if (zoomInBtn) {
-            zoomInBtn.addEventListener('click', async () => {
-                state.scale = Math.min(1.6, +(state.scale + 0.1).toFixed(2));
                 await this.renderPdfJsSlidePage(state);
             });
         }
@@ -267,16 +249,26 @@ class DocumentRenderer {
         }
 
         const page = await pdf.getPage(pageNum);
-        const viewport = page.getViewport({ scale });
+        const baseViewport = page.getViewport({ scale: 1 });
+        const container = canvas.parentElement;
+        const containerWidth = container?.clientWidth || baseViewport.width;
+        const fitScale = containerWidth / baseViewport.width;
+        const displayScale = fitScale * scale;
+        const dpr = window.devicePixelRatio || 1;
+        const viewport = page.getViewport({ scale: displayScale });
+        const renderViewport = page.getViewport({ scale: displayScale * dpr });
         const ctx = canvas.getContext('2d', { alpha: false });
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        canvas.style.width = '100%';
-        canvas.style.height = 'auto';
+
+        canvas.width = renderViewport.width;
+        canvas.height = renderViewport.height;
+        canvas.style.width = `${viewport.width}px`;
+        canvas.style.height = `${viewport.height}px`;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
 
         state.renderTask = page.render({
             canvasContext: ctx,
-            viewport
+            viewport: renderViewport
         });
 
         try {
