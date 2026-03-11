@@ -5468,19 +5468,17 @@ ${chunk}${bibliographyBlock}
 
         const chat = this.chats.find(c => c.id === this.currentChatId);
 
-                if (chat) {
+        if (chat) {
+            const msgObj = { role: 'assistant', content: text };
 
-                    const msgObj = { role: 'assistant', content: text };
+            if (thinking) msgObj.thinking = thinking;
 
-                    if (thinking) msgObj.thinking = thinking;
-
-                    chat.messages.push(msgObj);
-
-                }
+            chat.messages.push(msgObj);
+        }
 
         return uniqueId;
 
-            }
+    }
 
 
 
