@@ -1092,6 +1092,7 @@ window.isWebSearchMode = false;
 window.isInvestigateMode = false;
 window.isREMode = false;
 window.isDocumentModeActive = false;
+window.isSlidesModeActive = false;
 
 // ✅ FUNÇÃO CORRIGIDA - Agora abre/fecha o card corretamente
 function toggleCreate() {
@@ -1258,6 +1259,33 @@ function selectCreateType(createType) {
         
         return; // SAI - não abre NADA
     }
+
+    // Se o modo Apresentação JÁ está ativo -> DESATIVA
+    if (window.isSlidesModeActive && createType === 'slides') {
+        console.log('🔧 [CREATE] DESATIVANDO modo Apresentação');
+        window.isSlidesModeActive = false;
+
+        // Resetar botão principal
+        const createToggle = document.getElementById('createToggle');
+        if (createToggle) {
+            createToggle.classList.remove('active');
+            createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
+        }
+
+        // Resetar placeholder
+        const userInput = document.getElementById('userInput');
+        if (userInput) {
+            userInput.placeholder = 'Como posso ajudar com seu código hoje?';
+        }
+
+        // Resetar na UI
+        if (window.ui && window.ui.setCreateType) {
+            window.ui.setCreateType(null);
+        }
+
+        updateDeactivateButton();
+        return; // SAI - não abre NADA
+    }
     
     // Se chegou aqui, o modo está INATIVO -> ABRE CARD para ativar
     console.log('🔧 [CREATE] Modo inativo, abrindo card...');
@@ -1281,6 +1309,7 @@ function activateDocumentMode() {
     
     // Ativar modo
     window.isDocumentModeActive = true;
+    window.isSlidesModeActive = false;
     
     // Definir tipo na UI
     if (window.ui && window.ui.setCreateType) {
@@ -1305,7 +1334,57 @@ function activateDocumentMode() {
     if (closeIcon) {
         closeIcon.classList.remove('hidden');
     }
+    const slidesCloseIcon = document.getElementById('slidesCloseIcon');
+    if (slidesCloseIcon) {
+        slidesCloseIcon.classList.add('hidden');
+    }
     // Atualizar botão de desativação imediatamente
+    updateDeactivateButton();
+}
+
+function activateSlidesMode() {
+    console.log('🔧 [CREATE] ATIVANDO modo Apresentação');
+
+    // Fechar subcard
+    const subcard = document.getElementById('floatingCreateSubcard');
+    if (subcard) subcard.remove();
+
+    // Fechar dropdown principal
+    const dropdown = document.getElementById('floatingCreateDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+
+    // Ativar modo
+    window.isSlidesModeActive = true;
+    window.isDocumentModeActive = false;
+
+    // Definir tipo na UI
+    if (window.ui && window.ui.setCreateType) {
+        window.ui.setCreateType('slides');
+    }
+
+    // Atualizar botão principal
+    const createToggle = document.getElementById('createToggle');
+    if (createToggle) {
+        createToggle.classList.add('active');
+        createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">slideshow</span><span>Apresentação</span>';
+    }
+
+    // Atualizar placeholder
+    const userInput = document.getElementById('userInput');
+    if (userInput) {
+        userInput.placeholder = 'Descreva a apresentação que deseja criar...';
+    }
+
+    // Mostrar ícone X se existir
+    const closeIcon = document.getElementById('slidesCloseIcon');
+    if (closeIcon) {
+        closeIcon.classList.remove('hidden');
+    }
+    const documentCloseIcon = document.getElementById('documentCloseIcon');
+    if (documentCloseIcon) {
+        documentCloseIcon.classList.add('hidden');
+    }
+
     updateDeactivateButton();
 }
 
@@ -1334,6 +1413,35 @@ function deactivateCurrentFunction() {
             window.ui.setCreateType(null);
         }
     }
+
+    // Desativar modo Apresentação se estiver ativo
+    if (window.isSlidesModeActive) {
+        window.isSlidesModeActive = false;
+
+        const createToggle = document.getElementById('createToggle');
+        if (createToggle) {
+            createToggle.classList.remove('active');
+            createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
+        }
+
+        const userInput = document.getElementById('userInput');
+        if (userInput) {
+            userInput.placeholder = 'Como posso ajudar com seu código hoje?';
+        }
+
+        if (window.ui && window.ui.setCreateType) {
+            window.ui.setCreateType(null);
+        }
+    }
+
+    const slidesCloseIcon = document.getElementById('slidesCloseIcon');
+    if (slidesCloseIcon) {
+        slidesCloseIcon.classList.add('hidden');
+    }
+    const documentCloseIcon = document.getElementById('documentCloseIcon');
+    if (documentCloseIcon) {
+        documentCloseIcon.classList.add('hidden');
+    }
     
     // Desativar outros modos se estiverem ativos
     if (window.isInvestigateMode) {
@@ -1359,7 +1467,7 @@ function updateDeactivateButton() {
     if (!deactivateBtn) return;
     
     // Mostrar botão se algum modo estiver ativo
-    const hasActiveMode = window.isDocumentModeActive || window.isInvestigateMode || window.isREMode || window.isWebSearchMode;
+    const hasActiveMode = window.isDocumentModeActive || window.isSlidesModeActive || window.isInvestigateMode || window.isREMode || window.isWebSearchMode;
     
     if (hasActiveMode) {
         deactivateBtn.classList.remove('hidden');
@@ -1370,6 +1478,7 @@ function updateDeactivateButton() {
 
 window.selectCreateType = selectCreateType;
 window.activateDocumentMode = activateDocumentMode;
+window.activateSlidesMode = activateSlidesMode;
 window.deactivateCurrentFunction = deactivateCurrentFunction;
 window.updateDeactivateButton = updateDeactivateButton;
 window.toggleCreateSubcard = toggleCreateSubcard;

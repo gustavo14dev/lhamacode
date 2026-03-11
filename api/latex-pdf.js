@@ -11,15 +11,34 @@ export default async function handler(req, res) {
         }
 
         const encoded = encodeURIComponent(latex);
-        const url = `https://latexonline.cc/compile?text=${encoded}`;
-        const response = await fetch(url);
+        const postResponse = await fetch('https://latexonline.cc/compile', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `text=${encoded}`
+        });
 
-        if (!response.ok) {
-            const errorText = await response.text().catch(() => '');
-            return res.status(502).json({ error: 'LaTeX compilation failed', details: errorText || response.statusText });
+        if (!postResponse.ok) {
+            const postErrorText = await postResponse.text().catch(() => '');
+            const getUrl = `https://latexonline.cc/compile?text=${encoded}`;
+            const getResponse = await fetch(getUrl);
+
+            if (!getResponse.ok) {
+                const getErrorText = await getResponse.text().catch(() => '');
+                return res.status(502).json({
+                    error: 'LaTeX compilation failed',
+                    details: getErrorText || postErrorText || getResponse.statusText
+                });
+            }
+
+            const arrayBuffer = await getResponse.arrayBuffer();
+            res.setHeader('Content-Type', 'application/pdf');
+            res.status(200).send(Buffer.from(arrayBuffer));
+            return;
         }
 
-        const arrayBuffer = await response.arrayBuffer();
+        const arrayBuffer = await postResponse.arrayBuffer();
         res.setHeader('Content-Type', 'application/pdf');
         res.status(200).send(Buffer.from(arrayBuffer));
     } catch (error) {

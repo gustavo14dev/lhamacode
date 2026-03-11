@@ -203,6 +203,16 @@ class UI {
             }
             return;
         }
+
+        // Se modo Apresentação está ativo -> DESATIVA direto
+        if (window.isSlidesModeActive) {
+            console.log('🔧 [CREATE] Modo Apresentação ativo, desativando...');
+            
+            if (window.selectCreateType) {
+                window.selectCreateType('slides');
+            }
+            return;
+        }
         
         // Remover subcard anterior se existir
         const existingSubcard = document.getElementById('floatingCreateSubcard');
@@ -214,12 +224,13 @@ class UI {
         // Criar subcard dinâmico
         const subcardHTML = `
             <div id="floatingCreateSubcard" class="hidden fixed bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[201]" style="min-width: 200px;">
-                <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-400 dark:text-gray-500 cursor-not-allowed transition-colors flex items-start gap-3 first:rounded-t-lg" disabled>
-                    <span class="material-icons-outlined text-base text-gray-400 mt-0.5">slideshow</span>
+                <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3 first:rounded-t-lg" onclick="activateSlidesMode()">
+                    <span class="material-icons-outlined text-base text-green-400 mt-0.5">slideshow</span>
                     <div class="flex-1">
                         <div class="font-medium">Apresentação</div>
-                        <div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Em breve...</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Criar apresentação de slides</div>
                     </div>
+                    <span id="slidesCloseIcon" class="material-icons-outlined text-base text-gray-500 dark:text-gray-400 mt-0.5 hidden">close</span>
                 </button>
                 <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3" onclick="activateDocumentMode()">
                     <span class="material-icons-outlined text-base text-blue-400 mt-0.5">description</span>
@@ -2652,6 +2663,14 @@ ${latexCode}
             return;
 
         }
+
+        // Verificar se modo Apresentação está ativo
+        if (window.isSlidesModeActive && message) {
+            this.currentCreateType = 'slides';
+            await this.handleCreateRequest(message);
+            this.elements.userInput.value = '';
+            return;
+        }
         
         // Verificar se modo Documento está ativo
         if (window.isDocumentModeActive && message) {
@@ -3930,10 +3949,15 @@ ${sources || '- Nenhuma fonte disponivel.'}
 
     async renderDocumentOutput(latexCode, messageId, title) {
         const isArticle = /\\documentclass(?:\[[^\]]*\])?\{article\}/i.test(latexCode);
-        if (isArticle) {
+        const isBeamer = /\\documentclass(?:\[[^\]]*\])?\{beamer\}/i.test(latexCode);
+        if (isArticle || isBeamer) {
             const pdfData = await this.compileLatexToPDF(latexCode);
             if (pdfData && window.documentRenderer?.renderPdfJsViewer) {
-                window.documentRenderer.renderPdfJsViewer(pdfData, title || 'Documento Gerado', messageId);
+                window.documentRenderer.renderPdfJsViewer(
+                    pdfData,
+                    title || (isBeamer ? 'Apresentação Gerada' : 'Documento Gerado'),
+                    messageId
+                );
                 return;
             }
             if (window.documentRenderer?.showLatexFallback) {
@@ -4898,6 +4922,27 @@ ${chunk}${bibliographyBlock}
             }
             
             // Resetar na UI
+            if (this.setCreateType) {
+                this.setCreateType(null);
+            }
+        }
+
+        // Se o modo Apresentação está ativo, desativar ao enviar mensagem
+        if (window.isSlidesModeActive && !opts.preserveCreateMode) {
+            console.log('🔧 [CREATE] Desativando modo Apresentação ao enviar mensagem');
+            window.isSlidesModeActive = false;
+
+            const createToggle = document.getElementById('createToggle');
+            if (createToggle) {
+                createToggle.classList.remove('active');
+                createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
+            }
+
+            const userInput = document.getElementById('userInput');
+            if (userInput) {
+                userInput.placeholder = 'Como posso ajudar com seu código hoje?';
+            }
+
             if (this.setCreateType) {
                 this.setCreateType(null);
             }
