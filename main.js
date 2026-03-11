@@ -4269,6 +4269,8 @@ ${chunk}${bibliographyBlock}
                 .replace(/[`"'<>]/g, '')
                 .replace(/[-–—:]+$/g, '')
                 .replace(/^\s*[-*•\d.]+\s*/g, '')
+                .replace(/^[\s|]+/g, '')
+                .replace(/^[\-–—]+/g, '')
                 .replace(/\s+/g, ' ')
                 .trim();
         };
@@ -5473,6 +5475,8 @@ ${chunk}${bibliographyBlock}
                     chat.messages.push(msgObj);
 
                 }
+
+        return uniqueId;
 
             }
 
