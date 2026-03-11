@@ -3952,13 +3952,23 @@ ${sources || '- Nenhuma fonte disponivel.'}
         const isBeamer = /\\documentclass(?:\[[^\]]*\])?\{beamer\}/i.test(latexCode);
         if (isArticle || isBeamer) {
             const pdfData = await this.compileLatexToPDF(latexCode);
-            if (pdfData && window.documentRenderer?.renderPdfJsViewer) {
-                window.documentRenderer.renderPdfJsViewer(
-                    pdfData,
-                    title || (isBeamer ? 'Apresentação Gerada' : 'Documento Gerado'),
-                    messageId
-                );
-                return;
+            if (pdfData && window.documentRenderer) {
+                if (isBeamer && window.documentRenderer.renderPdfJsSlides) {
+                    window.documentRenderer.renderPdfJsSlides(
+                        pdfData,
+                        title || 'Apresentação Gerada',
+                        messageId
+                    );
+                    return;
+                }
+                if (window.documentRenderer.renderPdfJsViewer) {
+                    window.documentRenderer.renderPdfJsViewer(
+                        pdfData,
+                        title || 'Documento Gerado',
+                        messageId
+                    );
+                    return;
+                }
             }
             if (window.documentRenderer?.showLatexFallback) {
                 window.documentRenderer.showLatexFallback(latexCode, messageId, 'Falha ao compilar PDF para PDF.js.');

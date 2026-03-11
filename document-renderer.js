@@ -6,6 +6,8 @@
 class DocumentRenderer {
     constructor() {
         this.initialized = false;
+        this._pdfJsLibPromise = null;
+        this._pdfSlidesState = new Map();
     }
 
     renderDocumentImage(imageUrl, title, messageId, latexCode) {
@@ -71,6 +73,218 @@ class DocumentRenderer {
             this.scrollToBottom();
         } catch (renderError) {
             console.error('[PDF.js] Erro ao renderizar viewer:', renderError);
+        }
+    }
+
+    async renderPdfJsSlides(pdfData, title, messageId) {
+        console.log('[PDF.js] Renderizando slides com lazy loading...');
+
+        try {
+            const html = this.createPdfJsSlidesHTML(title, messageId);
+            this.updateProcessingMessage(messageId, html);
+
+            const pdfjsLib = await this.ensurePdfJsLib();
+            if (!pdfjsLib) {
+                throw new Error('PDF.js não disponível');
+            }
+
+            const fileUrl = typeof pdfData === 'string' ? pdfData : (pdfData.blobUrl || pdfData.dataUrl || '');
+            if (!fileUrl) {
+                throw new Error('URL do PDF inválida');
+            }
+
+            const loadingTask = pdfjsLib.getDocument({
+                url: fileUrl,
+                rangeChunkSize: 65536,
+                disableStream: false,
+                disableAutoFetch: false
+            });
+
+            const pdf = await loadingTask.promise;
+            const state = {
+                pdf,
+                messageId,
+                pageNum: 1,
+                scale: 1.2,
+                renderTask: null
+            };
+
+            this._pdfSlidesState.set(messageId, state);
+            this.attachPdfJsSlidesControls(state, fileUrl);
+            await this.renderPdfJsSlidePage(state);
+            this.scrollToBottom();
+        } catch (renderError) {
+            console.error('[PDF.js] Erro ao renderizar slides:', renderError);
+            this.updateProcessingMessage(messageId, `
+                <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-6">
+                        <div class="flex items-center gap-3">
+                            <span class="material-icons-outlined text-2xl">error</span>
+                            <div>
+                                <h1 class="text-xl font-bold">Erro no PDF.js</h1>
+                                <p class="text-red-100 text-sm">Não foi possível renderizar os slides</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <p class="text-sm text-gray-700 dark:text-gray-300">${this.escapeHtml(renderError.message || 'Falha ao carregar PDF')}</p>
+                    </div>
+                </div>
+            `);
+        }
+    }
+
+    createPdfJsSlidesHTML(title, messageId) {
+        const safeTitle = title.replace(/\\textbf\{([^}]+)\}/g, '$1')
+                               .replace(/\\textit\{([^}]+)\}/g, '$1');
+
+        return `
+            <div id="pdfjs-slides-${messageId}" class="document-viewer rounded-xl shadow-lg border overflow-hidden" style="background: linear-gradient(180deg, #08152f 0%, #0b1d3b 100%); border-color: rgba(96, 165, 250, 0.18);">
+                <div class="px-3 py-2 border-b" style="background: rgba(15, 23, 42, 0.92); border-color: rgba(96, 165, 250, 0.14);">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2 text-sm" style="color: rgba(191, 219, 254, 0.85);">
+                            <span class="material-icons-outlined text-base">slideshow</span>
+                            <span>${safeTitle || 'Apresentação'}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="pdfjs-slide-prev-${messageId}" class="px-2 py-1 text-xs rounded-md text-white" style="background:#2563eb;">Anterior</button>
+                            <span id="pdfjs-slide-page-${messageId}" class="text-xs" style="color: rgba(191, 219, 254, 0.85);">1 / 1</span>
+                            <button id="pdfjs-slide-next-${messageId}" class="px-2 py-1 text-xs rounded-md text-white" style="background:#2563eb;">Próximo</button>
+                            <button id="pdfjs-slide-zoomout-${messageId}" class="px-2 py-1 text-xs rounded-md text-white" style="background:#0f766e;">-</button>
+                            <button id="pdfjs-slide-zoomin-${messageId}" class="px-2 py-1 text-xs rounded-md text-white" style="background:#0f766e;">+</button>
+                            <button id="pdfjs-slide-open-${messageId}" class="px-2 py-1 text-xs rounded-md text-white" style="background:#16a34a;">Abrir PDF</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="document-pages p-3" style="background: linear-gradient(180deg, rgba(8, 21, 47, 0.96) 0%, rgba(11, 29, 59, 0.92) 100%);">
+                    <div class="rounded-lg overflow-hidden shadow-sm" style="background: #ffffff;">
+                        <div class="flex items-center justify-center" style="min-height: 60vh;">
+                            <canvas id="pdfjs-slide-canvas-${messageId}" style="display:block; width:100%; height:auto; background:#ffffff;"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async ensurePdfJsLib() {
+        if (window.pdfjsLib) {
+            if (!window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
+            return window.pdfjsLib;
+        }
+
+        if (this._pdfJsLibPromise) {
+            return this._pdfJsLibPromise;
+        }
+
+        this._pdfJsLibPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+            script.async = true;
+            script.onload = () => {
+                if (window.pdfjsLib) {
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                    resolve(window.pdfjsLib);
+                } else {
+                    reject(new Error('PDF.js não carregou corretamente'));
+                }
+            };
+            script.onerror = () => reject(new Error('Falha ao carregar PDF.js'));
+            document.head.appendChild(script);
+        });
+
+        return this._pdfJsLibPromise;
+    }
+
+    attachPdfJsSlidesControls(state, fileUrl) {
+        const { messageId } = state;
+        const prevBtn = document.getElementById(`pdfjs-slide-prev-${messageId}`);
+        const nextBtn = document.getElementById(`pdfjs-slide-next-${messageId}`);
+        const zoomOutBtn = document.getElementById(`pdfjs-slide-zoomout-${messageId}`);
+        const zoomInBtn = document.getElementById(`pdfjs-slide-zoomin-${messageId}`);
+        const openBtn = document.getElementById(`pdfjs-slide-open-${messageId}`);
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', async () => {
+                if (state.pageNum <= 1) return;
+                state.pageNum -= 1;
+                await this.renderPdfJsSlidePage(state);
+            });
+        }
+
+        if (nextBtn) {
+            nextBtn.addEventListener('click', async () => {
+                if (state.pageNum >= state.pdf.numPages) return;
+                state.pageNum += 1;
+                await this.renderPdfJsSlidePage(state);
+            });
+        }
+
+        if (zoomOutBtn) {
+            zoomOutBtn.addEventListener('click', async () => {
+                state.scale = Math.max(0.8, +(state.scale - 0.1).toFixed(2));
+                await this.renderPdfJsSlidePage(state);
+            });
+        }
+
+        if (zoomInBtn) {
+            zoomInBtn.addEventListener('click', async () => {
+                state.scale = Math.min(1.6, +(state.scale + 0.1).toFixed(2));
+                await this.renderPdfJsSlidePage(state);
+            });
+        }
+
+        if (openBtn) {
+            openBtn.addEventListener('click', () => {
+                window.open(fileUrl, '_blank');
+            });
+        }
+    }
+
+    async renderPdfJsSlidePage(state) {
+        const { messageId, pdf, pageNum, scale } = state;
+        const canvas = document.getElementById(`pdfjs-slide-canvas-${messageId}`);
+        const pageLabel = document.getElementById(`pdfjs-slide-page-${messageId}`);
+        const prevBtn = document.getElementById(`pdfjs-slide-prev-${messageId}`);
+        const nextBtn = document.getElementById(`pdfjs-slide-next-${messageId}`);
+
+        if (!canvas) return;
+
+        if (pageLabel) {
+            pageLabel.textContent = `${pageNum} / ${pdf.numPages}`;
+        }
+        if (prevBtn) prevBtn.disabled = pageNum <= 1;
+        if (nextBtn) nextBtn.disabled = pageNum >= pdf.numPages;
+
+        if (state.renderTask) {
+            try {
+                state.renderTask.cancel();
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale });
+        const ctx = canvas.getContext('2d', { alpha: false });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.width = '100%';
+        canvas.style.height = 'auto';
+
+        state.renderTask = page.render({
+            canvasContext: ctx,
+            viewport
+        });
+
+        try {
+            await state.renderTask.promise;
+        } catch (err) {
+            if (err?.name !== 'RenderingCancelledException') {
+                console.warn('[PDF.js] Erro ao renderizar página:', err);
+            }
         }
     }
 
