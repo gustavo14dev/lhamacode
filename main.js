@@ -4273,7 +4273,12 @@ ${chunk}${bibliographyBlock}
                 .trim();
         };
 
-        const lines = raw.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+        const cleanedRaw = raw
+            .replace(/^mindmap\s*\(/i, 'mindmap\n')
+            .replace(/\)\s*$/g, '')
+            .replace(/\r/g, '');
+
+        const lines = cleanedRaw.split(/\n/).map(line => line.trim()).filter(Boolean);
         let header = lines[0] || '';
         let rest = lines.slice(1);
 
