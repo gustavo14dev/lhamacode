@@ -3011,6 +3011,7 @@ ${latexCode}
             }
 
             const topic = this.normalizeMindMapTopic(message);
+            // USAR O processingId recebido em vez de criar nova mensagem
             const messageId = processingId || this.addAssistantMessage('🧠 Gerando mapa mental...');
             this.updateProcessingMessage(messageId, '🧠 Gerando mapa mental...');
 

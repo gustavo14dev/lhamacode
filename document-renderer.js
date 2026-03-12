@@ -120,10 +120,28 @@ class DocumentRenderer {
 
     ensureResponseTarget(messageId) {
         if (messageId) {
-            const existing = document.getElementById(`responseText_${messageId}`);
-            if (existing) return messageId;
+            // Tentar encontrar o elemento existente primeiro
+            let existing = document.getElementById(`responseText_${messageId}`);
+            
+            // Se não encontrar direto, tentar encontrar por padrão de ID
+            if (!existing) {
+                // Tentar encontrar por substring (para IDs como msg_123456)
+                const allElements = document.querySelectorAll('[id^="responseText_"]');
+                for (let element of allElements) {
+                    if (element.id.includes(messageId)) {
+                        existing = element;
+                        break;
+                    }
+                }
+            }
+            
+            if (existing) {
+                console.log('[MERMAID] Usando elemento existente:', existing.id);
+                return messageId;
+            }
         }
 
+        console.log('[MERMAID] Criando novo elemento para messageId:', messageId);
         const newId = `msg_${Date.now()}`;
         const messageDiv = document.createElement('div');
         messageDiv.className = 'mb-6 flex justify-start animate-slideIn';
@@ -932,10 +950,24 @@ class DocumentRenderer {
     updateProcessingMessage(messageId, text) {
         let messageElement = document.getElementById(`responseText_${messageId}`);
         
+        // Se não encontrar direto, tentar encontrar por substring
+        if (!messageElement) {
+            const allElements = document.querySelectorAll('[id^="responseText_"]');
+            for (let element of allElements) {
+                if (element.id.includes(messageId)) {
+                    messageElement = element;
+                    console.log('[MERMAID] Encontrado elemento por substring:', element.id);
+                    break;
+                }
+            }
+        }
+        
+        // Se ainda não encontrar, pegar o último
         if (!messageElement) {
             const allMessages = document.querySelectorAll('[id^="responseText_"]');
             if (allMessages.length > 0) {
                 messageElement = allMessages[allMessages.length - 1];
+                console.log('[MERMAID] Usando último elemento encontrado:', messageElement.id);
             }
         }
         
