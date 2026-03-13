@@ -96,6 +96,23 @@ class DocumentRenderer {
             const { svg } = await mermaid.render(id, mermaidCode);
             container.innerHTML = svg;
             this.scrollToBottom();
+            
+            // Resetar o modo mapa mental após renderização bem-sucedida
+            if (window.ui && window.ui.resetMindMapMode) {
+                window.ui.resetMindMapMode();
+            } else {
+                // Fallback se a função não estiver disponível
+                window.isMindMapModeActive = false;
+                const createToggle = document.getElementById('createToggle');
+                if (createToggle) {
+                    createToggle.classList.remove('active');
+                    createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
+                }
+                const userInput = document.getElementById('userInput');
+                if (userInput) {
+                    userInput.placeholder = 'Pergunte qualquer coisa...';
+                }
+            }
         } catch (renderError) {
             console.error('[MERMAID] Erro ao renderizar mapa mental:', renderError);
             const fallbackId = this.ensureResponseTarget(messageId);
@@ -115,6 +132,23 @@ class DocumentRenderer {
                     </div>
                 </div>
             `);
+            
+            // Resetar o modo mapa mental mesmo em caso de erro de renderização
+            if (window.ui && window.ui.resetMindMapMode) {
+                window.ui.resetMindMapMode();
+            } else {
+                // Fallback se a função não estiver disponível
+                window.isMindMapModeActive = false;
+                const createToggle = document.getElementById('createToggle');
+                if (createToggle) {
+                    createToggle.classList.remove('active');
+                    createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
+                }
+                const userInput = document.getElementById('userInput');
+                if (userInput) {
+                    userInput.placeholder = 'Pergunte qualquer coisa...';
+                }
+            }
         }
     }
 

@@ -1735,7 +1735,7 @@ class UI {
         }
         if (type === 'mindmap') {
             await this.generateMindMap(normalizedTopic || message, processingId, { skipUserMessage: true });
-            this.currentCreateType = null;
+            this.resetMindMapMode();
             return;
         }
         const systemPrompt = {
@@ -3004,6 +3004,22 @@ ${latexCode}
         this.renderAttachments();
     }
 
+    resetMindMapMode() {
+        // Resetar o modo mapa mental
+        window.isMindMapModeActive = false;
+        this.currentCreateType = null;
+        // Resetar o botão e placeholder
+        const createToggle = document.getElementById('createToggle');
+        if (createToggle) {
+            createToggle.classList.remove('active');
+            createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
+        }
+        const userInput = document.getElementById('userInput');
+        if (userInput) {
+            userInput.placeholder = 'Pergunte qualquer coisa...';
+        }
+    }
+
     async generateMindMap(message, processingId, { skipUserMessage = false } = {}) {
         try {
             if (!skipUserMessage) {
@@ -3041,10 +3057,12 @@ ${latexCode}
             }
 
             this.updateProcessingMessage(messageId, '<div>Mermaid não disponível.</div>');
+            this.resetMindMapMode();
         } catch (error) {
             console.error('[MINDMAP] Erro:', error);
             const fallbackId = processingId || this.addAssistantMessage('Erro ao gerar mapa mental.');
             this.updateProcessingMessage(fallbackId, `<div>Erro ao gerar mapa mental: ${this.escapeHtml(error.message)}</div>`);
+            this.resetMindMapMode();
         }
     }
 
