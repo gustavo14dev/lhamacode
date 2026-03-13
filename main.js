@@ -3020,6 +3020,52 @@ ${latexCode}
         }
     }
 
+    convertGraphToMindmap(graphCode, topic) {
+        console.log('[MINDMAP] Convertendo graph para mindmap:', graphCode);
+        
+        // Extrair nós do graph baseado no padrão do log
+        const nodes = [];
+        const lines = graphCode.split('\n');
+        
+        lines.forEach(line => {
+            // Procurar por padrões como A[Métodos de Aprendizado] ou B[Redes Neurais]
+            const matches = line.match(/([A-Z])\[(.*?)\]/g);
+            if (matches) {
+                matches.forEach(match => {
+                    const cleanMatch = match.replace(/^[A-Z]\[/, '').replace(/\]$/, '');
+                    if (cleanMatch && cleanMatch.trim() && !nodes.includes(cleanMatch.trim())) {
+                        nodes.push(cleanMatch.trim());
+                    }
+                });
+            }
+            
+            // Também procurar por padrões como C(Algoritmos Genéticos)
+            const parenMatches = line.match(/([A-Z])\((.*?)\)/g);
+            if (parenMatches) {
+                parenMatches.forEach(match => {
+                    const cleanMatch = match.replace(/^[A-Z]\(/, '').replace(/\)$/, '');
+                    if (cleanMatch && cleanMatch.trim() && !nodes.includes(cleanMatch.trim())) {
+                        nodes.push(cleanMatch.trim());
+                    }
+                });
+            }
+        });
+        
+        // Se não encontrou nós suficientes, adicionar baseado no tópico
+        if (nodes.length === 0) {
+            return `mindmap\n  root((${topic}))\n    Introdução\n    Conceitos\n    Aplicações`;
+        }
+        
+        // Criar mindmap com os nós encontrados
+        let mindmapCode = `mindmap\n  root((${topic}))`;
+        
+        nodes.slice(0, 6).forEach((node, index) => {
+            mindmapCode += `\n    ${node}`;
+        });
+        
+        return mindmapCode;
+    }
+
     async generateMindMap(message, processingId, { skipUserMessage = false } = {}) {
         try {
             if (!skipUserMessage) {
@@ -3031,16 +3077,27 @@ ${latexCode}
             const messageId = processingId || this.addAssistantMessage('🧠 Gerando mapa mental...');
             this.updateProcessingMessage(messageId, '🧠 Gerando mapa mental...');
 
-            const systemPrompt = [
-                'Você é especialista em mapas mentais usando Mermaid.',
-                `Gere um diagrama Mermaid do tipo mindmap sobre: "${topic}".`,
-                'Retorne APENAS o código Mermaid puro, sem markdown.',
-                'Use a sintaxe: mindmap e indentação (sem setas).',
-                'NÃO use flowchart, graph, nem setas (->, -->).',
-                'No máximo 5 ramos principais e no máximo 3 níveis de profundidade.',
-                'Use palavras curtas e objetivas.',
-                'Não use caracteres especiais que quebrem o Mermaid.'
-            ].join(' ');
+            const systemPrompt = `Você é especialista em mapas mentais usando Mermaid.
+
+REGRAS OBRIGATÓRIAS - NÃO DESOBEDEÇA:
+1. O código DEVE começar com "mindmap" (exatamente esta palavra)
+2. NUNCA use "graph", "flowchart", ou qualquer outro tipo
+3. NUNCA use setas como "->" ou "-->"
+4. Use APENAS indentação com espaços
+5. Retorne APENAS o código Mermaid puro, sem markdown ou explicações
+
+Exemplo da estrutura CORRETA:
+mindmap
+  root((Tópico Principal))
+    Ramo 1
+      Sub-ramo 1.1
+      Sub-ramo 1.2
+    Ramo 2
+      Sub-ramo 2.1
+
+Tópico: "${topic}"
+
+Gere o mapa mental seguindo ESTRITAMENTE estas regras.`;
 
             const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
                 { role: 'system', content: systemPrompt },
@@ -3049,12 +3106,19 @@ ${latexCode}
 
             let mermaidCode = response.trim();
             mermaidCode = mermaidCode.replace(/```mermaid/gi, '').replace(/```/g, '').trim();
+            
+            // Verificação CRÍTICA - forçar conversão para mindmap se vier outro tipo
+            if (mermaidCode.startsWith('graph') || mermaidCode.startsWith('flowchart')) {
+                console.log('[MINDMAP] Detectado tipo incorreto, convertendo para mindmap');
+                mermaidCode = this.convertGraphToMindmap(mermaidCode, topic);
+            }
+            
             mermaidCode = this.normalizeMermaidMindmap(mermaidCode, topic);
             
             // Validação adicional do código Mermaid
-            console.log('[MINDMAP] Código Mermaid normalizado:', mermaidCode);
+            console.log('[MINDMAP] Código Mermaid final:', mermaidCode);
             
-            // Verificar se tem estrutura básica válida
+            // Verificação final de segurança
             if (!mermaidCode.startsWith('mindmap')) {
                 mermaidCode = `mindmap\n  root((${topic}))\n    ${mermaidCode}`;
             }
