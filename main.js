@@ -232,6 +232,13 @@ class UI {
                     </div>
                     <span id="slidesCloseIcon" class="material-icons-outlined text-base text-gray-500 dark:text-gray-400 mt-0.5 hidden">close</span>
                 </button>
+                <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3 last:rounded-b-lg" onclick="window.activateNewMindMapMode()">
+                    <span class="material-icons-outlined text-base text-purple-400 mt-0.5">psychology</span>
+                    <div class="flex-1">
+                        <div class="font-medium">Mapa Mental</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Criar mapa mental</div>
+                    </div>
+                </button>
                 <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3" onclick="activateDocumentMode()">
                     <span class="material-icons-outlined text-base text-blue-400 mt-0.5">description</span>
                     <div class="flex-1">
@@ -240,15 +247,7 @@ class UI {
                     </div>
                     <span id="documentCloseIcon" class="material-icons-outlined text-base text-gray-500 dark:text-gray-400 mt-0.5 hidden">close</span>
                 </button>
-                <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3 last:rounded-b-lg" onclick="activateMindMapMode()">
-                    <span class="material-icons-outlined text-base text-purple-400 mt-0.5">psychology</span>
-                    <div class="flex-1">
-                        <div class="font-medium">Mapa Mental</div>
-                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Criar mapa mental</div>
-                    </div>
-                    <span id="mindmapCloseIcon" class="material-icons-outlined text-base text-gray-500 dark:text-gray-400 mt-0.5 hidden">close</span>
-                </button>
-            </div>
+                            </div>
         `;
         
         // Adicionar ao body
@@ -1629,9 +1628,7 @@ class UI {
 
             'document': 'Documento',
 
-            'table': 'Tabela',
-
-            'mindmap': 'Mapa Mental'
+            'table': 'Tabela'
 
         };
 
@@ -1640,8 +1637,7 @@ class UI {
         const createIcons = {
             'slides': 'slideshow',
             'document': 'description',
-            'table': 'table_chart',
-            'mindmap': 'psychology'
+            'table': 'table_chart'
         };
 
         
@@ -1649,8 +1645,7 @@ class UI {
         const createColors = {
             'slides': 'text-green-400',
             'document': 'text-blue-400',
-            'table': 'text-purple-400',
-            'mindmap': 'text-purple-400'
+            'table': 'text-purple-400'
         };
         
         // Atualizar botão principal
@@ -1734,11 +1729,9 @@ class UI {
             return;
         }
         if (type === 'mindmap') {
-            await this.generateMindMap(normalizedTopic || message, processingId, { skipUserMessage: true });
-            // NÃO resetar aqui - o reset acontece dentro do generateMindMap após renderização
+            await this.generateNewMindMap(normalizedTopic || message, processingId, { skipUserMessage: true });
             return;
         }
-        const systemPrompt = {
             role: 'system',
             content: `Você é um especialista acadêmico e profissional em LaTeX. Gere código LaTeX completo e compilável para ${type === 'slides' ? 'apresentação profissional Beamer' : 'tabela técnica'} sobre: "${normalizedTopic}". 
 
@@ -2682,17 +2675,17 @@ ${latexCode}
 
         }
 
-        // Verificar se modo Apresentação está ativo
-        if (window.isSlidesModeActive && message) {
-            this.currentCreateType = 'slides';
+        // Verificar se modo Mapa Mental está ativo
+        if (window.isNewMindMapModeActive && message) {
+            this.currentCreateType = 'mindmap';
             await this.handleCreateRequest(message);
             this.elements.userInput.value = '';
             return;
         }
 
-        // Verificar se modo Mapa Mental está ativo
-        if (window.isMindMapModeActive && message) {
-            this.currentCreateType = 'mindmap';
+        // Verificar se modo Apresentação está ativo
+        if (window.isSlidesModeActive && message) {
+            this.currentCreateType = 'slides';
             await this.handleCreateRequest(message);
             this.elements.userInput.value = '';
             return;
@@ -3004,22 +2997,7 @@ ${latexCode}
         this.renderAttachments();
     }
 
-    resetMindMapMode() {
-        // Resetar o modo mapa mental
-        window.isMindMapModeActive = false;
-        this.currentCreateType = null;
-        // Resetar o botão e placeholder
-        const createToggle = document.getElementById('createToggle');
-        if (createToggle) {
-            createToggle.classList.remove('active');
-            createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
-        }
-        const userInput = document.getElementById('userInput');
-        if (userInput) {
-            userInput.placeholder = 'Pergunte qualquer coisa...';
-        }
-    }
-
+    
     convertGraphToMindmap(graphCode, topic) {
         console.log('[MINDMAP] Convertendo graph para mindmap:', graphCode);
         
@@ -3028,135 +3006,8 @@ ${latexCode}
         const lines = graphCode.split('\n');
         
         lines.forEach(line => {
-            // Procurar por padrões como A[Métodos de Aprendizado] ou B[Redes Neurais]
-            const matches = line.match(/([A-Z])\[(.*?)\]/g);
-            if (matches) {
-                matches.forEach(match => {
-                    const cleanMatch = match.replace(/^[A-Z]\[/, '').replace(/\]$/, '');
-                    if (cleanMatch && cleanMatch.trim() && !nodes.includes(cleanMatch.trim())) {
-                        nodes.push(cleanMatch.trim());
-                    }
-                });
-            }
-            
-            // Também procurar por padrões como C(Algoritmos Genéticos)
-            const parenMatches = line.match(/([A-Z])\((.*?)\)/g);
-            if (parenMatches) {
-                parenMatches.forEach(match => {
-                    const cleanMatch = match.replace(/^[A-Z]\(/, '').replace(/\)$/, '');
-                    if (cleanMatch && cleanMatch.trim() && !nodes.includes(cleanMatch.trim())) {
-                        nodes.push(cleanMatch.trim());
-                    }
-                });
-            }
-        });
-        
-        // Se não encontrou nós suficientes, adicionar baseado no tópico
-        if (nodes.length === 0) {
-            return `mindmap\n  root((${topic}))\n    Introdução\n    Conceitos\n    Aplicações`;
-        }
-        
-        // Criar mindmap com os nós encontrados
-        let mindmapCode = `mindmap\n  root((${topic}))`;
-        
-        nodes.slice(0, 6).forEach((node, index) => {
-            mindmapCode += `\n    ${node}`;
-        });
-        
-        return mindmapCode;
-    }
 
-    async generateMindMap(message, processingId, { skipUserMessage = false } = {}) {
-        try {
-            if (!skipUserMessage) {
-                this.addUserMessage(message);
-            }
-
-            const topic = this.normalizeMindMapTopic(message);
-            // USAR O processingId recebido em vez de criar nova mensagem
-            const messageId = processingId || this.addAssistantMessage('🧠 Gerando mapa mental...');
-            this.updateProcessingMessage(messageId, '🧠 Gerando mapa mental...');
-
-            const systemPrompt = `Você é especialista em mapas mentais usando Mermaid.
-
-REGRAS OBRIGATÓRIAS - NÃO DESOBEDEÇA:
-1. O código DEVE começar com "mindmap" (exatamente esta palavra)
-2. NUNCA use "graph", "flowchart", ou qualquer outro tipo
-3. NUNCA use setas como "->" ou "-->"
-4. Use APENAS indentação com espaços
-5. Retorne APENAS o código Mermaid puro, sem markdown ou explicações
-
-Exemplo da estrutura CORRETA:
-mindmap
-  root((Tópico Principal))
-    Ramo 1
-      Sub-ramo 1.1
-      Sub-ramo 1.2
-    Ramo 2
-      Sub-ramo 2.1
-
-Tópico: "${topic}"
-
-Gere o mapa mental seguindo ESTRITAMENTE estas regras.`;
-
-            const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: topic }
-            ]);
-
-            let mermaidCode = response.trim();
-            mermaidCode = mermaidCode.replace(/```mermaid/gi, '').replace(/```/g, '').trim();
-            
-            // Verificação CRÍTICA - forçar conversão para mindmap se vier outro tipo
-            if (mermaidCode.startsWith('graph') || mermaidCode.startsWith('flowchart')) {
-                console.log('[MINDMAP] Detectado tipo incorreto, convertendo para mindmap');
-                mermaidCode = this.convertGraphToMindmap(mermaidCode, topic);
-            }
-            
-            mermaidCode = this.normalizeMermaidMindmap(mermaidCode, topic);
-            
-            // Validação adicional do código Mermaid
-            console.log('[MINDMAP] Código Mermaid final:', mermaidCode);
-            
-            // Verificação final de segurança
-            if (!mermaidCode.startsWith('mindmap')) {
-                mermaidCode = `mindmap\n  root((${topic}))\n    ${mermaidCode}`;
-            }
-            
-            // Garantir que termine com quebra de linha
-            if (!mermaidCode.endsWith('\n')) {
-                mermaidCode += '\n';
-            }
-
-            if (window.documentRenderer?.renderMindMapMermaid) {
-                window.documentRenderer.renderMindMapMermaid(mermaidCode, topic, messageId);
-                return;
-            }
-
-            this.updateProcessingMessage(messageId, '<div>Mermaid não disponível.</div>');
-            // Resetar com delay quando Mermaid não está disponível
-            setTimeout(() => {
-                if (window.ui && window.ui.resetMindMapMode) {
-                    window.ui.resetMindMapMode();
-                }
-            }, 1000);
-        } catch (error) {
-            console.error('[MINDMAP] Erro:', error);
-            const fallbackId = processingId || this.addAssistantMessage('Erro ao gerar mapa mental.');
-            this.updateProcessingMessage(fallbackId, `<div>Erro ao gerar mapa mental: ${this.escapeHtml(error.message)}</div>`);
-            // Resetar com delay em caso de erro
-            setTimeout(() => {
-                if (window.ui && window.ui.resetMindMapMode) {
-                    window.ui.resetMindMapMode();
-                }
-            }, 1000);
-        }
-    }
-
-    async generateLatexDocument(message, processingId, { skipUserMessage = false } = {}) {
-        try {
-            if (!skipUserMessage) {
-                this.addUserMessage(message);
+        if (file.type === 'image') {
             }
 
             const topic = this.normalizeDocumentTopic(message);
@@ -3338,16 +3189,6 @@ Gere o mapa mental seguindo ESTRITAMENTE estas regras.`;
                         </div>
                     </div>
                 </div>
-            `;
-            this.updateProcessingMessage(processingId, errorHTML);
-        }
-    }
-
-    async generateTypstDocument(message, processingId, { skipUserMessage = false } = {}) {
-        try {
-            if (!skipUserMessage) {
-                this.addUserMessage(message);
-            }
 
             this.updateProcessingMessage(processingId, '🔎 Pesquisando fontes na web...');
             const webResearch = await this.fetchDocumentWebResearch(message);
@@ -4343,103 +4184,8 @@ ${chunk}${bibliographyBlock}
         return topic || message;
     }
 
-    normalizeMindMapTopic(message) {
-        let topic = String(message || '').trim();
-        if (!topic) return '';
-
-        const patterns = [
-            /^crie\s+um\s+mapa\s+mental\s+sobre\s+/i,
-            /^criar\s+um\s+mapa\s+mental\s+sobre\s+/i,
-            /^gere\s+um\s+mapa\s+mental\s+sobre\s+/i,
-            /^fa(?:ç|c)a\s+um\s+mapa\s+mental\s+sobre\s+/i,
-            /^mapa\s+mental\s+sobre\s+/i,
-            /^mapa\s+mental\s+de\s+/i
-        ];
-
-        patterns.forEach((pattern) => {
-            topic = topic.replace(pattern, '');
-        });
-
-        topic = topic.replace(/^[\s:;-]+/, '');
-        topic = topic.replace(/\s+/g, ' ').trim();
-
-        return topic || message;
-    }
-
-    normalizeMermaidMindmap(mermaidCode, topic) {
-        let raw = String(mermaidCode || '').trim();
-        if (!raw) {
-            return `mindmap\n  root((${topic || 'Mapa Mental'}))\n    Ideias`;
-        }
-
-        const sanitizeNode = (value) => {
-            return String(value || '')
-                .replace(/[`"'<>]/g, '')
-                .replace(/[-–—:]+$/g, '')
-                .replace(/^\s*[-*•\d.]+\s*/g, '')
-                .replace(/^[\s|]+/g, ' ')
-                .replace(/^[\-–—]+/g, '')
-                .replace(/\s+/g, ' ')
-                .trim();
-        };
-
-        // Primeiro, garantir que há quebras de linha adequadas
-        let cleanedRaw = raw
-            .replace(/^mindmap\s*\(/i, 'mindmap\n')
-            .replace(/\)\s*$/g, '')
-            .replace(/\r/g, '')
-            // Corrigir o problema principal: adicionar quebras de linha onde faltam
-            .replace(/mindmap\s+root/gi, 'mindmap\nroot')
-            .replace(/root\(\([^)]+\)\)\s*[a-zA-Z]/gi, (match) => match + '\n    ')
-            .replace(/\)\s*[a-zA-Z]/g, ')\n    ')
-            .replace(/([a-zA-Z0-9)])\s+([A-Z][a-zA-Z0-9]*)/g, '$1\n    $2')
-            .replace(/\s{2,}/g, ' ');
-
-        // Dividir em linhas e limpar
-        const lines = cleanedRaw.split(/\n/).map(line => line.trim()).filter(Boolean);
-        let header = lines[0] || '';
-        let rest = lines.slice(1);
-
-        if (!/^mindmap\b/i.test(header)) {
-            rest = [header, ...rest];
-            header = 'mindmap';
-        }
-
-        rest = rest.filter(line => !/^(graph|flowchart|sequenceDiagram|classDiagram)\b/i.test(line));
-
-        let rootLine = rest.find(line => /\broot\(\(/i.test(line));
-        if (!rootLine) {
-            rootLine = `root((${sanitizeNode(topic || 'Mapa Mental')}))`;
-        }
-
-        const output = [header, `  ${rootLine.replace(/^\s+/, '')}`];
-
-        rest.forEach((line) => {
-            if (!line || /\broot\(\(/i.test(line)) return;
-
-            if (/--?>/.test(line)) {
-                const chain = line.split(/--?>/).map(part => sanitizeNode(part)).filter(Boolean);
-                chain.forEach((node, idx) => {
-                    output.push(`${'  '.repeat(idx + 2)}${node}`);
-                });
-                return;
-            }
-
-            const cleaned = sanitizeNode(line);
-            if (!cleaned) return;
-            
-            // Garantir indentação adequada
-            if (!cleaned.startsWith('  ')) {
-                output.push(`    ${cleaned}`);
-            } else {
-                output.push(cleaned);
-            }
-        });
-
-        // Garantir que não haja linhas vazias no meio
-        return output.filter(line => line.trim()).join('\n');
-    }
-
+    
+    
     normalizeDocumentLatex(latexCode, title) {
         let normalized = String(latexCode || '').trim();
 
@@ -5308,35 +5054,6 @@ ${chunk}${bibliographyBlock}
             const userInput = document.getElementById('userInput');
             if (userInput) {
                 userInput.placeholder = 'Como posso ajudar com seu código hoje?';
-            }
-
-            if (this.setCreateType) {
-                this.setCreateType(null);
-            }
-        }
-
-        // Se o modo Mapa Mental está ativo, desativar ao enviar mensagem
-        if (window.isMindMapModeActive && !opts.preserveCreateMode) {
-            console.log('🔧 [CREATE] Desativando modo Mapa Mental ao enviar mensagem');
-            window.isMindMapModeActive = false;
-
-            const createToggle = document.getElementById('createToggle');
-            if (createToggle) {
-                createToggle.classList.remove('active');
-                createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
-            }
-
-            const userInput = document.getElementById('userInput');
-            if (userInput) {
-                userInput.placeholder = 'Como posso ajudar com seu código hoje?';
-            }
-
-            if (this.setCreateType) {
-                this.setCreateType(null);
-            }
-        }
-
-        // Se houver arquivos, criar um pequeno card de anexos acima da mensagem (visual)
 
         if (files && Array.isArray(files) && files.length > 0) {
 

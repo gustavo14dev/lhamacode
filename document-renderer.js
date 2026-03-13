@@ -76,86 +76,7 @@ class DocumentRenderer {
         }
     }
 
-    async renderMindMapMermaid(mermaidCode, title, messageId) {
-        console.log('[MERMAID] Renderizando mapa mental...');
-
-        try {
-            const safeMessageId = this.ensureResponseTarget(messageId);
-            const html = this.createMindMapHTML(title, safeMessageId);
-            this.updateProcessingMessage(safeMessageId, html);
-
-            const mermaid = await this.ensureMermaid();
-            if (!mermaid) {
-                throw new Error('Mermaid não disponível');
-            }
-
-            const container = document.getElementById(`mindmap-diagram-${safeMessageId}`);
-            if (!container) return;
-
-            const id = `mindmap-${safeMessageId}`;
-            const { svg } = await mermaid.render(id, mermaidCode);
-            container.innerHTML = svg;
-            this.scrollToBottom();
-            
-            // Resetar o modo mapa mental após renderização bem-sucedida COM DELAY
-            setTimeout(() => {
-                if (window.ui && window.ui.resetMindMapMode) {
-                    window.ui.resetMindMapMode();
-                } else {
-                    // Fallback se a função não estiver disponível
-                    window.isMindMapModeActive = false;
-                    const createToggle = document.getElementById('createToggle');
-                    if (createToggle) {
-                        createToggle.classList.remove('active');
-                        createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
-                    }
-                    const userInput = document.getElementById('userInput');
-                    if (userInput) {
-                        userInput.placeholder = 'Pergunte qualquer coisa...';
-                    }
-                }
-            }, 1000); // Delay de 1 segundo para garantir que o mapa mental seja visível
-        } catch (renderError) {
-            console.error('[MERMAID] Erro ao renderizar mapa mental:', renderError);
-            const fallbackId = this.ensureResponseTarget(messageId);
-            this.updateProcessingMessage(fallbackId, `
-                <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-6">
-                        <div class="flex items-center gap-3">
-                            <span class="material-icons-outlined text-2xl">error</span>
-                            <div>
-                                <h1 class="text-xl font-bold">Erro no Mapa Mental</h1>
-                                <p class="text-red-100 text-sm">Não foi possível renderizar o diagrama</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="p-6">
-                        <p class="text-sm text-gray-700 dark:text-gray-300">${this.escapeHtml(renderError.message || 'Falha ao renderizar Mermaid')}</p>
-                    </div>
-                </div>
-            `);
-            
-            // Resetar o modo mapa mental mesmo em caso de erro COM DELAY
-            setTimeout(() => {
-                if (window.ui && window.ui.resetMindMapMode) {
-                    window.ui.resetMindMapMode();
-                } else {
-                    // Fallback se a função não estiver disponível
-                    window.isMindMapModeActive = false;
-                    const createToggle = document.getElementById('createToggle');
-                    if (createToggle) {
-                        createToggle.classList.remove('active');
-                        createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
-                    }
-                    const userInput = document.getElementById('userInput');
-                    if (userInput) {
-                        userInput.placeholder = 'Pergunte qualquer coisa...';
-                    }
-                }
-            }, 1000); // Delay de 1 segundo mesmo em caso de erro
-        }
-    }
-
+    
     ensureResponseTarget(messageId) {
         if (messageId) {
             // Tentar encontrar o elemento existente primeiro
@@ -197,78 +118,8 @@ class DocumentRenderer {
         return newId;
     }
 
-    createMindMapHTML(title, messageId) {
-        const safeTitle = title ? this.escapeHtml(title) : 'Mapa Mental';
-        return `
-            <div id="mindmap-${messageId}" class="document-viewer rounded-xl shadow-lg border overflow-hidden" style="background: linear-gradient(180deg, #08152f 0%, #0b1d3b 100%); border-color: rgba(96, 165, 250, 0.18);">
-                <div class="px-3 py-2 border-b" style="background: rgba(15, 23, 42, 0.92); border-color: rgba(96, 165, 250, 0.14);">
-                    <div class="flex items-center gap-2 text-sm" style="color: rgba(191, 219, 254, 0.85);">
-                        <span class="material-icons-outlined text-base">psychology</span>
-                        <span>${safeTitle}</span>
-                    </div>
-                </div>
-                <div class="document-pages p-3" style="background: linear-gradient(180deg, rgba(8, 21, 47, 0.96) 0%, rgba(11, 29, 59, 0.92) 100%);">
-                    <div class="rounded-lg overflow-hidden shadow-sm" style="background: #ffffff;">
-                        <div id="mindmap-diagram-${messageId}" style="padding: 16px; overflow: auto; min-height: 420px;"></div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    async ensureMermaid() {
-        if (window.mermaid) {
-            window.mermaid.initialize({
-                startOnLoad: false,
-                theme: 'base',
-                securityLevel: 'strict',
-                themeVariables: {
-                    background: '#ffffff',
-                    primaryColor: '#e2e8f0',
-                    primaryTextColor: '#0f172a',
-                    lineColor: '#334155',
-                    secondaryColor: '#dbeafe',
-                    tertiaryColor: '#f1f5f9'
-                }
-            });
-            return window.mermaid;
-        }
-
-        if (this._mermaidPromise) {
-            return this._mermaidPromise;
-        }
-
-        this._mermaidPromise = new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/mermaid@10/dist/mermaid.min.js';
-            script.async = true;
-            script.onload = () => {
-                if (window.mermaid) {
-                    window.mermaid.initialize({
-                        startOnLoad: false,
-                        theme: 'base',
-                        securityLevel: 'strict',
-                        themeVariables: {
-                            background: '#ffffff',
-                            primaryColor: '#e2e8f0',
-                            primaryTextColor: '#0f172a',
-                            lineColor: '#334155',
-                            secondaryColor: '#dbeafe',
-                            tertiaryColor: '#f1f5f9'
-                        }
-                    });
-                    resolve(window.mermaid);
-                } else {
-                    reject(new Error('Mermaid não carregou corretamente'));
-                }
-            };
-            script.onerror = () => reject(new Error('Falha ao carregar Mermaid'));
-            document.head.appendChild(script);
-        });
-
-        return this._mermaidPromise;
-    }
-
+    
+    
     async renderPdfJsSlides(pdfData, title, messageId) {
         console.log('[PDF.js] Renderizando slides com lazy loading...');
 

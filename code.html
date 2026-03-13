@@ -1093,7 +1093,7 @@ window.isInvestigateMode = false;
 window.isREMode = false;
 window.isDocumentModeActive = false;
 window.isSlidesModeActive = false;
-window.isMindMapModeActive = false;
+window.isNewMindMapModeActive = false;
 
 // ✅ FUNÇÃO CORRIGIDA - Agora abre/fecha o card corretamente
 function toggleCreate() {
@@ -1288,28 +1288,6 @@ function selectCreateType(createType) {
         return; // SAI - não abre NADA
     }
 
-    // Se o modo Mapa Mental JÁ está ativo -> DESATIVA
-    if (window.isMindMapModeActive && createType === 'mindmap') {
-        console.log('🔧 [CREATE] DESATIVANDO modo Mapa Mental');
-        window.isMindMapModeActive = false;
-
-        const createToggle = document.getElementById('createToggle');
-        if (createToggle) {
-            createToggle.classList.remove('active');
-            createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
-        }
-
-        const userInput = document.getElementById('userInput');
-        if (userInput) {
-            userInput.placeholder = 'Como posso ajudar com seu código hoje?';
-        }
-
-        if (window.ui && window.ui.setCreateType) {
-            window.ui.setCreateType(null);
-        }
-
-        updateDeactivateButton();
-        return; // SAI - não abre NADA
     }
     
     // Se chegou aqui, o modo está INATIVO -> ABRE CARD para ativar
@@ -1335,7 +1313,6 @@ function activateDocumentMode() {
     // Ativar modo
     window.isDocumentModeActive = true;
     window.isSlidesModeActive = false;
-    window.isMindMapModeActive = false;
     
     // Definir tipo na UI
     if (window.ui && window.ui.setCreateType) {
@@ -1423,49 +1400,6 @@ function activateSlidesMode() {
     updateDeactivateButton();
 }
 
-function activateMindMapMode() {
-    console.log('🔧 [CREATE] ATIVANDO modo Mapa Mental');
-
-    const subcard = document.getElementById('floatingCreateSubcard');
-    if (subcard) subcard.remove();
-
-    const dropdown = document.getElementById('floatingCreateDropdown');
-    if (dropdown) dropdown.classList.add('hidden');
-
-    window.isMindMapModeActive = true;
-    window.isDocumentModeActive = false;
-    window.isSlidesModeActive = false;
-
-    if (window.ui && window.ui.setCreateType) {
-        window.ui.setCreateType('mindmap');
-    }
-
-    const createToggle = document.getElementById('createToggle');
-    if (createToggle) {
-        createToggle.classList.add('active');
-        createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">psychology</span><span>Mapa Mental</span>';
-    }
-
-    const userInput = document.getElementById('userInput');
-    if (userInput) {
-        userInput.placeholder = 'Descreva o mapa mental que deseja criar...';
-    }
-
-    const mindmapCloseIcon = document.getElementById('mindmapCloseIcon');
-    if (mindmapCloseIcon) {
-        mindmapCloseIcon.classList.remove('hidden');
-    }
-    const documentCloseIcon = document.getElementById('documentCloseIcon');
-    if (documentCloseIcon) {
-        documentCloseIcon.classList.add('hidden');
-    }
-    const slidesCloseIcon = document.getElementById('slidesCloseIcon');
-    if (slidesCloseIcon) {
-        slidesCloseIcon.classList.add('hidden');
-    }
-
-    updateDeactivateButton();
-}
 
 function deactivateCurrentFunction() {
     console.log('🔧 [CREATE] Desativando função atual...');
@@ -1513,25 +1447,6 @@ function deactivateCurrentFunction() {
         }
     }
 
-    if (window.isMindMapModeActive) {
-        window.isMindMapModeActive = false;
-
-        const createToggle = document.getElementById('createToggle');
-        if (createToggle) {
-            createToggle.classList.remove('active');
-            createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
-        }
-
-        const userInput = document.getElementById('userInput');
-        if (userInput) {
-            userInput.placeholder = 'Como posso ajudar com seu código hoje?';
-        }
-
-        if (window.ui && window.ui.setCreateType) {
-            window.ui.setCreateType(null);
-        }
-    }
-
     const slidesCloseIcon = document.getElementById('slidesCloseIcon');
     if (slidesCloseIcon) {
         slidesCloseIcon.classList.add('hidden');
@@ -1543,6 +1458,24 @@ function deactivateCurrentFunction() {
     const mindmapCloseIcon = document.getElementById('mindmapCloseIcon');
     if (mindmapCloseIcon) {
         mindmapCloseIcon.classList.add('hidden');
+    }
+    
+    // Desativar modo Mapa Mental se estiver ativo
+    if (window.isNewMindMapModeActive) {
+        window.isNewMindMapModeActive = false;
+        
+        // Resetar botão principal
+        const createToggle = document.getElementById('createToggle');
+        if (createToggle) {
+            createToggle.classList.remove('active');
+            createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">edit</span><span>Ferramentas</span>';
+        }
+        
+        // Resetar placeholder
+        const userInput = document.getElementById('userInput');
+        if (userInput) {
+            userInput.placeholder = 'Como posso ajudar com seu código hoje?';
+        }
     }
     
     // Desativar outros modos se estiverem ativos
@@ -1569,19 +1502,43 @@ function updateDeactivateButton() {
     if (!deactivateBtn) return;
     
     // Mostrar botão se algum modo estiver ativo
-    const hasActiveMode = window.isDocumentModeActive || window.isSlidesModeActive || window.isMindMapModeActive || window.isInvestigateMode || window.isREMode || window.isWebSearchMode;
+    const hasActiveMode = window.isDocumentModeActive || window.isSlidesModeActive || window.isNewMindMapModeActive || window.isInvestigateMode || window.isREMode || window.isWebSearchMode;
     
     if (hasActiveMode) {
         deactivateBtn.classList.remove('hidden');
     } else {
         deactivateBtn.classList.add('hidden');
     }
-}
 
 window.selectCreateType = selectCreateType;
 window.activateDocumentMode = activateDocumentMode;
 window.activateSlidesMode = activateSlidesMode;
-window.activateMindMapMode = activateMindMapMode;
+    const dropdown = document.getElementById('floatingCreateDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+    
+    // Ativar modo
+    window.isNewMindMapModeActive = true;
+    window.isDocumentModeActive = false;
+    window.isSlidesModeActive = false;
+    
+    // Atualizar botão principal
+    const createToggle = document.getElementById('createToggle');
+    if (createToggle) {
+        createToggle.classList.add('active');
+        createToggle.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">psychology</span><span>Mapa Mental</span>';
+    }
+    
+    // Atualizar placeholder
+    const userInput = document.getElementById('userInput');
+    if (userInput) {
+        userInput.placeholder = 'Descreva o mapa mental que deseja criar...';
+    }
+    
+    // Atualizar botão de desativação
+    updateDeactivateButton();
+}
+
+window.activateNewMindMapMode = activateNewMindMapMode;
 window.deactivateCurrentFunction = deactivateCurrentFunction;
 window.updateDeactivateButton = updateDeactivateButton;
 window.toggleCreateSubcard = toggleCreateSubcard;
