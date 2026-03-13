@@ -236,7 +236,7 @@ class DocumentRenderer {
 
         this._mermaidPromise = new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+            script.src = 'https://unpkg.com/mermaid@10/dist/mermaid.min.js';
             script.async = true;
             script.onload = () => {
                 if (window.mermaid) {

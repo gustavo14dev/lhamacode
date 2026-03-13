@@ -3050,6 +3050,19 @@ ${latexCode}
             let mermaidCode = response.trim();
             mermaidCode = mermaidCode.replace(/```mermaid/gi, '').replace(/```/g, '').trim();
             mermaidCode = this.normalizeMermaidMindmap(mermaidCode, topic);
+            
+            // Validação adicional do código Mermaid
+            console.log('[MINDMAP] Código Mermaid normalizado:', mermaidCode);
+            
+            // Verificar se tem estrutura básica válida
+            if (!mermaidCode.startsWith('mindmap')) {
+                mermaidCode = `mindmap\n  root((${topic}))\n    ${mermaidCode}`;
+            }
+            
+            // Garantir que termine com quebra de linha
+            if (!mermaidCode.endsWith('\n')) {
+                mermaidCode += '\n';
+            }
 
             if (window.documentRenderer?.renderMindMapMermaid) {
                 window.documentRenderer.renderMindMapMermaid(mermaidCode, topic, messageId);
@@ -4290,17 +4303,25 @@ ${chunk}${bibliographyBlock}
                 .replace(/[`"'<>]/g, '')
                 .replace(/[-–—:]+$/g, '')
                 .replace(/^\s*[-*•\d.]+\s*/g, '')
-                .replace(/^[\s|]+/g, '')
+                .replace(/^[\s|]+/g, ' ')
                 .replace(/^[\-–—]+/g, '')
                 .replace(/\s+/g, ' ')
                 .trim();
         };
 
-        const cleanedRaw = raw
+        // Primeiro, garantir que há quebras de linha adequadas
+        let cleanedRaw = raw
             .replace(/^mindmap\s*\(/i, 'mindmap\n')
             .replace(/\)\s*$/g, '')
-            .replace(/\r/g, '');
+            .replace(/\r/g, '')
+            // Corrigir o problema principal: adicionar quebras de linha onde faltam
+            .replace(/mindmap\s+root/gi, 'mindmap\nroot')
+            .replace(/root\(\([^)]+\)\)\s*[a-zA-Z]/gi, (match) => match + '\n    ')
+            .replace(/\)\s*[a-zA-Z]/g, ')\n    ')
+            .replace(/([a-zA-Z0-9)])\s+([A-Z][a-zA-Z0-9]*)/g, '$1\n    $2')
+            .replace(/\s{2,}/g, ' ');
 
+        // Dividir em linhas e limpar
         const lines = cleanedRaw.split(/\n/).map(line => line.trim()).filter(Boolean);
         let header = lines[0] || '';
         let rest = lines.slice(1);
@@ -4332,10 +4353,17 @@ ${chunk}${bibliographyBlock}
 
             const cleaned = sanitizeNode(line);
             if (!cleaned) return;
-            output.push(`    ${cleaned}`);
+            
+            // Garantir indentação adequada
+            if (!cleaned.startsWith('  ')) {
+                output.push(`    ${cleaned}`);
+            } else {
+                output.push(cleaned);
+            }
         });
 
-        return output.join('\n');
+        // Garantir que não haja linhas vazias no meio
+        return output.filter(line => line.trim()).join('\n');
     }
 
     normalizeDocumentLatex(latexCode, title) {
