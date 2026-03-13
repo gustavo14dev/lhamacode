@@ -1735,7 +1735,7 @@ class UI {
         }
         if (type === 'mindmap') {
             await this.generateMindMap(normalizedTopic || message, processingId, { skipUserMessage: true });
-            this.resetMindMapMode();
+            // NÃO resetar aqui - o reset acontece dentro do generateMindMap após renderização
             return;
         }
         const systemPrompt = {
@@ -3134,12 +3134,22 @@ Gere o mapa mental seguindo ESTRITAMENTE estas regras.`;
             }
 
             this.updateProcessingMessage(messageId, '<div>Mermaid não disponível.</div>');
-            this.resetMindMapMode();
+            // Resetar com delay quando Mermaid não está disponível
+            setTimeout(() => {
+                if (window.ui && window.ui.resetMindMapMode) {
+                    window.ui.resetMindMapMode();
+                }
+            }, 1000);
         } catch (error) {
             console.error('[MINDMAP] Erro:', error);
             const fallbackId = processingId || this.addAssistantMessage('Erro ao gerar mapa mental.');
             this.updateProcessingMessage(fallbackId, `<div>Erro ao gerar mapa mental: ${this.escapeHtml(error.message)}</div>`);
-            this.resetMindMapMode();
+            // Resetar com delay em caso de erro
+            setTimeout(() => {
+                if (window.ui && window.ui.resetMindMapMode) {
+                    window.ui.resetMindMapMode();
+                }
+            }, 1000);
         }
     }
 
