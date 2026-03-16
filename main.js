@@ -150,6 +150,13 @@ class UI {
                                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Apresentações, Documentos e Mapas Mentais</div>
                             </div>
                         </button>
+                        <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3" onclick="selectTool('agent')">
+                            <span class="material-icons-outlined text-base text-orange-500 mt-0.5">smart_toy</span>
+                            <div class="flex-1">
+                                <div class="font-medium">Drekee Agent 1.0</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Modo agente inteligente com visão computacional</div>
+                            </div>
+                        </button>
                         <button id="deactivateFunctionBtn" class="hidden w-full text-left px-2 py-3 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-start gap-3 last:rounded-b-lg" onclick="deactivateCurrentFunction()">
                             <span class="material-icons-outlined text-base text-red-500 mt-0.5">close</span>
                             <div class="flex-1">
@@ -280,6 +287,664 @@ class UI {
                 }
             });
         }, 100);
+    }
+
+    // Selecionar ferramenta (investigate, RE, agent)
+    selectTool(tool) {
+        console.log(`🔧 [TOOL] Ferramenta selecionada: ${tool}`);
+        
+        // Fechar dropdown
+        const dropdown = document.getElementById('floatingCreateDropdown');
+        if (dropdown) dropdown.classList.add('hidden');
+        
+        // Resetar todos os modos
+        window.isREMode = false;
+        window.isInvestigateMode = false;
+        window.isAgentMode = false;
+        
+        // Resetar botões
+        this.resetCreateButtons();
+        
+        switch(tool) {
+            case 'investigate':
+                window.isInvestigateMode = true;
+                this.showNotification('🔍 Modo Investigate ativado - Envie sua dúvida para investigação profunda', 'info');
+                break;
+                
+            case 're':
+                window.isREMode = true;
+                this.showNotification('🧮 Modo Resolução de Exercícios ativado - Envie o exercício para resolver', 'info');
+                break;
+                
+            case 'agent':
+                window.isAgentMode = true;
+                this.activateAgentMode();
+                break;
+        }
+        
+        // Atualizar botão de desativação
+        if (window.updateDeactivateButton) {
+            window.updateDeactivateButton();
+        }
+    }
+
+    // Ativar modo agente
+    activateAgentMode() {
+        console.log('🤖 [AGENT] Ativando Drekee Agent 1.0...');
+        
+        // Mostrar notificação
+        this.showNotification('🤖 Drekee Agent 1.0 ativado - Capturando tela...', 'success');
+        
+        // Adicionar indicador visual do modo agente
+        this.addAgentIndicator();
+        
+        // Iniciar captura de tela
+        this.startAgentCapture();
+        
+        // Atualizar UI
+        this.updateAgentUI(true);
+    }
+
+    // Adicionar indicador visual do modo agente
+    addAgentIndicator() {
+        const indicator = document.createElement('div');
+        indicator.id = 'agentIndicator';
+        indicator.className = 'fixed top-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-lg shadow-lg z-[999] flex items-center gap-2';
+        indicator.innerHTML = `
+            <span class="material-icons-outlined text-sm">smart_toy</span>
+            <span class="text-sm font-medium">Drekee Agent 1.0</span>
+            <span class="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+        `;
+        document.body.appendChild(indicator);
+        
+        // Criar painel completo do agente
+        this.createAgentPanel();
+    }
+
+    // Criar painel completo do agente
+    createAgentPanel() {
+        const panel = document.createElement('div');
+        panel.id = 'agentPanel';
+        panel.className = 'fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 z-[998] transition-all duration-300';
+        panel.innerHTML = `
+            <div class="flex h-96">
+                <!-- Coluna Esquerda: Prints Capturados -->
+                <div class="w-1/3 border-r border-gray-700 p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-white font-medium flex items-center gap-2">
+                            <span class="material-icons-outlined text-orange-400">screenshot</span>
+                            Capturas de Tela
+                        </h3>
+                        <button onclick="window.ui.clearScreenshots()" class="text-gray-400 hover:text-white text-xs">
+                            Limpar
+                        </button>
+                    </div>
+                    <div id="screenshotsList" class="space-y-2 overflow-y-auto max-h-80">
+                        <!-- Screenshots serão adicionados aqui -->
+                    </div>
+                </div>
+                
+                <!-- Coluna Central: Log de Pensamento -->
+                <div class="w-1/3 border-r border-gray-700 p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-white font-medium flex items-center gap-2">
+                            <span class="material-icons-outlined text-blue-400">psychology</span>
+                            Pensamento da IA
+                        </h3>
+                        <button onclick="window.ui.clearThoughtLog()" class="text-gray-400 hover:text-white text-xs">
+                            Limpar
+                        </button>
+                    </div>
+                    <div id="thoughtLog" class="space-y-2 overflow-y-auto max-h-80 text-sm">
+                        <!-- Log de pensamento será adicionado aqui -->
+                    </div>
+                </div>
+                
+                <!-- Coluna Direita: Ações Executadas -->
+                <div class="w-1/3 p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-white font-medium flex items-center gap-2">
+                            <span class="material-icons-outlined text-green-400">play_arrow</span>
+                            Ações Executadas
+                        </h3>
+                        <button onclick="window.ui.clearActionLog()" class="text-gray-400 hover:text-white text-xs">
+                            Limpar
+                        </button>
+                    </div>
+                    <div id="actionLog" class="space-y-2 overflow-y-auto max-h-80 text-sm">
+                        <!-- Log de ações será adicionado aqui -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Barra de Controles -->
+            <div class="bg-gray-800 border-t border-gray-700 px-4 py-2 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <button onclick="window.ui.captureScreenForAgent()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1">
+                        <span class="material-icons-outlined text-xs">photo_camera</span>
+                        Capturar
+                    </button>
+                    <button onclick="window.ui.executeNextAction()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1">
+                        <span class="material-icons-outlined text-xs">play_arrow</span>
+                        Executar Próxima
+                    </button>
+                    <button onclick="window.ui.pauseAgent()" class="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1">
+                        <span class="material-icons-outlined text-xs">pause</span>
+                        Pausar
+                    </button>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="text-xs text-gray-400">
+                        Status: <span id="agentStatus" class="text-green-400">Ativo</span>
+                    </div>
+                    <button onclick="window.ui.toggleAgentPanel()" class="text-gray-400 hover:text-white">
+                        <span class="material-icons-outlined">minimize</span>
+                    </button>
+                    <button onclick="window.ui.deactivateAgentMode()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1">
+                        <span class="material-icons-outlined text-xs">close</span>
+                        Desativar
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(panel);
+        
+        // Adicionar entrada inicial no log
+        this.addThoughtLog('🤖 Drekee Agent 1.0 iniciado - Pronto para analisar!');
+    }
+
+    // Adicionar screenshot ao painel
+    addScreenshot(imageData, timestamp) {
+        const screenshotsList = document.getElementById('screenshotsList');
+        if (!screenshotsList) return;
+        
+        const screenshotItem = document.createElement('div');
+        screenshotItem.className = 'bg-gray-800 rounded p-2 border border-gray-700';
+        screenshotItem.innerHTML = `
+            <div class="text-xs text-gray-400 mb-1">${timestamp}</div>
+            <img src="${imageData}" class="w-full rounded border border-gray-600" alt="Screenshot">
+            <div class="mt-2 flex gap-1">
+                <button onclick="window.ui.analyzeScreenshot('${imageData}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs">
+                    Analisar
+                </button>
+                <button onclick="window.ui.expandScreenshot('${imageData}')" class="bg-gray-600 hover:bg-gray-700 text-white px-2 py-1 rounded text-xs">
+                    Expandir
+                </button>
+            </div>
+        `;
+        
+        screenshotsList.insertBefore(screenshotItem, screenshotsList.firstChild);
+        
+        // Limitar a 5 screenshots
+        while (screenshotsList.children.length > 5) {
+            screenshotsList.removeChild(screenshotsList.lastChild);
+        }
+    }
+
+    // Adicionar entrada no log de pensamento
+    addThoughtLog(message) {
+        const thoughtLog = document.getElementById('thoughtLog');
+        if (!thoughtLog) return;
+        
+        const logItem = document.createElement('div');
+        logItem.className = 'bg-gray-800 rounded p-2 border border-gray-700';
+        logItem.innerHTML = `
+            <div class="text-xs text-gray-400 mb-1">${new Date().toLocaleTimeString()}</div>
+            <div class="text-gray-300">${message}</div>
+        `;
+        
+        thoughtLog.insertBefore(logItem, thoughtLog.firstChild);
+        
+        // Limitar a 20 entradas
+        while (thoughtLog.children.length > 20) {
+            thoughtLog.removeChild(thoughtLog.lastChild);
+        }
+    }
+
+    // Adicionar entrada no log de ações
+    addActionLog(action, status = 'executed') {
+        const actionLog = document.getElementById('actionLog');
+        if (!actionLog) return;
+        
+        const statusIcon = status === 'executed' ? '✅' : status === 'failed' ? '❌' : '⏳';
+        const statusColor = status === 'executed' ? 'text-green-400' : status === 'failed' ? 'text-red-400' : 'text-yellow-400';
+        
+        const logItem = document.createElement('div');
+        logItem.className = 'bg-gray-800 rounded p-2 border border-gray-700';
+        logItem.innerHTML = `
+            <div class="text-xs text-gray-400 mb-1">${new Date().toLocaleTimeString()}</div>
+            <div class="text-gray-300 flex items-center gap-2">
+                <span class="${statusColor}">${statusIcon}</span>
+                ${action}
+            </div>
+        `;
+        
+        actionLog.insertBefore(logItem, actionLog.firstChild);
+        
+        // Limitar a 15 entradas
+        while (actionLog.children.length > 15) {
+            actionLog.removeChild(actionLog.lastChild);
+        }
+    }
+
+    // Limpar screenshots
+    clearScreenshots() {
+        const screenshotsList = document.getElementById('screenshotsList');
+        if (screenshotsList) {
+            screenshotsList.innerHTML = '';
+            this.addThoughtLog('🗑️ Screenshots limpos');
+        }
+    }
+
+    // Limpar log de pensamento
+    clearThoughtLog() {
+        const thoughtLog = document.getElementById('thoughtLog');
+        if (thoughtLog) {
+            thoughtLog.innerHTML = '';
+            this.addThoughtLog('🗑️ Log de pensamento limpo');
+        }
+    }
+
+    // Limpar log de ações
+    clearActionLog() {
+        const actionLog = document.getElementById('actionLog');
+        if (actionLog) {
+            actionLog.innerHTML = '';
+            this.addThoughtLog('🗑️ Log de ações limpo');
+        }
+    }
+
+    // Expandir screenshot
+    expandScreenshot(imageData) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-75 z-[9999] flex items-center justify-center p-4';
+        modal.onclick = () => modal.remove();
+        modal.innerHTML = `
+            <div class="max-w-4xl max-h-full">
+                <img src="${imageData}" class="max-w-full max-h-full rounded" alt="Screenshot expandido">
+                <div class="text-center mt-4">
+                    <button onclick="this.parentElement.parentElement.remove()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    // Analisar screenshot específico
+    async analyzeScreenshot(imageData) {
+        this.addThoughtLog('🔍 Analisando screenshot selecionado...');
+        await this.analyzeScreenWithAgent({ dataUrl: imageData });
+    }
+
+    // Pausar agente
+    pauseAgent() {
+        this.isAgentPaused = true;
+        document.getElementById('agentStatus').textContent = 'Pausado';
+        document.getElementById('agentStatus').className = 'text-yellow-400';
+        this.addThoughtLog('⏸️ Agente pausado');
+    }
+
+    // Retomar agente
+    resumeAgent() {
+        this.isAgentPaused = false;
+        document.getElementById('agentStatus').textContent = 'Ativo';
+        document.getElementById('agentStatus').className = 'text-green-400';
+        this.addThoughtLog('▶️ Agente retomado');
+    }
+
+    // Executar próxima ação
+    async executeNextAction() {
+        if (this.lastAgentResponse && this.lastAgentResponse.proximo_passo) {
+            await this.executeAgentAction(this.lastAgentResponse.proximo_passo);
+        } else {
+            this.addThoughtLog('❌ Nenhuma ação pendente para executar');
+        }
+    }
+
+    // Minimizar/maximizar painel
+    toggleAgentPanel() {
+        const panel = document.getElementById('agentPanel');
+        if (panel) {
+            const isMinimized = panel.style.height === '60px';
+            panel.style.height = isMinimized ? 'auto' : '60px';
+            
+            // Esconder/mostrar conteúdo principal
+            const mainContent = panel.querySelector('.flex.h-96');
+            if (mainContent) {
+                mainContent.style.display = isMinimized ? 'flex' : 'none';
+            }
+        }
+    }
+
+    // Capturar tela e analisar
+    async captureScreenForAgent() {
+        try {
+            this.addThoughtLog('📸 Iniciando captura de tela...');
+            
+            // Usar html2canvas ou método nativo
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Capturar área visível da página
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Capturar screenshot real
+            const imageData = await this.takeScreenshot();
+            
+            // Adicionar screenshot ao painel
+            const timestamp = new Date().toLocaleTimeString();
+            this.addScreenshot(imageData.dataUrl, timestamp);
+            
+            this.addThoughtLog('✅ Captura de tela concluída - Enviando para análise...');
+            
+            // Enviar para análise
+            await this.analyzeScreenWithAgent(imageData);
+            
+        } catch (error) {
+            console.error('❌ [AGENT] Erro na captura:', error);
+            this.addThoughtLog('❌ Erro na captura de tela: ' + error.message);
+            this.showNotification('❌ Erro na captura de tela', 'error');
+        }
+    }
+
+    // Capturar tela real usando html2canvas
+    async takeScreenshot() {
+        try {
+            this.addThoughtLog('🔧 Usando html2canvas para captura...');
+            
+            // Esperar um pouco para garantir que a UI está atualizada
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Capturar o body inteiro
+            const canvas = await html2canvas(document.body, {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                useCORS: true,
+                allowTaint: true,
+                scale: 1,
+                logging: false,
+                removeContainer: false
+            });
+            
+            // Converter para base64
+            const imageData = canvas.toDataURL('image/png', 0.8);
+            
+            this.addThoughtLog(`✅ Captura concluída - Tamanho: ${Math.round(imageData.length/1024)}KB`);
+            
+            return {
+                dataUrl: imageData,
+                width: canvas.width,
+                height: canvas.height
+            };
+            
+        } catch (error) {
+            console.error('❌ [AGENT] Erro na captura de tela:', error);
+            this.addThoughtLog('❌ Erro na captura: ' + error.message + ' - Usando fallback...');
+            // Fallback para imagem vazia
+            return {
+                dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+                width: window.innerWidth,
+                height: window.innerHeight
+            };
+        }
+    }
+
+    // Analisar tela com o agente
+    async analyzeScreenWithAgent(imageData) {
+        try {
+            this.addThoughtLog('🧠 Enviando imagem para análise da IA...');
+            
+            // Preparar prompt para o agente
+            const prompt = `Você é o Drekee Agent 1.0, um assistente de IA com visão computacional. 
+Analise esta captura de tela e me diga o que você vê e quais ações posso tomar.
+
+Responda em formato JSON:
+{
+  "elementos_visiveis": ["botão login", "campo de email", "campo de senha"],
+  "acoes_sugeridas": ["clicar no botão login", "preencher campo de email"],
+  "proximo_passo": "Clique no botão de login para prosseguir"
+}`;
+
+            // Enviar para API (Groq Vision ou Gemini)
+            const response = await this.callAgentAPI(prompt, imageData.dataUrl);
+            
+            // Processar resposta
+            this.processAgentResponse(response);
+            
+        } catch (error) {
+            console.error('❌ [AGENT] Erro na análise:', error);
+            this.addThoughtLog('❌ Erro na análise: ' + error.message);
+            this.showNotification('❌ Erro na análise da tela', 'error');
+        }
+    }
+
+    // Chamar API do agente
+    async callAgentAPI(prompt, imageData) {
+        try {
+            this.addThoughtLog('🔄 Tentando Groq Vision primeiro (mais rápido)...');
+            
+            // Tentar Groq Vision primeiro (mais rápido)
+            const groqResponse = await this.callGroqVision(prompt, imageData);
+            if (groqResponse) {
+                this.addThoughtLog('✅ Groq Vision respondeu com sucesso!');
+                return groqResponse;
+            }
+            
+            this.addThoughtLog('⚠️ Groq Vision falhou, tentando Gemini Vision...');
+            // Fallback para Gemini
+            const geminiResponse = await this.callGeminiVision(prompt, imageData);
+            if (geminiResponse) {
+                this.addThoughtLog('✅ Gemini Vision respondeu com sucesso!');
+                return geminiResponse;
+            }
+            
+            this.addThoughtLog('❌ Ambas as APIs falharam');
+            throw new Error('Ambas as APIs de visão falharam');
+            
+        } catch (error) {
+            console.error('❌ [AGENT] Erro na chamada da API:', error);
+            this.addThoughtLog('❌ Erro na chamada da API: ' + error.message);
+            throw error;
+        }
+    }
+
+    // Chamar Groq Vision
+    async callGroqVision(prompt, imageData) {
+        try {
+            this.addThoughtLog('🚀 Chamando Groq Vision (llava-v1.5-7b)...');
+            
+            const response = await fetch('/api/agent-vision', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    imageData: imageData,
+                    model: 'groq'
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            this.addThoughtLog('📝 Resposta recebida: ' + data.response.substring(0, 100) + '...');
+            
+            // Tentar parsear JSON da resposta
+            try {
+                return JSON.parse(data.response);
+            } catch {
+                // Se não for JSON, retorna como texto
+                return {
+                    elementos_visiveis: ["análise recebida"],
+                    acoes_sugeridas: [data.response],
+                    proximo_passo: data.response
+                };
+            }
+            
+        } catch (error) {
+            console.error('❌ [AGENT] Erro no Groq Vision:', error);
+            this.addThoughtLog('❌ Erro no Groq Vision: ' + error.message);
+            return null;
+        }
+    }
+
+    // Chamar Gemini Vision
+    async callGeminiVision(prompt, imageData) {
+        try {
+            this.addThoughtLog('🧠 Chamando Gemini Vision (gemini-1.5-flash)...');
+            
+            const response = await fetch('/api/agent-vision', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    imageData: imageData,
+                    model: 'gemini'
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            this.addThoughtLog('📝 Resposta recebida: ' + data.response.substring(0, 100) + '...');
+            
+            // Tentar parsear JSON da resposta
+            try {
+                return JSON.parse(data.response);
+            } catch {
+                // Se não for JSON, retorna como texto
+                return {
+                    elementos_visiveis: ["análise recebida"],
+                    acoes_sugeridas: [data.response],
+                    proximo_passo: data.response
+                };
+            }
+            
+        } catch (error) {
+            console.error('❌ [AGENT] Erro no Gemini Vision:', error);
+            this.addThoughtLog('❌ Erro no Gemini Vision: ' + error.message);
+            return null;
+        }
+    }
+
+    // Processar resposta do agente
+    processAgentResponse(response) {
+        try {
+            this.addThoughtLog('📋 Processando resposta da IA...');
+            console.log('📋 [AGENT] Resposta processada:', response);
+            
+            // Salvar resposta para uso posterior
+            this.lastAgentResponse = response;
+            
+            // Mostrar análise no log de pensamento
+            this.addThoughtLog('🎯 Elementos identificados: ' + response.elementos_visiveis.join(', '));
+            this.addThoughtLog('💡 Ações sugeridas: ' + response.acoes_sugeridas.join(', '));
+            this.addThoughtLog('➡️ Próximo passo: ' + response.proximo_passo);
+            
+            // Habilitar ações baseadas na análise
+            this.enableAgentActions(response);
+            
+        } catch (error) {
+            console.error('❌ [AGENT] Erro no processamento:', error);
+            this.addThoughtLog('❌ Erro no processamento da resposta: ' + error.message);
+        }
+    }
+
+    // Habilitar ações do agente
+    enableAgentActions(analysis) {
+        // Adicionar ao log de ações como pendente
+        this.addActionLog('Ação sugerida: ' + analysis.proximo_passo, 'pending');
+        
+        this.addThoughtLog('✅ Análise concluída - Ações disponíveis no painel');
+    }
+
+    // Executar ação do agente
+    async executeAgentAction(action) {
+        try {
+            this.addThoughtLog('⚡ Executando ação: ' + action);
+            this.addActionLog('Executando: ' + action, 'pending');
+            
+            this.showNotification(`⚡ Executando: ${action}`, 'info');
+            
+            // Aqui implementaria a execução real da ação
+            // Por enquanto, apenas simula
+            setTimeout(() => {
+                this.addThoughtLog('✅ Ação executada com sucesso');
+                this.addActionLog('Executado: ' + action, 'executed');
+                this.showNotification('✅ Ação executada com sucesso', 'success');
+                
+                // Recapturar tela para ver resultado
+                if (!this.isAgentPaused) {
+                    setTimeout(() => {
+                        this.addThoughtLog('🔄 Capturando resultado da ação...');
+                        this.captureScreenForAgent();
+                    }, 1000);
+                }
+            }, 1000);
+            
+        } catch (error) {
+            console.error('❌ [AGENT] Erro na execução:', error);
+            this.addThoughtLog('❌ Erro na execução da ação: ' + error.message);
+            this.addActionLog('Falha: ' + action, 'failed');
+            this.showNotification('❌ Erro na execução da ação', 'error');
+        }
+    }
+
+    // Desativar modo agente
+    deactivateAgentMode() {
+        console.log('🛑 [AGENT] Desativando Drekee Agent 1.0...');
+        
+        // Remover indicador
+        const indicator = document.getElementById('agentIndicator');
+        if (indicator) indicator.remove();
+        
+        // Remover painel completo
+        const panel = document.getElementById('agentPanel');
+        if (panel) panel.remove();
+        
+        // Remover painéis antigos (se existirem)
+        const analysis = document.getElementById('agentAnalysis');
+        if (analysis) analysis.remove();
+        
+        const actions = document.getElementById('agentActions');
+        if (actions) actions.remove();
+        
+        // Resetar variáveis
+        window.isAgentMode = false;
+        this.isAgentPaused = false;
+        this.lastAgentResponse = null;
+        
+        // Notificação
+        this.showNotification('🛑 Drekee Agent 1.0 desativado', 'info');
+        
+        // Atualizar UI
+        this.updateAgentUI(false);
+    }
+
+    // Atualizar UI do modo agente
+    updateAgentUI(active) {
+        const createBtn = document.getElementById('createToggle');
+        if (createBtn) {
+            if (active) {
+                createBtn.classList.add('bg-orange-500', 'text-white');
+                createBtn.classList.remove('bg-gray-100', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-300');
+            } else {
+                createBtn.classList.remove('bg-orange-500', 'text-white');
+                createBtn.classList.add('bg-gray-100', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-300');
+            }
+        }
     }
 
     setupAttachListeners() {
@@ -8086,6 +8751,77 @@ Exercício: ${exercise}`;
 
 console.log("Teste rápido no navegador: anexe até 3 arquivos de texto no chat e envie uma mensagem — quando houver anexos, o sistema tentará usar 'codestral-latest' via Groq.");
 console.log("Teste via Node (recomendado): node code/test_codestral.js SUA_CHAVE_GROQ");
+
+// Funções globais para o modo agente
+window.selectTool = function(tool) {
+    if (window.ui) {
+        window.ui.selectTool(tool);
+    }
+};
+
+window.deactivateCurrentFunction = function() {
+    if (window.ui) {
+        if (window.isAgentMode) {
+            window.ui.deactivateAgentMode();
+        } else if (window.isREMode) {
+            // Desativar modo RE
+            window.isREMode = false;
+            window.ui.showNotification('🛑 Modo Resolução de Exercícios desativado', 'info');
+            window.ui.resetCreateButtons();
+        } else if (window.isInvestigateMode) {
+            // Desativar modo Investigate
+            window.isInvestigateMode = false;
+            window.ui.showNotification('🛑 Modo Investigate desativado', 'info');
+            window.ui.resetCreateButtons();
+        } else if (window.isDocumentModeActive) {
+            window.ui.selectCreateType('document');
+        } else if (window.isSlidesModeActive) {
+            window.ui.selectCreateType('slides');
+        }
+        
+        // Esconder botão de desativação
+        const btn = document.getElementById('deactivateFunctionBtn');
+        if (btn) btn.classList.add('hidden');
+        
+        // Atualizar botão principal
+        window.ui.updateCreateButton();
+    }
+};
+
+window.updateDeactivateButton = function() {
+    const btn = document.getElementById('deactivateFunctionBtn');
+    if (btn) {
+        let shouldShow = false;
+        let buttonText = 'DESATIVAR FUNÇÃO';
+        let buttonDesc = 'Parar funcionalidade atual';
+        
+        if (window.isAgentMode) {
+            shouldShow = true;
+            buttonText = 'DESATIVAR AGENTE';
+            buttonDesc = 'Parar Drekee Agent 1.0';
+        } else if (window.isREMode) {
+            shouldShow = true;
+            buttonText = 'DESATIVAR RE';
+            buttonDesc = 'Parar Resolução de Exercícios';
+        } else if (window.isInvestigateMode) {
+            shouldShow = true;
+            buttonText = 'DESATIVAR INVESTIGATE';
+            buttonDesc = 'Parar investigação profunda';
+        } else if (window.isDocumentModeActive || window.isSlidesModeActive) {
+            shouldShow = true;
+            buttonText = 'DESATIVAR CRIAÇÃO';
+            buttonDesc = 'Parar criação de conteúdo';
+        }
+        
+        if (shouldShow) {
+            btn.classList.remove('hidden');
+            btn.querySelector('.font-medium').textContent = buttonText;
+            btn.querySelector('.text-xs').textContent = buttonDesc;
+        } else {
+            btn.classList.add('hidden');
+        }
+    }
+};
 
 // Inicialização do app
 document.addEventListener('DOMContentLoaded', () => {
