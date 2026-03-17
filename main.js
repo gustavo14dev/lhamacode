@@ -568,20 +568,26 @@ class UI {
     startAgentResponse() {
         this.isAgentResponding = true;
         this.agentTimeline = [];
+        this.agentTimelineQueue = [];
+        this.agentTimelineProcessing = false;
+        this.agentTimelineDelayMs = 2000;
         this.agentRunContext = {
             screenshots: 0,
             visitedUrl: null,
             pageTitle: null,
             mode: null,
             blocked: false,
-            request: null
+            request: null,
+            lastScreenshotData: null,
+            navigationTrail: [],
+            pageText: []
         };
         
         // Criar mensagem inicial do agente
         const agentMessage = `
-            <div class="agent-response-container bg-gray-900/95 border border-orange-500/40 rounded-2xl p-5 mb-4 shadow-soft">
+            <div class="agent-response-container bg-transparent border-0 rounded-none p-0 mb-6">
                 <div class="flex items-center gap-2 mb-4">
-                    <div class="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-400/30 flex items-center justify-center">
+                    <div class="w-9 h-9 rounded-full bg-orange-500/12 border border-orange-400/20 flex items-center justify-center">
                         <span class="text-orange-300 text-sm">AI</span>
                     </div>
                     <div>
@@ -609,20 +615,72 @@ class UI {
     }
 
     addAgentTimelineEntry(type, payload = {}) {
-        if (!this.agentTimeline) {
-            this.agentTimeline = [];
-        }
-
-        this.agentTimeline.push({
+        const entry = {
             id: `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             type,
             timestamp: new Date().toLocaleTimeString(),
             ...payload
-        });
+        };
 
-        if (this.agentResponseElement) {
-            this.updateAgentResponse();
+        if (!this.agentTimelineQueue) {
+            this.agentTimelineQueue = [];
         }
+
+        this.agentTimelineQueue.push(entry);
+        this.processAgentTimelineQueue();
+    }
+
+    async processAgentTimelineQueue() {
+        if (this.agentTimelineProcessing) {
+            return;
+        }
+
+        this.agentTimelineProcessing = true;
+
+        while (this.agentTimelineQueue && this.agentTimelineQueue.length > 0) {
+            const entry = this.agentTimelineQueue.shift();
+            const delay = this.getAgentTimelineDelay(entry);
+
+            if (delay > 0) {
+                await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+
+            if (!this.agentTimeline) {
+                this.agentTimeline = [];
+            }
+
+            this.agentTimeline.push(entry);
+
+            if (this.agentResponseElement) {
+                this.updateAgentResponse();
+            }
+        }
+
+        this.agentTimelineProcessing = false;
+    }
+
+    getAgentTimelineDelay(entry) {
+        if (!entry || !entry.type) {
+            return 0;
+        }
+
+        if (entry.type === 'thought') {
+            return this.agentTimelineDelayMs;
+        }
+
+        if (entry.type === 'screenshot') {
+            return 450;
+        }
+
+        if (entry.type === 'summary') {
+            return 700;
+        }
+
+        if (entry.type === 'status') {
+            return 500;
+        }
+
+        return 900;
     }
 
     // Atualizar resposta do agente (em tempo real)
@@ -681,22 +739,14 @@ class UI {
         }
 
         if (entry.type === 'screenshot') {
-            const caption = entry.caption ? `<div class="text-sm text-blue-100 mb-3">${this.escapeHtml(entry.caption)}</div>` : '';
             return `
-                <div class="flex items-start gap-3">
-                    <div class="mt-1 w-7 h-7 rounded-full bg-blue-500/15 border border-blue-400/25 flex items-center justify-center flex-shrink-0">
-                        <span class="text-sm">🖼️</span>
-                    </div>
-                    <div class="flex-1 bg-gray-800/80 rounded-2xl border border-blue-700/40 px-4 py-3">
-                        ${time}
-                        ${caption}
-                        <img
-                            src="${entry.data}"
-                            class="w-full max-w-2xl rounded-2xl border border-gray-600 cursor-zoom-in"
-                            alt="Captura do agente"
-                            onclick="window.ui.expandScreenshot(this.src)"
-                        >
-                    </div>
+                <div class="my-4">
+                    <img
+                        src="${entry.data}"
+                        class="block w-full max-w-3xl rounded-2xl border border-gray-700/70 cursor-zoom-in"
+                        alt="Captura do agente"
+                        onclick="window.ui.expandScreenshot(this.src)"
+                    >
                 </div>
             `;
         }
@@ -742,6 +792,7 @@ class UI {
     addAgentScreenshot(imageData, caption = '') {
         if (this.agentRunContext) {
             this.agentRunContext.screenshots += 1;
+            this.agentRunContext.lastScreenshotData = imageData;
         }
 
         this.addAgentTimelineEntry('screenshot', {
@@ -979,21 +1030,27 @@ Responda em formato JSON:
                 this.addAgentThoughtLog(`🌐 Vou abrir ${normalizedUrl} em um navegador controlado pelo agente.`);
                 this.addAgentAction(`Abrindo ${normalizedUrl}`, 'pending');
 
-                const session = await this.openAgentBrowserSession(normalizedUrl);
+                const session = await this.openAgentBrowserSession(normalizedUrl, cleanMessage);
                 this.agentRunContext.visitedUrl = session.currentUrl || normalizedUrl;
                 this.agentRunContext.mode = session.mode || 'live-browser';
+                this.agentRunContext.navigationTrail = Array.isArray(session.navigationTrail) ? session.navigationTrail : [];
+                this.agentRunContext.pageText = this.coerceAgentList(session?.page?.visibleText);
 
                 this.addAgentAction(`Site carregado: ${session.currentUrl || normalizedUrl}`, 'executed');
                 await this.analyzeOpenedSite(session, cleanMessage);
-                this.addAgentSummary('O que eu fiz', this.buildAgentExecutionSummary({
+                const finalText = await this.generateAgentFinalResponse({
                     request: cleanMessage,
                     targetUrl: session.currentUrl || normalizedUrl,
                     pageTitle: this.agentRunContext.pageTitle,
                     blocked: this.agentRunContext.blocked,
                     mode: this.agentRunContext.mode,
                     screenshots: this.agentRunContext.screenshots,
-                    analysis: this.lastAgentResponse
-                }));
+                    analysis: this.lastAgentResponse,
+                    pageText: this.agentRunContext.pageText,
+                    navigationTrail: this.agentRunContext.navigationTrail,
+                    screenshotData: this.agentRunContext.lastScreenshotData
+                });
+                this.addAgentSummary('Resposta do agente', finalText);
                 this.finishAgentResponse();
                 return;
             }
@@ -1029,15 +1086,19 @@ Responda em formato JSON:
                 this.processAgentResponse(fallback, { label: 'Tela atual' });
             }
 
-            this.addAgentSummary('O que eu fiz', this.buildAgentExecutionSummary({
+            const finalText = await this.generateAgentFinalResponse({
                 request: cleanMessage,
                 targetUrl: window.location.href,
                 pageTitle: document.title,
                 blocked: false,
                 mode: 'current-screen',
                 screenshots: this.agentRunContext.screenshots,
-                analysis: this.lastAgentResponse
-            }));
+                analysis: this.lastAgentResponse,
+                pageText: [],
+                navigationTrail: [],
+                screenshotData: this.agentRunContext.lastScreenshotData
+            });
+            this.addAgentSummary('Resposta do agente', finalText);
             this.finishAgentResponse();
         } catch (error) {
             console.error('❌ [AGENT] Erro no processamento:', error);
@@ -1070,13 +1131,13 @@ Responda em formato JSON:
         }
     }
 
-    async openAgentBrowserSession(url) {
+    async openAgentBrowserSession(url, task = '') {
         const response = await fetch('/api/agent-browser', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ url })
+            body: JSON.stringify({ url, task })
         });
 
         const data = await response.json();
@@ -1109,51 +1170,51 @@ Responda em formato JSON:
         }
 
         this.addAgentThoughtLog(`🪄 Navegacao concluida. Pagina detectada: ${readableTitle}`);
-        if (session?.mode === 'live-browser') {
-            this.addAgentThoughtLog('👀 Estou vendo capturas reais do site abertas pelo agente.');
-        } else if (session?.mode === 'hosted-screenshot' || session?.mode === 'site-protected-hosted') {
-            this.addAgentThoughtLog('👀 Estou vendo uma captura compativel do site para seguir com a tarefa.');
+        if (Array.isArray(session?.navigationTrail)) {
+            for (const step of session.navigationTrail) {
+                if (step?.success && step?.matchedText) {
+                    this.addAgentThoughtLog(`➡️ Naveguei para "${step.matchedText}".`);
+                }
+            }
         }
 
-        if (pageContext.description) {
-            this.addAgentThoughtLog(`📝 Descricao detectada no HTML: ${pageContext.description}`);
+        screenshots.forEach((screenshot) => {
+            this.addAgentScreenshot(screenshot.dataUrl, screenshot.label || '');
+        });
+
+        const targetScreenshot = screenshots[screenshots.length - 1] || null;
+        if (!targetScreenshot) {
+            return;
         }
 
-        for (const screenshot of screenshots) {
-            this.addAgentThoughtLog(`📸 ${screenshot.note || screenshot.label || 'Nova captura feita pelo navegador do agente.'}`);
-            this.addAgentScreenshot(screenshot.dataUrl, screenshot.label || 'Captura do site');
+        const fallbackAnalysis = this.buildAgentFallbackAnalysis(userMessage, {
+            currentUrl: session.currentUrl || session.requestedUrl,
+            title: session.title || pageContext.title,
+            description: pageContext.description,
+            headings: pageContext.headings,
+            interactiveElements: pageContext.interactiveElements
+        }, targetScreenshot);
 
-            const fallbackAnalysis = this.buildAgentFallbackAnalysis(userMessage, {
+        if (session?.mode !== 'live-browser') {
+            this.addAgentThoughtLog('🧠 IA pensando...');
+            this.processAgentResponse(fallbackAnalysis, { silent: true });
+            return;
+        }
+
+        try {
+            const prompt = this.buildAgentVisionPrompt(userMessage, {
                 currentUrl: session.currentUrl || session.requestedUrl,
                 title: session.title || pageContext.title,
                 description: pageContext.description,
                 headings: pageContext.headings,
                 interactiveElements: pageContext.interactiveElements
-            }, screenshot);
+            }, targetScreenshot);
 
-            if (session?.mode !== 'live-browser') {
-                this.addAgentThoughtLog('🧠 IA pensando...');
-                this.addAgentThoughtLog('⚠️ Usei um modo de visualizacao alternativo para continuar a tarefa.');
-                this.processAgentResponse(fallbackAnalysis, { label: screenshot.label || 'Captura do site' });
-                continue;
-            }
-
-            try {
-                const prompt = this.buildAgentVisionPrompt(userMessage, {
-                    currentUrl: session.currentUrl || session.requestedUrl,
-                    title: session.title || pageContext.title,
-                    description: pageContext.description,
-                    headings: pageContext.headings,
-                    interactiveElements: pageContext.interactiveElements
-                }, screenshot);
-
-                const response = await this.callAgentAPI(prompt, screenshot.dataUrl);
-                this.processAgentResponse(response, { label: screenshot.label || 'Captura do site' });
-            } catch (error) {
-                console.error('❌ [AGENT] Falha na visao do site, usando fallback estrutural:', error);
-                this.addAgentThoughtLog('⚠️ A leitura visual falhou; continuei com uma analise estrutural da pagina.');
-                this.processAgentResponse(fallbackAnalysis, { label: screenshot.label || 'Captura do site' });
-            }
+            const response = await this.callAgentAPI(prompt, targetScreenshot.dataUrl);
+            this.processAgentResponse(response, { silent: true });
+        } catch (error) {
+            console.error('❌ [AGENT] Falha na visao do site, usando fallback estrutural:', error);
+            this.processAgentResponse(fallbackAnalysis, { silent: true });
         }
     }
 
@@ -1272,30 +1333,7 @@ Analise a imagem e responda com este formato:
             const normalized = this.normalizeAgentAnalysis(response);
 
             this.lastAgentResponse = normalized;
-
-            const elementos = this.coerceAgentList(normalized.elementos_visiveis || normalized.elementos_interativos);
-            const acoes = this.coerceAgentList(normalized.acoes_sugeridas || normalized.acoes_possiveis);
-            const proximo = normalized.proximo_passo || 'Analisar pagina para proximos passos';
-
-            if (meta.label) {
-                this.addAgentThoughtLog(`🧾 Resultado da captura "${meta.label}":`);
-            }
-
-            this.addAgentThoughtLog('📄 Pagina atual: ' + (normalized.pagina_atual || 'Pagina web detectada'));
-            if (elementos.length > 0) {
-                this.addAgentThoughtLog('🎯 Elementos interativos: ' + elementos.join(', '));
-            }
-            if (acoes.length > 0) {
-                this.addAgentThoughtLog('💡 Acoes possiveis: ' + acoes.join(', '));
-            }
-            this.addAgentThoughtLog('➡️ Proximo passo: ' + proximo);
-
-            this.enableAgentActions({
-                ...normalized,
-                elementos_visiveis: elementos,
-                acoes_sugeridas: acoes,
-                proximo_passo: proximo
-            });
+            this.enableAgentActions(normalized);
             
         } catch (error) {
             console.error('❌ [AGENT] Erro no processamento:', error);
@@ -1395,52 +1433,250 @@ Analise a imagem e responda com este formato:
         };
     }
 
-    buildAgentExecutionSummary({ request, targetUrl, pageTitle, blocked, mode, screenshots, analysis }) {
-        const elementos = this.coerceAgentList(analysis?.elementos_interativos || analysis?.elementos_visiveis).slice(0, 3);
-        const acoes = this.coerceAgentList(analysis?.acoes_possiveis || analysis?.acoes_sugeridas).slice(0, 3);
-        const proximo = analysis?.proximo_passo || '';
+    async generateAgentFinalResponse(context) {
+        const dominantColor = context?.screenshotData
+            ? await this.detectDominantColorNameFromDataUrl(context.screenshotData)
+            : null;
 
-        const lines = [];
-        lines.push(`Recebi o pedido: "${request}".`);
+        const navigationTrail = Array.isArray(context?.navigationTrail)
+            ? context.navigationTrail.filter((step) => step && step.success)
+            : [];
 
-        if (targetUrl) {
-            lines.push(`Abri ou tentei abrir o alvo ${targetUrl}.`);
-        } else {
-            lines.push('Analisei a tela atual do aplicativo.');
+        const pageText = this.coerceAgentList(context?.pageText).slice(0, 30);
+        const analysis = context?.analysis || {};
+        const analysisJson = JSON.stringify({
+            pagina_atual: analysis?.pagina_atual || '',
+            elementos_interativos: this.coerceAgentList(analysis?.elementos_interativos || analysis?.elementos_visiveis).slice(0, 8),
+            acoes_possiveis: this.coerceAgentList(analysis?.acoes_possiveis || analysis?.acoes_sugeridas).slice(0, 8),
+            proximo_passo: analysis?.proximo_passo || ''
+        });
+
+        const prompt = `Pedido original do usuario:
+${context?.request || ''}
+
+Contexto coletado pelo agente:
+- URL alvo/final: ${context?.targetUrl || 'nao informada'}
+- Modo usado: ${context?.mode || 'desconhecido'}
+- Pagina final identificada: ${context?.pageTitle || 'desconhecida'}
+- Site bloqueou automacao: ${context?.blocked ? 'sim' : 'nao'}
+- Quantidade de capturas: ${context?.screenshots || 0}
+- Cor predominante aproximada da captura final: ${dominantColor || 'nao detectada'}
+- Caminho de navegacao: ${navigationTrail.length ? navigationTrail.map((step) => step.matchedText || step.targetHint || step.currentUrl).join(' -> ') : 'sem navegacao adicional'}
+- Texto visivel coletado na pagina final:
+${pageText.length ? pageText.join('\n') : 'sem texto relevante extraido'}
+- Analise estruturada:
+${analysisJson}
+
+Escreva a resposta final em portugues do Brasil, como se fosse a resposta principal do agente para o usuario.
+Regras:
+- responda diretamente ao que o usuario pediu;
+- diga o que o agente conseguiu fazer e o que encontrou;
+- se o usuario pediu uma cor, informe a cor predominante;
+- se o usuario pediu uma lista de itens/modelos, entregue a lista em formato claro;
+- se o site bloqueou automacao, explique isso sem linguagem tecnica demais;
+- produza uma resposta maior e natural, em 2 a 5 paragrafos curtos ou com lista quando fizer sentido;
+- nao mencione Gemini, Groq, prompt, JSON ou detalhes internos.`;
+
+        try {
+            const groqText = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
+                {
+                    role: 'system',
+                    content: 'Voce e o Drekee Agent 1.0. Responda em portugues do Brasil, de forma natural, clara e util.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ]);
+
+            if (groqText && groqText.trim()) {
+                return groqText.trim();
+            }
+        } catch (error) {
+            console.error('❌ [AGENT] Erro ao gerar resumo final com Groq:', error);
         }
 
+        try {
+            const geminiText = await this.callAgentTextSummaryGemini(prompt);
+            if (geminiText && geminiText.trim()) {
+                return geminiText.trim();
+            }
+        } catch (error) {
+            console.error('❌ [AGENT] Erro ao gerar resumo final com Gemini:', error);
+        }
+
+        return this.buildAgentFallbackNarrative({
+            ...context,
+            dominantColor,
+            navigationTrail,
+            pageText,
+            analysis
+        });
+    }
+
+    async callAgentTextSummaryGemini(prompt) {
+        const formData = new FormData();
+        formData.append('message', prompt);
+        formData.append('context', JSON.stringify([]));
+        formData.append('model', 'gemini-2.5-flash');
+
+        const response = await fetch('/api/gemini-chat', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Falha no resumo via Gemini');
+        }
+
+        return data.text || '';
+    }
+
+    buildAgentFallbackNarrative({ request, targetUrl, pageTitle, blocked, mode, screenshots, analysis, dominantColor, navigationTrail, pageText }) {
+        const parts = [];
+        parts.push(`Entrei no alvo ${targetUrl || 'solicitado'} para atender ao pedido "${request}".`);
+
         if (blocked) {
-            lines.push('O site respondeu com protecao automatizada, entao eu nao consegui ver a pagina real do jeito normal.');
-            lines.push(mode === 'site-protected-hosted'
-                ? 'Para nao travar o fluxo, usei uma captura compativel do site e extraí o contexto disponivel.'
-                : 'Para nao travar o fluxo, usei uma visualizacao alternativa/resumida do site.');
-        } else if (mode === 'live-browser') {
-            lines.push('Consegui navegar com o browser do agente e capturar a pagina visualmente.');
-        } else if (mode === 'current-screen') {
-            lines.push('Usei a captura da interface atual para entender o contexto.');
+            parts.push('O site apresentou uma protecao contra automacao, entao eu nao consegui navegar livremente por todas as areas da pagina.');
+            parts.push(mode === 'site-protected-hosted'
+                ? 'Mesmo assim, usei uma visualizacao compativel do site para extrair o maximo de contexto possivel.'
+                : 'Mesmo assim, montei uma visualizacao resumida para nao interromper a tarefa.');
+        } else {
+            parts.push('Consegui abrir a pagina e acompanhar o conteudo visual para analisar o que estava nela.');
+        }
+
+        if (navigationTrail && navigationTrail.length) {
+            parts.push(`Durante a navegacao, passei por: ${navigationTrail.map((step) => step.matchedText || step.targetHint || step.currentUrl).join(' -> ')}.`);
         }
 
         if (pageTitle) {
-            lines.push(`Pagina identificada: ${pageTitle}.`);
+            parts.push(`A pagina final identificada foi "${pageTitle}".`);
+        }
+
+        if (/cor|color/i.test(request || '') && dominantColor) {
+            parts.push(`Pela captura final, a cor predominante parece ser ${dominantColor}.`);
+        }
+
+        const visibleItems = this.extractRelevantItemsFromPageText(request, pageText || []);
+        if (visibleItems.length) {
+            parts.push(`Os itens mais relevantes que encontrei foram: ${visibleItems.join(', ')}.`);
+        } else if (analysis?.pagina_atual) {
+            parts.push(`O que consegui identificar da pagina foi: ${analysis.pagina_atual}.`);
         }
 
         if (screenshots) {
-            lines.push(`Quantidade de capturas geradas: ${screenshots}.`);
+            parts.push(`Gerei ${screenshots} captura${screenshots > 1 ? 's' : ''} durante o processo.`);
         }
 
-        if (elementos.length) {
-            lines.push(`Elementos relevantes encontrados: ${elementos.join(', ')}.`);
+        if (analysis?.proximo_passo) {
+            parts.push(`Se quiser continuar, o proximo passo natural seria: ${analysis.proximo_passo}.`);
         }
 
-        if (acoes.length) {
-            lines.push(`Acoes que identifiquei: ${acoes.join(', ')}.`);
+        return parts.join('\n\n');
+    }
+
+    extractRelevantItemsFromPageText(request, pageText = []) {
+        const cleanItems = this.coerceAgentList(pageText)
+            .map((item) => item.replace(/\s+/g, ' ').trim())
+            .filter((item) => item.length > 1)
+            .filter((item, index, array) => array.indexOf(item) === index);
+
+        if (/modelo|modelos|models/i.test(request || '')) {
+            return cleanItems
+                .filter((item) => item.length >= 2 && item.length <= 80)
+                .slice(0, 12);
         }
 
-        if (proximo) {
-            lines.push(`Proximo passo sugerido: ${proximo}.`);
+        return cleanItems.slice(0, 6);
+    }
+
+    async detectDominantColorNameFromDataUrl(dataUrl) {
+        try {
+            const image = new Image();
+            image.src = dataUrl;
+
+            await new Promise((resolve, reject) => {
+                image.onload = resolve;
+                image.onerror = reject;
+            });
+
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d', { willReadFrequently: true });
+            const sampleSize = 48;
+            canvas.width = sampleSize;
+            canvas.height = sampleSize;
+            context.drawImage(image, 0, 0, sampleSize, sampleSize);
+
+            const { data } = context.getImageData(0, 0, sampleSize, sampleSize);
+            let totalR = 0;
+            let totalG = 0;
+            let totalB = 0;
+            let total = 0;
+
+            for (let index = 0; index < data.length; index += 4) {
+                const alpha = data[index + 3];
+                if (alpha < 100) {
+                    continue;
+                }
+
+                totalR += data[index];
+                totalG += data[index + 1];
+                totalB += data[index + 2];
+                total += 1;
+            }
+
+            if (!total) {
+                return null;
+            }
+
+            const average = {
+                r: Math.round(totalR / total),
+                g: Math.round(totalG / total),
+                b: Math.round(totalB / total)
+            };
+
+            return this.mapRgbToColorName(average);
+        } catch (error) {
+            console.error('❌ [AGENT] Nao consegui detectar a cor predominante:', error);
+            return null;
+        }
+    }
+
+    mapRgbToColorName({ r, g, b }) {
+        const palette = [
+            { name: 'preto', r: 20, g: 20, b: 20 },
+            { name: 'branco', r: 235, g: 235, b: 235 },
+            { name: 'cinza escuro', r: 55, g: 65, b: 81 },
+            { name: 'cinza', r: 140, g: 140, b: 140 },
+            { name: 'azul escuro', r: 30, g: 58, b: 138 },
+            { name: 'azul', r: 59, g: 130, b: 246 },
+            { name: 'verde', r: 34, g: 197, b: 94 },
+            { name: 'vermelho', r: 239, g: 68, b: 68 },
+            { name: 'laranja', r: 249, g: 115, b: 22 },
+            { name: 'amarelo', r: 250, g: 204, b: 21 },
+            { name: 'roxo', r: 168, g: 85, b: 247 },
+            { name: 'rosa', r: 236, g: 72, b: 153 },
+            { name: 'marrom', r: 146, g: 94, b: 52 }
+        ];
+
+        let closest = palette[0];
+        let smallestDistance = Number.POSITIVE_INFINITY;
+
+        for (const color of palette) {
+            const distance = Math.sqrt(
+                ((r - color.r) ** 2) +
+                ((g - color.g) ** 2) +
+                ((b - color.b) ** 2)
+            );
+
+            if (distance < smallestDistance) {
+                smallestDistance = distance;
+                closest = color;
+            }
         }
 
-        return lines.join('\n');
+        return closest.name;
     }
 
     coerceAgentList(value) {
@@ -1473,17 +1709,10 @@ Analise a imagem e responda com este formato:
 
     // Habilitar ações do agente
     enableAgentActions(analysis) {
-        const plannedActions = this.coerceAgentList(analysis.acoes_sugeridas || analysis.acoes_possiveis).slice(0, 3);
-
-        plannedActions.forEach((action) => {
-            this.addAgentAction(action, 'pending');
-        });
-
-        if (analysis.proximo_passo) {
-            this.addAgentAction('Proximo passo recomendado: ' + analysis.proximo_passo, 'pending');
-        }
-
-        this.addAgentThoughtLog('✅ Analise concluida - pronto para continuar o fluxo.');
+        this.availableAgentActions = {
+            acoes: this.coerceAgentList(analysis.acoes_sugeridas || analysis.acoes_possiveis).slice(0, 3),
+            proximo_passo: analysis.proximo_passo || ''
+        };
     }
 
     // Executar ação do agente

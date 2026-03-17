@@ -15,6 +15,7 @@ export default async function handler(req, res) {
     }
 
     const rawUrl = typeof req.body?.url === 'string' ? req.body.url : '';
+    const task = typeof req.body?.task === 'string' ? req.body.task : '';
     const normalizedUrl = normalizeUrl(rawUrl);
 
     if (!normalizedUrl) {
@@ -35,8 +36,8 @@ export default async function handler(req, res) {
 
         await wait(1200);
 
-        const pageContext = await collectPageContext(page);
-        const pageTitle = await page.title();
+        let pageContext = await collectPageContext(page);
+        let pageTitle = await page.title();
 
         if (isProtectedPage(pageTitle, pageContext)) {
             const fallback = await createMetadataFallback(
@@ -51,18 +52,43 @@ export default async function handler(req, res) {
         }
 
         const screenshots = [];
+        const navigationTrail = [];
 
         screenshots.push(await captureScreenshot(page, 'Homepage carregada', 'Acabei de abrir o site no navegador controlado pelo agente.'));
 
-        if (pageContext.scrollHeight > VIEWPORT.height * 1.4) {
-            await page.evaluate(() => {
-                window.scrollTo({
-                    top: Math.max(window.innerHeight * 0.9, 700),
-                    behavior: 'auto'
+        const navigationHints = extractNavigationHints(task).slice(0, 3);
+        for (const hint of navigationHints) {
+            const navigation = await navigateToHint(page, hint);
+            navigationTrail.push(navigation);
+
+            if (!navigation.success) {
+                continue;
+            }
+
+            await wait(1200);
+            pageContext = await collectPageContext(page);
+            pageTitle = await page.title();
+
+            screenshots.push(await captureScreenshot(
+                page,
+                pageTitle || `Pagina: ${hint}`,
+                `Naveguei para ${hint}.`
+            ));
+
+            if (isProtectedPage(pageTitle, pageContext)) {
+                const fallback = await createMetadataFallback(
+                    page.url(),
+                    'A pagina de destino bloqueou a navegacao automatizada nesta tentativa.'
+                );
+
+                return res.status(200).json({
+                    ...fallback,
+                    mode: fallback.mode === 'hosted-screenshot' ? 'site-protected-hosted' : 'site-protected-fallback',
+                    requestedUrl: normalizedUrl,
+                    currentUrl: page.url(),
+                    navigationTrail
                 });
-            });
-            await wait(900);
-            screenshots.push(await captureScreenshot(page, 'Trecho abaixo da dobra', 'Rolei a pagina para inspecionar mais conteudo do site.'));
+            }
         }
 
         await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'auto' }));
@@ -73,7 +99,8 @@ export default async function handler(req, res) {
             currentUrl: page.url(),
             title: pageTitle,
             page: pageContext,
-            screenshots
+            screenshots,
+            navigationTrail
         });
     } catch (error) {
         console.error('Agent browser error:', error);
@@ -222,17 +249,223 @@ async function collectPageContext(page) {
             .filter((item) => item.text)
             .slice(0, 20);
 
+        const visibleText = Array.from(document.querySelectorAll('h1, h2, h3, p, li, a, button, span'))
+            .map((element) => element.textContent?.replace(/\s+/g, ' ').trim())
+            .filter((text) => text && text.length > 1)
+            .filter((text, index, array) => array.indexOf(text) === index)
+            .slice(0, 80);
+
         return {
             title: document.title || '',
             description: metaDescription,
             headings,
             interactiveElements,
+            visibleText,
             scrollHeight: Math.max(
                 document.body?.scrollHeight || 0,
                 document.documentElement?.scrollHeight || 0
             )
         };
     });
+}
+
+function extractNavigationHints(task) {
+    const hints = [];
+    const normalizedTask = String(task || '');
+    const patterns = [
+        /(?:pagina|página|secao|seção|aba|menu)\s+de\s+([^,.!?]+?)(?=\s+e\s+(?:me|depois|entao|então)|[.?!,]|$)/gi,
+        /(?:va|vá|entre|acesse|abra|navegue|ir)\s+(?:na|no|para a|para o|para|ate|até)\s+([^,.!?]+?)(?=\s+e\s+(?:me|depois|entao|então)|[.?!,]|$)/gi
+    ];
+    const blacklist = new Set(['site', 'pagina', 'página', 'home', 'inicio', 'inicial']);
+
+    for (const pattern of patterns) {
+        let match;
+        while ((match = pattern.exec(normalizedTask)) !== null) {
+            const value = match[1]?.trim().replace(/^de\s+/i, '');
+            if (value && !hints.includes(value)) {
+                const cleaned = normalizeSearchText(value);
+                if (cleaned && !blacklist.has(cleaned)) {
+                    hints.push(value);
+                }
+            }
+        }
+    }
+
+    return hints;
+}
+
+async function navigateToHint(page, hint) {
+    const target = await findBestNavigationTarget(page, hint);
+    if (!target) {
+        return {
+            targetHint: hint,
+            success: false
+        };
+    }
+
+    const previousUrl = page.url();
+
+    if (target.href && /^https?:/i.test(target.href)) {
+        await page.goto(target.href, {
+            waitUntil: 'networkidle2',
+            timeout: 30000
+        });
+    } else {
+        await page.evaluate((index) => {
+            const candidates = Array.from(document.querySelectorAll('a, button, [role="button"], summary'));
+            const element = candidates[index];
+            if (element) {
+                element.click();
+            }
+        }, target.domIndex);
+
+        await waitForPossibleNavigation(page, previousUrl);
+    }
+
+    return {
+        targetHint: hint,
+        success: true,
+        matchedText: target.text,
+        href: target.href || null,
+        previousUrl,
+        currentUrl: page.url()
+    };
+}
+
+async function findBestNavigationTarget(page, hint) {
+    const pageOrigin = new URL(page.url()).origin;
+    const candidates = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll('a, button, [role="button"], summary'))
+            .map((element, domIndex) => {
+                const text = (element.textContent || element.getAttribute('aria-label') || element.getAttribute('title') || '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                const href = element.tagName.toLowerCase() === 'a'
+                    ? element.href
+                    : element.getAttribute('href') || '';
+
+                const style = window.getComputedStyle(element);
+                const visible = style.display !== 'none'
+                    && style.visibility !== 'hidden'
+                    && style.opacity !== '0'
+                    && element.getBoundingClientRect().width > 0
+                    && element.getBoundingClientRect().height > 0;
+
+                return {
+                    domIndex,
+                    text,
+                    href,
+                    visible
+                };
+            })
+            .filter((item) => item.visible && (item.text || item.href));
+    });
+
+    const hintTokens = expandNavigationTokens(hint);
+    let best = null;
+
+    for (const candidate of candidates) {
+        const haystack = normalizeSearchText(`${candidate.text} ${candidate.href}`);
+        let score = 0;
+
+        for (const token of hintTokens) {
+            if (haystack.includes(token)) {
+                score += token.length > 4 ? 4 : 2;
+            }
+        }
+
+        const wholeHint = normalizeSearchText(hint);
+        if (wholeHint && haystack.includes(wholeHint)) {
+            score += 8;
+        }
+        if (wholeHint && normalizeSearchText(candidate.text) === wholeHint) {
+            score += 12;
+        }
+        if (wholeHint && normalizeSearchText(candidate.text).startsWith(wholeHint)) {
+            score += 6;
+        }
+
+        if (candidate.href && candidate.href.includes('#')) {
+            score -= 1;
+        }
+
+        if (candidate.href) {
+            try {
+                if (new URL(candidate.href).origin !== pageOrigin) {
+                    score -= 4;
+                }
+            } catch {
+                // Ignore malformed URLs.
+            }
+        }
+
+        if (!best || score > best.score) {
+            best = {
+                ...candidate,
+                score
+            };
+        }
+    }
+
+    return best && best.score > 0 ? best : null;
+}
+
+function expandNavigationTokens(hint) {
+    const baseTokens = normalizeSearchText(hint)
+        .split(' ')
+        .filter(Boolean);
+
+    const synonyms = {
+        ia: ['ai', 'artificial', 'intelligence'],
+        modelos: ['models', 'model'],
+        modelo: ['models', 'model'],
+        preco: ['pricing', 'price', 'plans'],
+        precos: ['pricing', 'price', 'plans'],
+        preços: ['pricing', 'price', 'plans'],
+        preço: ['pricing', 'price', 'plans'],
+        inicio: ['home'],
+        documentação: ['docs', 'documentation'],
+        documentacao: ['docs', 'documentation'],
+        exemplos: ['examples'],
+        blog: ['blog'],
+        contato: ['contact'],
+        sobre: ['about']
+    };
+
+    const expanded = new Set(baseTokens);
+    for (const token of baseTokens) {
+        const related = synonyms[token];
+        if (related) {
+            related.forEach((value) => expanded.add(value));
+        }
+    }
+
+    return Array.from(expanded);
+}
+
+function normalizeSearchText(value) {
+    return String(value || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+}
+
+async function waitForPossibleNavigation(page, previousUrl) {
+    try {
+        await Promise.race([
+            page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 }),
+            wait(2500)
+        ]);
+    } catch {
+        await wait(1200);
+    }
+
+    if (page.url() === previousUrl) {
+        await wait(1000);
+    }
 }
 
 function isProtectedPage(title, pageContext = {}) {
@@ -341,6 +574,7 @@ function extractPageMetadata(html, normalizedUrl) {
         title,
         description,
         headings,
+        visibleText: [...headings, description].filter(Boolean),
         interactiveElements: [...links, ...buttons].slice(0, 12).map((text) => ({
             tag: 'interactive',
             text
