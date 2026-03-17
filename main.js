@@ -561,27 +561,13 @@ class UI {
 
     // Adicionar pensamento do agente (no chat)
     addAgentThoughtLog(message) {
-        // Adicionar ao buffer de pensamentos
-        if (!this.agentThoughtBuffer) {
-            this.agentThoughtBuffer = [];
-        }
-        this.agentThoughtBuffer.push({
-            message: message,
-            timestamp: new Date().toLocaleTimeString()
-        });
-        
-        // Mostrar no chat se estivermos respondendo
-        if (this.isAgentResponding) {
-            this.updateAgentResponse();
-        }
+        this.addAgentTimelineEntry('thought', { message });
     }
 
     // Iniciar resposta do agente no chat
     startAgentResponse() {
         this.isAgentResponding = true;
-        this.agentThoughtBuffer = [];
-        this.agentScreenshots = [];
-        this.agentActions = [];
+        this.agentTimeline = [];
         
         // Criar mensagem inicial do agente
         const agentMessage = `
@@ -602,10 +588,27 @@ class UI {
         this.agentResponseElement.innerHTML = agentMessage;
         
         // Adicionar ao chat
-        const chatContainer = document.querySelector('#chatMessages');
+        const chatContainer = this.elements.messagesContainer || document.querySelector('#chatMessages');
         if (chatContainer) {
             chatContainer.appendChild(this.agentResponseElement);
             this.scrollToBottom();
+        }
+    }
+
+    addAgentTimelineEntry(type, payload = {}) {
+        if (!this.agentTimeline) {
+            this.agentTimeline = [];
+        }
+
+        this.agentTimeline.push({
+            id: `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            type,
+            timestamp: new Date().toLocaleTimeString(),
+            ...payload
+        });
+
+        if (this.agentResponseElement) {
+            this.updateAgentResponse();
         }
     }
 
@@ -616,110 +619,91 @@ class UI {
         const responseContainer = this.agentResponseElement.querySelector('[id^="agentResponse-"]');
         if (!responseContainer) return;
         
-        let html = '';
-        
-        // Adicionar pensamentos em tempo real (sempre primeiro)
-        if (this.agentThoughtBuffer && this.agentThoughtBuffer.length > 0) {
-            html += '<div class="space-y-2 mb-4">';
-            html += '<div class="text-sm text-orange-400 mb-2">🧠 Pensamento da IA:</div>';
-            this.agentThoughtBuffer.forEach(thought => {
-                html += `
-                    <div class="bg-gray-800 rounded p-2 border border-gray-700">
-                        <div class="text-xs text-gray-500">${thought.timestamp}</div>
-                        <div class="text-gray-300 text-sm">${thought.message}</div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-        }
-        
-        // Adicionar ações executadas
-        if (this.agentActions && this.agentActions.length > 0) {
-            html += '<div class="space-y-2 mb-4">';
-            html += '<div class="text-sm text-green-400 mb-2">⚡ Ações Executadas:</div>';
-            this.agentActions.forEach(action => {
-                const statusIcon = action.status === 'executed' ? '✅' : action.status === 'failed' ? '❌' : '⏳';
-                html += `
-                    <div class="bg-gray-800 rounded p-2 border border-gray-700">
-                        <div class="text-xs text-gray-500">${action.timestamp}</div>
-                        <div class="text-gray-300 text-sm flex items-center gap-2">
-                            <span>${statusIcon}</span>
-                            ${action.description}
-                        </div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-        }
-        
-        // Adicionar screenshots (sempre após as ações)
-        if (this.agentScreenshots && this.agentScreenshots.length > 0) {
-            html += '<div class="space-y-2">';
-            html += '<div class="text-sm text-blue-400 mb-2">📸 Capturas de Tela:</div>';
-            this.agentScreenshots.forEach((screenshot, index) => {
-                html += `
-                    <div class="bg-gray-800 rounded p-2 border border-gray-700">
-                        <div class="text-xs text-gray-500 mb-1">${screenshot.timestamp}</div>
-                        <img src="${screenshot.data}" class="w-full max-w-md rounded border border-gray-600" alt="Screenshot ${index + 1}">
-                    </div>
-                `;
-            });
-            html += '</div>';
-        }
-        
+        const html = (this.agentTimeline || [])
+            .map((entry, index) => this.renderAgentTimelineEntry(entry, index))
+            .join('') || '<div class="text-gray-300">🔍 Analisando ambiente...</div>';
+
         responseContainer.innerHTML = html;
         this.scrollToBottom();
     }
 
+    renderAgentTimelineEntry(entry, index) {
+        if (entry.type === 'thought') {
+            return `
+                <div class="bg-gray-800 rounded p-3 border border-gray-700">
+                    <div class="text-xs text-gray-500 mb-1">${entry.timestamp}</div>
+                    <div class="text-gray-100 text-sm leading-relaxed">${this.escapeHtml(entry.message || '')}</div>
+                </div>
+            `;
+        }
+
+        if (entry.type === 'action') {
+            const statusIcon = entry.status === 'executed' ? '✅' : entry.status === 'failed' ? '❌' : '⏳';
+            const statusColor = entry.status === 'executed'
+                ? 'border-green-600/40'
+                : entry.status === 'failed'
+                    ? 'border-red-600/40'
+                    : 'border-yellow-600/40';
+
+            return `
+                <div class="bg-gray-800 rounded p-3 border ${statusColor}">
+                    <div class="text-xs text-gray-500 mb-1">${entry.timestamp}</div>
+                    <div class="text-gray-100 text-sm flex items-start gap-2">
+                        <span>${statusIcon}</span>
+                        <span>${this.escapeHtml(entry.description || '')}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (entry.type === 'screenshot') {
+            const caption = entry.caption ? `<div class="text-sm text-blue-200 mb-2">${this.escapeHtml(entry.caption)}</div>` : '';
+            return `
+                <div class="bg-gray-800 rounded p-3 border border-blue-700/50">
+                    <div class="text-xs text-gray-500 mb-2">${entry.timestamp}</div>
+                    ${caption}
+                    <img
+                        src="${entry.data}"
+                        class="w-full max-w-2xl rounded border border-gray-600 cursor-zoom-in"
+                        alt="Screenshot ${index + 1}"
+                        onclick="window.ui.expandScreenshot(this.src)"
+                    >
+                </div>
+            `;
+        }
+
+        const toneClass = entry.type === 'error'
+            ? 'border-red-700/50 text-red-100'
+            : 'border-gray-700 text-gray-200';
+
+        return `
+            <div class="bg-gray-800 rounded p-3 border ${toneClass}">
+                <div class="text-xs text-gray-500 mb-1">${entry.timestamp}</div>
+                <div class="text-sm">${this.escapeHtml(entry.message || '')}</div>
+            </div>
+        `;
+    }
+
     // Adicionar screenshot ao buffer do agente
-    addAgentScreenshot(imageData) {
-        if (!this.agentScreenshots) {
-            this.agentScreenshots = [];
-        }
-        
-        this.agentScreenshots.push({
+    addAgentScreenshot(imageData, caption = '') {
+        this.addAgentTimelineEntry('screenshot', {
             data: imageData,
-            timestamp: new Date().toLocaleTimeString()
+            caption
         });
-        
-        // Limitar a 3 screenshots
-        if (this.agentScreenshots.length > 3) {
-            this.agentScreenshots.shift();
-        }
-        
-        this.updateAgentResponse();
     }
 
     // Adicionar ação ao buffer do agente
     addAgentAction(description, status = 'executed') {
-        if (!this.agentActions) {
-            this.agentActions = [];
-        }
-        
-        this.agentActions.push({
-            description: description,
-            status: status,
-            timestamp: new Date().toLocaleTimeString()
+        this.addAgentTimelineEntry('action', {
+            description,
+            status
         });
-        
-        this.updateAgentResponse();
     }
 
     // Finalizar resposta do agente
-    finishAgentResponse() {
+    finishAgentResponse(message = '✅ Análise concluída') {
+        this.addAgentTimelineEntry('status', { message });
         this.isAgentResponding = false;
-        
-        // Adicionar mensagem final
-        if (this.agentResponseElement) {
-            const responseContainer = this.agentResponseElement.querySelector('[id^="agentResponse-"]');
-            if (responseContainer) {
-                responseContainer.innerHTML += `
-                    <div class="mt-4 pt-3 border-t border-gray-700">
-                        <div class="text-gray-400 text-sm">✅ Análise concluída</div>
-                    </div>
-                `;
-            }
-        }
     }
 
     // Expandir screenshot
@@ -838,7 +822,7 @@ class UI {
             });
             
             // Converter para base64
-            const imageData = canvas.toDataURL('image/png', 0.8);
+            const imageData = canvas.toDataURL('image/jpeg', 0.78);
             
             this.addThoughtLog(`✅ Captura concluída - Tamanho: ${Math.round(imageData.length/1024)}KB`);
             
@@ -904,212 +888,181 @@ Responda em formato JSON:
         }
     }
 
-    // Processar resposta do agente (no chat)
-    processAgentResponse(response) {
-        try {
-            this.addAgentThoughtLog('📋 Processando resposta da IA...');
-            console.log('📋 [AGENT] Resposta processada:', response);
-            
-            // Salvar resposta para uso posterior
-            this.lastAgentResponse = response;
-            
-            // Adaptar ao novo formato da resposta
-            const elementos = response.elementos_visiveis || response.elementos_interativos || [];
-            const acoes = response.acoes_sugeridas || response.acoes_possiveis || [];
-            const proximo = response.proximo_passo || "Analisar página para próximos passos";
-            
-            // Mostrar análise no log de pensamento
-            this.addAgentThoughtLog('📄 Página atual: ' + (response.pagina_atual || 'Página web detectada'));
-            this.addAgentThoughtLog('🎯 Elementos interativos: ' + elementos.join(', '));
-            this.addAgentThoughtLog('💡 Ações possíveis: ' + acoes.join(', '));
-            this.addAgentThoughtLog('➡️ Próximo passo: ' + proximo);
-            
-            // Adicionar ações executadas
-            this.addAgentAction('Análise concluída: ' + (response.pagina_atual || 'Página analisada'), 'executed');
-            
-        } catch (error) {
-            console.error('❌ [AGENT] Erro no processamento:', error);
-            this.addAgentThoughtLog('❌ Erro no processamento da resposta: ' + error.message);
-        }
-    }
-
     // Processar mensagem do usuário no modo agente
     async processAgentMessage(userMessage) {
         try {
-            // Iniciar resposta do agente no chat
-            this.startAgentResponse();
-            
-            // Mostrar o que o usuário pediu
-            this.addAgentThoughtLog(`👤 Usuário: ${userMessage}`);
-            
-            // Pensar sobre o que fazer
-            this.addAgentThoughtLog('🧀 Hmm, vou analisar o que você pediu...');
-            
-            // Se pediu para abrir um site, fazer isso primeiro
-            if (userMessage.toLowerCase().includes('abrir') && userMessage.toLowerCase().includes('http')) {
-                const urlMatch = userMessage.match(/https?:\/\/[^\s]+/);
-                if (urlMatch) {
-                    const url = urlMatch[0];
-                    
-                    // Mostrar que vai abrir
-                    this.addAgentThoughtLog(`🌐 Abrindo o site ${url}...`);
-                    
-                    // Adicionar ação
-                    this.addAgentAction(`Abrindo: ${url}`, 'pending');
-                    
-                    // Abrir o site
-                    window.open(url, '_blank');
-                    
-                    // Marcar como executado
-                    this.addAgentAction(`Aberto: ${url}`, 'executed');
-                    
-                    // Esperar um pouco para o site carregar
-                    this.addAgentThoughtLog('⏳ Aguardando o site carregar...');
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    
-                    // Capturar tela do site
-                    this.addAgentThoughtLog('📸 Capturando tela do site...');
-                    const imageData = await this.takeScreenshot();
-                    
-                    // Adicionar screenshot ao chat
-                    this.addAgentScreenshot(imageData.dataUrl);
-                    
-                    // Analisar o site
-                    this.addAgentThoughtLog('🔍 Analisando o site aberto...');
-                    await this.analyzeOpenedSite(imageData, url);
-                    
-                    this.finishAgentResponse();
-                    return;
-                }
+            const cleanMessage = (userMessage || '').trim();
+            if (!cleanMessage) {
+                return;
             }
-            
-            // Para outras mensagens, capturar tela atual e analisar
-            this.addAgentThoughtLog('📸 Capturando tela atual...');
+
+            this.addUserMessage(cleanMessage, null, { preserveCreateMode: true });
+            this.startAgentResponse();
+
+            this.addAgentThoughtLog(`👤 Pedido recebido: ${cleanMessage}`);
+            this.addAgentThoughtLog('🧠 Vou decidir se preciso navegar em um site real ou analisar a tela atual.');
+
+            const detectedUrl = this.extractAgentUrl(cleanMessage);
+            if (detectedUrl) {
+                const normalizedUrl = this.normalizeAgentUrl(detectedUrl);
+
+                if (!normalizedUrl) {
+                    throw new Error(`Nao consegui entender a URL "${detectedUrl}"`);
+                }
+
+                this.addAgentThoughtLog(`🌐 Vou abrir ${normalizedUrl} em um navegador controlado pelo agente.`);
+                this.addAgentAction(`Abrindo ${normalizedUrl}`, 'pending');
+
+                const session = await this.openAgentBrowserSession(normalizedUrl);
+
+                this.addAgentAction(`Site carregado: ${session.currentUrl || normalizedUrl}`, 'executed');
+                await this.analyzeOpenedSite(session, cleanMessage);
+                this.finishAgentResponse();
+                return;
+            }
+
+            this.addAgentThoughtLog('📸 Nao ha URL no pedido, entao vou analisar a tela atual do app.');
             const imageData = await this.takeScreenshot();
-            
-            // Adicionar screenshot ao chat
-            this.addAgentScreenshot(imageData.dataUrl);
-            
-            // Analisar com base na mensagem do usuário
-            const prompt = `Você é o Drekee Agent 1.0, um assistente de IA com visão computacional.
+            this.addAgentScreenshot(imageData.dataUrl, 'Tela atual capturada pelo agente');
 
-O usuário pediu: "${userMessage}"
+            const prompt = this.buildAgentVisionPrompt(cleanMessage, {
+                currentUrl: window.location.href,
+                title: document.title,
+                description: 'Tela atual do proprio app Drekee'
+            }, {
+                label: 'Tela atual'
+            });
 
-Analise esta captura de tela e ajude o usuário. Você PODE:
-- Clicar em botões e links
-- Preencher formulários  
-- Realizar ações na página
-
-Responda em formato JSON:
-{
-  "pagina_atual": "descrição",
-  "elementos_interativos": ["botão X", "link Y"],
-  "acoes_possiveis": ["ação 1", "ação 2"],
-  "proximo_passo": "próxima ação"
-}`;
-
-            // Enviar para análise
             const response = await this.callAgentAPI(prompt, imageData.dataUrl);
-            
-            // Processar resposta
-            this.processAgentResponse(response);
-            
-            // Finalizar resposta
+            this.processAgentResponse(response, { label: 'Tela atual' });
             this.finishAgentResponse();
-            
         } catch (error) {
             console.error('❌ [AGENT] Erro no processamento:', error);
-            this.addAgentThoughtLog('❌ Erro: ' + error.message);
-            this.finishAgentResponse();
+            this.addAgentTimelineEntry('error', { message: '❌ Erro: ' + error.message });
+            this.finishAgentResponse('❌ Fluxo do agente encerrado com erro');
         }
+    }
+
+    extractAgentUrl(text) {
+        const match = (text || '').match(/((?:https?:\/\/|www\.)[^\s]+|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?)/i);
+        return match ? match[1] : null;
+    }
+
+    normalizeAgentUrl(rawUrl) {
+        if (!rawUrl) {
+            return null;
+        }
+
+        const cleanUrl = rawUrl.trim().replace(/[),.;!?]+$/g, '');
+        const withProtocol = /^[a-z][a-z0-9+.-]*:\/\//i.test(cleanUrl) ? cleanUrl : `https://${cleanUrl}`;
+
+        try {
+            const parsed = new URL(withProtocol);
+            if (!['http:', 'https:'].includes(parsed.protocol)) {
+                return null;
+            }
+            return parsed.toString();
+        } catch {
+            return null;
+        }
+    }
+
+    async openAgentBrowserSession(url) {
+        const response = await fetch('/api/agent-browser', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ url })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || `Falha ao abrir ${url}`);
+        }
+
+        return data;
     }
 
     // Analisar site que foi aberto
-    async analyzeOpenedSite(imageData, url) {
-        try {
-            const prompt = `Você é o Drekee Agent 1.0. Acabei de abrir o site ${url}.
+    async analyzeOpenedSite(session, userMessage) {
+        const screenshots = Array.isArray(session?.screenshots) ? session.screenshots : [];
+        const pageContext = session?.page || {};
+        const readableTitle = session?.title || pageContext.title || session?.currentUrl || session?.requestedUrl;
 
-Analise esta captura de tela e me diga:
-1. O que você vê neste site
-2. O que o usuário pode fazer aqui
-3. Sugestões de ações
+        this.addAgentThoughtLog(`🪄 Navegacao concluida. Pagina detectada: ${readableTitle}`);
 
-Responda em formato JSON:
-{
-  "pagina_atual": "descrição do site",
-  "elementos_interativos": ["botão X", "link Y"],
-  "acoes_possiveis": ["ação 1", "ação 2"],
-  "proximo_passo": "próxima sugestão"
-}`;
+        if (pageContext.description) {
+            this.addAgentThoughtLog(`📝 Descricao detectada no HTML: ${pageContext.description}`);
+        }
 
-            const response = await this.callAgentAPI(prompt, imageData.dataUrl);
-            this.processAgentResponse(response);
-            
-        } catch (error) {
-            this.addAgentThoughtLog('❌ Erro ao analisar site: ' + error.message);
+        for (const screenshot of screenshots) {
+            this.addAgentThoughtLog(`📸 ${screenshot.note || screenshot.label || 'Nova captura feita pelo navegador do agente.'}`);
+            this.addAgentScreenshot(screenshot.dataUrl, screenshot.label || 'Captura do site');
+
+            const prompt = this.buildAgentVisionPrompt(userMessage, {
+                currentUrl: session.currentUrl || session.requestedUrl,
+                title: session.title || pageContext.title,
+                description: pageContext.description,
+                headings: pageContext.headings,
+                interactiveElements: pageContext.interactiveElements
+            }, screenshot);
+
+            const response = await this.callAgentAPI(prompt, screenshot.dataUrl);
+            this.processAgentResponse(response, { label: screenshot.label || 'Captura do site' });
         }
     }
+
+    buildAgentVisionPrompt(userMessage, pageContext = {}, screenshot = {}) {
+        const headings = this.coerceAgentList(pageContext.headings).slice(0, 6).join(' | ');
+        const interactive = this.coerceAgentList(pageContext.interactiveElements).slice(0, 10).join(' | ');
+
+        return `Voce e o Drekee Agent 1.0, um agente visual que precisa responder SOMENTE com JSON valido.
+
+Pedido original do usuario: "${userMessage}"
+URL atual: ${pageContext.currentUrl || 'desconhecida'}
+Titulo da pagina: ${pageContext.title || 'desconhecido'}
+Descricao da pagina: ${pageContext.description || 'sem descricao'}
+Captura atual: ${screenshot.label || 'captura sem titulo'}
+Headings detectados no DOM: ${headings || 'nenhum'}
+Elementos interativos detectados no DOM: ${interactive || 'nenhum'}
+
+Analise a imagem e responda com este formato:
+{
+  "pagina_atual": "resumo claro do que esta visivel",
+  "elementos_interativos": ["item 1", "item 2"],
+  "acoes_possiveis": ["acao 1", "acao 2"],
+  "proximo_passo": "acao recomendada"
+}`;
+    }
+
     async callAgentAPI(prompt, imageData) {
         try {
-            this.addThoughtLog('🔄 Tentando Groq Vision primeiro (mais rápido)...');
-            
-            // Tentar Groq Vision primeiro (mais rápido)
-            const groqResponse = await this.callGroqVision(prompt, imageData);
-            if (groqResponse) {
-                this.addThoughtLog('✅ Groq Vision respondeu com sucesso!');
-                return groqResponse;
-            }
-            
-            this.addThoughtLog('⚠️ Groq Vision falhou, tentando Gemini Vision...');
-            // Fallback para Gemini
+            this.addAgentThoughtLog('🔄 Vou analisar a imagem primeiro com Gemini Vision.');
+
             const geminiResponse = await this.callGeminiVision(prompt, imageData);
             if (geminiResponse) {
-                this.addThoughtLog('✅ Gemini Vision respondeu com sucesso!');
                 return geminiResponse;
             }
-            
-            this.addThoughtLog('❌ Ambas as APIs falharam');
-            throw new Error('Ambas as APIs de visão falharam');
-            
+
+            throw new Error('Gemini retornou resposta vazia');
         } catch (error) {
             console.error('❌ [AGENT] Erro na chamada da API:', error);
-            this.addThoughtLog('❌ Erro na chamada da API: ' + error.message);
-            
-            // Se for erro de rate limit, tentar a outra API
-            if (error.message === 'RATE_LIMIT') {
-                this.addThoughtLog('🔄 Detectado rate limit - Tentando API alternativa...');
-                
-                try {
-                    // Se estava tentando Groq, tenta Gemini
-                    const geminiResponse = await this.callGeminiVision(prompt, imageData);
-                    if (geminiResponse) {
-                        this.addThoughtLog('✅ Fallback para Gemini funcionou!');
-                        return geminiResponse;
-                    }
-                } catch (fallbackError) {
-                    this.addThoughtLog('❌ Fallback também falhou: ' + fallbackError.message);
-                }
-                
-                try {
-                    // Se estava tentando Gemini, tenta Groq
-                    const groqResponse = await this.callGroqVision(prompt, imageData);
-                    if (groqResponse) {
-                        this.addThoughtLog('✅ Fallback para Groq funcionou!');
-                        return groqResponse;
-                    }
-                } catch (fallbackError) {
-                    this.addThoughtLog('❌ Fallback também falhou: ' + fallbackError.message);
-                }
+            this.addAgentThoughtLog(`⚠️ Gemini falhou (${error.message}). Vou acionar o Groq Vision imediatamente.`);
+
+            const groqResponse = await this.callGroqVision(prompt, imageData);
+            if (groqResponse) {
+                return groqResponse;
             }
-            
-            throw error;
+
+            throw new Error('Ambas as APIs de visao falharam');
         }
     }
 
     // Chamar Groq Vision
     async callGroqVision(prompt, imageData) {
         try {
-            this.addThoughtLog('🚀 Chamando Groq Vision (llama-3.2-11b-vision-preview)...');
+            this.addAgentThoughtLog('🚀 Chamando Groq Vision...');
             
             const response = await fetch('/api/agent-vision', {
                 method: 'POST',
@@ -1128,9 +1081,13 @@ Responda em formato JSON:
             if (response.status === 429) {
                 throw new Error('RATE_LIMIT');
             }
+
+            if (!response.ok) {
+                throw new Error(data.error || response.statusText);
+            }
             
-            this.addAgentThoughtLog('✅ Groq Vision respondeu com sucesso!');
-            return data.response;
+            this.addAgentThoughtLog(`✅ Groq Vision respondeu com sucesso${data.fallbackUsed ? ' (com fallback interno).' : '.'}`);
+            return this.normalizeAgentAnalysis(data);
             
         } catch (error) {
             console.error('❌ [AGENT] Erro no Groq Vision:', error);
@@ -1151,19 +1108,24 @@ Responda em formato JSON:
                 },
                 body: JSON.stringify({
                     prompt: prompt,
-                    image: imageData,
-                    provider: 'gemini'
+                    imageData: imageData,
+                    model: 'gemini'
                 })
             });
+
+            const data = await response.json();
             
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`Gemini API Error: ${response.status} - ${errorData.error || response.statusText}`);
+                throw new Error(`Gemini API Error: ${response.status} - ${data.error || response.statusText}`);
             }
             
-            const data = await response.json();
-            this.addAgentThoughtLog('✅ Gemini Vision respondeu com sucesso!');
-            return data.response;
+            if (data.providerUsed && data.providerUsed !== 'gemini') {
+                this.addAgentThoughtLog(`⚠️ Gemini falhou no backend; a rota trocou automaticamente para ${data.providerUsed}.`);
+            } else {
+                this.addAgentThoughtLog('✅ Gemini Vision respondeu com sucesso!');
+            }
+
+            return this.normalizeAgentAnalysis(data);
             
         } catch (error) {
             console.error('❌ [AGENT] Erro no Gemini Vision:', error);
@@ -1173,28 +1135,37 @@ Responda em formato JSON:
     }
 
     // Processar resposta do agente
-    processAgentResponse(response) {
+    processAgentResponse(response, meta = {}) {
         try {
-            this.addThoughtLog('📋 Processando resposta da IA...');
-            console.log('📋 [AGENT] Resposta processada:', response);
-            
-            // Salvar resposta para uso posterior
-            this.lastAgentResponse = response;
-            
-            // Adaptar ao novo formato da resposta
-            const elementos = response.elementos_visiveis || response.elementos_interativos || [];
-            const acoes = response.acoes_sugeridas || response.acoes_possiveis || [];
-            const proximo = response.proximo_passo || "Analisar página para próximos passos";
-            
-            // Mostrar análise no log de pensamento
-            this.addThoughtLog('📄 Página atual: ' + (response.pagina_atual || 'Página web detectada'));
-            this.addThoughtLog('🎯 Elementos interativos: ' + elementos.join(', '));
-            this.addThoughtLog('💡 Ações possíveis: ' + acoes.join(', '));
-            this.addThoughtLog('➡️ Próximo passo: ' + proximo);
-            
-            // Habilitar ações baseadas na análise
+            const normalized = this.normalizeAgentAnalysis(response);
+            console.log('📋 [AGENT] Resposta processada:', normalized);
+
+            this.lastAgentResponse = normalized;
+
+            const elementos = this.coerceAgentList(normalized.elementos_visiveis || normalized.elementos_interativos);
+            const acoes = this.coerceAgentList(normalized.acoes_sugeridas || normalized.acoes_possiveis);
+            const proximo = normalized.proximo_passo || 'Analisar pagina para proximos passos';
+
+            if (meta.label) {
+                this.addAgentThoughtLog(`🧾 Resultado da captura "${meta.label}":`);
+            }
+
+            if (normalized._meta?.providerUsed) {
+                const providerText = normalized._meta.providerUsed === 'gemini' ? 'Gemini' : 'Groq';
+                this.addAgentThoughtLog(`👁️ Analise visual concluida por ${providerText}${normalized._meta.fallbackUsed ? ' com fallback.' : '.'}`);
+            }
+
+            this.addAgentThoughtLog('📄 Pagina atual: ' + (normalized.pagina_atual || 'Pagina web detectada'));
+            if (elementos.length > 0) {
+                this.addAgentThoughtLog('🎯 Elementos interativos: ' + elementos.join(', '));
+            }
+            if (acoes.length > 0) {
+                this.addAgentThoughtLog('💡 Acoes possiveis: ' + acoes.join(', '));
+            }
+            this.addAgentThoughtLog('➡️ Proximo passo: ' + proximo);
+
             this.enableAgentActions({
-                ...response,
+                ...normalized,
                 elementos_visiveis: elementos,
                 acoes_sugeridas: acoes,
                 proximo_passo: proximo
@@ -1202,16 +1173,97 @@ Responda em formato JSON:
             
         } catch (error) {
             console.error('❌ [AGENT] Erro no processamento:', error);
-            this.addThoughtLog('❌ Erro no processamento da resposta: ' + error.message);
+            this.addAgentTimelineEntry('error', {
+                message: '❌ Erro no processamento da resposta: ' + error.message
+            });
         }
+    }
+
+    normalizeAgentAnalysis(response) {
+        const candidate = response?.parsed ?? response?.response ?? response?.rawText ?? response;
+        let parsed = candidate;
+
+        if (typeof parsed === 'string') {
+            parsed = this.tryParseAgentJson(parsed) || {
+                pagina_atual: parsed.trim(),
+                elementos_interativos: [],
+                acoes_possiveis: [],
+                proximo_passo: 'Pedir uma nova analise com mais contexto'
+            };
+        }
+
+        if (!parsed || typeof parsed !== 'object') {
+            throw new Error('Resposta vazia ou invalida da analise visual');
+        }
+
+        return {
+            ...parsed,
+            _meta: {
+                providerUsed: response?.providerUsed || parsed?._meta?.providerUsed || null,
+                fallbackUsed: Boolean(response?.fallbackUsed || parsed?._meta?.fallbackUsed)
+            }
+        };
+    }
+
+    tryParseAgentJson(rawText) {
+        const cleanText = (rawText || '')
+            .replace(/^```json\s*/i, '')
+            .replace(/^```\s*/i, '')
+            .replace(/\s*```$/i, '')
+            .trim();
+
+        try {
+            return JSON.parse(cleanText);
+        } catch {
+            const start = cleanText.indexOf('{');
+            const end = cleanText.lastIndexOf('}');
+            if (start === -1 || end === -1 || end <= start) {
+                return null;
+            }
+
+            try {
+                return JSON.parse(cleanText.slice(start, end + 1));
+            } catch {
+                return null;
+            }
+        }
+    }
+
+    coerceAgentList(value) {
+        if (!value) {
+            return [];
+        }
+
+        if (Array.isArray(value)) {
+            return value
+                .map((item) => {
+                    if (typeof item === 'string') {
+                        return item.trim();
+                    }
+
+                    if (item && typeof item === 'object') {
+                        return item.text || item.label || item.name || item.tag || '';
+                    }
+
+                    return String(item || '').trim();
+                })
+                .filter(Boolean);
+        }
+
+        if (typeof value === 'string') {
+            return value.split(',').map((item) => item.trim()).filter(Boolean);
+        }
+
+        return [];
     }
 
     // Habilitar ações do agente
     enableAgentActions(analysis) {
-        // Adicionar ao log de ações como pendente
-        this.addActionLog('Ação sugerida: ' + analysis.proximo_passo, 'pending');
-        
-        this.addThoughtLog('✅ Análise concluída - Ações disponíveis no painel');
+        if (analysis.proximo_passo) {
+            this.addAgentAction('Acao sugerida: ' + analysis.proximo_passo, 'pending');
+        }
+
+        this.addAgentThoughtLog('✅ Analise concluida - pronto para continuar o fluxo.');
     }
 
     // Executar ação do agente
