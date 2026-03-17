@@ -995,6 +995,20 @@ Responda em formato JSON:
         }
     }
 
+    // Resetar botões de criação
+    resetCreateButtons() {
+        const createBtn = document.getElementById('createToggle');
+        if (createBtn) {
+            // Resetar para estado original
+            createBtn.classList.remove('bg-orange-500', 'text-white', 'ring-2', 'ring-orange-300');
+            createBtn.classList.add('bg-gray-100', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-300');
+            createBtn.innerHTML = `
+                <span class="material-icons-outlined">add_box</span>
+                <span class="text-xs font-medium">Criar</span>
+            `;
+        }
+    }
+
     setupAttachListeners() {
         console.log('🔧 [ATTACH] attachFileBtn:', !!this.elements.attachFileBtn);
         console.log('🔧 [ATTACH] attachDropdown:', !!this.elements.attachDropdown);
