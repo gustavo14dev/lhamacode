@@ -964,8 +964,25 @@ Responda em formato JSON:
                 label: 'Tela atual'
             });
 
-            const response = await this.callAgentAPI(prompt, imageData.dataUrl);
-            this.processAgentResponse(response, { label: 'Tela atual' });
+            try {
+                const response = await this.callAgentAPI(prompt, imageData.dataUrl);
+                this.processAgentResponse(response, { label: 'Tela atual' });
+            } catch (error) {
+                console.error('❌ [AGENT] Falha na leitura visual da tela atual, usando fallback local:', error);
+                this.addAgentThoughtLog('⚠️ A leitura visual falhou; usei a estrutura atual da interface para continuar.');
+                const fallback = this.buildAgentFallbackAnalysis(cleanMessage, {
+                    currentUrl: window.location.href,
+                    title: document.title,
+                    description: 'Tela atual do proprio app Drekee',
+                    headings: Array.from(document.querySelectorAll('h1, h2, h3')).map((item) => item.textContent?.trim()).filter(Boolean).slice(0, 4),
+                    interactiveElements: Array.from(document.querySelectorAll('button, a, input, textarea, select'))
+                        .map((item) => item.textContent?.trim() || item.getAttribute('aria-label') || item.placeholder || item.name || item.id)
+                        .filter(Boolean)
+                        .slice(0, 8)
+                }, { label: 'Tela atual' });
+                this.processAgentResponse(fallback, { label: 'Tela atual' });
+            }
+
             this.finishAgentResponse();
         } catch (error) {
             console.error('❌ [AGENT] Erro no processamento:', error);
@@ -1043,7 +1060,7 @@ Responda em formato JSON:
             this.addAgentThoughtLog(`📸 ${screenshot.note || screenshot.label || 'Nova captura feita pelo navegador do agente.'}`);
             this.addAgentScreenshot(screenshot.dataUrl, screenshot.label || 'Captura do site');
 
-            const prompt = this.buildAgentVisionPrompt(userMessage, {
+            const fallbackAnalysis = this.buildAgentFallbackAnalysis(userMessage, {
                 currentUrl: session.currentUrl || session.requestedUrl,
                 title: session.title || pageContext.title,
                 description: pageContext.description,
@@ -1051,8 +1068,29 @@ Responda em formato JSON:
                 interactiveElements: pageContext.interactiveElements
             }, screenshot);
 
-            const response = await this.callAgentAPI(prompt, screenshot.dataUrl);
-            this.processAgentResponse(response, { label: screenshot.label || 'Captura do site' });
+            if (session?.mode !== 'live-browser') {
+                this.addAgentThoughtLog('🧠 IA pensando...');
+                this.addAgentThoughtLog('⚠️ Visao por imagem indisponivel nesse momento; usei a estrutura da pagina para continuar.');
+                this.processAgentResponse(fallbackAnalysis, { label: screenshot.label || 'Captura do site' });
+                continue;
+            }
+
+            try {
+                const prompt = this.buildAgentVisionPrompt(userMessage, {
+                    currentUrl: session.currentUrl || session.requestedUrl,
+                    title: session.title || pageContext.title,
+                    description: pageContext.description,
+                    headings: pageContext.headings,
+                    interactiveElements: pageContext.interactiveElements
+                }, screenshot);
+
+                const response = await this.callAgentAPI(prompt, screenshot.dataUrl);
+                this.processAgentResponse(response, { label: screenshot.label || 'Captura do site' });
+            } catch (error) {
+                console.error('❌ [AGENT] Falha na visao do site, usando fallback estrutural:', error);
+                this.addAgentThoughtLog('⚠️ A leitura visual falhou; continuei com uma analise estrutural da pagina.');
+                this.processAgentResponse(fallbackAnalysis, { label: screenshot.label || 'Captura do site' });
+            }
         }
     }
 
@@ -1080,9 +1118,9 @@ Analise a imagem e responda com este formato:
     }
 
     async callAgentAPI(prompt, imageData) {
-        try {
-            this.addAgentThoughtLog('🔄 Vou analisar a imagem primeiro com Gemini Vision.');
+        this.addAgentThoughtLog('🧠 IA pensando...');
 
+        try {
             const geminiResponse = await this.callGeminiVision(prompt, imageData);
             if (geminiResponse) {
                 return geminiResponse;
@@ -1091,7 +1129,6 @@ Analise a imagem e responda com este formato:
             throw new Error('Gemini retornou resposta vazia');
         } catch (error) {
             console.error('❌ [AGENT] Erro na chamada da API:', error);
-            this.addAgentThoughtLog(`⚠️ Gemini falhou (${error.message}). Vou acionar o Groq Vision imediatamente.`);
 
             const groqResponse = await this.callGroqVision(prompt, imageData);
             if (groqResponse) {
@@ -1105,8 +1142,6 @@ Analise a imagem e responda com este formato:
     // Chamar Groq Vision
     async callGroqVision(prompt, imageData) {
         try {
-            this.addAgentThoughtLog('🚀 Chamando Groq Vision...');
-            
             const response = await fetch('/api/agent-vision', {
                 method: 'POST',
                 headers: {
@@ -1126,15 +1161,14 @@ Analise a imagem e responda com este formato:
             }
 
             if (!response.ok) {
+                console.error('❌ [AGENT][GROQ] Backend details:', data?.tried || data);
                 throw new Error(data.error || response.statusText);
             }
             
-            this.addAgentThoughtLog(`✅ Groq Vision respondeu com sucesso${data.fallbackUsed ? ' (com fallback interno).' : '.'}`);
             return this.normalizeAgentAnalysis(data);
             
         } catch (error) {
             console.error('❌ [AGENT] Erro no Groq Vision:', error);
-            this.addAgentThoughtLog('❌ Erro no Groq Vision: ' + error.message);
             throw error;
         }
     }
@@ -1142,8 +1176,6 @@ Analise a imagem e responda com este formato:
     // Chamar API do Gemini Vision
     async callGeminiVision(prompt, imageData) {
         try {
-            this.addAgentThoughtLog('🔄 Enviando para Gemini Vision...');
-            
             const response = await fetch('/api/agent-vision', {
                 method: 'POST',
                 headers: {
@@ -1159,20 +1191,14 @@ Analise a imagem e responda com este formato:
             const data = await response.json();
             
             if (!response.ok) {
+                console.error('❌ [AGENT][GEMINI] Backend details:', data?.tried || data);
                 throw new Error(`Gemini API Error: ${response.status} - ${data.error || response.statusText}`);
-            }
-            
-            if (data.providerUsed && data.providerUsed !== 'gemini') {
-                this.addAgentThoughtLog(`⚠️ Gemini falhou no backend; a rota trocou automaticamente para ${data.providerUsed}.`);
-            } else {
-                this.addAgentThoughtLog('✅ Gemini Vision respondeu com sucesso!');
             }
 
             return this.normalizeAgentAnalysis(data);
             
         } catch (error) {
             console.error('❌ [AGENT] Erro no Gemini Vision:', error);
-            this.addAgentThoughtLog('❌ Erro no Gemini Vision: ' + error.message);
             throw error;
         }
     }
@@ -1191,11 +1217,6 @@ Analise a imagem e responda com este formato:
 
             if (meta.label) {
                 this.addAgentThoughtLog(`🧾 Resultado da captura "${meta.label}":`);
-            }
-
-            if (normalized._meta?.providerUsed) {
-                const providerText = normalized._meta.providerUsed === 'gemini' ? 'Gemini' : 'Groq';
-                this.addAgentThoughtLog(`👁️ Analise visual concluida por ${providerText}${normalized._meta.fallbackUsed ? ' com fallback.' : '.'}`);
             }
 
             this.addAgentThoughtLog('📄 Pagina atual: ' + (normalized.pagina_atual || 'Pagina web detectada'));
@@ -1270,6 +1291,38 @@ Analise a imagem e responda com este formato:
                 return null;
             }
         }
+    }
+
+    buildAgentFallbackAnalysis(userMessage, pageContext = {}, screenshot = {}) {
+        const title = pageContext.title || 'Pagina web';
+        const description = pageContext.description || 'Sem descricao detalhada disponivel.';
+        const headings = this.coerceAgentList(pageContext.headings).slice(0, 4);
+        const interactiveElements = this.coerceAgentList(pageContext.interactiveElements).slice(0, 8);
+
+        const resumoPartes = [
+            title,
+            description,
+            headings.length ? `Secoes visiveis: ${headings.join(', ')}` : '',
+            screenshot.label ? `Captura: ${screenshot.label}` : ''
+        ].filter(Boolean);
+
+        const acoes = [];
+        if (interactiveElements.length) {
+            acoes.push(`Explorar estes elementos: ${interactiveElements.slice(0, 3).join(', ')}`);
+        }
+        if (/comprar|produto|tenis|oferta|colecao/i.test(`${title} ${description} ${userMessage}`)) {
+            acoes.push('Buscar produtos ou colecoes relacionadas ao pedido do usuario');
+        }
+        acoes.push('Continuar navegando para obter mais contexto da pagina');
+
+        return {
+            pagina_atual: resumoPartes.join(' | '),
+            elementos_interativos: interactiveElements,
+            acoes_possiveis: acoes,
+            proximo_passo: interactiveElements[0]
+                ? `Inspecionar "${interactiveElements[0]}" para avancar na tarefa`
+                : 'Continuar a navegacao guiada pelo agente'
+        };
     }
 
     coerceAgentList(value) {
