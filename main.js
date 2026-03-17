@@ -571,11 +571,16 @@ class UI {
         
         // Criar mensagem inicial do agente
         const agentMessage = `
-            <div class="agent-response-container bg-gray-900 border border-orange-500 rounded-lg p-4 mb-4">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="material-icons-outlined text-orange-400">smart_toy</span>
-                    <span class="text-orange-400 font-medium">Drekee Agent 1.0</span>
-                    <span class="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
+            <div class="agent-response-container bg-gray-900/95 border border-orange-500/40 rounded-2xl p-5 mb-4 shadow-soft">
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-400/30 flex items-center justify-center">
+                        <span class="material-icons-outlined text-orange-400 text-base">smart_toy</span>
+                    </div>
+                    <div>
+                        <div class="text-orange-300 font-semibold">Drekee Agent 1.0</div>
+                        <div class="text-xs text-gray-400">Navegacao assistida em tempo real</div>
+                    </div>
+                    <span class="w-2 h-2 bg-orange-400 rounded-full animate-pulse ml-auto"></span>
                 </div>
                 
                 <div id="agentResponse-${Date.now()}" class="space-y-4">
@@ -628,58 +633,84 @@ class UI {
     }
 
     renderAgentTimelineEntry(entry, index) {
+        const time = `<div class="text-[11px] uppercase tracking-wide text-gray-500 mb-1">${entry.timestamp}</div>`;
+
         if (entry.type === 'thought') {
             return `
-                <div class="bg-gray-800 rounded p-3 border border-gray-700">
-                    <div class="text-xs text-gray-500 mb-1">${entry.timestamp}</div>
-                    <div class="text-gray-100 text-sm leading-relaxed">${this.escapeHtml(entry.message || '')}</div>
+                <div class="flex items-start gap-3">
+                    <div class="mt-1 w-7 h-7 rounded-full bg-orange-500/15 border border-orange-400/25 flex items-center justify-center flex-shrink-0">
+                        <span class="material-icons-outlined text-[15px] text-orange-300">psychology</span>
+                    </div>
+                    <div class="flex-1 bg-gray-800/80 rounded-2xl border border-gray-700/80 px-4 py-3">
+                        ${time}
+                        <div class="text-gray-100 text-sm leading-relaxed">${this.escapeHtml(entry.message || '')}</div>
+                    </div>
                 </div>
             `;
         }
 
         if (entry.type === 'action') {
-            const statusIcon = entry.status === 'executed' ? '✅' : entry.status === 'failed' ? '❌' : '⏳';
+            const statusIcon = entry.status === 'executed' ? 'done' : entry.status === 'failed' ? 'close' : 'schedule';
             const statusColor = entry.status === 'executed'
-                ? 'border-green-600/40'
+                ? 'border-green-600/40 bg-green-500/10 text-green-200'
                 : entry.status === 'failed'
-                    ? 'border-red-600/40'
-                    : 'border-yellow-600/40';
+                    ? 'border-red-600/40 bg-red-500/10 text-red-200'
+                    : 'border-yellow-600/40 bg-yellow-500/10 text-yellow-100';
 
             return `
-                <div class="bg-gray-800 rounded p-3 border ${statusColor}">
-                    <div class="text-xs text-gray-500 mb-1">${entry.timestamp}</div>
-                    <div class="text-gray-100 text-sm flex items-start gap-2">
-                        <span>${statusIcon}</span>
-                        <span>${this.escapeHtml(entry.description || '')}</span>
+                <div class="flex items-start gap-3">
+                    <div class="mt-1 w-7 h-7 rounded-full ${statusColor} flex items-center justify-center flex-shrink-0">
+                        <span class="material-icons-outlined text-[15px]">${statusIcon}</span>
+                    </div>
+                    <div class="flex-1">
+                        ${time}
+                        <div class="inline-flex max-w-full items-center gap-2 rounded-full border ${statusColor} px-4 py-2 text-sm">
+                            <span>${this.escapeHtml(entry.description || '')}</span>
+                        </div>
                     </div>
                 </div>
             `;
         }
 
         if (entry.type === 'screenshot') {
-            const caption = entry.caption ? `<div class="text-sm text-blue-200 mb-2">${this.escapeHtml(entry.caption)}</div>` : '';
+            const caption = entry.caption ? `<div class="text-sm text-blue-100 mb-3">${this.escapeHtml(entry.caption)}</div>` : '';
             return `
-                <div class="bg-gray-800 rounded p-3 border border-blue-700/50">
-                    <div class="text-xs text-gray-500 mb-2">${entry.timestamp}</div>
-                    ${caption}
-                    <img
-                        src="${entry.data}"
-                        class="w-full max-w-2xl rounded border border-gray-600 cursor-zoom-in"
-                        alt="Screenshot ${index + 1}"
-                        onclick="window.ui.expandScreenshot(this.src)"
-                    >
+                <div class="flex items-start gap-3">
+                    <div class="mt-1 w-7 h-7 rounded-full bg-blue-500/15 border border-blue-400/25 flex items-center justify-center flex-shrink-0">
+                        <span class="material-icons-outlined text-[15px] text-blue-200">image</span>
+                    </div>
+                    <div class="flex-1 bg-gray-800/80 rounded-2xl border border-blue-700/40 px-4 py-3">
+                        ${time}
+                        ${caption}
+                        <img
+                            src="${entry.data}"
+                            class="w-full max-w-2xl rounded-2xl border border-gray-600 cursor-zoom-in"
+                            alt="Screenshot ${index + 1}"
+                            onclick="window.ui.expandScreenshot(this.src)"
+                        >
+                    </div>
                 </div>
             `;
         }
 
         const toneClass = entry.type === 'error'
-            ? 'border-red-700/50 text-red-100'
-            : 'border-gray-700 text-gray-200';
+            ? 'border-red-700/50 text-red-100 bg-red-500/10'
+            : 'border-gray-700 text-gray-200 bg-gray-800/70';
+
+        const icon = entry.type === 'error' ? 'error' : 'task_alt';
+        const iconBg = entry.type === 'error'
+            ? 'bg-red-500/15 border-red-400/25 text-red-200'
+            : 'bg-emerald-500/15 border-emerald-400/25 text-emerald-200';
 
         return `
-            <div class="bg-gray-800 rounded p-3 border ${toneClass}">
-                <div class="text-xs text-gray-500 mb-1">${entry.timestamp}</div>
-                <div class="text-sm">${this.escapeHtml(entry.message || '')}</div>
+            <div class="flex items-start gap-3">
+                <div class="mt-1 w-7 h-7 rounded-full border ${iconBg} flex items-center justify-center flex-shrink-0">
+                    <span class="material-icons-outlined text-[15px]">${icon}</span>
+                </div>
+                <div class="flex-1 rounded-2xl border ${toneClass} px-4 py-3">
+                    ${time}
+                    <div class="text-sm">${this.escapeHtml(entry.message || '')}</div>
+                </div>
             </div>
         `;
     }
@@ -981,6 +1012,15 @@ Responda em formato JSON:
             throw new Error(data.error || `Falha ao abrir ${url}`);
         }
 
+        if (data.mode === 'metadata-fallback') {
+            this.addAgentThoughtLog('⚠️ O navegador visual nao estava disponivel; continuei com uma previa textual do site para nao travar o agente.');
+            if (data.warning) {
+                this.addAgentThoughtLog(`🛠️ Motivo tecnico: ${data.warning}`);
+            }
+        } else {
+            this.addAgentThoughtLog('✅ Navegador visual iniciado com sucesso.');
+        }
+
         return data;
     }
 
@@ -991,6 +1031,9 @@ Responda em formato JSON:
         const readableTitle = session?.title || pageContext.title || session?.currentUrl || session?.requestedUrl;
 
         this.addAgentThoughtLog(`🪄 Navegacao concluida. Pagina detectada: ${readableTitle}`);
+        if (session?.mode === 'live-browser') {
+            this.addAgentThoughtLog('👀 Estou vendo capturas reais do site abertas pelo agente.');
+        }
 
         if (pageContext.description) {
             this.addAgentThoughtLog(`📝 Descricao detectada no HTML: ${pageContext.description}`);
@@ -1259,8 +1302,14 @@ Analise a imagem e responda com este formato:
 
     // Habilitar ações do agente
     enableAgentActions(analysis) {
+        const plannedActions = this.coerceAgentList(analysis.acoes_sugeridas || analysis.acoes_possiveis).slice(0, 3);
+
+        plannedActions.forEach((action) => {
+            this.addAgentAction(action, 'pending');
+        });
+
         if (analysis.proximo_passo) {
-            this.addAgentAction('Acao sugerida: ' + analysis.proximo_passo, 'pending');
+            this.addAgentAction('Proximo passo recomendado: ' + analysis.proximo_passo, 'pending');
         }
 
         this.addAgentThoughtLog('✅ Analise concluida - pronto para continuar o fluxo.');
