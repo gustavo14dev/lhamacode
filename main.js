@@ -1577,7 +1577,7 @@ Analise a imagem e responda com este formato:
             ? context.navigationTrail.filter((step) => step && step.success)
             : [];
 
-        const pageText = this.coerceAgentList(context?.pageText).slice(0, 120);
+        const pageText = this.coerceAgentList(context?.pageText).slice(0, 220);
         const analysis = context?.analysis || {};
         const relevantItems = this.extractRelevantItemsFromPageText(context?.request, pageText)
             .slice(0, this.extractRequestedItemCount(context?.request));
@@ -1610,7 +1610,7 @@ Analise a imagem e responda com este formato:
             }
         }
 
-        const pageText = this.coerceAgentList(context?.pageText).slice(0, 60);
+        const pageText = this.coerceAgentList(context?.pageText).slice(0, 160);
         const relevantItems = this.coerceAgentList(context?.relevantItems).slice(0, 12);
         const navigationText = this.coerceAgentList(context?.navigationTrail)
             .filter((step) => step?.success)

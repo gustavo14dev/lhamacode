@@ -5,7 +5,7 @@ import puppeteer from 'puppeteer';
 
 const VIEWPORT = {
     width: 1440,
-    height: 1024,
+    height: 900,
     deviceScaleFactor: 1
 };
 
@@ -118,7 +118,12 @@ export default async function handler(req, res) {
             }
         }
 
-        await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'auto' }));
+        const scrollCollection = await collectScrollableSnapshots(page, pageContext, pageTitle, task);
+        pageContext = scrollCollection.pageContext;
+        pageTitle = scrollCollection.pageTitle;
+        screenshots.push(...scrollCollection.screenshots);
+
+        await resetScrollableViewport(page);
 
         return res.status(200).json({
             mode: 'live-browser',
@@ -531,7 +536,7 @@ async function collectPageContext(page) {
         ]
             .filter((text) => text && text.length > 1)
             .filter((text, index, array) => array.indexOf(text) === index)
-            .slice(0, 160);
+            .slice(0, 220);
 
         return {
             title: document.title || '',
@@ -544,6 +549,155 @@ async function collectPageContext(page) {
                 document.documentElement?.scrollHeight || 0
             )
         };
+    });
+}
+
+function mergePageContexts(baseContext = {}, nextContext = {}) {
+    const mergeTextList = (left = [], right = []) => [...left, ...right]
+        .map((item) => String(item || '').replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .filter((item, index, array) => array.indexOf(item) === index)
+        .slice(0, 260);
+
+    const mergeInteractiveElements = (left = [], right = []) => [...left, ...right]
+        .filter((item) => item?.text)
+        .filter((item, index, array) => array.findIndex((candidate) => candidate?.tag === item?.tag && candidate?.text === item?.text) === index)
+        .slice(0, 40);
+
+    return {
+        title: nextContext.title || baseContext.title || '',
+        description: nextContext.description || baseContext.description || '',
+        headings: mergeTextList(baseContext.headings, nextContext.headings),
+        interactiveElements: mergeInteractiveElements(baseContext.interactiveElements, nextContext.interactiveElements),
+        visibleText: mergeTextList(baseContext.visibleText, nextContext.visibleText),
+        scrollHeight: Math.max(baseContext.scrollHeight || 0, nextContext.scrollHeight || 0)
+    };
+}
+
+async function collectScrollableSnapshots(page, initialContext, initialTitle, task) {
+    const scrollMeta = await resolveScrollableViewport(page);
+
+    const maxScrollTop = Math.max(0, scrollMeta.scrollHeight - scrollMeta.viewportHeight);
+    const wantsDeepScan = /modelo|modelos|models|lista|todos|catalogo|downloads|release|pricing|planos|produtos/i.test(task || '');
+    const minimumScrollThreshold = wantsDeepScan ? 80 : scrollMeta.viewportHeight * 0.35;
+
+    if (maxScrollTop < minimumScrollThreshold) {
+        return {
+            pageContext: initialContext,
+            pageTitle: initialTitle,
+            screenshots: []
+        };
+    }
+
+    const extraSteps = wantsDeepScan
+        ? Math.min(4, Math.max(1, Math.ceil(maxScrollTop / Math.max(scrollMeta.viewportHeight * 0.7, 1))))
+        : Math.min(2, Math.ceil(maxScrollTop / scrollMeta.viewportHeight));
+
+    let mergedContext = initialContext;
+    let pageTitle = initialTitle;
+    const screenshots = [];
+
+    for (let step = 1; step <= extraSteps; step += 1) {
+        const top = Math.round((maxScrollTop * step) / extraSteps);
+        await scrollViewportTo(page, top);
+        await waitForReadableCapture(page);
+
+        const stepContext = await collectPageContext(page);
+        mergedContext = mergePageContexts(mergedContext, stepContext);
+        pageTitle = pageTitle || await page.title();
+
+        screenshots.push(await captureScreenshot(
+            page,
+            `Rolagem ${step}`,
+            `Rolei a página para capturar mais conteúdo visível (${step}/${extraSteps}).`
+        ));
+    }
+
+    return {
+        pageContext: mergedContext,
+        pageTitle,
+        screenshots
+    };
+}
+
+async function resolveScrollableViewport(page) {
+    return page.evaluate(() => {
+        document.querySelectorAll('[data-drekee-scroll-target="true"]').forEach((element) => {
+            element.removeAttribute('data-drekee-scroll-target');
+        });
+
+        const candidates = [document.scrollingElement, ...document.querySelectorAll('main, [role="main"], article, section, div')];
+        const rankedCandidates = candidates
+            .filter(Boolean)
+            .map((element) => {
+                const style = window.getComputedStyle(element);
+                const rect = element.getBoundingClientRect();
+                const clientHeight = element.clientHeight || rect.height || 0;
+                const scrollHeight = element.scrollHeight || 0;
+                const maxScroll = Math.max(0, scrollHeight - clientHeight);
+                const isDocument = element === document.scrollingElement;
+                const scrollable = isDocument || /(auto|scroll)/i.test(style.overflowY || '');
+                const matchesMain = element.matches?.('main, [role="main"], article') ? 1 : 0;
+                const score = maxScroll + rect.width + (matchesMain * 600);
+
+                return {
+                    element,
+                    clientHeight,
+                    scrollHeight,
+                    maxScroll,
+                    scrollable,
+                    isDocument,
+                    score,
+                    visible: rect.width > 300 && clientHeight > 200
+                };
+            })
+            .filter((candidate) => candidate.scrollable && candidate.maxScroll > 0 && candidate.visible)
+            .sort((left, right) => right.score - left.score);
+
+        const target = rankedCandidates[0];
+        if (target && !target.isDocument) {
+            target.element.setAttribute('data-drekee-scroll-target', 'true');
+        }
+
+        if (target) {
+            return {
+                viewportHeight: target.clientHeight,
+                scrollHeight: target.scrollHeight,
+                usesWindow: target.isDocument
+            };
+        }
+
+        return {
+            viewportHeight: window.innerHeight || 1024,
+            scrollHeight: Math.max(
+                document.body?.scrollHeight || 0,
+                document.documentElement?.scrollHeight || 0
+            ),
+            usesWindow: true
+        };
+    });
+}
+
+async function scrollViewportTo(page, top) {
+    await page.evaluate((scrollTop) => {
+        const target = document.querySelector('[data-drekee-scroll-target="true"]');
+        if (target) {
+            target.scrollTo({ top: scrollTop, behavior: 'auto' });
+            return;
+        }
+
+        window.scrollTo({ top: scrollTop, behavior: 'auto' });
+    }, top);
+}
+
+async function resetScrollableViewport(page) {
+    await page.evaluate(() => {
+        const target = document.querySelector('[data-drekee-scroll-target="true"]');
+        if (target) {
+            target.scrollTo({ top: 0, behavior: 'auto' });
+        } else {
+            window.scrollTo({ top: 0, behavior: 'auto' });
+        }
     });
 }
 
