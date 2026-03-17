@@ -585,7 +585,7 @@ class UI {
         
         // Criar mensagem inicial do agente
         const agentMessage = `
-            <div class="agent-response-container bg-transparent border-0 rounded-none p-0 mb-6">
+            <div class="agent-response-container bg-transparent border-0 rounded-none p-0 mb-6 shadow-none" style="background: transparent; border: 0; box-shadow: none;">
                 <div class="flex items-center gap-2 mb-4">
                     <div class="w-9 h-9 rounded-full bg-orange-500/12 border border-orange-400/20 flex items-center justify-center">
                         <span class="text-orange-300 text-sm">AI</span>
@@ -604,6 +604,10 @@ class UI {
         `;
         
         this.agentResponseElement = document.createElement('div');
+        this.agentResponseElement.className = 'bg-transparent border-0 shadow-none p-0 m-0';
+        this.agentResponseElement.style.background = 'transparent';
+        this.agentResponseElement.style.border = '0';
+        this.agentResponseElement.style.boxShadow = 'none';
         this.agentResponseElement.innerHTML = agentMessage;
         
         // Adicionar ao chat
@@ -614,7 +618,7 @@ class UI {
         }
     }
 
-    addAgentTimelineEntry(type, payload = {}) {
+    addAgentTimelineEntry(type, payload = {}, options = {}) {
         const entry = {
             id: `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             type,
@@ -622,11 +626,25 @@ class UI {
             ...payload
         };
 
+        if (options.immediate) {
+            if (!this.agentTimeline) {
+                this.agentTimeline = [];
+            }
+            this.agentTimeline.push(entry);
+            if (this.agentResponseElement) {
+                this.updateAgentResponse();
+            }
+            return;
+        }
+
         if (!this.agentTimelineQueue) {
             this.agentTimelineQueue = [];
         }
 
-        this.agentTimelineQueue.push(entry);
+        this.agentTimelineQueue.push({
+            entry,
+            delayOverride: options.delayOverride
+        });
         this.processAgentTimelineQueue();
     }
 
@@ -638,8 +656,11 @@ class UI {
         this.agentTimelineProcessing = true;
 
         while (this.agentTimelineQueue && this.agentTimelineQueue.length > 0) {
-            const entry = this.agentTimelineQueue.shift();
-            const delay = this.getAgentTimelineDelay(entry);
+            const queueItem = this.agentTimelineQueue.shift();
+            const entry = queueItem.entry;
+            const delay = typeof queueItem.delayOverride === 'number'
+                ? queueItem.delayOverride
+                : this.getAgentTimelineDelay(entry);
 
             if (delay > 0) {
                 await new Promise((resolve) => setTimeout(resolve, delay));
@@ -661,6 +682,10 @@ class UI {
 
     getAgentTimelineDelay(entry) {
         if (!entry || !entry.type) {
+            return 0;
+        }
+
+        if (entry.type === 'intro') {
             return 0;
         }
 
@@ -700,6 +725,14 @@ class UI {
 
     renderAgentTimelineEntry(entry, index) {
         const time = `<div class="text-[11px] uppercase tracking-wide text-gray-500 mb-1">${entry.timestamp}</div>`;
+
+        if (entry.type === 'intro') {
+            return `
+                <div class="pb-2">
+                    <div class="text-gray-100 text-[15px] leading-relaxed whitespace-pre-wrap">${this.escapeHtml(entry.message || '')}</div>
+                </div>
+            `;
+        }
 
         if (entry.type === 'thought') {
             return `
@@ -743,7 +776,7 @@ class UI {
                 <div class="my-4">
                     <img
                         src="${entry.data}"
-                        class="block w-full max-w-3xl rounded-2xl border border-gray-700/70 cursor-zoom-in"
+                        class="block w-full max-w-3xl cursor-zoom-in"
                         alt="Captura do agente"
                         onclick="window.ui.expandScreenshot(this.src)"
                     >
@@ -753,15 +786,9 @@ class UI {
 
         if (entry.type === 'summary') {
             return `
-                <div class="flex items-start gap-3">
-                    <div class="mt-1 w-7 h-7 rounded-full bg-orange-500/15 border border-orange-400/25 flex items-center justify-center flex-shrink-0">
-                        <span class="text-sm">📝</span>
-                    </div>
-                    <div class="flex-1 rounded-2xl border border-orange-500/30 bg-orange-500/10 px-4 py-4">
-                        ${time}
-                        <div class="text-sm font-semibold text-orange-100 mb-2">${this.escapeHtml(entry.title || 'Resumo do agente')}</div>
-                        <div class="text-sm text-orange-50 leading-relaxed whitespace-pre-wrap">${this.escapeHtml(entry.message || '')}</div>
-                    </div>
+                <div class="pt-2">
+                    <div class="text-sm font-semibold text-gray-100 mb-2">${this.escapeHtml(entry.title || 'Resposta do agente')}</div>
+                    <div class="text-[15px] text-gray-100 leading-relaxed whitespace-pre-wrap">${this.escapeHtml(entry.message || '')}</div>
                 </div>
             `;
         }
@@ -814,6 +841,10 @@ class UI {
             title,
             message
         });
+    }
+
+    addAgentIntroMessage(message) {
+        this.addAgentTimelineEntry('intro', { message }, { immediate: true });
     }
 
     // Finalizar resposta do agente
@@ -1016,10 +1047,8 @@ Responda em formato JSON:
             this.startAgentResponse();
             this.agentRunContext.request = cleanMessage;
 
-            this.addAgentThoughtLog(`👤 Pedido recebido: ${cleanMessage}`);
-            this.addAgentThoughtLog('🧠 Vou decidir se preciso navegar em um site real ou analisar a tela atual.');
-
             const detectedUrl = this.extractAgentUrl(cleanMessage);
+            this.addAgentIntroMessage(this.buildAgentIntroMessage(cleanMessage, detectedUrl));
             if (detectedUrl) {
                 const normalizedUrl = this.normalizeAgentUrl(detectedUrl);
 
@@ -1055,7 +1084,7 @@ Responda em formato JSON:
                 return;
             }
 
-            this.addAgentThoughtLog('📸 Nao ha URL no pedido, entao vou analisar a tela atual do app.');
+            this.addAgentThoughtLog('📸 Vou analisar a tela atual do app para responder ao seu pedido.');
             const imageData = await this.takeScreenshot();
             this.addAgentScreenshot(imageData.dataUrl, 'Tela atual capturada pelo agente');
 
@@ -1131,6 +1160,14 @@ Responda em formato JSON:
         }
     }
 
+    buildAgentIntroMessage(userMessage, detectedUrl = null) {
+        if (detectedUrl) {
+            return `Olá! Claro. Vou abrir ${detectedUrl}, seguir a navegação que você pediu e te mostrar as capturas junto com a resposta final.`;
+        }
+
+        return `Olá! Claro. Vou analisar o que você pediu e te responder passo a passo.`;
+    }
+
     async openAgentBrowserSession(url, task = '') {
         const response = await fetch('/api/agent-browser', {
             method: 'POST',
@@ -1150,7 +1187,7 @@ Responda em formato JSON:
         } else if (data.mode === 'metadata-fallback' || data.mode === 'site-protected-fallback') {
             this.addAgentThoughtLog('📡 Gerei uma visualizacao resumida do site para continuar a analise.');
         } else {
-            this.addAgentThoughtLog('✅ Navegador visual iniciado com sucesso.');
+            this.addAgentThoughtLog('✅ O site abriu corretamente no navegador do agente.');
         }
 
         return data;
@@ -1444,11 +1481,20 @@ Analise a imagem e responda com este formato:
 
         const pageText = this.coerceAgentList(context?.pageText).slice(0, 30);
         const analysis = context?.analysis || {};
+        const relevantItems = this.extractRelevantItemsFromPageText(context?.request, pageText);
         const analysisJson = JSON.stringify({
             pagina_atual: analysis?.pagina_atual || '',
             elementos_interativos: this.coerceAgentList(analysis?.elementos_interativos || analysis?.elementos_visiveis).slice(0, 8),
             acoes_possiveis: this.coerceAgentList(analysis?.acoes_possiveis || analysis?.acoes_sugeridas).slice(0, 8),
             proximo_passo: analysis?.proximo_passo || ''
+        });
+        const fallbackText = this.buildAgentFallbackNarrative({
+            ...context,
+            dominantColor,
+            navigationTrail,
+            pageText,
+            analysis,
+            relevantItems
         });
 
         const prompt = `Pedido original do usuario:
@@ -1469,13 +1515,18 @@ ${analysisJson}
 
 Escreva a resposta final em portugues do Brasil, como se fosse a resposta principal do agente para o usuario.
 Regras:
+- comece com uma frase curta e natural, como "Olá! Já fui até..." ou "Olá! Já analisei...";
 - responda diretamente ao que o usuario pediu;
 - diga o que o agente conseguiu fazer e o que encontrou;
 - se o usuario pediu uma cor, informe a cor predominante;
 - se o usuario pediu uma lista de itens/modelos, entregue a lista em formato claro;
+- se houver navegacao entre paginas, cite por onde passou;
 - se o site bloqueou automacao, explique isso sem linguagem tecnica demais;
 - produza uma resposta maior e natural, em 2 a 5 paragrafos curtos ou com lista quando fizer sentido;
-- nao mencione Gemini, Groq, prompt, JSON ou detalhes internos.`;
+- nao mencione Gemini, Groq, prompt, JSON ou detalhes internos;
+- nunca copie JSON bruto, chaves como "pagina_atual" ou blocos de codigo;
+- nao se apresente com "eu sou o Drekee Agent";
+- nao termine perguntando "qual e o proximo passo?".`;
 
         try {
             const groqText = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
@@ -1490,7 +1541,10 @@ Regras:
             ]);
 
             if (groqText && groqText.trim()) {
-                return groqText.trim();
+                const cleanedGroqText = this.cleanAgentFinalText(groqText);
+                if (this.isUsefulAgentFinalText(cleanedGroqText, context?.request, relevantItems, dominantColor)) {
+                    return cleanedGroqText;
+                }
             }
         } catch (error) {
             console.error('❌ [AGENT] Erro ao gerar resumo final com Groq:', error);
@@ -1499,19 +1553,16 @@ Regras:
         try {
             const geminiText = await this.callAgentTextSummaryGemini(prompt);
             if (geminiText && geminiText.trim()) {
-                return geminiText.trim();
+                const cleanedGeminiText = this.cleanAgentFinalText(geminiText);
+                if (this.isUsefulAgentFinalText(cleanedGeminiText, context?.request, relevantItems, dominantColor)) {
+                    return cleanedGeminiText;
+                }
             }
         } catch (error) {
             console.error('❌ [AGENT] Erro ao gerar resumo final com Gemini:', error);
         }
 
-        return this.buildAgentFallbackNarrative({
-            ...context,
-            dominantColor,
-            navigationTrail,
-            pageText,
-            analysis
-        });
+        return fallbackText;
     }
 
     async callAgentTextSummaryGemini(prompt) {
@@ -1533,47 +1584,74 @@ Regras:
         return data.text || '';
     }
 
-    buildAgentFallbackNarrative({ request, targetUrl, pageTitle, blocked, mode, screenshots, analysis, dominantColor, navigationTrail, pageText }) {
-        const parts = [];
-        parts.push(`Entrei no alvo ${targetUrl || 'solicitado'} para atender ao pedido "${request}".`);
+    buildAgentFallbackNarrative({ request, targetUrl, pageTitle, blocked, mode, screenshots, analysis, dominantColor, navigationTrail, pageText, relevantItems = [] }) {
+        const sections = [];
+        const safeRequest = (request || '').trim();
+        const navigationText = Array.isArray(navigationTrail) && navigationTrail.length
+            ? navigationTrail.map((step) => step.matchedText || step.targetHint || step.currentUrl).filter(Boolean).join(' -> ')
+            : '';
+        const requestedColor = /cor|color/i.test(safeRequest);
+        const requestedList = /modelo|modelos|models|lista|todos|quais|itens/i.test(safeRequest);
+
+        let intro = targetUrl
+            ? `Olá! Já fui até ${targetUrl}`
+            : 'Olá! Já analisei a tela que você pediu';
+
+        if (navigationText) {
+            intro += ` e naveguei por ${navigationText}`;
+        }
+
+        intro += '.';
+        sections.push(intro);
+
+        const resultLines = [];
+        if (pageTitle) {
+            resultLines.push(`A página final identificada foi "${pageTitle}".`);
+        }
+
+        if (requestedColor && dominantColor) {
+            resultLines.push(`Pela captura final, a cor predominante da página é ${dominantColor}.`);
+        }
+
+        if (analysis?.pagina_atual) {
+            resultLines.push(`O conteúdo principal que consegui identificar foi: ${analysis.pagina_atual}.`);
+        }
 
         if (blocked) {
-            parts.push('O site apresentou uma protecao contra automacao, entao eu nao consegui navegar livremente por todas as areas da pagina.');
-            parts.push(mode === 'site-protected-hosted'
-                ? 'Mesmo assim, usei uma visualizacao compativel do site para extrair o maximo de contexto possivel.'
-                : 'Mesmo assim, montei uma visualizacao resumida para nao interromper a tarefa.');
+            resultLines.push(
+                mode === 'site-protected-hosted'
+                    ? 'Esse site limitou a navegação automática nesta tentativa, então usei uma visualização compatível para continuar a análise.'
+                    : 'Esse site limitou a navegação automática nesta tentativa, então trabalhei com o que consegui coletar da página.'
+            );
         } else {
-            parts.push('Consegui abrir a pagina e acompanhar o conteudo visual para analisar o que estava nela.');
+            resultLines.push('Consegui abrir a página e acompanhar o conteúdo visual sem travar o fluxo do agente.');
         }
 
-        if (navigationTrail && navigationTrail.length) {
-            parts.push(`Durante a navegacao, passei por: ${navigationTrail.map((step) => step.matchedText || step.targetHint || step.currentUrl).join(' -> ')}.`);
+        sections.push(resultLines.join(' '));
+
+        if (relevantItems.length) {
+            const listTitle = requestedList
+                ? 'Os itens mais relevantes que apareceram nessa página foram:'
+                : 'Os principais textos e elementos que consegui identificar foram:';
+            sections.push(`${listTitle}\n- ${relevantItems.join('\n- ')}`);
+        } else if (pageText && pageText.length) {
+            sections.push(`Os textos visíveis mais importantes que consegui extrair foram: ${pageText.slice(0, 6).join(', ')}.`);
         }
 
-        if (pageTitle) {
-            parts.push(`A pagina final identificada foi "${pageTitle}".`);
-        }
-
-        if (/cor|color/i.test(request || '') && dominantColor) {
-            parts.push(`Pela captura final, a cor predominante parece ser ${dominantColor}.`);
-        }
-
-        const visibleItems = this.extractRelevantItemsFromPageText(request, pageText || []);
-        if (visibleItems.length) {
-            parts.push(`Os itens mais relevantes que encontrei foram: ${visibleItems.join(', ')}.`);
-        } else if (analysis?.pagina_atual) {
-            parts.push(`O que consegui identificar da pagina foi: ${analysis.pagina_atual}.`);
-        }
-
+        const closing = [];
         if (screenshots) {
-            parts.push(`Gerei ${screenshots} captura${screenshots > 1 ? 's' : ''} durante o processo.`);
+            closing.push(`Gerei ${screenshots} captura${screenshots > 1 ? 's' : ''} durante a execução.`);
         }
 
-        if (analysis?.proximo_passo) {
-            parts.push(`Se quiser continuar, o proximo passo natural seria: ${analysis.proximo_passo}.`);
+        if (!requestedColor && !requestedList && analysis?.proximo_passo && !blocked) {
+            closing.push(`Se você quiser, eu também posso continuar a navegação a partir daqui em "${analysis.proximo_passo}".`);
         }
 
-        return parts.join('\n\n');
+        if (closing.length) {
+            sections.push(closing.join(' '));
+        }
+
+        return sections.filter(Boolean).join('\n\n').trim();
     }
 
     extractRelevantItemsFromPageText(request, pageText = []) {
@@ -1582,13 +1660,97 @@ Regras:
             .filter((item) => item.length > 1)
             .filter((item, index, array) => array.indexOf(item) === index);
 
-        if (/modelo|modelos|models/i.test(request || '')) {
+        const genericNavItems = new Set([
+            'python',
+            'docs',
+            'documentation',
+            'community',
+            'jobs',
+            'downloads',
+            'download',
+            'about',
+            'blog',
+            'home',
+            'search'
+        ]);
+
+        if (/modelo|modelos|models|lista|todos|itens/i.test(request || '')) {
             return cleanItems
+                .filter((item) => !genericNavItems.has(this.normalizeSearchText(item)))
                 .filter((item) => item.length >= 2 && item.length <= 80)
                 .slice(0, 12);
         }
 
+        if (/download|downloads|release|versao|versoes|version|versions/i.test(request || '')) {
+            return cleanItems
+                .filter((item) => /\d|download|release|source|windows|mac|linux/i.test(item))
+                .slice(0, 12);
+        }
+
         return cleanItems.slice(0, 6);
+    }
+
+    normalizeSearchText(value) {
+        return String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, ' ')
+            .trim();
+    }
+
+    cleanAgentFinalText(text) {
+        let cleaned = String(text || '')
+            .replace(/^```[a-z]*\s*/gim, '')
+            .replace(/\s*```$/gim, '')
+            .replace(/segue aqui a analise estruturada da pagina que coletamos:\s*/gi, '')
+            .replace(/^\s*resposta do agente\s*/gi, '')
+            .replace(/qual e o proximo passo\??/gi, '')
+            .replace(/qual é o proximo passo\??/gi, '')
+            .trim();
+
+        cleaned = cleaned.replace(/\{[\s\S]*?"pagina_atual"[\s\S]*?\}/gi, '').trim();
+        cleaned = cleaned.replace(/ol[aá]!\s*eu sou o drekee agent 1\.0\.?\s*/gi, 'Olá! ').trim();
+
+        cleaned = cleaned
+            .split('\n')
+            .filter((line) => !/"?(pagina_atual|elementos_interativos|acoes_possiveis|proximo_passo)"?\s*:/.test(line))
+            .join('\n')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+
+        return cleaned;
+    }
+
+    isUsefulAgentFinalText(text, request, relevantItems = [], dominantColor = null) {
+        if (!text || text.length < 120) {
+            return false;
+        }
+
+        if (/"pagina_atual"|"elementos_interativos"|"acoes_possiveis"|"proximo_passo"/i.test(text)) {
+            return false;
+        }
+
+        if (/^\s*[\[{]/.test(text)) {
+            return false;
+        }
+
+        if (/cor|color/i.test(request || '') && dominantColor) {
+            const normalizedText = this.normalizeSearchText(text);
+            const normalizedColor = this.normalizeSearchText(dominantColor);
+            if (!normalizedText.includes(normalizedColor) && !normalizedText.includes('cor predominante')) {
+                return false;
+            }
+        }
+
+        if (/modelo|modelos|models|lista|todos|itens/i.test(request || '') && relevantItems.length) {
+            const matchesAnyRelevantItem = relevantItems.some((item) => text.includes(item));
+            if (!matchesAnyRelevantItem) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     async detectDominantColorNameFromDataUrl(dataUrl) {

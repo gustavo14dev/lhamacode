@@ -29,12 +29,14 @@ export default async function handler(req, res) {
 
         const page = await browser.newPage();
         await page.setViewport(VIEWPORT);
+        await page.emulateMediaType('screen');
         await page.goto(normalizedUrl, {
             waitUntil: 'networkidle2',
             timeout: 45000
         });
 
         await wait(1200);
+        await waitForReadableCapture(page);
 
         let pageContext = await collectPageContext(page);
         let pageTitle = await page.title();
@@ -66,6 +68,7 @@ export default async function handler(req, res) {
             }
 
             await wait(1200);
+            await waitForReadableCapture(page);
             pageContext = await collectPageContext(page);
             pageTitle = await page.title();
 
@@ -271,27 +274,50 @@ async function collectPageContext(page) {
 
 function extractNavigationHints(task) {
     const hints = [];
-    const normalizedTask = String(task || '');
+    const normalizedTask = normalizeSearchText(
+        String(task || '')
+            .replace(/https?:\/\/\S+/gi, ' ')
+            .replace(/\bwww\.[^\s]+/gi, ' ')
+    );
     const patterns = [
-        /(?:pagina|página|secao|seção|aba|menu)\s+de\s+([^,.!?]+?)(?=\s+e\s+(?:me|depois|entao|então)|[.?!,]|$)/gi,
-        /(?:va|vá|entre|acesse|abra|navegue|ir)\s+(?:na|no|para a|para o|para|ate|até)\s+([^,.!?]+?)(?=\s+e\s+(?:me|depois|entao|então)|[.?!,]|$)/gi
+        /(?:pagina|secao|aba|menu)\s+de\s+(.+?)(?=\s+e\s+(?:me|depois|entao)|$)/gi,
+        /(?:va|entre|acesse|abra|navegue|ir)\s+(?:na|no|para a|para o|para|ate)\s+(.+?)(?=\s+e\s+(?:me|depois|entao)|$)/gi
     ];
-    const blacklist = new Set(['site', 'pagina', 'página', 'home', 'inicio', 'inicial']);
+    const blacklist = new Set(['site', 'pagina', 'home', 'inicio', 'inicial']);
 
     for (const pattern of patterns) {
         let match;
         while ((match = pattern.exec(normalizedTask)) !== null) {
-            const value = match[1]?.trim().replace(/^de\s+/i, '');
-            if (value && !hints.includes(value)) {
-                const cleaned = normalizeSearchText(value);
-                if (cleaned && !blacklist.has(cleaned)) {
-                    hints.push(value);
-                }
+            const value = sanitizeNavigationHint(match[1]);
+            const cleaned = normalizeSearchText(value);
+            if (!cleaned || blacklist.has(cleaned)) {
+                continue;
+            }
+
+            const isDuplicate = hints.some((existingHint) => {
+                const existingCleaned = normalizeSearchText(existingHint);
+                return existingCleaned === cleaned
+                    || existingCleaned.includes(cleaned)
+                    || cleaned.includes(existingCleaned);
+            });
+
+            if (!isDuplicate) {
+                hints.push(value);
             }
         }
     }
 
     return hints;
+}
+
+function sanitizeNavigationHint(value) {
+    return String(value || '')
+        .replace(/https?:\/\/\S+/gi, ' ')
+        .replace(/\bwww\.[^\s]+/gi, ' ')
+        .replace(/^(?:de\s+)?(?:site|pagina|secao)\s+(?:de|do|da)\s+/i, '')
+        .replace(/^(?:de\s+)?(?:site|pagina|secao)\s+/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
 }
 
 async function navigateToHint(page, hint) {
@@ -668,9 +694,10 @@ function escapeXml(text) {
 }
 
 async function captureScreenshot(page, label, note) {
+    await waitForReadableCapture(page);
+
     const base64 = await page.screenshot({
-        type: 'jpeg',
-        quality: 72,
+        type: 'png',
         encoding: 'base64',
         fullPage: false
     });
@@ -678,8 +705,29 @@ async function captureScreenshot(page, label, note) {
     return {
         label,
         note,
-        dataUrl: `data:image/jpeg;base64,${base64}`
+        dataUrl: `data:image/png;base64,${base64}`
     };
+}
+
+async function waitForReadableCapture(page) {
+    try {
+        await page.evaluate(async () => {
+            if (document.fonts?.ready) {
+                try {
+                    await document.fonts.ready;
+                } catch {
+                    // Ignore font loading failures and keep going.
+                }
+            }
+
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            document.body?.offsetHeight;
+        });
+    } catch {
+        // Ignore transient evaluate failures and keep the capture flow moving.
+    }
+
+    await wait(500);
 }
 
 function wait(ms) {
