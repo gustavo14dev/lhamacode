@@ -1457,6 +1457,11 @@ Responda em formato JSON:
             return { mode: 'new_research', reason: 'no_previous_agent_context' };
         }
 
+        const deterministicStrategy = this.classifyDeterministicAgentFollowUp(userMessage, previousAgentContext);
+        if (deterministicStrategy) {
+            return deterministicStrategy;
+        }
+
         const explicitUrl = this.extractAgentUrl(userMessage);
         if (explicitUrl) {
             const normalizedExplicitUrl = this.normalizeAgentUrl(explicitUrl);
@@ -1527,6 +1532,50 @@ Regras:
         return this.fallbackAgentFollowUpStrategy(userMessage, previousAgentContext);
     }
 
+    classifyDeterministicAgentFollowUp(userMessage, previousAgentContext = null) {
+        if (!previousAgentContext) {
+            return null;
+        }
+
+        const normalizedMessage = this.normalizeSearchText(userMessage);
+        const previousHost = previousAgentContext?.targetUrl ? this.extractHostToken(previousAgentContext.targetUrl) : '';
+        const referencesExistingContext = [
+            'desse modelo',
+            'desses modelos',
+            'desses itens',
+            'dessa pagina',
+            'desta pagina',
+            'esse modelo',
+            'esses modelos',
+            'essa pagina',
+            'esse site',
+            'isso',
+            'nisso',
+            'nela',
+            'nele'
+        ].some((token) => normalizedMessage.includes(token));
+        const asksNavigation = /\b(va|entre|acesse|abra|navegue|pesquise|procure|busque|continue|volte|role|desca|suba|veja|verifique|compare|colete)\b/i.test(normalizedMessage);
+        const asksExtraction = /\b(quais|qual|quantos|me diga|me fale|cite|liste|resuma|explique|parecem|parece)\b/i.test(normalizedMessage);
+        const sameHostMentioned = previousHost && normalizedMessage.includes(previousHost);
+
+        if ((referencesExistingContext || sameHostMentioned) && asksExtraction && !asksNavigation) {
+            return {
+                mode: 'answer_from_context',
+                reason: 'deterministic_existing_context_question'
+            };
+        }
+
+        if ((referencesExistingContext || sameHostMentioned) && asksNavigation) {
+            return {
+                mode: 'continue_research',
+                reason: 'deterministic_existing_context_navigation',
+                startingUrl: previousAgentContext?.targetUrl || null
+            };
+        }
+
+        return null;
+    }
+
     fallbackAgentFollowUpStrategy(userMessage, previousAgentContext = null) {
         const normalizedMessage = this.normalizeSearchText(userMessage);
         const previousHost = previousAgentContext?.targetUrl ? this.extractHostToken(previousAgentContext.targetUrl) : '';
@@ -1572,6 +1621,22 @@ Regras:
     }
 
     async generateAgentContextOnlyResponse(userMessage, previousAgentContext, strategy = {}) {
+        const localResult = this.buildLocalGroundedAgentResult({
+            request: userMessage,
+            targetUrl: previousAgentContext?.targetUrl,
+            pageTitle: previousAgentContext?.pageTitle,
+            blocked: previousAgentContext?.blocked,
+            mode: previousAgentContext?.mode,
+            screenshots: previousAgentContext?.screenshots,
+            analysis: previousAgentContext?.analysis,
+            pageText: this.coerceAgentList(previousAgentContext?.pageText).slice(0, 220),
+            navigationTrail: previousAgentContext?.navigationTrail || []
+        });
+
+        if (this.shouldPreferLocalAgentContextAnswer(userMessage, localResult)) {
+            return this.buildAgentContextOnlyNarrative(userMessage, previousAgentContext, localResult);
+        }
+
         const contextPrompt = `Responda à continuação de uma conversa sobre uma pesquisa web já realizada pelo agente.
 
 Nova pergunta do usuário:
@@ -1613,21 +1678,30 @@ Regras:
             console.error('❌ [AGENT] Erro ao responder usando contexto anterior:', error);
         }
 
-        const groundedResult = this.buildLocalGroundedAgentResult({
-            request: userMessage,
-            targetUrl: previousAgentContext?.targetUrl,
-            pageTitle: previousAgentContext?.pageTitle,
-            blocked: previousAgentContext?.blocked,
-            mode: previousAgentContext?.mode,
-            screenshots: previousAgentContext?.screenshots,
-            analysis: previousAgentContext?.analysis,
-            pageText: this.coerceAgentList(previousAgentContext?.pageText).slice(0, 220),
-            navigationTrail: previousAgentContext?.navigationTrail || []
-        });
+        return this.buildAgentContextOnlyNarrative(userMessage, previousAgentContext, localResult);
+    }
 
+    shouldPreferLocalAgentContextAnswer(userMessage, localResult) {
+        const normalizedMessage = this.normalizeSearchText(userMessage);
+        const extractedItems = this.coerceAgentList(localResult?.itens_encontrados || []);
+
+        if (/desses modelos|esses modelos|modelo|modelos|audio|voz|speech|openai|gpt|llama|whisper|compound|qwen|gemma|mistral/i.test(normalizedMessage)) {
+            return extractedItems.length > 0;
+        }
+
+        if (/qual|quais|quantos|cite|liste|parecem/i.test(normalizedMessage) && extractedItems.length > 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    buildAgentContextOnlyNarrative(userMessage, previousAgentContext, groundedResult) {
         const extractedItems = this.coerceAgentList(groundedResult?.itens_encontrados || []).slice(0, this.extractRequestedItemCount(userMessage));
         const directAnswer = groundedResult?.resposta_direta || 'Com base no que eu já tinha coletado, esta é a melhor resposta disponível.';
-        const evidence = this.coerceAgentList(groundedResult?.evidencias || []).slice(0, 4);
+        const evidence = this.coerceAgentList(groundedResult?.evidencias || [])
+            .filter((item) => !extractedItems.includes(item))
+            .slice(0, 4);
         const observation = groundedResult?.observacao ? `\n\n${groundedResult.observacao}` : '';
 
         return [
@@ -2130,10 +2204,12 @@ Regras:
     buildLocalGroundedAgentResult(context = {}) {
         const request = String(context?.request || '').trim();
         const requestedCount = this.extractRequestedItemCount(request);
-        const relevantItems = this.extractRelevantItemsFromPageText(request, context?.pageText || []).slice(0, requestedCount);
+        const baseItems = this.extractRelevantItemsFromPageText(request, context?.pageText || []);
+        const relevantItems = this.filterAgentItemsForRequest(request, baseItems, context?.pageText || []).slice(0, requestedCount);
         const pageTitle = context?.pageTitle || 'Página não identificada';
         const directParts = [];
         const isListRequest = /modelo|modelos|models|lista|todos|itens/i.test(request);
+        const asksAudio = /audio|voz|speech|transcri|asr|tts/i.test(this.normalizeSearchText(request));
 
         if (/cor|color/i.test(request) && context?.dominantColor) {
             directParts.push(`A cor predominante da página é ${context.dominantColor}.`);
@@ -2141,9 +2217,17 @@ Regras:
 
         if (isListRequest) {
             if (relevantItems.length) {
-                directParts.push(`Encontrei ${relevantItems.length} modelo${relevantItems.length > 1 ? 's' : ''} de IA explicitamente listado${relevantItems.length > 1 ? 's' : ''} em "${pageTitle}".`);
+                if (asksAudio) {
+                    directParts.push(`Entre os modelos visíveis em "${pageTitle}", os que mais parecem ser voltados a áudio são ${relevantItems.join(', ')}.`);
+                } else {
+                    directParts.push(`Encontrei ${relevantItems.length} modelo${relevantItems.length > 1 ? 's' : ''} de IA explicitamente listado${relevantItems.length > 1 ? 's' : ''} em "${pageTitle}".`);
+                }
             } else {
-                directParts.push('Não encontrei uma lista confiável de modelos visíveis suficiente para responder com segurança.');
+                directParts.push(
+                    asksAudio
+                        ? 'Não encontrei modelos com indicação clara de áudio no conteúdo visível que eu já tinha coletado.'
+                        : 'Não encontrei uma lista confiável de modelos visíveis suficiente para responder com segurança.'
+                );
             }
         }
 
@@ -2308,6 +2392,41 @@ Regras:
         }
 
         return cleanItems.slice(0, 6);
+    }
+
+    filterAgentItemsForRequest(request, items = [], pageText = []) {
+        const candidateItems = this.coerceAgentList(items);
+        const normalizedRequest = this.normalizeSearchText(request);
+
+        if (/audio|voz|speech|transcri|asr|tts/i.test(normalizedRequest)) {
+            const audioItems = candidateItems.filter((item) => /whisper|audio|speech|voice|transcri|asr|tts/i.test(item));
+            if (audioItems.length) {
+                return audioItems;
+            }
+        }
+
+        if (/openai|gpt oss|gpt/i.test(normalizedRequest)) {
+            const openaiItems = candidateItems.filter((item) => /openai|gpt/i.test(item));
+            if (openaiItems.length) {
+                return openaiItems;
+            }
+        }
+
+        if (/llama|meta/i.test(normalizedRequest)) {
+            const llamaItems = candidateItems.filter((item) => /llama|meta/i.test(item));
+            if (llamaItems.length) {
+                return llamaItems;
+            }
+        }
+
+        if (/compound|agente|agentic/i.test(normalizedRequest)) {
+            const compoundItems = candidateItems.filter((item) => /compound/i.test(item));
+            if (compoundItems.length) {
+                return compoundItems;
+            }
+        }
+
+        return candidateItems;
     }
 
     extractModelItemsFromPageText(pageText = []) {
