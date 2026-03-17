@@ -1046,14 +1046,42 @@ Responda em formato JSON:
                 return;
             }
 
+            const currentChat = this.getCurrentChatObject();
+            const previousAgentContext = this.getLatestAgentContext(currentChat);
             this.addUserMessage(cleanMessage, null, { preserveCreateMode: true });
+            this.appendMessageToCurrentChat({
+                role: 'user',
+                content: cleanMessage,
+                mode: 'agent'
+            });
+
+            const followUpStrategy = await this.decideAgentFollowUpStrategy(cleanMessage, previousAgentContext);
             this.startAgentResponse();
             this.agentRunContext.request = cleanMessage;
+            this.agentRunContext.followUpMode = followUpStrategy.mode;
+            this.agentRunContext.previousContext = previousAgentContext || null;
 
             const explicitUrl = this.extractAgentUrl(cleanMessage);
             const shouldAnalyzeCurrentScreen = this.shouldAnalyzeCurrentScreen(cleanMessage);
             let normalizedUrl = null;
             let resolvedTarget = null;
+
+            if (followUpStrategy.mode === 'answer_from_context' && previousAgentContext) {
+                this.addAgentIntroMessage('Olá! Vou responder com base no que já coletei na pesquisa agêntica anterior, sem abrir uma nova navegação agora.');
+                this.addAgentThoughtLog('🧠 Vou usar o contexto já coletado para responder sua continuação com mais precisão.');
+
+                const finalText = await this.generateAgentContextOnlyResponse(cleanMessage, previousAgentContext, followUpStrategy);
+                this.addAgentSummary('Resposta do agente', finalText);
+                this.finishAgentResponse();
+                this.saveAgentAssistantTurn(finalText, {
+                    ...previousAgentContext,
+                    request: cleanMessage,
+                    followUpMode: 'answer_from_context',
+                    reusedContext: true,
+                    previousRequest: previousAgentContext?.request || null
+                });
+                return;
+            }
 
             if (explicitUrl) {
                 this.addAgentIntroMessage(this.buildAgentIntroMessage(cleanMessage, explicitUrl));
@@ -1065,6 +1093,21 @@ Responda em formato JSON:
             } else if (shouldAnalyzeCurrentScreen) {
                 this.addAgentIntroMessage(this.buildAgentIntroMessage(cleanMessage, null));
             } else {
+                if (followUpStrategy.mode === 'continue_research' && previousAgentContext?.targetUrl) {
+                    const continuationUrl = this.normalizeAgentUrl(
+                        followUpStrategy.startingUrl
+                        || previousAgentContext.targetUrl
+                        || previousAgentContext.resolvedSearchUrl
+                    );
+
+                    if (continuationUrl) {
+                        normalizedUrl = continuationUrl;
+                        this.addAgentIntroMessage('Olá! Vou continuar a pesquisa agêntica anterior a partir do contexto que eu já tinha aberto e complementar com uma nova navegação.');
+                        this.addAgentThoughtLog(`🔁 Vou continuar a navegação a partir de ${continuationUrl}.`);
+                    }
+                }
+
+                if (!normalizedUrl) {
                 this.addAgentIntroMessage('Olá! Claro. Vou localizar o site certo, abrir a página correta e seguir a navegação que você pediu.');
                 this.addAgentThoughtLog('🔎 Vou localizar o site mais relevante para começar a tarefa.');
                 this.addAgentAction('Localizando o site correto', 'pending');
@@ -1084,6 +1127,7 @@ Responda em formato JSON:
 
                 this.addAgentAction(`Site localizado: ${resolvedTarget?.title || normalizedUrl}`, 'executed');
                 this.addAgentThoughtLog(`🔎 Encontrei ${resolvedTarget?.title || normalizedUrl} e vou abrir esse destino agora.`);
+                }
             }
 
             if (normalizedUrl) {
@@ -1112,10 +1156,35 @@ Responda em formato JSON:
                     analysis: this.lastAgentResponse,
                     pageText: this.agentRunContext.pageText,
                     navigationTrail: this.agentRunContext.navigationTrail,
-                    screenshotData: this.agentRunContext.lastScreenshotData
+                    screenshotData: this.agentRunContext.lastScreenshotData,
+                    priorContext: previousAgentContext,
+                    responseMode: followUpStrategy.mode
                 });
                 this.addAgentSummary('Resposta do agente', finalText);
                 this.finishAgentResponse();
+                const currentAgentContext = {
+                    request: cleanMessage,
+                    targetUrl: session.currentUrl || normalizedUrl,
+                    pageTitle: this.agentRunContext.pageTitle,
+                    blocked: this.agentRunContext.blocked,
+                    mode: this.agentRunContext.mode,
+                    screenshots: this.agentRunContext.screenshots,
+                    analysis: this.lastAgentResponse,
+                    pageText: this.coerceAgentList(this.agentRunContext.pageText).slice(0, 220),
+                    navigationTrail: this.agentRunContext.navigationTrail,
+                    resolvedFromSearch: this.agentRunContext.resolvedFromSearch,
+                    resolvedSearchTitle: this.agentRunContext.resolvedSearchTitle,
+                    resolvedSearchUrl: this.agentRunContext.resolvedSearchUrl,
+                    followUpMode: followUpStrategy.mode,
+                    previousRequest: previousAgentContext?.request || null,
+                    finalResponse: finalText
+                };
+                this.saveAgentAssistantTurn(
+                    finalText,
+                    followUpStrategy.mode === 'continue_research'
+                        ? this.mergeAgentConversationContext(previousAgentContext, currentAgentContext)
+                        : currentAgentContext
+                );
                 return;
             }
 
@@ -1160,10 +1229,26 @@ Responda em formato JSON:
                 analysis: this.lastAgentResponse,
                 pageText: [],
                 navigationTrail: [],
-                screenshotData: this.agentRunContext.lastScreenshotData
+                screenshotData: this.agentRunContext.lastScreenshotData,
+                priorContext: previousAgentContext,
+                responseMode: followUpStrategy.mode
             });
             this.addAgentSummary('Resposta do agente', finalText);
             this.finishAgentResponse();
+            this.saveAgentAssistantTurn(finalText, {
+                request: cleanMessage,
+                targetUrl: window.location.href,
+                pageTitle: document.title,
+                blocked: false,
+                mode: 'current-screen',
+                screenshots: this.agentRunContext.screenshots,
+                analysis: this.lastAgentResponse,
+                pageText: [],
+                navigationTrail: [],
+                followUpMode: followUpStrategy.mode,
+                previousRequest: previousAgentContext?.request || null,
+                finalResponse: finalText
+            });
         } catch (error) {
             console.error('❌ [AGENT] Erro no processamento:', error);
             this.addAgentTimelineEntry('error', { message: '❌ Erro: ' + error.message });
@@ -1256,6 +1341,302 @@ Responda em formato JSON:
         }
 
         return data;
+    }
+
+    getCurrentChatObject() {
+        if (!this.currentChatId) {
+            return null;
+        }
+
+        return this.chats.find((chat) => chat.id === this.currentChatId) || null;
+    }
+
+    appendMessageToCurrentChat(message) {
+        const chat = this.getCurrentChatObject();
+        if (!chat) {
+            return;
+        }
+
+        chat.messages.push(message);
+        this.saveCurrentChat();
+    }
+
+    getLatestAgentContext(chat = this.getCurrentChatObject()) {
+        if (!chat || !Array.isArray(chat.messages)) {
+            return null;
+        }
+
+        for (let index = chat.messages.length - 1; index >= 0; index -= 1) {
+            const message = chat.messages[index];
+            if (message?.role === 'assistant' && message?.mode === 'agent' && message?.agentContext) {
+                return message.agentContext;
+            }
+        }
+
+        return null;
+    }
+
+    getRecentAgentTurns(chat = this.getCurrentChatObject(), limit = 3) {
+        if (!chat || !Array.isArray(chat.messages)) {
+            return [];
+        }
+
+        const turns = [];
+        for (let index = chat.messages.length - 1; index >= 0 && turns.length < limit; index -= 1) {
+            const assistantMessage = chat.messages[index];
+            if (assistantMessage?.role !== 'assistant' || assistantMessage?.mode !== 'agent') {
+                continue;
+            }
+
+            const userMessage = chat.messages[index - 1];
+            turns.unshift({
+                user: userMessage?.role === 'user' ? userMessage.content : '',
+                assistant: assistantMessage.content || '',
+                context: assistantMessage.agentContext || null
+            });
+        }
+
+        return turns;
+    }
+
+    saveAgentAssistantTurn(finalText, agentContext = {}) {
+        const sanitizedContext = {
+            request: agentContext?.request || '',
+            targetUrl: agentContext?.targetUrl || '',
+            pageTitle: agentContext?.pageTitle || '',
+            blocked: Boolean(agentContext?.blocked),
+            mode: agentContext?.mode || '',
+            screenshots: agentContext?.screenshots || 0,
+            analysis: agentContext?.analysis || {},
+            pageText: this.coerceAgentList(agentContext?.pageText).slice(0, 220),
+            navigationTrail: Array.isArray(agentContext?.navigationTrail) ? agentContext.navigationTrail.slice(0, 12) : [],
+            resolvedFromSearch: Boolean(agentContext?.resolvedFromSearch),
+            resolvedSearchTitle: agentContext?.resolvedSearchTitle || '',
+            resolvedSearchUrl: agentContext?.resolvedSearchUrl || '',
+            followUpMode: agentContext?.followUpMode || 'new_research',
+            previousRequest: agentContext?.previousRequest || '',
+            finalResponse: finalText,
+            reusedContext: Boolean(agentContext?.reusedContext),
+            timestamp: new Date().toISOString()
+        };
+
+        this.appendMessageToCurrentChat({
+            role: 'assistant',
+            content: finalText,
+            mode: 'agent',
+            agentContext: sanitizedContext
+        });
+    }
+
+    mergeAgentConversationContext(previousContext = null, nextContext = {}) {
+        const mergeList = (left = [], right = [], limit = 220) => [...this.coerceAgentList(left), ...this.coerceAgentList(right)]
+            .map((item) => String(item || '').replace(/\s+/g, ' ').trim())
+            .filter(Boolean)
+            .filter((item, index, array) => array.indexOf(item) === index)
+            .slice(0, limit);
+
+        if (!previousContext) {
+            return {
+                ...nextContext,
+                pageText: mergeList([], nextContext?.pageText, 220),
+                navigationTrail: Array.isArray(nextContext?.navigationTrail) ? nextContext.navigationTrail.slice(0, 20) : []
+            };
+        }
+
+        return {
+            ...previousContext,
+            ...nextContext,
+            pageText: mergeList(previousContext?.pageText, nextContext?.pageText, 220),
+            navigationTrail: [...(Array.isArray(previousContext?.navigationTrail) ? previousContext.navigationTrail : []), ...(Array.isArray(nextContext?.navigationTrail) ? nextContext.navigationTrail : [])]
+                .slice(-20)
+        };
+    }
+
+    async decideAgentFollowUpStrategy(userMessage, previousAgentContext = null) {
+        if (!previousAgentContext) {
+            return { mode: 'new_research', reason: 'no_previous_agent_context' };
+        }
+
+        const explicitUrl = this.extractAgentUrl(userMessage);
+        if (explicitUrl) {
+            const normalizedExplicitUrl = this.normalizeAgentUrl(explicitUrl);
+            const sameHost = normalizedExplicitUrl && previousAgentContext?.targetUrl
+                ? this.haveSameHost(normalizedExplicitUrl, previousAgentContext.targetUrl)
+                : false;
+            return {
+                mode: sameHost ? 'continue_research' : 'new_research',
+                reason: sameHost ? 'explicit_url_same_host' : 'explicit_url_new_host',
+                startingUrl: sameHost ? normalizedExplicitUrl : null
+            };
+        }
+
+        const recentTurns = this.getRecentAgentTurns(this.getCurrentChatObject(), 3);
+        const prompt = `Analise a nova mensagem do usuário no contexto de uma conversa com um agente web.
+
+Mensagem nova do usuário:
+${userMessage}
+
+Último contexto de pesquisa do agente:
+- pedido anterior: ${previousAgentContext?.request || 'desconhecido'}
+- url final: ${previousAgentContext?.targetUrl || 'desconhecida'}
+- título final: ${previousAgentContext?.pageTitle || 'desconhecido'}
+- modo: ${previousAgentContext?.mode || 'desconhecido'}
+- trechos visíveis:
+${this.coerceAgentList(previousAgentContext?.pageText).slice(0, 30).join('\n') || 'sem trechos'}
+
+Últimos turnos do agente:
+${recentTurns.map((turn, index) => `${index + 1}. usuário: ${turn.user}\nassistente: ${turn.assistant}`).join('\n\n') || 'sem turnos'}
+
+Responda SOMENTE com JSON válido:
+{
+  "mode": "new_research" | "answer_from_context" | "continue_research",
+  "reason": "motivo curto",
+  "starting_url": "url ou vazio"
+}
+
+Regras:
+- use "answer_from_context" se a nova pergunta puder ser respondida com base no conteúdo já coletado;
+- use "continue_research" se for o mesmo assunto/site, mas exigir nova navegação ou coleta complementar;
+- use "new_research" se for um assunto diferente;
+- não invente fatos e não escreva nada fora do JSON.`;
+
+        try {
+            const rawDecision = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
+                {
+                    role: 'system',
+                    content: 'Classifique continuidade de conversa de um agente web usando JSON estrito.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ]);
+
+            const parsedDecision = this.tryParseAgentJson(rawDecision);
+            if (parsedDecision?.mode && ['new_research', 'answer_from_context', 'continue_research'].includes(parsedDecision.mode)) {
+                return {
+                    mode: parsedDecision.mode,
+                    reason: parsedDecision.reason || 'llm_classification',
+                    startingUrl: this.normalizeAgentUrl(parsedDecision.starting_url || parsedDecision.startingUrl || '') || null
+                };
+            }
+        } catch (error) {
+            console.error('❌ [AGENT] Erro ao classificar continuação da conversa:', error);
+        }
+
+        return this.fallbackAgentFollowUpStrategy(userMessage, previousAgentContext);
+    }
+
+    fallbackAgentFollowUpStrategy(userMessage, previousAgentContext = null) {
+        const normalizedMessage = this.normalizeSearchText(userMessage);
+        const previousHost = previousAgentContext?.targetUrl ? this.extractHostToken(previousAgentContext.targetUrl) : '';
+        const refersToPrevious = /essa pagina|esse site|esses modelos|esses itens|essa lista|isso|nisso|nela|nele|agora|alem disso|alem disso|sobre isso|com base nisso/i.test(normalizedMessage);
+        const navigationIntent = /\b(va|entre|acesse|abra|navegue|pesquise|procure|compare|busque|liste|colete|continue)\b/i.test(normalizedMessage);
+        const sameHostMentioned = previousHost && normalizedMessage.includes(previousHost);
+
+        if ((refersToPrevious || sameHostMentioned) && navigationIntent) {
+            return {
+                mode: 'continue_research',
+                reason: 'fallback_same_topic_navigation',
+                startingUrl: previousAgentContext?.targetUrl || null
+            };
+        }
+
+        if (refersToPrevious || sameHostMentioned) {
+            return {
+                mode: 'answer_from_context',
+                reason: 'fallback_same_topic_context'
+            };
+        }
+
+        return {
+            mode: 'new_research',
+            reason: 'fallback_new_topic'
+        };
+    }
+
+    haveSameHost(leftUrl, rightUrl) {
+        try {
+            return new URL(leftUrl).hostname.replace(/^www\./i, '') === new URL(rightUrl).hostname.replace(/^www\./i, '');
+        } catch {
+            return false;
+        }
+    }
+
+    extractHostToken(targetUrl) {
+        try {
+            return new URL(targetUrl).hostname.replace(/^www\./i, '').split('.')[0];
+        } catch {
+            return '';
+        }
+    }
+
+    async generateAgentContextOnlyResponse(userMessage, previousAgentContext, strategy = {}) {
+        const contextPrompt = `Responda à continuação de uma conversa sobre uma pesquisa web já realizada pelo agente.
+
+Nova pergunta do usuário:
+${userMessage}
+
+Contexto já coletado anteriormente:
+- pedido anterior: ${previousAgentContext?.request || 'desconhecido'}
+- url final: ${previousAgentContext?.targetUrl || 'desconhecida'}
+- título final: ${previousAgentContext?.pageTitle || 'desconhecido'}
+- trechos visíveis:
+${this.coerceAgentList(previousAgentContext?.pageText).slice(0, 60).join('\n') || 'sem trechos'}
+- análise estruturada:
+${JSON.stringify(previousAgentContext?.analysis || {})}
+
+Regras:
+- responda em português do Brasil;
+- responda só com base no contexto acima;
+- se faltar informação, diga claramente que seria preciso continuar a navegação;
+- não diga que abriu uma nova página agora, porque você está respondendo usando a pesquisa anterior;
+- seja objetivo, útil e profissional.`;
+
+        try {
+            const answer = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
+                {
+                    role: 'system',
+                    content: 'Você responde follow-ups de um agente web usando apenas o contexto coletado.'
+                },
+                {
+                    role: 'user',
+                    content: contextPrompt
+                }
+            ]);
+
+            const cleanedAnswer = this.cleanAgentFinalText(answer);
+            if (cleanedAnswer) {
+                return cleanedAnswer;
+            }
+        } catch (error) {
+            console.error('❌ [AGENT] Erro ao responder usando contexto anterior:', error);
+        }
+
+        const groundedResult = this.buildLocalGroundedAgentResult({
+            request: userMessage,
+            targetUrl: previousAgentContext?.targetUrl,
+            pageTitle: previousAgentContext?.pageTitle,
+            blocked: previousAgentContext?.blocked,
+            mode: previousAgentContext?.mode,
+            screenshots: previousAgentContext?.screenshots,
+            analysis: previousAgentContext?.analysis,
+            pageText: this.coerceAgentList(previousAgentContext?.pageText).slice(0, 220),
+            navigationTrail: previousAgentContext?.navigationTrail || []
+        });
+
+        const extractedItems = this.coerceAgentList(groundedResult?.itens_encontrados || []).slice(0, this.extractRequestedItemCount(userMessage));
+        const directAnswer = groundedResult?.resposta_direta || 'Com base no que eu já tinha coletado, esta é a melhor resposta disponível.';
+        const evidence = this.coerceAgentList(groundedResult?.evidencias || []).slice(0, 4);
+        const observation = groundedResult?.observacao ? `\n\n${groundedResult.observacao}` : '';
+
+        return [
+            'Olá! Estou respondendo com base na pesquisa agêntica anterior, sem abrir uma nova navegação agora.',
+            directAnswer,
+            extractedItems.length ? `O que já estava visível na página:\n- ${extractedItems.join('\n- ')}` : '',
+            evidence.length ? `Trechos que sustentam essa resposta:\n- ${evidence.join('\n- ')}` : '',
+            observation
+        ].filter(Boolean).join('\n\n').trim();
     }
 
     buildAgentIntroMessage(userMessage, detectedUrl = null) {
@@ -1786,7 +2167,7 @@ Regras:
         };
     }
 
-    buildAgentFallbackNarrative({ request, targetUrl, pageTitle, blocked, mode, screenshots, analysis, dominantColor, navigationTrail, pageText, relevantItems = [], groundedResult = null }) {
+    buildAgentFallbackNarrative({ request, targetUrl, pageTitle, blocked, mode, screenshots, analysis, dominantColor, navigationTrail, pageText, relevantItems = [], groundedResult = null, responseMode = 'new_research', priorContext = null }) {
         const sections = [];
         const safeRequest = (request || '').trim();
         const siteLabel = this.getReadableSiteLabel(targetUrl);
@@ -1806,7 +2187,9 @@ Regras:
         let intro = targetUrl
             ? requestedList
                 ? `Olá! Abri ${pageTitle ? `"${pageTitle}"` : siteLabel} e extraí os itens diretamente dessa página.`
-                : `Olá! Já fui até ${siteLabel}`
+                : responseMode === 'continue_research'
+                    ? `Olá! Continuei a pesquisa anterior em ${siteLabel}`
+                    : `Olá! Já fui até ${siteLabel}`
             : 'Olá! Já analisei a tela que você pediu';
 
         if (navigationText && !requestedList) {
@@ -1862,6 +2245,10 @@ Regras:
         const closing = [];
         if (screenshots) {
             closing.push(`Gerei ${screenshots} captura${screenshots > 1 ? 's' : ''} durante a execução, uma para cada etapa relevante da navegação.`);
+        }
+
+        if (responseMode === 'continue_research' && priorContext?.pageTitle && priorContext.pageTitle !== pageTitle) {
+            closing.push(`Esta etapa complementa a pesquisa anterior, cuja última página relevante era "${priorContext.pageTitle}".`);
         }
 
         if (observation) {
