@@ -1577,7 +1577,7 @@ Analise a imagem e responda com este formato:
             ? context.navigationTrail.filter((step) => step && step.success)
             : [];
 
-        const pageText = this.coerceAgentList(context?.pageText).slice(0, 30);
+        const pageText = this.coerceAgentList(context?.pageText).slice(0, 120);
         const analysis = context?.analysis || {};
         const relevantItems = this.extractRelevantItemsFromPageText(context?.request, pageText)
             .slice(0, this.extractRequestedItemCount(context?.request));
@@ -1603,6 +1603,13 @@ Analise a imagem e responda com este formato:
     }
 
     async extractGroundedAgentResult(context) {
+        if (/modelo|modelos|models|lista|todos|itens/i.test(context?.request || '')) {
+            const localListResult = this.buildLocalGroundedAgentResult(context);
+            if (this.coerceAgentList(localListResult?.itens_encontrados).length) {
+                return localListResult;
+            }
+        }
+
         const pageText = this.coerceAgentList(context?.pageText).slice(0, 60);
         const relevantItems = this.coerceAgentList(context?.relevantItems).slice(0, 12);
         const navigationText = this.coerceAgentList(context?.navigationTrail)
@@ -1745,16 +1752,17 @@ Regras:
         const relevantItems = this.extractRelevantItemsFromPageText(request, context?.pageText || []).slice(0, requestedCount);
         const pageTitle = context?.pageTitle || 'Página não identificada';
         const directParts = [];
+        const isListRequest = /modelo|modelos|models|lista|todos|itens/i.test(request);
 
         if (/cor|color/i.test(request) && context?.dominantColor) {
             directParts.push(`A cor predominante da página é ${context.dominantColor}.`);
         }
 
-        if (/modelo|modelos|models|lista|todos|itens/i.test(request)) {
+        if (isListRequest) {
             if (relevantItems.length) {
-                directParts.push(`Encontrei ${relevantItems.length} item${relevantItems.length > 1 ? 's' : ''} relevante${relevantItems.length > 1 ? 's' : ''} na página final.`);
+                directParts.push(`Encontrei ${relevantItems.length} modelo${relevantItems.length > 1 ? 's' : ''} de IA explicitamente listado${relevantItems.length > 1 ? 's' : ''} em "${pageTitle}".`);
             } else {
-                directParts.push('Não encontrei uma lista confiável de itens visíveis suficiente para responder com segurança.');
+                directParts.push('Não encontrei uma lista confiável de modelos visíveis suficiente para responder com segurança.');
             }
         }
 
@@ -1765,7 +1773,13 @@ Regras:
         return {
             resposta_direta: directParts.join(' '),
             itens_encontrados: relevantItems,
-            evidencias: this.coerceAgentList(context?.pageText || []).slice(0, 4),
+            evidencias: isListRequest
+                ? this.coerceAgentList(context?.pageText || [])
+                    .filter((item) => /model|modelo|groqcloud|llama|gpt|whisper|qwen|gemma|mistral|moonshot|deepseek|compound/i.test(item))
+                    .slice(0, 4)
+                : relevantItems.length
+                    ? relevantItems.slice(0, 4)
+                    : this.coerceAgentList(context?.pageText || []).slice(0, 4),
             observacao: context?.blocked
                 ? 'O site limitou parte da navegação automática nesta tentativa.'
                 : ''
@@ -1784,18 +1798,23 @@ Regras:
         const directAnswer = String(groundedResult?.resposta_direta || '').trim();
         const extractedItems = this.coerceAgentList(groundedResult?.itens_encontrados || relevantItems)
             .slice(0, this.extractRequestedItemCount(safeRequest));
-        const evidences = this.coerceAgentList(groundedResult?.evidencias || []).slice(0, 4);
+        const evidences = this.coerceAgentList(groundedResult?.evidencias || [])
+            .filter((item) => !extractedItems.includes(item))
+            .slice(0, 4);
         const observation = String(groundedResult?.observacao || '').trim();
 
         let intro = targetUrl
-            ? `Olá! Já fui até ${siteLabel}`
+            ? requestedList
+                ? `Olá! Abri ${pageTitle ? `"${pageTitle}"` : siteLabel} e extraí os itens diretamente dessa página.`
+                : `Olá! Já fui até ${siteLabel}`
             : 'Olá! Já analisei a tela que você pediu';
 
-        if (navigationText) {
+        if (navigationText && !requestedList) {
             intro += ` e naveguei por ${navigationText}`;
         }
-
-        intro += '.';
+        if (!/[.!?]$/.test(intro)) {
+            intro += '.';
+        }
         sections.push(intro);
 
         const resultLines = [];
@@ -1826,8 +1845,10 @@ Regras:
         sections.push(resultLines.join(' '));
 
         if (extractedItems.length) {
-            const listTitle = requestedList
-                ? `Os ${extractedItems.length} itens mais relevantes que encontrei nessa página foram:`
+            const listTitle = /modelo|modelos|models/i.test(safeRequest)
+                ? `Os ${extractedItems.length} modelos de IA que aparecem nessa página são:`
+                : requestedList
+                    ? `Os ${extractedItems.length} itens mais relevantes que encontrei nessa página foram:`
                 : 'Os principais textos e elementos que consegui identificar foram:';
             sections.push(`${listTitle}\n- ${extractedItems.join('\n- ')}`);
         } else if (pageText && pageText.length) {
@@ -1835,7 +1856,7 @@ Regras:
         }
 
         if (evidences.length) {
-            sections.push(`Os trechos mais úteis que encontrei na página final foram:\n- ${evidences.join('\n- ')}`);
+            sections.push(`Trechos da própria página que sustentam essa resposta:\n- ${evidences.join('\n- ')}`);
         }
 
         const closing = [];
@@ -1879,6 +1900,11 @@ Regras:
         ]);
 
         if (/modelo|modelos|models|lista|todos|itens/i.test(request || '')) {
+            const extractedModelItems = this.extractModelItemsFromPageText(cleanItems);
+            if (extractedModelItems.length) {
+                return extractedModelItems;
+            }
+
             const preferredModelItems = cleanItems.filter((item) => /llama|gpt|whisper|qwen|gemma|mistral|moonshot|deepseek|compound|claude|kimi|openai\/|meta-llama\/|groq\//i.test(item));
             const remainingItems = cleanItems.filter((item) => !preferredModelItems.includes(item));
 
@@ -1895,6 +1921,56 @@ Regras:
         }
 
         return cleanItems.slice(0, 6);
+    }
+
+    extractModelItemsFromPageText(pageText = []) {
+        const lines = this.coerceAgentList(pageText)
+            .map((item) => item.replace(/\s+/g, ' ').trim())
+            .filter(Boolean);
+        const displayPattern = /llama|gpt|whisper|qwen|gemma|mistral|moonshot|deepseek|compound|claude|kimi/i;
+        const modelIdPattern = /^(?:[a-z0-9-]+\/)?[a-z0-9][a-z0-9./-]*$/i;
+        const ignoredModelLabels = /browser search|agentic ai|modalities|capabilities|token speed|documentation|getting started|core features|tools integrations|overview|quickstart/i;
+        const pairedItems = [];
+        const standaloneItems = [];
+
+        for (let index = 0; index < lines.length; index += 1) {
+            const current = lines[index];
+            const previous = lines[index - 1] || '';
+            const next = lines[index + 1] || '';
+            const currentLooksLikeDisplay = displayPattern.test(current) && current.length <= 60 && !/[.!?]/.test(current);
+            const currentLooksLikeId = modelIdPattern.test(current)
+                && current.length <= 80
+                && !current.includes(' ')
+                && (current.includes('/') || /\d/.test(current) || displayPattern.test(current));
+            const nextLooksLikeId = modelIdPattern.test(next)
+                && next.length <= 80
+                && !next.includes(' ')
+                && (next.includes('/') || /\d/.test(next) || displayPattern.test(next));
+
+            if (currentLooksLikeDisplay && nextLooksLikeId) {
+                pairedItems.push(`${current} (${next})`);
+                continue;
+            }
+
+            if (currentLooksLikeId && displayPattern.test(previous) && previous.length <= 60 && !/[.!?]/.test(previous)) {
+                pairedItems.push(`${previous} (${current})`);
+                continue;
+            }
+
+            if (currentLooksLikeId) {
+                standaloneItems.push(current);
+                continue;
+            }
+
+            if (currentLooksLikeDisplay && !ignoredModelLabels.test(current) && !/[()]/.test(current)) {
+                standaloneItems.push(current);
+            }
+        }
+
+        return [...pairedItems, ...standaloneItems]
+            .filter((item, index, array) => array.indexOf(item) === index)
+            .filter((item) => item.length >= 3 && item.length <= 90)
+            .slice(0, 15);
     }
 
     extractRequestedItemCount(request) {
