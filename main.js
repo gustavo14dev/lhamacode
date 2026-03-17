@@ -335,13 +335,13 @@ class UI {
         console.log('🤖 [AGENT] Ativando Drekee Agent 1.0...');
         
         // Mostrar notificação
-        this.showNotification('🤖 Drekee Agent 1.0 ativado - Capturando tela...', 'success');
+        this.showNotification('🤖 Drekee Agent 1.0 ativado - Envie uma mensagem para começar', 'success');
         
         // Adicionar indicador visual do modo agente
         this.addAgentIndicator();
         
-        // Iniciar captura de tela
-        this.startAgentCapture();
+        // Iniciar loop do agente (mas sem painel fixo)
+        this.startAgentLoop();
         
         // Atualizar UI
         this.updateAgentUI(true);
@@ -452,7 +452,7 @@ class UI {
         document.body.appendChild(panel);
         
         // Adicionar entrada inicial no log
-        this.addThoughtLog('🤖 Drekee Agent 1.0 iniciado - Pronto para analisar!');
+        this.addThoughtLog(' Drekee Agent 1.0 iniciado - Pronto para analisar!');
     }
 
     // Adicionar screenshot ao painel
@@ -694,12 +694,12 @@ class UI {
         }
     }
 
-    // Analisar tela com o agente
+    // Analisar tela com o agente (no chat)
     async analyzeScreenWithAgent(imageData) {
         try {
-            this.addThoughtLog('🧠 Enviando imagem para análise da IA...');
+            this.addAgentThoughtLog('🧠 Enviando imagem para análise da IA...');
             
-            // Preparar prompt para o agente - MELHORADO
+            // Preparar prompt para o agente
             const prompt = `Você é o Drekee Agent 1.0, um assistente de IA com visão computacional que pode VER e INTERAGIR com páginas web.
 
 Analise esta captura de tela e me diga:
@@ -722,7 +722,10 @@ Responda em formato JSON:
   "proximo_passo": "Clique no botão de busca para pesquisar produtos"
 }`;
 
-            // Enviar para API (Groq Vision ou Gemini)
+            // Adicionar screenshot ao chat
+            this.addAgentScreenshot(imageData.dataUrl);
+            
+            // Enviar para API
             const response = await this.callAgentAPI(prompt, imageData.dataUrl);
             
             // Processar resposta
@@ -730,12 +733,97 @@ Responda em formato JSON:
             
         } catch (error) {
             console.error('❌ [AGENT] Erro na análise:', error);
-            this.addThoughtLog('❌ Erro na análise: ' + error.message);
+            this.addAgentThoughtLog('❌ Erro na análise: ' + error.message);
             this.showNotification('❌ Erro na análise da tela', 'error');
         }
     }
 
-    // Chamar API do agente
+    // Processar resposta do agente (no chat)
+    processAgentResponse(response) {
+        try {
+            this.addAgentThoughtLog('📋 Processando resposta da IA...');
+            console.log('📋 [AGENT] Resposta processada:', response);
+            
+            // Salvar resposta para uso posterior
+            this.lastAgentResponse = response;
+            
+            // Adaptar ao novo formato da resposta
+            const elementos = response.elementos_visiveis || response.elementos_interativos || [];
+            const acoes = response.acoes_sugeridas || response.acoes_possiveis || [];
+            const proximo = response.proximo_passo || "Analisar página para próximos passos";
+            
+            // Mostrar análise no log de pensamento
+            this.addAgentThoughtLog('📄 Página atual: ' + (response.pagina_atual || 'Página web detectada'));
+            this.addAgentThoughtLog('🎯 Elementos interativos: ' + elementos.join(', '));
+            this.addAgentThoughtLog('💡 Ações possíveis: ' + acoes.join(', '));
+            this.addAgentThoughtLog('➡️ Próximo passo: ' + proximo);
+            
+            // Adicionar ações executadas
+            this.addAgentAction('Análise concluída: ' + (response.pagina_atual || 'Página analisada'), 'executed');
+            
+        } catch (error) {
+            console.error('❌ [AGENT] Erro no processamento:', error);
+            this.addAgentThoughtLog('❌ Erro no processamento da resposta: ' + error.message);
+        }
+    }
+
+    // Processar mensagem do usuário no modo agente
+    async processAgentMessage(userMessage) {
+        try {
+            // Iniciar resposta do agente no chat
+            this.startAgentResponse();
+            
+            this.addAgentThoughtLog('👤 Usuário solicitou: ' + userMessage);
+            
+            // Capturar tela atual
+            this.addAgentThoughtLog('📸 Capturando tela atual...');
+            const imageData = await this.takeScreenshot();
+            
+            // Adicionar screenshot ao chat
+            this.addAgentScreenshot(imageData.dataUrl);
+            
+            // Analisar com base na mensagem do usuário
+            const prompt = `Você é o Drekee Agent 1.0, um assistente de IA com visão computacional.
+
+O usuário pediu: "${userMessage}"
+
+Analise esta captura de tela e ajude o usuário a realizar esta tarefa. Você PODE:
+- Navegar para sites solicitados
+- Clicar em botões e links
+- Preencher formulários
+- Realizar ações na página
+
+Se o usuário pediu para abrir um site, você pode usar window.open() para abrir em nova aba.
+
+Responda em formato JSON:
+{
+  "pagina_atual": "descrição do que está na tela",
+  "elementos_interativos": ["botão X", "link Y"],
+  "acoes_possiveis": ["ação 1", "ação 2"],
+  "proximo_passo": "próxima ação recomendada"
+}`;
+
+            // Enviar para análise
+            const response = await this.callAgentAPI(prompt, imageData.dataUrl);
+            
+            // Processar resposta
+            this.processAgentResponse(response);
+            
+            // Executar ação automaticamente se apropriado
+            if (response.proximo_passo) {
+                this.addAgentThoughtLog('⚡ Executando ação recomendada...');
+                await this.executeAgentAction(response.proximo_passo);
+            }
+            
+            // Finalizar resposta
+            this.finishAgentResponse();
+            
+        } catch (error) {
+            console.error('❌ [AGENT] Erro no processamento:', error);
+            this.addAgentThoughtLog('❌ Erro: ' + error.message);
+            this.finishAgentResponse();
+        }
+    }
     async callAgentAPI(prompt, imageData) {
         try {
             this.addThoughtLog('🔄 Tentando Groq Vision primeiro (mais rápido)...');
@@ -3521,6 +3609,13 @@ ${latexCode}
         if (!isGuest && !isLoggedIn) {
             // Redirecionar para login apenas se não for visitante e não estiver logado
             window.location.href = 'login.html';
+            return;
+        }
+
+        // Se modo agente está ativo, processar mensagem com o agente
+        if (window.isAgentMode) {
+            this.elements.userInput.value = '';
+            await this.processAgentMessage(message);
             return;
         }
 
