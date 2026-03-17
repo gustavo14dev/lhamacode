@@ -568,6 +568,14 @@ class UI {
     startAgentResponse() {
         this.isAgentResponding = true;
         this.agentTimeline = [];
+        this.agentRunContext = {
+            screenshots: 0,
+            visitedUrl: null,
+            pageTitle: null,
+            mode: null,
+            blocked: false,
+            request: null
+        };
         
         // Criar mensagem inicial do agente
         const agentMessage = `
@@ -685,9 +693,24 @@ class UI {
                         <img
                             src="${entry.data}"
                             class="w-full max-w-2xl rounded-2xl border border-gray-600 cursor-zoom-in"
-                            alt="Screenshot ${index + 1}"
+                            alt="Captura do agente"
                             onclick="window.ui.expandScreenshot(this.src)"
                         >
+                    </div>
+                </div>
+            `;
+        }
+
+        if (entry.type === 'summary') {
+            return `
+                <div class="flex items-start gap-3">
+                    <div class="mt-1 w-7 h-7 rounded-full bg-orange-500/15 border border-orange-400/25 flex items-center justify-center flex-shrink-0">
+                        <span class="text-sm">📝</span>
+                    </div>
+                    <div class="flex-1 rounded-2xl border border-orange-500/30 bg-orange-500/10 px-4 py-4">
+                        ${time}
+                        <div class="text-sm font-semibold text-orange-100 mb-2">${this.escapeHtml(entry.title || 'Resumo do agente')}</div>
+                        <div class="text-sm text-orange-50 leading-relaxed whitespace-pre-wrap">${this.escapeHtml(entry.message || '')}</div>
                     </div>
                 </div>
             `;
@@ -717,6 +740,10 @@ class UI {
 
     // Adicionar screenshot ao buffer do agente
     addAgentScreenshot(imageData, caption = '') {
+        if (this.agentRunContext) {
+            this.agentRunContext.screenshots += 1;
+        }
+
         this.addAgentTimelineEntry('screenshot', {
             data: imageData,
             caption
@@ -728,6 +755,13 @@ class UI {
         this.addAgentTimelineEntry('action', {
             description,
             status
+        });
+    }
+
+    addAgentSummary(title, message) {
+        this.addAgentTimelineEntry('summary', {
+            title,
+            message
         });
     }
 
@@ -929,6 +963,7 @@ Responda em formato JSON:
 
             this.addUserMessage(cleanMessage, null, { preserveCreateMode: true });
             this.startAgentResponse();
+            this.agentRunContext.request = cleanMessage;
 
             this.addAgentThoughtLog(`👤 Pedido recebido: ${cleanMessage}`);
             this.addAgentThoughtLog('🧠 Vou decidir se preciso navegar em um site real ou analisar a tela atual.');
@@ -945,9 +980,20 @@ Responda em formato JSON:
                 this.addAgentAction(`Abrindo ${normalizedUrl}`, 'pending');
 
                 const session = await this.openAgentBrowserSession(normalizedUrl);
+                this.agentRunContext.visitedUrl = session.currentUrl || normalizedUrl;
+                this.agentRunContext.mode = session.mode || 'live-browser';
 
                 this.addAgentAction(`Site carregado: ${session.currentUrl || normalizedUrl}`, 'executed');
                 await this.analyzeOpenedSite(session, cleanMessage);
+                this.addAgentSummary('O que eu fiz', this.buildAgentExecutionSummary({
+                    request: cleanMessage,
+                    targetUrl: session.currentUrl || normalizedUrl,
+                    pageTitle: this.agentRunContext.pageTitle,
+                    blocked: this.agentRunContext.blocked,
+                    mode: this.agentRunContext.mode,
+                    screenshots: this.agentRunContext.screenshots,
+                    analysis: this.lastAgentResponse
+                }));
                 this.finishAgentResponse();
                 return;
             }
@@ -983,6 +1029,15 @@ Responda em formato JSON:
                 this.processAgentResponse(fallback, { label: 'Tela atual' });
             }
 
+            this.addAgentSummary('O que eu fiz', this.buildAgentExecutionSummary({
+                request: cleanMessage,
+                targetUrl: window.location.href,
+                pageTitle: document.title,
+                blocked: false,
+                mode: 'current-screen',
+                screenshots: this.agentRunContext.screenshots,
+                analysis: this.lastAgentResponse
+            }));
             this.finishAgentResponse();
         } catch (error) {
             console.error('❌ [AGENT] Erro no processamento:', error);
@@ -1048,6 +1103,10 @@ Responda em formato JSON:
         const readableTitle = /access denied|forbidden|blocked|captcha|unauthorized/i.test(rawTitle || '')
             ? 'Site com protecao automatizada'
             : rawTitle;
+        if (this.agentRunContext) {
+            this.agentRunContext.pageTitle = readableTitle;
+            this.agentRunContext.blocked = readableTitle === 'Site com protecao automatizada';
+        }
 
         this.addAgentThoughtLog(`🪄 Navegacao concluida. Pagina detectada: ${readableTitle}`);
         if (session?.mode === 'live-browser') {
@@ -1334,6 +1393,54 @@ Analise a imagem e responda com este formato:
                 ? `Inspecionar "${interactiveElements[0]}" para avancar na tarefa`
                 : 'Continuar a navegacao guiada pelo agente'
         };
+    }
+
+    buildAgentExecutionSummary({ request, targetUrl, pageTitle, blocked, mode, screenshots, analysis }) {
+        const elementos = this.coerceAgentList(analysis?.elementos_interativos || analysis?.elementos_visiveis).slice(0, 3);
+        const acoes = this.coerceAgentList(analysis?.acoes_possiveis || analysis?.acoes_sugeridas).slice(0, 3);
+        const proximo = analysis?.proximo_passo || '';
+
+        const lines = [];
+        lines.push(`Recebi o pedido: "${request}".`);
+
+        if (targetUrl) {
+            lines.push(`Abri ou tentei abrir o alvo ${targetUrl}.`);
+        } else {
+            lines.push('Analisei a tela atual do aplicativo.');
+        }
+
+        if (blocked) {
+            lines.push('O site respondeu com protecao automatizada, entao eu nao consegui ver a pagina real do jeito normal.');
+            lines.push(mode === 'site-protected-hosted'
+                ? 'Para nao travar o fluxo, usei uma captura compativel do site e extraí o contexto disponivel.'
+                : 'Para nao travar o fluxo, usei uma visualizacao alternativa/resumida do site.');
+        } else if (mode === 'live-browser') {
+            lines.push('Consegui navegar com o browser do agente e capturar a pagina visualmente.');
+        } else if (mode === 'current-screen') {
+            lines.push('Usei a captura da interface atual para entender o contexto.');
+        }
+
+        if (pageTitle) {
+            lines.push(`Pagina identificada: ${pageTitle}.`);
+        }
+
+        if (screenshots) {
+            lines.push(`Quantidade de capturas geradas: ${screenshots}.`);
+        }
+
+        if (elementos.length) {
+            lines.push(`Elementos relevantes encontrados: ${elementos.join(', ')}.`);
+        }
+
+        if (acoes.length) {
+            lines.push(`Acoes que identifiquei: ${acoes.join(', ')}.`);
+        }
+
+        if (proximo) {
+            lines.push(`Proximo passo sugerido: ${proximo}.`);
+        }
+
+        return lines.join('\n');
     }
 
     coerceAgentList(value) {
