@@ -580,7 +580,10 @@ class UI {
             request: null,
             lastScreenshotData: null,
             navigationTrail: [],
-            pageText: []
+            pageText: [],
+            resolvedFromSearch: false,
+            resolvedSearchTitle: null,
+            resolvedSearchUrl: null
         };
         
         // Criar mensagem inicial do agente
@@ -1047,13 +1050,45 @@ Responda em formato JSON:
             this.startAgentResponse();
             this.agentRunContext.request = cleanMessage;
 
-            const detectedUrl = this.extractAgentUrl(cleanMessage);
-            this.addAgentIntroMessage(this.buildAgentIntroMessage(cleanMessage, detectedUrl));
-            if (detectedUrl) {
-                const normalizedUrl = this.normalizeAgentUrl(detectedUrl);
+            const explicitUrl = this.extractAgentUrl(cleanMessage);
+            const shouldAnalyzeCurrentScreen = this.shouldAnalyzeCurrentScreen(cleanMessage);
+            let normalizedUrl = null;
+            let resolvedTarget = null;
+
+            if (explicitUrl) {
+                this.addAgentIntroMessage(this.buildAgentIntroMessage(cleanMessage, explicitUrl));
+                normalizedUrl = this.normalizeAgentUrl(explicitUrl);
 
                 if (!normalizedUrl) {
-                    throw new Error(`Nao consegui entender a URL "${detectedUrl}"`);
+                    throw new Error(`Nao consegui entender a URL "${explicitUrl}"`);
+                }
+            } else if (shouldAnalyzeCurrentScreen) {
+                this.addAgentIntroMessage(this.buildAgentIntroMessage(cleanMessage, null));
+            } else {
+                this.addAgentIntroMessage('Olá! Claro. Vou localizar o site certo, abrir a página correta e seguir a navegação que você pediu.');
+                this.addAgentThoughtLog('🔎 Vou localizar o site mais relevante para começar a tarefa.');
+                this.addAgentAction('Localizando o site correto', 'pending');
+
+                resolvedTarget = await this.resolveAgentTarget(cleanMessage);
+                normalizedUrl = this.normalizeAgentUrl(resolvedTarget?.url);
+
+                if (!normalizedUrl) {
+                    throw new Error('Nao consegui localizar um site confiavel para iniciar a tarefa.');
+                }
+
+                if (this.agentRunContext) {
+                    this.agentRunContext.resolvedFromSearch = true;
+                    this.agentRunContext.resolvedSearchTitle = resolvedTarget?.title || null;
+                    this.agentRunContext.resolvedSearchUrl = normalizedUrl;
+                }
+
+                this.addAgentAction(`Site localizado: ${resolvedTarget?.title || normalizedUrl}`, 'executed');
+                this.addAgentThoughtLog(`🔎 Encontrei ${resolvedTarget?.title || normalizedUrl} e vou abrir esse destino agora.`);
+            }
+
+            if (normalizedUrl) {
+                if (this.agentRunContext) {
+                    this.agentRunContext.visitedUrl = normalizedUrl;
                 }
 
                 this.addAgentThoughtLog(`🌐 Vou abrir ${normalizedUrl} em um navegador controlado pelo agente.`);
@@ -1158,6 +1193,69 @@ Responda em formato JSON:
         } catch {
             return null;
         }
+    }
+
+    shouldAnalyzeCurrentScreen(userMessage) {
+        const normalized = this.normalizeSearchText(userMessage);
+        if (!normalized) {
+            return false;
+        }
+
+        const screenSignals = [
+            'esta tela',
+            'essa tela',
+            'tela atual',
+            'minha tela',
+            'nesta tela',
+            'nessa tela',
+            'aqui no app',
+            'neste app',
+            'nesse app',
+            'analise a tela',
+            'analisa a tela'
+        ];
+
+        const webSignals = [
+            'site',
+            'pagina',
+            'pagina de',
+            'abra',
+            'entre',
+            'acesse',
+            'navegue',
+            'pesquise',
+            'procure',
+            'groq',
+            'python',
+            'nike'
+        ];
+
+        return screenSignals.some((signal) => normalized.includes(signal))
+            && !webSignals.some((signal) => normalized.includes(signal));
+    }
+
+    async resolveAgentTarget(userMessage) {
+        const response = await fetch('/api/agent-browser', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'resolve-target',
+                task: userMessage
+            })
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.error || data.message || 'Falha ao localizar um site para o agente.');
+        }
+
+        if (!data?.url) {
+            throw new Error('A pesquisa nao retornou uma URL utilizavel para o agente.');
+        }
+
+        return data;
     }
 
     buildAgentIntroMessage(userMessage, detectedUrl = null) {
@@ -1481,14 +1579,10 @@ Analise a imagem e responda com este formato:
 
         const pageText = this.coerceAgentList(context?.pageText).slice(0, 30);
         const analysis = context?.analysis || {};
-        const relevantItems = this.extractRelevantItemsFromPageText(context?.request, pageText);
-        const analysisJson = JSON.stringify({
-            pagina_atual: analysis?.pagina_atual || '',
-            elementos_interativos: this.coerceAgentList(analysis?.elementos_interativos || analysis?.elementos_visiveis).slice(0, 8),
-            acoes_possiveis: this.coerceAgentList(analysis?.acoes_possiveis || analysis?.acoes_sugeridas).slice(0, 8),
-            proximo_passo: analysis?.proximo_passo || ''
-        });
-        const fallbackText = this.buildAgentFallbackNarrative({
+        const relevantItems = this.extractRelevantItemsFromPageText(context?.request, pageText)
+            .slice(0, this.extractRequestedItemCount(context?.request));
+
+        const groundedResult = await this.extractGroundedAgentResult({
             ...context,
             dominantColor,
             navigationTrail,
@@ -1497,42 +1591,63 @@ Analise a imagem e responda com este formato:
             relevantItems
         });
 
-        const prompt = `Pedido original do usuario:
+        return this.buildAgentFallbackNarrative({
+            ...context,
+            dominantColor,
+            navigationTrail,
+            pageText,
+            analysis,
+            relevantItems,
+            groundedResult
+        });
+    }
+
+    async extractGroundedAgentResult(context) {
+        const pageText = this.coerceAgentList(context?.pageText).slice(0, 60);
+        const relevantItems = this.coerceAgentList(context?.relevantItems).slice(0, 12);
+        const navigationText = this.coerceAgentList(context?.navigationTrail)
+            .filter((step) => step?.success)
+            .map((step) => step.matchedText || step.targetHint || step.currentUrl)
+            .filter(Boolean)
+            .join(' -> ');
+
+        const prompt = `Você vai extrair uma resposta ESTRITAMENTE fundamentada no conteúdo coletado pelo agente.
+
+Pedido do usuário:
 ${context?.request || ''}
 
-Contexto coletado pelo agente:
-- URL alvo/final: ${context?.targetUrl || 'nao informada'}
-- Modo usado: ${context?.mode || 'desconhecido'}
-- Pagina final identificada: ${context?.pageTitle || 'desconhecida'}
-- Site bloqueou automacao: ${context?.blocked ? 'sim' : 'nao'}
-- Quantidade de capturas: ${context?.screenshots || 0}
-- Cor predominante aproximada da captura final: ${dominantColor || 'nao detectada'}
-- Caminho de navegacao: ${navigationTrail.length ? navigationTrail.map((step) => step.matchedText || step.targetHint || step.currentUrl).join(' -> ') : 'sem navegacao adicional'}
-- Texto visivel coletado na pagina final:
-${pageText.length ? pageText.join('\n') : 'sem texto relevante extraido'}
-- Analise estruturada:
-${analysisJson}
+Dados reais coletados:
+- URL final: ${context?.targetUrl || 'nao informada'}
+- Título final: ${context?.pageTitle || 'desconhecido'}
+- Navegação: ${navigationText || 'sem navegacao adicional'}
+- Cor predominante detectada: ${context?.dominantColor || 'nao detectada'}
+- Resumo estrutural: ${context?.analysis?.pagina_atual || 'nao informado'}
+- Itens heurísticos: ${relevantItems.length ? relevantItems.join(' | ') : 'nenhum'}
+- Texto visível da página:
+${pageText.length ? pageText.join('\n') : 'sem texto extraido'}
 
-Escreva a resposta final em portugues do Brasil, como se fosse a resposta principal do agente para o usuario.
+Responda SOMENTE em JSON válido com este formato:
+{
+  "resposta_direta": "resposta objetiva ao pedido",
+  "itens_encontrados": ["item exato 1", "item exato 2"],
+  "evidencias": ["trecho curto 1", "trecho curto 2"],
+  "observacao": "limitação importante ou vazio"
+}
+
 Regras:
-- comece com uma frase curta e natural, como "Olá! Já fui até..." ou "Olá! Já analisei...";
-- responda diretamente ao que o usuario pediu;
-- diga o que o agente conseguiu fazer e o que encontrou;
-- se o usuario pediu uma cor, informe a cor predominante;
-- se o usuario pediu uma lista de itens/modelos, entregue a lista em formato claro;
-- se houver navegacao entre paginas, cite por onde passou;
-- se o site bloqueou automacao, explique isso sem linguagem tecnica demais;
-- produza uma resposta maior e natural, em 2 a 5 paragrafos curtos ou com lista quando fizer sentido;
-- nao mencione Gemini, Groq, prompt, JSON ou detalhes internos;
-- nunca copie JSON bruto, chaves como "pagina_atual" ou blocos de codigo;
-- nao se apresente com "eu sou o Drekee Agent";
-- nao termine perguntando "qual e o proximo passo?".`;
+- use apenas fatos presentes nos dados acima;
+- não invente título, URL, itens ou páginas;
+- quando listar itens, copie nomes que realmente apareçam no texto visível;
+- se a tarefa pedir uma lista, priorize a lista;
+- se a tarefa pedir cor, cite a cor predominante detectada;
+- se não houver base suficiente, diga isso em "observacao";
+- não escreva markdown, explicações, saudações nem blocos de código.`;
 
         try {
             const groqText = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
                 {
                     role: 'system',
-                    content: 'Voce e o Drekee Agent 1.0. Responda em portugues do Brasil, de forma natural, clara e util.'
+                    content: 'Extraia respostas fundamentadas em JSON estrito.'
                 },
                 {
                     role: 'user',
@@ -1540,29 +1655,27 @@ Regras:
                 }
             ]);
 
-            if (groqText && groqText.trim()) {
-                const cleanedGroqText = this.cleanAgentFinalText(groqText);
-                if (this.isUsefulAgentFinalText(cleanedGroqText, context?.request, relevantItems, dominantColor)) {
-                    return cleanedGroqText;
-                }
+            const parsedGroq = this.tryParseAgentJson(groqText);
+            const validatedGroq = this.validateGroundedAgentResult(parsedGroq, context);
+            if (validatedGroq) {
+                return validatedGroq;
             }
         } catch (error) {
-            console.error('❌ [AGENT] Erro ao gerar resumo final com Groq:', error);
+            console.error('❌ [AGENT] Erro ao extrair resposta fundamentada com Groq:', error);
         }
 
         try {
             const geminiText = await this.callAgentTextSummaryGemini(prompt);
-            if (geminiText && geminiText.trim()) {
-                const cleanedGeminiText = this.cleanAgentFinalText(geminiText);
-                if (this.isUsefulAgentFinalText(cleanedGeminiText, context?.request, relevantItems, dominantColor)) {
-                    return cleanedGeminiText;
-                }
+            const parsedGemini = this.tryParseAgentJson(geminiText);
+            const validatedGemini = this.validateGroundedAgentResult(parsedGemini, context);
+            if (validatedGemini) {
+                return validatedGemini;
             }
         } catch (error) {
-            console.error('❌ [AGENT] Erro ao gerar resumo final com Gemini:', error);
+            console.error('❌ [AGENT] Erro ao extrair resposta fundamentada com Gemini:', error);
         }
 
-        return fallbackText;
+        return this.buildLocalGroundedAgentResult(context);
     }
 
     async callAgentTextSummaryGemini(prompt) {
@@ -1584,17 +1697,98 @@ Regras:
         return data.text || '';
     }
 
-    buildAgentFallbackNarrative({ request, targetUrl, pageTitle, blocked, mode, screenshots, analysis, dominantColor, navigationTrail, pageText, relevantItems = [] }) {
+    validateGroundedAgentResult(result, context = {}) {
+        if (!result || typeof result !== 'object') {
+            return null;
+        }
+
+        const pagePool = [
+            context?.pageTitle || '',
+            context?.targetUrl || '',
+            ...(context?.pageText || []),
+            ...this.coerceAgentList(context?.relevantItems || [])
+        ]
+            .map((item) => String(item || '').trim())
+            .filter(Boolean);
+
+        const normalizedPool = pagePool.map((item) => this.normalizeSearchText(item));
+        const validateList = (items) => this.coerceAgentList(items)
+            .map((item) => String(item || '').replace(/\s+/g, ' ').trim())
+            .filter(Boolean)
+            .filter((item, index, array) => array.indexOf(item) === index)
+            .filter((item) => {
+                const normalizedItem = this.normalizeSearchText(item);
+                return normalizedItem
+                    && normalizedPool.some((source) => source.includes(normalizedItem) || normalizedItem.includes(source));
+            });
+
+        const respostaDireta = String(result?.resposta_direta || result?.answer || '').trim();
+        const itensEncontrados = validateList(result?.itens_encontrados || result?.items || []);
+        const evidencias = validateList(result?.evidencias || result?.evidence || []).slice(0, 5);
+        const observacao = String(result?.observacao || result?.observation || '').trim();
+
+        if (!respostaDireta && !itensEncontrados.length && !evidencias.length && !observacao) {
+            return null;
+        }
+
+        return {
+            resposta_direta: respostaDireta,
+            itens_encontrados: itensEncontrados,
+            evidencias,
+            observacao
+        };
+    }
+
+    buildLocalGroundedAgentResult(context = {}) {
+        const request = String(context?.request || '').trim();
+        const requestedCount = this.extractRequestedItemCount(request);
+        const relevantItems = this.extractRelevantItemsFromPageText(request, context?.pageText || []).slice(0, requestedCount);
+        const pageTitle = context?.pageTitle || 'Página não identificada';
+        const directParts = [];
+
+        if (/cor|color/i.test(request) && context?.dominantColor) {
+            directParts.push(`A cor predominante da página é ${context.dominantColor}.`);
+        }
+
+        if (/modelo|modelos|models|lista|todos|itens/i.test(request)) {
+            if (relevantItems.length) {
+                directParts.push(`Encontrei ${relevantItems.length} item${relevantItems.length > 1 ? 's' : ''} relevante${relevantItems.length > 1 ? 's' : ''} na página final.`);
+            } else {
+                directParts.push('Não encontrei uma lista confiável de itens visíveis suficiente para responder com segurança.');
+            }
+        }
+
+        if (!directParts.length) {
+            directParts.push(`A página final aberta pelo agente foi "${pageTitle}".`);
+        }
+
+        return {
+            resposta_direta: directParts.join(' '),
+            itens_encontrados: relevantItems,
+            evidencias: this.coerceAgentList(context?.pageText || []).slice(0, 4),
+            observacao: context?.blocked
+                ? 'O site limitou parte da navegação automática nesta tentativa.'
+                : ''
+        };
+    }
+
+    buildAgentFallbackNarrative({ request, targetUrl, pageTitle, blocked, mode, screenshots, analysis, dominantColor, navigationTrail, pageText, relevantItems = [], groundedResult = null }) {
         const sections = [];
         const safeRequest = (request || '').trim();
+        const siteLabel = this.getReadableSiteLabel(targetUrl);
         const navigationText = Array.isArray(navigationTrail) && navigationTrail.length
             ? navigationTrail.map((step) => step.matchedText || step.targetHint || step.currentUrl).filter(Boolean).join(' -> ')
             : '';
         const requestedColor = /cor|color/i.test(safeRequest);
         const requestedList = /modelo|modelos|models|lista|todos|quais|itens/i.test(safeRequest);
+        const directAnswer = String(groundedResult?.resposta_direta || '').trim();
+        const extractedItems = this.coerceAgentList(groundedResult?.itens_encontrados || relevantItems)
+            .slice(0, this.extractRequestedItemCount(safeRequest));
+        const evidences = this.coerceAgentList(groundedResult?.evidencias || []).slice(0, 4);
+        const observation = String(groundedResult?.observacao || '').trim();
 
         let intro = targetUrl
-            ? `Olá! Já fui até ${targetUrl}`
+            ? `Olá! Já fui até ${siteLabel}`
             : 'Olá! Já analisei a tela que você pediu';
 
         if (navigationText) {
@@ -1606,14 +1800,16 @@ Regras:
 
         const resultLines = [];
         if (pageTitle) {
-            resultLines.push(`A página final identificada foi "${pageTitle}".`);
+            resultLines.push(`A página final aberta pelo agente foi "${pageTitle}"${targetUrl ? ` (${targetUrl})` : ''}.`);
         }
 
         if (requestedColor && dominantColor) {
             resultLines.push(`Pela captura final, a cor predominante da página é ${dominantColor}.`);
         }
 
-        if (analysis?.pagina_atual) {
+        if (directAnswer) {
+            resultLines.push(directAnswer);
+        } else if (analysis?.pagina_atual) {
             resultLines.push(`O conteúdo principal que consegui identificar foi: ${analysis.pagina_atual}.`);
         }
 
@@ -1629,18 +1825,26 @@ Regras:
 
         sections.push(resultLines.join(' '));
 
-        if (relevantItems.length) {
+        if (extractedItems.length) {
             const listTitle = requestedList
-                ? 'Os itens mais relevantes que apareceram nessa página foram:'
+                ? `Os ${extractedItems.length} itens mais relevantes que encontrei nessa página foram:`
                 : 'Os principais textos e elementos que consegui identificar foram:';
-            sections.push(`${listTitle}\n- ${relevantItems.join('\n- ')}`);
+            sections.push(`${listTitle}\n- ${extractedItems.join('\n- ')}`);
         } else if (pageText && pageText.length) {
             sections.push(`Os textos visíveis mais importantes que consegui extrair foram: ${pageText.slice(0, 6).join(', ')}.`);
         }
 
+        if (evidences.length) {
+            sections.push(`Os trechos mais úteis que encontrei na página final foram:\n- ${evidences.join('\n- ')}`);
+        }
+
         const closing = [];
         if (screenshots) {
-            closing.push(`Gerei ${screenshots} captura${screenshots > 1 ? 's' : ''} durante a execução.`);
+            closing.push(`Gerei ${screenshots} captura${screenshots > 1 ? 's' : ''} durante a execução, uma para cada etapa relevante da navegação.`);
+        }
+
+        if (observation) {
+            closing.push(observation);
         }
 
         if (!requestedColor && !requestedList && analysis?.proximo_passo && !blocked) {
@@ -1675,7 +1879,10 @@ Regras:
         ]);
 
         if (/modelo|modelos|models|lista|todos|itens/i.test(request || '')) {
-            return cleanItems
+            const preferredModelItems = cleanItems.filter((item) => /llama|gpt|whisper|qwen|gemma|mistral|moonshot|deepseek|compound|claude|kimi|openai\/|meta-llama\/|groq\//i.test(item));
+            const remainingItems = cleanItems.filter((item) => !preferredModelItems.includes(item));
+
+            return [...preferredModelItems, ...remainingItems]
                 .filter((item) => !genericNavItems.has(this.normalizeSearchText(item)))
                 .filter((item) => item.length >= 2 && item.length <= 80)
                 .slice(0, 12);
@@ -1688,6 +1895,36 @@ Regras:
         }
 
         return cleanItems.slice(0, 6);
+    }
+
+    extractRequestedItemCount(request) {
+        const explicitCount = String(request || '').match(/\b(\d{1,2})\b/);
+        if (explicitCount) {
+            const parsed = Number(explicitCount[1]);
+            if (Number.isFinite(parsed) && parsed > 0) {
+                return Math.min(parsed, 15);
+            }
+        }
+
+        if (/alguns|algumas|varios|varias/i.test(request || '')) {
+            return 8;
+        }
+
+        return 5;
+    }
+
+    getReadableSiteLabel(targetUrl) {
+        if (!targetUrl) {
+            return 'o destino solicitado';
+        }
+
+        try {
+            const parsed = new URL(targetUrl);
+            const host = parsed.hostname.replace(/^www\./i, '');
+            return `o site ${host}`;
+        } catch {
+            return targetUrl;
+        }
     }
 
     normalizeSearchText(value) {
@@ -5717,14 +5954,14 @@ ${sources || '- Nenhuma fonte disponivel.'}
 
     async fetchDocumentWebResearch(message) {
         try {
-            const response = await fetch('/api/web-search', {
+            const response = await fetch('/api/tavily-search', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    query: message,
-                    useTavily: true
+                    message,
+                    conversationHistory: []
                 })
             });
 
@@ -5735,8 +5972,12 @@ ${sources || '- Nenhuma fonte disponivel.'}
 
             const data = await response.json();
             return {
-                response: data.answer || '',
-                sources: Array.isArray(data.results) ? data.results.slice(0, 6) : []
+                response: data.response || data.answer || '',
+                sources: Array.isArray(data.sources)
+                    ? data.sources.slice(0, 6)
+                    : Array.isArray(data.results)
+                        ? data.results.slice(0, 6)
+                        : []
             };
         } catch (error) {
             console.warn('⚠️ [DOCUMENTO] Falha ao buscar fontes web:', error.message);
@@ -7374,8 +7615,6 @@ ${chunk}${bibliographyBlock}
             }
 
         }
-
-        return uniqueId;
 
     }
 

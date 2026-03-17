@@ -14,8 +14,19 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const rawUrl = typeof req.body?.url === 'string' ? req.body.url : '';
+    const action = typeof req.body?.action === 'string' ? req.body.action : 'browse';
     const task = typeof req.body?.task === 'string' ? req.body.task : '';
+
+    if (action === 'resolve-target') {
+        try {
+            const result = await resolveTargetForTask(task);
+            return res.status(200).json(result);
+        } catch (error) {
+            return res.status(500).json({ error: error.message || 'Failed to resolve target URL' });
+        }
+    }
+
+    const rawUrl = typeof req.body?.url === 'string' ? req.body.url : '';
     const normalizedUrl = normalizeUrl(rawUrl);
 
     if (!normalizedUrl) {
@@ -60,6 +71,19 @@ export default async function handler(req, res) {
 
         const navigationHints = extractNavigationHints(task).slice(0, 3);
         for (const hint of navigationHints) {
+            if (pageAlreadyMatchesHint(page.url(), pageTitle, pageContext, hint)) {
+                navigationTrail.push({
+                    targetHint: hint,
+                    success: true,
+                    matchedText: pageTitle || hint,
+                    href: page.url(),
+                    previousUrl: page.url(),
+                    currentUrl: page.url(),
+                    alreadyOnTarget: true
+                });
+                continue;
+            }
+
             const navigation = await navigateToHint(page, hint);
             navigationTrail.push(navigation);
 
@@ -226,6 +250,252 @@ function normalizeUrl(rawUrl) {
     }
 }
 
+async function resolveTargetForTask(task) {
+    const cleanTask = String(task || '').trim();
+    if (!cleanTask) {
+        throw new Error('Missing task');
+    }
+
+    const explicitUrl = extractExplicitUrl(cleanTask);
+    if (explicitUrl) {
+        return {
+            url: explicitUrl,
+            title: explicitUrl,
+            source: 'explicit-url',
+            results: []
+        };
+    }
+
+    const guessedUrl = guessUrlFromTask(cleanTask);
+    const query = buildSearchQuery(cleanTask);
+
+    try {
+        let results = [];
+
+        if (process.env.TAVILY_API_KEY) {
+            const tavilyData = await callAgentTavilySearch(query);
+            results = Array.isArray(tavilyData?.results) ? tavilyData.results : [];
+        }
+
+        if (!results.length) {
+            results = await fallbackAgentWebSearch(query);
+        }
+
+        const selected = selectBestAgentSearchResult(cleanTask, results);
+        if (selected?.url) {
+            return {
+                url: selected.url,
+                title: selected.title || selected.url,
+                snippet: selected.content || '',
+                query,
+                source: results.length ? 'search' : 'domain-guess',
+                results: results.slice(0, 5)
+            };
+        }
+    } catch (error) {
+        console.error('Agent target resolution error:', error);
+    }
+
+    if (guessedUrl) {
+        return {
+            url: guessedUrl,
+            title: guessedUrl,
+            source: 'domain-guess',
+            query,
+            results: []
+        };
+    }
+
+    throw new Error('No suitable URL found for this task');
+}
+
+function extractExplicitUrl(task) {
+    const match = String(task || '').match(/((?:https?:\/\/|www\.)[^\s]+|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?)/i);
+    return match ? normalizeUrl(match[1]) : null;
+}
+
+function guessUrlFromTask(task) {
+    const normalized = normalizeSearchText(task);
+    const match = normalized.match(/site d[oa] ([a-z0-9-]+)/i) || normalized.match(/site de ([a-z0-9-]+)/i);
+    if (!match?.[1]) {
+        return null;
+    }
+
+    const label = match[1].toLowerCase();
+    if (KNOWN_AGENT_DOMAINS[label]) {
+        return KNOWN_AGENT_DOMAINS[label];
+    }
+
+    return `https://${label}.com`;
+}
+
+function buildSearchQuery(task) {
+    return `${String(task || '')
+        .replace(/https?:\/\/\S+/gi, ' ')
+        .replace(/\bwww\.[^\s]+/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()} site oficial`;
+}
+
+async function callAgentTavilySearch(query) {
+    const response = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            api_key: process.env.TAVILY_API_KEY,
+            query,
+            search_depth: 'advanced',
+            max_results: 8,
+            include_answer: false,
+            include_images: false,
+            include_raw_content: false
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`Tavily API error: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+}
+
+async function fallbackAgentWebSearch(query) {
+    const response = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; DrekeeAgent/1.0)'
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`DuckDuckGo search error: ${response.status} ${response.statusText}`);
+    }
+
+    const html = await response.text();
+    const matches = [...String(html || '').matchAll(/<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)];
+
+    return matches.slice(0, 8).map((match) => ({
+        url: decodeDuckDuckGoUrl(match[1]),
+        title: stripTags(match[2]).replace(/\s+/g, ' ').trim(),
+        content: ''
+    })).filter((item) => item.url && item.title);
+}
+
+function decodeDuckDuckGoUrl(rawUrl) {
+    if (/^https?:\/\//i.test(rawUrl || '')) {
+        return rawUrl;
+    }
+
+    try {
+        const wrapped = new URL(`https://duckduckgo.com${rawUrl}`);
+        const target = wrapped.searchParams.get('uddg');
+        return target ? decodeURIComponent(target) : null;
+    } catch {
+        return null;
+    }
+}
+
+function selectBestAgentSearchResult(task, results = []) {
+    if (!Array.isArray(results) || results.length === 0) {
+        return null;
+    }
+
+    const entityTokens = extractAgentEntityTokens(task);
+    const intentTokens = extractAgentIntentTokens(task);
+
+    return results
+        .map((result, index) => ({
+            ...result,
+            score: scoreAgentSearchResult(result, entityTokens, intentTokens, index)
+        }))
+        .sort((left, right) => right.score - left.score)[0] || null;
+}
+
+function scoreAgentSearchResult(result, entityTokens, intentTokens, index) {
+    const url = String(result?.url || '');
+    const title = String(result?.title || '');
+    const content = String(result?.content || '');
+    const haystack = normalizeSearchText(`${url} ${title} ${content}`);
+    const host = safeAgentHostname(url);
+    let score = Math.max(0, 20 - index);
+    let hostMatchesEntity = false;
+
+    for (const token of entityTokens) {
+        if (host.includes(token)) {
+            score += 28;
+            hostMatchesEntity = true;
+        }
+        if (haystack.includes(token)) {
+            score += 8;
+        }
+    }
+
+    if (entityTokens.length && !hostMatchesEntity) {
+        score -= 24;
+    }
+
+    for (const token of intentTokens) {
+        if (haystack.includes(token)) {
+            score += token.length > 5 ? 8 : 4;
+        }
+        if (normalizeSearchText(url).includes(token)) {
+            score += 6;
+        }
+    }
+
+    if (/github|linkedin|youtube|instagram|facebook|x\.com|twitter/i.test(host)) {
+        score -= 12;
+    }
+
+    if (/broadcast|estadao|prnewswire|news|noticias|medium|substack/i.test(host) && !hostMatchesEntity) {
+        score -= 20;
+    }
+
+    if (/docs|documentation|models|pricing|api|platform|downloads/i.test(url)) {
+        score += 6;
+    }
+
+    if (/official|oficial/i.test(title)) {
+        score += 4;
+    }
+
+    return score;
+}
+
+function extractAgentEntityTokens(task) {
+    const normalized = normalizeSearchText(task);
+    const explicitEntity = normalized.match(/site d[oa] ([a-z0-9-]+)/i) || normalized.match(/site de ([a-z0-9-]+)/i);
+
+    if (explicitEntity?.[1]) {
+        return [explicitEntity[1]].filter(Boolean);
+    }
+
+    return normalized
+        .split(' ')
+        .filter(Boolean)
+        .filter((token) => token.length > 2)
+        .filter((token) => !AGENT_SEARCH_STOP_WORDS.has(token))
+        .slice(0, 4);
+}
+
+function extractAgentIntentTokens(task) {
+    return normalizeSearchText(task)
+        .split(' ')
+        .filter(Boolean)
+        .filter((token) => token.length > 2)
+        .filter((token) => !AGENT_SEARCH_STOP_WORDS.has(token))
+        .slice(0, 8);
+}
+
+function safeAgentHostname(rawUrl) {
+    try {
+        return new URL(normalizeUrl(rawUrl)).hostname.replace(/^www\./i, '');
+    } catch {
+        return '';
+    }
+}
+
 async function collectPageContext(page) {
     return page.evaluate(() => {
         const metaDescription = document.querySelector('meta[name="description"]')?.getAttribute('content') || '';
@@ -252,11 +522,16 @@ async function collectPageContext(page) {
             .filter((item) => item.text)
             .slice(0, 20);
 
-        const visibleText = Array.from(document.querySelectorAll('h1, h2, h3, p, li, a, button, span'))
-            .map((element) => element.textContent?.replace(/\s+/g, ' ').trim())
+        const visibleText = [
+            ...Array.from(document.querySelectorAll('h1, h2, h3, p, li, a, button, span'))
+                .map((element) => element.textContent?.replace(/\s+/g, ' ').trim()),
+            ...String(document.body?.innerText || '')
+                .split('\n')
+                .map((line) => line.replace(/\s+/g, ' ').trim())
+        ]
             .filter((text) => text && text.length > 1)
             .filter((text, index, array) => array.indexOf(text) === index)
-            .slice(0, 80);
+            .slice(0, 160);
 
         return {
             title: document.title || '',
@@ -316,6 +591,8 @@ function sanitizeNavigationHint(value) {
         .replace(/\bwww\.[^\s]+/gi, ' ')
         .replace(/^(?:de\s+)?(?:site|pagina|secao)\s+(?:de|do|da)\s+/i, '')
         .replace(/^(?:de\s+)?(?:site|pagina|secao)\s+/i, '')
+        .replace(/\s+e\s+(?:cite|me|liste|mostre|diga|traga)\b[\s\S]*$/i, '')
+        .replace(/\s+para\s+(?:me|listar|citar|mostrar|trazer)\b[\s\S]*$/i, '')
         .replace(/\s+/g, ' ')
         .trim();
 }
@@ -468,6 +745,24 @@ function expandNavigationTokens(hint) {
     }
 
     return Array.from(expanded);
+}
+
+function pageAlreadyMatchesHint(currentUrl, pageTitle, pageContext, hint) {
+    const haystack = normalizeSearchText([
+        currentUrl || '',
+        pageTitle || '',
+        pageContext?.title || '',
+        pageContext?.description || '',
+        ...(pageContext?.headings || [])
+    ].join(' '));
+    const wholeHint = normalizeSearchText(hint);
+    const hintTokens = expandNavigationTokens(hint);
+    const matchedTokens = hintTokens.filter((token) => haystack.includes(token));
+
+    return Boolean(
+        (wholeHint && haystack.includes(wholeHint))
+        || matchedTokens.length >= Math.min(2, hintTokens.length)
+    );
 }
 
 function normalizeSearchText(value) {
@@ -729,6 +1024,46 @@ async function waitForReadableCapture(page) {
 
     await wait(500);
 }
+
+const AGENT_SEARCH_STOP_WORDS = new Set([
+    'entre',
+    'entra',
+    'acesse',
+    'abra',
+    'navegue',
+    'pagina',
+    'site',
+    'cite',
+    'diga',
+    'mostre',
+    'me',
+    'para',
+    'com',
+    'uma',
+    'uns',
+    'umas',
+    'que',
+    'dos',
+    'das',
+    'do',
+    'da',
+    'de',
+    'no',
+    'na',
+    'os',
+    'as',
+    'por',
+    'ate',
+    'vai',
+    'va'
+]);
+
+const KNOWN_AGENT_DOMAINS = {
+    python: 'https://www.python.org',
+    groq: 'https://groq.com',
+    openai: 'https://openai.com',
+    nike: 'https://www.nike.com.br'
+};
 
 function wait(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));

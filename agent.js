@@ -1610,7 +1610,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         console.log(`🔍 [WEB-SEARCH] Buscando informações na web para: "${query}"`);
         
         // Chamar o proxy server-side para a API Tavily com fallback
-        const proxyUrl = '/api/tavily-web';
+        const proxyUrl = '/api/tavily-search';
 
         try {
             const response = await fetch(proxyUrl, {
