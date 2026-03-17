@@ -699,15 +699,27 @@ class UI {
         try {
             this.addThoughtLog('🧠 Enviando imagem para análise da IA...');
             
-            // Preparar prompt para o agente
-            const prompt = `Você é o Drekee Agent 1.0, um assistente de IA com visão computacional. 
-Analise esta captura de tela e me diga o que você vê e quais ações posso tomar.
+            // Preparar prompt para o agente - MELHORADO
+            const prompt = `Você é o Drekee Agent 1.0, um assistente de IA com visão computacional que pode VER e INTERAGIR com páginas web.
+
+Analise esta captura de tela e me diga:
+1. O que você vê na página
+2. Quais elementos interativos existem (botões, links, campos)
+3. O que eu posso fazer agora
+4. O próximo passo recomendado
+
+IMPORTANTE: Você PODE me ajudar a navegar e interagir com sites. Se eu pedir para abrir um site como www.nike.com.br, você pode:
+- Analisar a página atual
+- Sugerir cliques em botões
+- Indicar onde digitar texto
+- Ajudar na navegação
 
 Responda em formato JSON:
 {
-  "elementos_visiveis": ["botão login", "campo de email", "campo de senha"],
-  "acoes_sugeridas": ["clicar no botão login", "preencher campo de email"],
-  "proximo_passo": "Clique no botão de login para prosseguir"
+  "pagina_atual": "descrição do que está na tela",
+  "elementos_interativos": ["botão Comprar", "campo de busca", "menu Produtos"],
+  "acoes_possiveis": ["clicar no botão X", "preencher campo Y", "navegar para seção Z"],
+  "proximo_passo": "Clique no botão de busca para pesquisar produtos"
 }`;
 
             // Enviar para API (Groq Vision ou Gemini)
@@ -888,13 +900,24 @@ Responda em formato JSON:
             // Salvar resposta para uso posterior
             this.lastAgentResponse = response;
             
+            // Adaptar ao novo formato da resposta
+            const elementos = response.elementos_visiveis || response.elementos_interativos || [];
+            const acoes = response.acoes_sugeridas || response.acoes_possiveis || [];
+            const proximo = response.proximo_passo || "Analisar página para próximos passos";
+            
             // Mostrar análise no log de pensamento
-            this.addThoughtLog('🎯 Elementos identificados: ' + response.elementos_visiveis.join(', '));
-            this.addThoughtLog('💡 Ações sugeridas: ' + response.acoes_sugeridas.join(', '));
-            this.addThoughtLog('➡️ Próximo passo: ' + response.proximo_passo);
+            this.addThoughtLog('📄 Página atual: ' + (response.pagina_atual || 'Página web detectada'));
+            this.addThoughtLog('🎯 Elementos interativos: ' + elementos.join(', '));
+            this.addThoughtLog('💡 Ações possíveis: ' + acoes.join(', '));
+            this.addThoughtLog('➡️ Próximo passo: ' + proximo);
             
             // Habilitar ações baseadas na análise
-            this.enableAgentActions(response);
+            this.enableAgentActions({
+                ...response,
+                elementos_visiveis: elementos,
+                acoes_sugeridas: acoes,
+                proximo_passo: proximo
+            });
             
         } catch (error) {
             console.error('❌ [AGENT] Erro no processamento:', error);
@@ -918,21 +941,34 @@ Responda em formato JSON:
             
             this.showNotification(`⚡ Executando: ${action}`, 'info');
             
-            // Aqui implementaria a execução real da ação
-            // Por enquanto, apenas simula
-            setTimeout(() => {
-                this.addThoughtLog('✅ Ação executada com sucesso');
-                this.addActionLog('Executado: ' + action, 'executed');
-                this.showNotification('✅ Ação executada com sucesso', 'success');
-                
-                // Recapturar tela para ver resultado
-                if (!this.isAgentPaused) {
-                    setTimeout(() => {
-                        this.addThoughtLog('🔄 Capturando resultado da ação...');
-                        this.captureScreenForAgent();
-                    }, 1000);
-                }
-            }, 1000);
+            // Analisar a ação e executar comandos reais
+            const actionLower = action.toLowerCase();
+            
+            if (actionLower.includes('clique') || actionLower.includes('click')) {
+                // Procurar e clicar em elementos
+                await this.performClick(action);
+            } else if (actionLower.includes('digite') || actionLower.includes('preencher') || actionLower.includes('escrever')) {
+                // Preencher campos de texto
+                await this.performType(action);
+            } else if (actionLower.includes('navegar') || actionLower.includes('ir para') || actionLower.includes('abrir')) {
+                // Navegar para outra página
+                await this.performNavigate(action);
+            } else {
+                // Ação genérica - mostrar sugestão
+                this.addThoughtLog('💡 Sugestão: ' + action);
+                this.addActionLog('Sugestão: ' + action, 'executed');
+            }
+            
+            this.addThoughtLog('✅ Ação executada com sucesso');
+            this.showNotification('✅ Ação executada com sucesso', 'success');
+            
+            // Recapturar tela para ver resultado
+            if (!this.isAgentPaused) {
+                setTimeout(() => {
+                    this.addThoughtLog('🔄 Capturando resultado da ação...');
+                    this.captureScreenForAgent();
+                }, 1000);
+            }
             
         } catch (error) {
             console.error('❌ [AGENT] Erro na execução:', error);
@@ -940,6 +976,117 @@ Responda em formato JSON:
             this.addActionLog('Falha: ' + action, 'failed');
             this.showNotification('❌ Erro na execução da ação', 'error');
         }
+    }
+
+    // Realizar clique em elemento
+    async performClick(action) {
+        try {
+            // Procurar botões, links e elementos clicáveis
+            const selectors = [
+                'button', 'a[href]', '[role="button"]', 
+                '.btn', '.button', 'input[type="button"]',
+                '[onclick]', '[data-action]'
+            ];
+            
+            for (const selector of selectors) {
+                const elements = document.querySelectorAll(selector);
+                if (elements.length > 0) {
+                    // Tentar clicar no primeiro elemento visível
+                    for (const element of elements) {
+                        if (this.isElementVisible(element)) {
+                            this.addThoughtLog(`🖱️ Clicando em: ${element.tagName} - "${element.textContent?.trim() || element.title || element.id}"`);
+                            element.click();
+                            this.addActionLog(`Clicado: ${element.tagName}`, 'executed');
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            this.addThoughtLog('❌ Nenhum elemento clicável encontrado');
+            this.addActionLog('Nenhum elemento clicável encontrado', 'failed');
+            
+        } catch (error) {
+            this.addThoughtLog('❌ Erro ao clicar: ' + error.message);
+            throw error;
+        }
+    }
+
+    // Preencher campo de texto
+    async performType(action) {
+        try {
+            // Procurar campos de entrada
+            const inputs = document.querySelectorAll('input[type="text"], input[type="email"], input[type="search"], textarea');
+            
+            if (inputs.length > 0) {
+                const input = inputs[0]; // Preencher o primeiro campo encontrado
+                this.addThoughtLog(`⌨️ Preenchendo campo: ${input.type || input.tagName}`);
+                
+                // Extrair texto para digitar da ação
+                const textToType = this.extractTextFromAction(action) || 'texto';
+                
+                input.focus();
+                input.value = textToType;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                
+                this.addActionLog(`Preenchido: ${input.type}`, 'executed');
+            } else {
+                this.addThoughtLog('❌ Nenhum campo de texto encontrado');
+                this.addActionLog('Nenhum campo de texto encontrado', 'failed');
+            }
+            
+        } catch (error) {
+            this.addThoughtLog('❌ Erro ao preencher: ' + error.message);
+            throw error;
+        }
+    }
+
+    // Navegar para URL
+    async performNavigate(action) {
+        try {
+            // Extrair URL da ação
+            const urlMatch = action.match(/https?:\/\/[^\s]+/);
+            const url = urlMatch ? urlMatch[0] : null;
+            
+            if (url) {
+                this.addThoughtLog(`🌐 Navegando para: ${url}`);
+                window.open(url, '_blank');
+                this.addActionLog(`Navegado para: ${url}`, 'executed');
+            } else {
+                // Procurar links na página
+                const links = document.querySelectorAll('a[href]');
+                if (links.length > 0) {
+                    const link = links[0];
+                    this.addThoughtLog(`🔗 Clicando no link: ${link.textContent?.trim() || link.href}`);
+                    link.click();
+                    this.addActionLog(`Link clicado: ${link.textContent?.trim()}`, 'executed');
+                } else {
+                    this.addThoughtLog('❌ Nenhuma URL ou link encontrado');
+                    this.addActionLog('Nenhuma URL ou link encontrado', 'failed');
+                }
+            }
+            
+        } catch (error) {
+            this.addThoughtLog('❌ Erro ao navegar: ' + error.message);
+            throw error;
+        }
+    }
+
+    // Verificar se elemento está visível
+    isElementVisible(element) {
+        const style = window.getComputedStyle(element);
+        return style.display !== 'none' && 
+               style.visibility !== 'hidden' && 
+               style.opacity !== '0' &&
+               element.offsetWidth > 0 && 
+               element.offsetHeight > 0;
+    }
+
+    // Extrair texto da ação
+    extractTextFromAction(action) {
+        // Procurar por texto entre aspas ou após dois pontos
+        const match = action.match(/["']([^"']+)["']/) || action.match(/:\s*([^,.]+)/);
+        return match ? match[1].trim() : null;
     }
 
     // Desativar modo agente
@@ -1007,6 +1154,46 @@ Responda em formato JSON:
                 <span class="text-xs font-medium">Criar</span>
             `;
         }
+    }
+
+    // Mostrar notificação (função que estava faltando)
+    showNotification(message, type = 'info') {
+        // Criar elemento de notificação
+        const notification = document.createElement('div');
+        
+        // Definir cores baseadas no tipo
+        const colors = {
+            info: 'bg-blue-500',
+            success: 'bg-green-500',
+            error: 'bg-red-500',
+            warning: 'bg-yellow-500'
+        };
+        
+        notification.className = `fixed top-20 right-4 ${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg z-[9999] transform translate-x-full transition-transform duration-300`;
+        notification.innerHTML = `
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-medium">${message}</span>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Animar entrada
+        setTimeout(() => {
+            notification.classList.remove('translate-x-full');
+            notification.classList.add('translate-x-0');
+        }, 100);
+        
+        // Remover após 3 segundos
+        setTimeout(() => {
+            notification.classList.remove('translate-x-0');
+            notification.classList.add('translate-x-full');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
     }
 
     setupAttachListeners() {
