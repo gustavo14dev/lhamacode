@@ -71,6 +71,7 @@ export default async function handler(req, res) {
 
 async function callGroqVision(prompt, imageData) {
     try {
+        // Usar modelo mais recente do Groq que suporta visão
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -78,7 +79,7 @@ async function callGroqVision(prompt, imageData) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'llama-3.2-11b-vision-preview',
+                model: 'llama-3.2-90b-vision-preview',
                 messages: [
                     {
                         role: 'user',
@@ -132,7 +133,8 @@ async function callGeminiVision(prompt, imageData) {
         // Converter base64 para formato Gemini
         const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
         
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+        // Usar modelo mais recente do Gemini
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

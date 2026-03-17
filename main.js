@@ -1126,81 +1126,49 @@ Responda em formato JSON:
             const data = await response.json();
             
             if (response.status === 429) {
-                this.addThoughtLog('⚠️ Groq Vision atingiu limite (429) - Tentando Gemini...');
                 throw new Error('RATE_LIMIT');
             }
             
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            
-            this.addThoughtLog('📝 Resposta Groq recebida: ' + data.response.substring(0, 100) + '...');
-            
-            // Tentar parsear JSON da resposta
-            try {
-                return JSON.parse(data.response);
-            } catch {
-                // Se não for JSON, retorna como texto
-                return {
-                    elementos_visiveis: ["análise recebida"],
-                    acoes_sugeridas: [data.response],
-                    proximo_passo: data.response
-                };
-            }
+            this.addAgentThoughtLog('✅ Groq Vision respondeu com sucesso!');
+            return data.response;
             
         } catch (error) {
             console.error('❌ [AGENT] Erro no Groq Vision:', error);
-            this.addThoughtLog('❌ Erro no Groq Vision: ' + error.message);
-            return null;
+            this.addAgentThoughtLog('❌ Erro no Groq Vision: ' + error.message);
+            throw error;
         }
     }
 
-    // Chamar Gemini Vision
+    // Chamar API do Gemini Vision
     async callGeminiVision(prompt, imageData) {
         try {
-            this.addThoughtLog('🧠 Chamando Gemini Vision (gemini-1.5-flash)...');
+            this.addAgentThoughtLog('🔄 Enviando para Gemini Vision...');
             
             const response = await fetch('/api/agent-vision', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     prompt: prompt,
-                    imageData: imageData,
-                    model: 'gemini'
+                    image: imageData,
+                    provider: 'gemini'
                 })
             });
             
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Gemini API Error: ${response.status} - ${errorData.error || response.statusText}`);
+            }
+            
             const data = await response.json();
-            
-            if (response.status === 429) {
-                this.addThoughtLog('⚠️ Gemini Vision atingiu limite (429) - Tentando Groq...');
-                throw new Error('RATE_LIMIT');
-            }
-            
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            
-            this.addThoughtLog('📝 Resposta Gemini recebida: ' + data.response.substring(0, 100) + '...');
-            
-            // Tentar parsear JSON da resposta
-            try {
-                return JSON.parse(data.response);
-            } catch {
-                // Se não for JSON, retorna como texto
-                return {
-                    elementos_visiveis: ["análise recebida"],
-                    acoes_sugeridas: [data.response],
-                    proximo_passo: data.response
-                };
-            }
+            this.addAgentThoughtLog('✅ Gemini Vision respondeu com sucesso!');
+            return data.response;
             
         } catch (error) {
             console.error('❌ [AGENT] Erro no Gemini Vision:', error);
-            this.addThoughtLog('❌ Erro no Gemini Vision: ' + error.message);
-            return null;
+            this.addAgentThoughtLog('❌ Erro no Gemini Vision: ' + error.message);
+            throw error;
         }
     }
 
@@ -1457,15 +1425,52 @@ Responda em formato JSON:
 
     // Resetar botões de criação
     resetCreateButtons() {
-        const createBtn = document.getElementById('createToggle');
-        if (createBtn) {
-            // Resetar para estado original
-            createBtn.classList.remove('bg-orange-500', 'text-white', 'ring-2', 'ring-orange-300');
-            createBtn.classList.add('bg-gray-100', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-300');
-            createBtn.innerHTML = `
-                <span class="material-icons-outlined">add_box</span>
-                <span class="text-xs font-medium">Criar</span>
-            `;
+        const dropdown = document.getElementById('floatingCreateDropdown');
+        if (dropdown) {
+            // Resetar texto do botão principal
+            const button = dropdown.querySelector('button');
+            if (button) {
+                button.innerHTML = `
+                    <span class="material-icons-outlined">add</span>
+                    <span>Criar</span>
+                    <span class="material-icons-outlined">expand_more</span>
+                `;
+            }
+        }
+    }
+
+    // Atualizar botão de criação para mostrar modo ativo
+    updateCreateButton() {
+        const dropdown = document.getElementById('floatingCreateDropdown');
+        if (dropdown) {
+            // Atualizar texto do botão principal
+            const button = dropdown.querySelector('button');
+            if (button) {
+                if (window.isAgentMode) {
+                    button.innerHTML = `
+                        <span class="material-icons-outlined text-orange-400">smart_toy</span>
+                        <span class="text-orange-400">Drekee Agent Ativo</span>
+                        <span class="material-icons-outlined text-orange-400">expand_more</span>
+                    `;
+                    button.classList.add('border-orange-500', 'text-orange-400');
+                } else if (window.isInvestigateMode) {
+                    button.innerHTML = `
+                        <span class="material-icons-outlined text-blue-400">search</span>
+                        <span class="text-blue-400">Investigate Ativo</span>
+                        <span class="material-icons-outlined text-blue-400">expand_more</span>
+                    `;
+                    button.classList.add('border-blue-500', 'text-blue-400');
+                } else if (window.isREMode) {
+                    button.innerHTML = `
+                        <span class="material-icons-outlined text-green-400">calculate</span>
+                        <span class="text-green-400">RE Ativo</span>
+                        <span class="material-icons-outlined text-green-400">expand_more</span>
+                    `;
+                    button.classList.add('border-green-500', 'text-green-400');
+                } else {
+                    this.resetCreateButtons();
+                }
+            }
         }
     }
 
