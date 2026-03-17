@@ -12,20 +12,60 @@ export default async function handler(req, res) {
         }
 
         let response;
+        let lastError;
 
-        if (model === 'groq') {
-            response = await callGroqVision(prompt, imageData);
-        } else if (model === 'gemini') {
-            response = await callGeminiVision(prompt, imageData);
-        } else {
-            return res.status(400).json({ error: 'Invalid model' });
+        // Tentar modelo solicitado primeiro
+        try {
+            if (model === 'groq') {
+                response = await callGroqVision(prompt, imageData);
+            } else if (model === 'gemini') {
+                response = await callGeminiVision(prompt, imageData);
+            } else {
+                return res.status(400).json({ error: 'Invalid model' });
+            }
+        } catch (error) {
+            lastError = error;
+            console.error(`Primary model (${model}) failed:`, error.message);
+            
+            // Se for erro 429, tentar o outro modelo automaticamente
+            if (error.message === 'RATE_LIMIT_GROQ' || error.message === 'RATE_LIMIT_GEMINI') {
+                console.log('Rate limit hit, trying fallback model...');
+                
+                try {
+                    if (model === 'groq') {
+                        console.log('Falling back to Gemini...');
+                        response = await callGeminiVision(prompt, imageData);
+                    } else {
+                        console.log('Falling back to Groq...');
+                        response = await callGroqVision(prompt, imageData);
+                    }
+                } catch (fallbackError) {
+                    console.error('Fallback model also failed:', fallbackError.message);
+                    return res.status(429).json({ 
+                        error: 'Both models rate limited',
+                        message: 'Both Groq and Gemini APIs are rate limited. Please try again later.',
+                        retry_after: 60
+                    });
+                }
+            } else {
+                throw error;
+            }
         }
 
         res.status(200).json({ response });
 
     } catch (error) {
         console.error('Agent Vision Error:', error);
-        res.status(500).json({ error: error.message });
+        
+        if (error.message === 'RATE_LIMIT_GROQ' || error.message === 'RATE_LIMIT_GEMINI') {
+            res.status(429).json({ 
+                error: 'Rate limit exceeded',
+                message: 'API rate limit exceeded. Please try again later.',
+                retry_after: 60
+            });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 }
 
@@ -38,7 +78,7 @@ async function callGroqVision(prompt, imageData) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'llava-v1.5-7b-4096-preview',
+                model: 'llama-3.2-11b-vision-preview',
                 messages: [
                     {
                         role: 'user',
@@ -62,10 +102,27 @@ async function callGroqVision(prompt, imageData) {
         });
 
         const data = await response.json();
+        
+        // Tratar erro 429 (rate limit)
+        if (response.status === 429) {
+            console.error('Groq Rate Limit (429):', data);
+            throw new Error('RATE_LIMIT_GROQ');
+        }
+        
+        if (!response.ok) {
+            throw new Error(`Groq API Error: ${response.status} - ${data.error?.message || 'Unknown error'}`);
+        }
+        
         return data.choices[0].message.content;
 
     } catch (error) {
         console.error('Groq Vision Error:', error);
+        
+        // Se for rate limit, retornar erro específico
+        if (error.message === 'RATE_LIMIT_GROQ') {
+            throw new Error('RATE_LIMIT_GROQ');
+        }
+        
         throw error;
     }
 }
@@ -104,10 +161,27 @@ async function callGeminiVision(prompt, imageData) {
         });
 
         const data = await response.json();
+        
+        // Tratar erro 429 (rate limit)
+        if (response.status === 429) {
+            console.error('Gemini Rate Limit (429):', data);
+            throw new Error('RATE_LIMIT_GEMINI');
+        }
+        
+        if (!response.ok) {
+            throw new Error(`Gemini API Error: ${response.status} - ${data.error?.message || 'Unknown error'}`);
+        }
+        
         return data.candidates[0].content.parts[0].text;
 
     } catch (error) {
         console.error('Gemini Vision Error:', error);
+        
+        // Se for rate limit, retornar erro específico
+        if (error.message === 'RATE_LIMIT_GEMINI') {
+            throw new Error('RATE_LIMIT_GEMINI');
+        }
+        
         throw error;
     }
 }

@@ -319,6 +319,8 @@ class UI {
             case 'agent':
                 window.isAgentMode = true;
                 this.activateAgentMode();
+                // Atualizar botão para mostrar estado ativo
+                this.updateCreateButton();
                 break;
         }
         
@@ -747,6 +749,34 @@ Responda em formato JSON:
         } catch (error) {
             console.error('❌ [AGENT] Erro na chamada da API:', error);
             this.addThoughtLog('❌ Erro na chamada da API: ' + error.message);
+            
+            // Se for erro de rate limit, tentar a outra API
+            if (error.message === 'RATE_LIMIT') {
+                this.addThoughtLog('🔄 Detectado rate limit - Tentando API alternativa...');
+                
+                try {
+                    // Se estava tentando Groq, tenta Gemini
+                    const geminiResponse = await this.callGeminiVision(prompt, imageData);
+                    if (geminiResponse) {
+                        this.addThoughtLog('✅ Fallback para Gemini funcionou!');
+                        return geminiResponse;
+                    }
+                } catch (fallbackError) {
+                    this.addThoughtLog('❌ Fallback também falhou: ' + fallbackError.message);
+                }
+                
+                try {
+                    // Se estava tentando Gemini, tenta Groq
+                    const groqResponse = await this.callGroqVision(prompt, imageData);
+                    if (groqResponse) {
+                        this.addThoughtLog('✅ Fallback para Groq funcionou!');
+                        return groqResponse;
+                    }
+                } catch (fallbackError) {
+                    this.addThoughtLog('❌ Fallback também falhou: ' + fallbackError.message);
+                }
+            }
+            
             throw error;
         }
     }
@@ -754,7 +784,7 @@ Responda em formato JSON:
     // Chamar Groq Vision
     async callGroqVision(prompt, imageData) {
         try {
-            this.addThoughtLog('🚀 Chamando Groq Vision (llava-v1.5-7b)...');
+            this.addThoughtLog('🚀 Chamando Groq Vision (llama-3.2-11b-vision-preview)...');
             
             const response = await fetch('/api/agent-vision', {
                 method: 'POST',
@@ -770,11 +800,16 @@ Responda em formato JSON:
             
             const data = await response.json();
             
+            if (response.status === 429) {
+                this.addThoughtLog('⚠️ Groq Vision atingiu limite (429) - Tentando Gemini...');
+                throw new Error('RATE_LIMIT');
+            }
+            
             if (data.error) {
                 throw new Error(data.error);
             }
             
-            this.addThoughtLog('📝 Resposta recebida: ' + data.response.substring(0, 100) + '...');
+            this.addThoughtLog('📝 Resposta Groq recebida: ' + data.response.substring(0, 100) + '...');
             
             // Tentar parsear JSON da resposta
             try {
@@ -814,11 +849,16 @@ Responda em formato JSON:
             
             const data = await response.json();
             
+            if (response.status === 429) {
+                this.addThoughtLog('⚠️ Gemini Vision atingiu limite (429) - Tentando Groq...');
+                throw new Error('RATE_LIMIT');
+            }
+            
             if (data.error) {
                 throw new Error(data.error);
             }
             
-            this.addThoughtLog('📝 Resposta recebida: ' + data.response.substring(0, 100) + '...');
+            this.addThoughtLog('📝 Resposta Gemini recebida: ' + data.response.substring(0, 100) + '...');
             
             // Tentar parsear JSON da resposta
             try {
@@ -938,11 +978,19 @@ Responda em formato JSON:
         const createBtn = document.getElementById('createToggle');
         if (createBtn) {
             if (active) {
-                createBtn.classList.add('bg-orange-500', 'text-white');
+                createBtn.classList.add('bg-orange-500', 'text-white', 'ring-2', 'ring-orange-300');
                 createBtn.classList.remove('bg-gray-100', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-300');
+                createBtn.innerHTML = `
+                    <span class="material-icons-outlined">smart_toy</span>
+                    <span class="text-xs font-medium">Drekee Agent Ativo</span>
+                `;
             } else {
-                createBtn.classList.remove('bg-orange-500', 'text-white');
+                createBtn.classList.remove('bg-orange-500', 'text-white', 'ring-2', 'ring-orange-300');
                 createBtn.classList.add('bg-gray-100', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-300');
+                createBtn.innerHTML = `
+                    <span class="material-icons-outlined">add_box</span>
+                    <span class="text-xs font-medium">Criar</span>
+                `;
             }
         }
     }
