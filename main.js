@@ -574,7 +574,7 @@ class UI {
             <div class="agent-response-container bg-gray-900/95 border border-orange-500/40 rounded-2xl p-5 mb-4 shadow-soft">
                 <div class="flex items-center gap-2 mb-4">
                     <div class="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-400/30 flex items-center justify-center">
-                        <span class="material-icons-outlined text-orange-400 text-base">smart_toy</span>
+                        <span class="text-orange-300 text-sm">AI</span>
                     </div>
                     <div>
                         <div class="text-orange-300 font-semibold">Drekee Agent 1.0</div>
@@ -639,7 +639,7 @@ class UI {
             return `
                 <div class="flex items-start gap-3">
                     <div class="mt-1 w-7 h-7 rounded-full bg-orange-500/15 border border-orange-400/25 flex items-center justify-center flex-shrink-0">
-                        <span class="material-icons-outlined text-[15px] text-orange-300">psychology</span>
+                        <span class="text-sm">🧠</span>
                     </div>
                     <div class="flex-1 bg-gray-800/80 rounded-2xl border border-gray-700/80 px-4 py-3">
                         ${time}
@@ -650,7 +650,7 @@ class UI {
         }
 
         if (entry.type === 'action') {
-            const statusIcon = entry.status === 'executed' ? 'done' : entry.status === 'failed' ? 'close' : 'schedule';
+            const statusIcon = entry.status === 'executed' ? '✓' : entry.status === 'failed' ? '×' : '…';
             const statusColor = entry.status === 'executed'
                 ? 'border-green-600/40 bg-green-500/10 text-green-200'
                 : entry.status === 'failed'
@@ -660,7 +660,7 @@ class UI {
             return `
                 <div class="flex items-start gap-3">
                     <div class="mt-1 w-7 h-7 rounded-full ${statusColor} flex items-center justify-center flex-shrink-0">
-                        <span class="material-icons-outlined text-[15px]">${statusIcon}</span>
+                        <span class="text-sm">${statusIcon}</span>
                     </div>
                     <div class="flex-1">
                         ${time}
@@ -677,7 +677,7 @@ class UI {
             return `
                 <div class="flex items-start gap-3">
                     <div class="mt-1 w-7 h-7 rounded-full bg-blue-500/15 border border-blue-400/25 flex items-center justify-center flex-shrink-0">
-                        <span class="material-icons-outlined text-[15px] text-blue-200">image</span>
+                        <span class="text-sm">🖼️</span>
                     </div>
                     <div class="flex-1 bg-gray-800/80 rounded-2xl border border-blue-700/40 px-4 py-3">
                         ${time}
@@ -697,7 +697,7 @@ class UI {
             ? 'border-red-700/50 text-red-100 bg-red-500/10'
             : 'border-gray-700 text-gray-200 bg-gray-800/70';
 
-        const icon = entry.type === 'error' ? 'error' : 'task_alt';
+        const icon = entry.type === 'error' ? '!' : '✓';
         const iconBg = entry.type === 'error'
             ? 'bg-red-500/15 border-red-400/25 text-red-200'
             : 'bg-emerald-500/15 border-emerald-400/25 text-emerald-200';
@@ -705,7 +705,7 @@ class UI {
         return `
             <div class="flex items-start gap-3">
                 <div class="mt-1 w-7 h-7 rounded-full border ${iconBg} flex items-center justify-center flex-shrink-0">
-                    <span class="material-icons-outlined text-[15px]">${icon}</span>
+                    <span class="text-sm">${icon}</span>
                 </div>
                 <div class="flex-1 rounded-2xl border ${toneClass} px-4 py-3">
                     ${time}
@@ -1029,11 +1029,10 @@ Responda em formato JSON:
             throw new Error(data.error || `Falha ao abrir ${url}`);
         }
 
-        if (data.mode === 'metadata-fallback') {
-            this.addAgentThoughtLog('⚠️ O navegador visual nao estava disponivel; continuei com uma previa textual do site para nao travar o agente.');
-            if (data.warning) {
-                this.addAgentThoughtLog(`🛠️ Motivo tecnico: ${data.warning}`);
-            }
+        if (data.mode === 'hosted-screenshot' || data.mode === 'site-protected-hosted') {
+            this.addAgentThoughtLog('📡 Abri uma visualizacao compativel do site para continuar a analise.');
+        } else if (data.mode === 'metadata-fallback' || data.mode === 'site-protected-fallback') {
+            this.addAgentThoughtLog('📡 Gerei uma visualizacao resumida do site para continuar a analise.');
         } else {
             this.addAgentThoughtLog('✅ Navegador visual iniciado com sucesso.');
         }
@@ -1045,11 +1044,16 @@ Responda em formato JSON:
     async analyzeOpenedSite(session, userMessage) {
         const screenshots = Array.isArray(session?.screenshots) ? session.screenshots : [];
         const pageContext = session?.page || {};
-        const readableTitle = session?.title || pageContext.title || session?.currentUrl || session?.requestedUrl;
+        const rawTitle = session?.title || pageContext.title || session?.currentUrl || session?.requestedUrl;
+        const readableTitle = /access denied|forbidden|blocked|captcha|unauthorized/i.test(rawTitle || '')
+            ? 'Site com protecao automatizada'
+            : rawTitle;
 
         this.addAgentThoughtLog(`🪄 Navegacao concluida. Pagina detectada: ${readableTitle}`);
         if (session?.mode === 'live-browser') {
             this.addAgentThoughtLog('👀 Estou vendo capturas reais do site abertas pelo agente.');
+        } else if (session?.mode === 'hosted-screenshot' || session?.mode === 'site-protected-hosted') {
+            this.addAgentThoughtLog('👀 Estou vendo uma captura compativel do site para seguir com a tarefa.');
         }
 
         if (pageContext.description) {
@@ -1070,7 +1074,7 @@ Responda em formato JSON:
 
             if (session?.mode !== 'live-browser') {
                 this.addAgentThoughtLog('🧠 IA pensando...');
-                this.addAgentThoughtLog('⚠️ Visao por imagem indisponivel nesse momento; usei a estrutura da pagina para continuar.');
+                this.addAgentThoughtLog('⚠️ Usei um modo de visualizacao alternativo para continuar a tarefa.');
                 this.processAgentResponse(fallbackAnalysis, { label: screenshot.label || 'Captura do site' });
                 continue;
             }
@@ -1207,7 +1211,6 @@ Analise a imagem e responda com este formato:
     processAgentResponse(response, meta = {}) {
         try {
             const normalized = this.normalizeAgentAnalysis(response);
-            console.log('📋 [AGENT] Resposta processada:', normalized);
 
             this.lastAgentResponse = normalized;
 
@@ -1298,15 +1301,21 @@ Analise a imagem e responda com este formato:
         const description = pageContext.description || 'Sem descricao detalhada disponivel.';
         const headings = this.coerceAgentList(pageContext.headings).slice(0, 4);
         const interactiveElements = this.coerceAgentList(pageContext.interactiveElements).slice(0, 8);
+        const combinedText = `${title} ${description} ${headings.join(' ')}`;
+        const blockedAccess = /access denied|forbidden|blocked|captcha|unauthorized/i.test(combinedText);
 
         const resumoPartes = [
-            title,
-            description,
+            blockedAccess ? 'O site bloqueou a navegacao automatizada nesta tentativa' : title,
+            blockedAccess ? 'Vou continuar com uma visualizacao alternativa sempre que possivel.' : description,
             headings.length ? `Secoes visiveis: ${headings.join(', ')}` : '',
             screenshot.label ? `Captura: ${screenshot.label}` : ''
         ].filter(Boolean);
 
         const acoes = [];
+        if (blockedAccess) {
+            acoes.push('Tentar uma rota alternativa de visualizacao para entender o site');
+            acoes.push('Abrir outra pagina menos protegida do dominio para coletar contexto');
+        }
         if (interactiveElements.length) {
             acoes.push(`Explorar estes elementos: ${interactiveElements.slice(0, 3).join(', ')}`);
         }
@@ -1319,7 +1328,9 @@ Analise a imagem e responda com este formato:
             pagina_atual: resumoPartes.join(' | '),
             elementos_interativos: interactiveElements,
             acoes_possiveis: acoes,
-            proximo_passo: interactiveElements[0]
+            proximo_passo: blockedAccess
+                ? 'Tentar uma nova rota de acesso ao site ou uma pagina interna menos protegida'
+                : interactiveElements[0]
                 ? `Inspecionar "${interactiveElements[0]}" para avancar na tarefa`
                 : 'Continuar a navegacao guiada pelo agente'
         };

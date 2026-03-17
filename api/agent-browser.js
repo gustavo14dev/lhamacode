@@ -36,6 +36,20 @@ export default async function handler(req, res) {
         await wait(1200);
 
         const pageContext = await collectPageContext(page);
+        const pageTitle = await page.title();
+
+        if (isProtectedPage(pageTitle, pageContext)) {
+            const fallback = await createMetadataFallback(
+                normalizedUrl,
+                'O site bloqueou a navegacao automatizada nesta tentativa.'
+            );
+
+            return res.status(200).json({
+                ...fallback,
+                mode: fallback.mode === 'hosted-screenshot' ? 'site-protected-hosted' : 'site-protected-fallback'
+            });
+        }
+
         const screenshots = [];
 
         screenshots.push(await captureScreenshot(page, 'Homepage carregada', 'Acabei de abrir o site no navegador controlado pelo agente.'));
@@ -57,7 +71,7 @@ export default async function handler(req, res) {
             mode: 'live-browser',
             requestedUrl: normalizedUrl,
             currentUrl: page.url(),
-            title: await page.title(),
+            title: pageTitle,
             page: pageContext,
             screenshots
         });
@@ -221,6 +235,17 @@ async function collectPageContext(page) {
     });
 }
 
+function isProtectedPage(title, pageContext = {}) {
+    const combined = [
+        title || '',
+        pageContext.title || '',
+        pageContext.description || '',
+        ...(pageContext.headings || [])
+    ].join(' ');
+
+    return /access denied|forbidden|blocked|captcha|unauthorized|verify you are human|robot/i.test(combined);
+}
+
 async function createMetadataFallback(normalizedUrl, reason) {
     let html = '';
 
@@ -236,21 +261,30 @@ async function createMetadataFallback(normalizedUrl, reason) {
     }
 
     const page = extractPageMetadata(html, normalizedUrl);
-    const screenshots = [
-        {
-            label: 'Preview gerada sem navegador',
-            note: 'O Chrome do agente nao estava disponivel; gerei uma previa textual para o fluxo continuar.',
-            dataUrl: createPreviewImage({
-                url: normalizedUrl,
-                title: page.title,
-                description: page.description,
-                headings: page.headings
-            })
-        }
-    ];
+    const remoteScreenshot = await fetchHostedScreenshot(normalizedUrl);
+    const screenshots = remoteScreenshot
+        ? [
+            {
+                label: 'Captura do site',
+                note: 'Capturei uma visualizacao compativel do site para continuar o fluxo.',
+                dataUrl: remoteScreenshot
+            }
+        ]
+        : [
+            {
+                label: 'Preview do site',
+                note: 'Gerei uma visualizacao resumida do site para continuar o fluxo.',
+                dataUrl: createPreviewImage({
+                    url: normalizedUrl,
+                    title: page.title,
+                    description: page.description,
+                    headings: page.headings
+                })
+            }
+        ];
 
     return {
-        mode: 'metadata-fallback',
+        mode: remoteScreenshot ? 'hosted-screenshot' : 'metadata-fallback',
         warning: reason,
         requestedUrl: normalizedUrl,
         currentUrl: normalizedUrl,
@@ -261,6 +295,39 @@ async function createMetadataFallback(normalizedUrl, reason) {
         },
         screenshots
     };
+}
+
+async function fetchHostedScreenshot(normalizedUrl) {
+    const providers = [
+        `https://image.thum.io/get/width/1440/crop/1024/noanimate/${normalizedUrl}`,
+        `https://image.thum.io/get/width/1440/crop/1024/noanimate?url=${encodeURIComponent(normalizedUrl)}`
+    ];
+
+    for (const endpoint of providers) {
+        try {
+            const response = await fetch(endpoint, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (compatible; DrekeeAgent/1.0)'
+                }
+            });
+
+            if (!response.ok) {
+                continue;
+            }
+
+            const contentType = response.headers.get('content-type') || 'image/jpeg';
+            if (!contentType.startsWith('image/')) {
+                continue;
+            }
+
+            const buffer = Buffer.from(await response.arrayBuffer());
+            return `data:${contentType};base64,${buffer.toString('base64')}`;
+        } catch (error) {
+            console.error('Hosted screenshot provider failed:', error);
+        }
+    }
+
+    return null;
 }
 
 function extractPageMetadata(html, normalizedUrl) {
