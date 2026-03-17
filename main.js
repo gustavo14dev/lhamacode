@@ -358,9 +358,6 @@ class UI {
             <span class="w-2 h-2 bg-white rounded-full animate-pulse"></span>
         `;
         document.body.appendChild(indicator);
-        
-        // Criar painel completo do agente
-        this.createAgentPanel();
     }
 
     // Criar painel completo do agente
@@ -553,6 +550,175 @@ class UI {
         if (actionLog) {
             actionLog.innerHTML = '';
             this.addThoughtLog('🗑️ Log de ações limpo');
+        }
+    }
+
+    // Iniciar loop do agente (no chat)
+    startAgentLoop() {
+        this.isAgentPaused = false;
+        this.addAgentThoughtLog('🤖 Drekee Agent 1.0 iniciado - Envie uma mensagem para começar');
+    }
+
+    // Adicionar pensamento do agente (no chat)
+    addAgentThoughtLog(message) {
+        // Adicionar ao buffer de pensamentos
+        if (!this.agentThoughtBuffer) {
+            this.agentThoughtBuffer = [];
+        }
+        this.agentThoughtBuffer.push({
+            message: message,
+            timestamp: new Date().toLocaleTimeString()
+        });
+        
+        // Mostrar no chat se estivermos respondendo
+        if (this.isAgentResponding) {
+            this.updateAgentResponse();
+        }
+    }
+
+    // Iniciar resposta do agente no chat
+    startAgentResponse() {
+        this.isAgentResponding = true;
+        this.agentThoughtBuffer = [];
+        this.agentScreenshots = [];
+        this.agentActions = [];
+        
+        // Criar mensagem inicial do agente
+        const agentMessage = `
+            <div class="agent-response-container bg-gray-900 border border-orange-500 rounded-lg p-4 mb-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="material-icons-outlined text-orange-400">smart_toy</span>
+                    <span class="text-orange-400 font-medium">Drekee Agent 1.0</span>
+                    <span class="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
+                </div>
+                
+                <div id="agentResponse-${Date.now()}" class="space-y-4">
+                    <div class="text-gray-300">🔍 Analisando ambiente...</div>
+                </div>
+            </div>
+        `;
+        
+        this.agentResponseElement = document.createElement('div');
+        this.agentResponseElement.innerHTML = agentMessage;
+        
+        // Adicionar ao chat
+        const chatContainer = document.querySelector('#chatMessages');
+        if (chatContainer) {
+            chatContainer.appendChild(this.agentResponseElement);
+            this.scrollToBottom();
+        }
+    }
+
+    // Atualizar resposta do agente (em tempo real)
+    updateAgentResponse() {
+        if (!this.agentResponseElement) return;
+        
+        const responseContainer = this.agentResponseElement.querySelector('[id^="agentResponse-"]');
+        if (!responseContainer) return;
+        
+        let html = '';
+        
+        // Adicionar pensamentos em tempo real (sempre primeiro)
+        if (this.agentThoughtBuffer && this.agentThoughtBuffer.length > 0) {
+            html += '<div class="space-y-2 mb-4">';
+            html += '<div class="text-sm text-orange-400 mb-2">🧠 Pensamento da IA:</div>';
+            this.agentThoughtBuffer.forEach(thought => {
+                html += `
+                    <div class="bg-gray-800 rounded p-2 border border-gray-700">
+                        <div class="text-xs text-gray-500">${thought.timestamp}</div>
+                        <div class="text-gray-300 text-sm">${thought.message}</div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+        
+        // Adicionar ações executadas
+        if (this.agentActions && this.agentActions.length > 0) {
+            html += '<div class="space-y-2 mb-4">';
+            html += '<div class="text-sm text-green-400 mb-2">⚡ Ações Executadas:</div>';
+            this.agentActions.forEach(action => {
+                const statusIcon = action.status === 'executed' ? '✅' : action.status === 'failed' ? '❌' : '⏳';
+                html += `
+                    <div class="bg-gray-800 rounded p-2 border border-gray-700">
+                        <div class="text-xs text-gray-500">${action.timestamp}</div>
+                        <div class="text-gray-300 text-sm flex items-center gap-2">
+                            <span>${statusIcon}</span>
+                            ${action.description}
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+        
+        // Adicionar screenshots (sempre após as ações)
+        if (this.agentScreenshots && this.agentScreenshots.length > 0) {
+            html += '<div class="space-y-2">';
+            html += '<div class="text-sm text-blue-400 mb-2">📸 Capturas de Tela:</div>';
+            this.agentScreenshots.forEach((screenshot, index) => {
+                html += `
+                    <div class="bg-gray-800 rounded p-2 border border-gray-700">
+                        <div class="text-xs text-gray-500 mb-1">${screenshot.timestamp}</div>
+                        <img src="${screenshot.data}" class="w-full max-w-md rounded border border-gray-600" alt="Screenshot ${index + 1}">
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+        
+        responseContainer.innerHTML = html;
+        this.scrollToBottom();
+    }
+
+    // Adicionar screenshot ao buffer do agente
+    addAgentScreenshot(imageData) {
+        if (!this.agentScreenshots) {
+            this.agentScreenshots = [];
+        }
+        
+        this.agentScreenshots.push({
+            data: imageData,
+            timestamp: new Date().toLocaleTimeString()
+        });
+        
+        // Limitar a 3 screenshots
+        if (this.agentScreenshots.length > 3) {
+            this.agentScreenshots.shift();
+        }
+        
+        this.updateAgentResponse();
+    }
+
+    // Adicionar ação ao buffer do agente
+    addAgentAction(description, status = 'executed') {
+        if (!this.agentActions) {
+            this.agentActions = [];
+        }
+        
+        this.agentActions.push({
+            description: description,
+            status: status,
+            timestamp: new Date().toLocaleTimeString()
+        });
+        
+        this.updateAgentResponse();
+    }
+
+    // Finalizar resposta do agente
+    finishAgentResponse() {
+        this.isAgentResponding = false;
+        
+        // Adicionar mensagem final
+        if (this.agentResponseElement) {
+            const responseContainer = this.agentResponseElement.querySelector('[id^="agentResponse-"]');
+            if (responseContainer) {
+                responseContainer.innerHTML += `
+                    <div class="mt-4 pt-3 border-t border-gray-700">
+                        <div class="text-gray-400 text-sm">✅ Análise concluída</div>
+                    </div>
+                `;
+            }
         }
     }
 
@@ -773,9 +939,51 @@ Responda em formato JSON:
             // Iniciar resposta do agente no chat
             this.startAgentResponse();
             
-            this.addAgentThoughtLog('👤 Usuário solicitou: ' + userMessage);
+            // Mostrar o que o usuário pediu
+            this.addAgentThoughtLog(`👤 Usuário: ${userMessage}`);
             
-            // Capturar tela atual
+            // Pensar sobre o que fazer
+            this.addAgentThoughtLog('🧀 Hmm, vou analisar o que você pediu...');
+            
+            // Se pediu para abrir um site, fazer isso primeiro
+            if (userMessage.toLowerCase().includes('abrir') && userMessage.toLowerCase().includes('http')) {
+                const urlMatch = userMessage.match(/https?:\/\/[^\s]+/);
+                if (urlMatch) {
+                    const url = urlMatch[0];
+                    
+                    // Mostrar que vai abrir
+                    this.addAgentThoughtLog(`🌐 Abrindo o site ${url}...`);
+                    
+                    // Adicionar ação
+                    this.addAgentAction(`Abrindo: ${url}`, 'pending');
+                    
+                    // Abrir o site
+                    window.open(url, '_blank');
+                    
+                    // Marcar como executado
+                    this.addAgentAction(`Aberto: ${url}`, 'executed');
+                    
+                    // Esperar um pouco para o site carregar
+                    this.addAgentThoughtLog('⏳ Aguardando o site carregar...');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
+                    // Capturar tela do site
+                    this.addAgentThoughtLog('📸 Capturando tela do site...');
+                    const imageData = await this.takeScreenshot();
+                    
+                    // Adicionar screenshot ao chat
+                    this.addAgentScreenshot(imageData.dataUrl);
+                    
+                    // Analisar o site
+                    this.addAgentThoughtLog('🔍 Analisando o site aberto...');
+                    await this.analyzeOpenedSite(imageData, url);
+                    
+                    this.finishAgentResponse();
+                    return;
+                }
+            }
+            
+            // Para outras mensagens, capturar tela atual e analisar
             this.addAgentThoughtLog('📸 Capturando tela atual...');
             const imageData = await this.takeScreenshot();
             
@@ -787,20 +995,17 @@ Responda em formato JSON:
 
 O usuário pediu: "${userMessage}"
 
-Analise esta captura de tela e ajude o usuário a realizar esta tarefa. Você PODE:
-- Navegar para sites solicitados
+Analise esta captura de tela e ajude o usuário. Você PODE:
 - Clicar em botões e links
-- Preencher formulários
+- Preencher formulários  
 - Realizar ações na página
-
-Se o usuário pediu para abrir um site, você pode usar window.open() para abrir em nova aba.
 
 Responda em formato JSON:
 {
-  "pagina_atual": "descrição do que está na tela",
+  "pagina_atual": "descrição",
   "elementos_interativos": ["botão X", "link Y"],
   "acoes_possiveis": ["ação 1", "ação 2"],
-  "proximo_passo": "próxima ação recomendada"
+  "proximo_passo": "próxima ação"
 }`;
 
             // Enviar para análise
@@ -809,12 +1014,6 @@ Responda em formato JSON:
             // Processar resposta
             this.processAgentResponse(response);
             
-            // Executar ação automaticamente se apropriado
-            if (response.proximo_passo) {
-                this.addAgentThoughtLog('⚡ Executando ação recomendada...');
-                await this.executeAgentAction(response.proximo_passo);
-            }
-            
             // Finalizar resposta
             this.finishAgentResponse();
             
@@ -822,6 +1021,32 @@ Responda em formato JSON:
             console.error('❌ [AGENT] Erro no processamento:', error);
             this.addAgentThoughtLog('❌ Erro: ' + error.message);
             this.finishAgentResponse();
+        }
+    }
+
+    // Analisar site que foi aberto
+    async analyzeOpenedSite(imageData, url) {
+        try {
+            const prompt = `Você é o Drekee Agent 1.0. Acabei de abrir o site ${url}.
+
+Analise esta captura de tela e me diga:
+1. O que você vê neste site
+2. O que o usuário pode fazer aqui
+3. Sugestões de ações
+
+Responda em formato JSON:
+{
+  "pagina_atual": "descrição do site",
+  "elementos_interativos": ["botão X", "link Y"],
+  "acoes_possiveis": ["ação 1", "ação 2"],
+  "proximo_passo": "próxima sugestão"
+}`;
+
+            const response = await this.callAgentAPI(prompt, imageData.dataUrl);
+            this.processAgentResponse(response);
+            
+        } catch (error) {
+            this.addAgentThoughtLog('❌ Erro ao analisar site: ' + error.message);
         }
     }
     async callAgentAPI(prompt, imageData) {
