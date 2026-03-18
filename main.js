@@ -48,6 +48,12 @@ class UI {
         this.currentChatId = null;
 
         this.currentModel = 'rapido';
+        this.agentReasoningModel = 'llama-3.3-70b-versatile';
+        this.agentThinkingIndicatorDelayMs = 3000;
+        this.agentThinkingIndicatorTimer = null;
+        this.isAgentWorking = false;
+        this.boundHandleSend = this.handleSend.bind(this);
+        this.boundHandlePause = this.handlePause.bind(this);
 
         
 
@@ -68,6 +74,8 @@ class UI {
             messagesContainer: document.getElementById('messagesContainer'),
             userInput: document.getElementById('userInput'),
             sendButton: document.getElementById('sendButton'),
+            agentThinkingIndicator: document.getElementById('agentThinkingIndicator'),
+            agentThinkingVideo: document.getElementById('agentThinkingVideo'),
             attachFileBtn: document.getElementById('attachFileBtn'),
             attachDropdown: document.getElementById('attachDropdown'),
             attachFileOptionBtn: document.getElementById('attachFileOptionBtn'),
@@ -629,6 +637,97 @@ class UI {
             chatContainer.appendChild(this.agentResponseElement);
             this.scrollToBottom();
         }
+
+        this.registerAgentVisibleActivity();
+    }
+
+    startAgentWorkingState() {
+        this.isAgentWorking = true;
+        this.updateSendButtonToPause();
+        this.hideAgentThinkingIndicator();
+        this.scheduleAgentThinkingIndicator();
+    }
+
+    stopAgentWorkingState() {
+        this.isAgentWorking = false;
+        this.clearAgentThinkingIndicatorTimer();
+        this.hideAgentThinkingIndicator();
+        this.updateSendButtonToSend();
+    }
+
+    clearAgentThinkingIndicatorTimer() {
+        if (this.agentThinkingIndicatorTimer) {
+            clearTimeout(this.agentThinkingIndicatorTimer);
+            this.agentThinkingIndicatorTimer = null;
+        }
+    }
+
+    scheduleAgentThinkingIndicator() {
+        this.clearAgentThinkingIndicatorTimer();
+
+        if (!this.isAgentWorking || !window.isAgentMode) {
+            return;
+        }
+
+        this.agentThinkingIndicatorTimer = setTimeout(() => {
+            if (!this.isAgentWorking || !window.isAgentMode) {
+                return;
+            }
+
+            this.showAgentThinkingIndicator();
+        }, this.agentThinkingIndicatorDelayMs);
+    }
+
+    showAgentThinkingIndicator() {
+        const indicator = this.elements?.agentThinkingIndicator;
+        if (!indicator) {
+            return;
+        }
+
+        indicator.classList.add('is-visible');
+        indicator.setAttribute('aria-hidden', 'false');
+
+        const video = this.elements?.agentThinkingVideo;
+        if (video?.play) {
+            video.play().catch(() => {});
+        }
+
+        this.scrollToBottom();
+    }
+
+    hideAgentThinkingIndicator() {
+        const indicator = this.elements?.agentThinkingIndicator;
+        if (!indicator) {
+            return;
+        }
+
+        indicator.classList.remove('is-visible');
+        indicator.setAttribute('aria-hidden', 'true');
+    }
+
+    registerAgentVisibleActivity() {
+        if (!window.isAgentMode) {
+            return;
+        }
+
+        this.hideAgentThinkingIndicator();
+        if (this.isAgentWorking) {
+            this.scheduleAgentThinkingIndicator();
+        }
+        this.scrollToBottom();
+    }
+
+    async waitForAgentTimelineToFlush(timeoutMs = 30000) {
+        const startedAt = Date.now();
+
+        while (Date.now() - startedAt < timeoutMs) {
+            const queueLength = Array.isArray(this.agentTimelineQueue) ? this.agentTimelineQueue.length : 0;
+            if (!this.agentTimelineProcessing && queueLength === 0) {
+                return;
+            }
+
+            await this.sleep(80);
+        }
     }
 
     addAgentPlan(plan = {}) {
@@ -691,6 +790,8 @@ class UI {
         if (this.agentResponseElement) {
             this.updateAgentResponse();
         }
+
+        this.registerAgentVisibleActivity();
     }
 
     addAgentCheckpoint(message) {
@@ -720,6 +821,7 @@ class UI {
             if (this.agentResponseElement) {
                 this.updateAgentResponse();
             }
+            this.registerAgentVisibleActivity();
             return;
         }
 
@@ -761,6 +863,8 @@ class UI {
             if (this.agentResponseElement) {
                 this.updateAgentResponse();
             }
+
+            this.registerAgentVisibleActivity();
         }
 
         this.agentTimelineProcessing = false;
@@ -999,9 +1103,11 @@ class UI {
     }
 
     // Finalizar resposta do agente
-    finishAgentResponse(message = '✅ Análise concluída') {
+    async finishAgentResponse(message = '✅ Análise concluída') {
         this.addAgentTimelineEntry('status', { message });
+        await this.waitForAgentTimelineToFlush();
         this.isAgentResponding = false;
+        this.stopAgentWorkingState();
     }
 
     bindDynamicAutoScroll(container) {
@@ -1229,12 +1335,14 @@ Responda em formato JSON:
 
     // Processar mensagem do usuário no modo agente
     async processAgentMessage(userMessage) {
-        try {
-            const cleanMessage = (userMessage || '').trim();
-            if (!cleanMessage) {
-                return;
-            }
+        const cleanMessage = (userMessage || '').trim();
+        if (!cleanMessage) {
+            return;
+        }
 
+        this.startAgentWorkingState();
+
+        try {
             const currentChat = this.getCurrentChatObject();
             const previousAgentContext = this.getLatestAgentContext(currentChat);
             this.addUserMessage(cleanMessage, null, { preserveCreateMode: true });
@@ -1309,7 +1417,7 @@ Responda em formato JSON:
             finalText = await this.reviewAndRefineAgentFinalResponse(finalText, finalContext);
 
             this.addAgentSummary('Resposta do agente', finalText);
-            this.finishAgentResponse();
+            await this.finishAgentResponse();
 
             const currentAgentContext = this.buildAgentSavedContext(finalText, finalContext, previousAgentContext, followUpStrategy);
             this.rememberAgentTurn(cleanMessage, finalText, currentAgentContext);
@@ -1322,7 +1430,11 @@ Responda em formato JSON:
         } catch (error) {
             console.error('❌ [AGENT] Erro no processamento:', error);
             this.addAgentTimelineEntry('error', { message: '❌ Erro: ' + error.message });
-            this.finishAgentResponse('❌ Fluxo do agente encerrado com erro');
+            await this.finishAgentResponse('❌ Fluxo do agente encerrado com erro');
+        } finally {
+            if (this.isAgentWorking) {
+                this.stopAgentWorkingState();
+            }
         }
     }
 
@@ -1513,7 +1625,7 @@ Regras:
 - use rótulos curtos e claros.`;
 
         try {
-            const rawTargets = await this.callAgentGroqWithRecovery('llama-3.1-8b-instant', [
+            const rawTargets = await this.callAgentGroqWithRecovery(this.agentReasoningModel, [
                 {
                     role: 'system',
                     content: 'Extraia alvos de navegação para um agente autônomo em JSON estrito.'
@@ -2691,7 +2803,7 @@ Regras:
 - não invente fatos e não escreva nada fora do JSON.`;
 
         try {
-            const rawDecision = await this.callAgentGroqWithRecovery('llama-3.1-8b-instant', [
+            const rawDecision = await this.callAgentGroqWithRecovery(this.agentReasoningModel, [
                 {
                     role: 'system',
                     content: 'Classifique continuidade de conversa de um agente web usando JSON estrito.'
@@ -2871,7 +2983,7 @@ Regras:
 - seja objetivo, útil e profissional.`;
 
         try {
-            const answer = await this.callAgentGroqWithRecovery('llama-3.1-8b-instant', [
+            const answer = await this.callAgentGroqWithRecovery(this.agentReasoningModel, [
                 {
                     role: 'system',
                     content: 'Você responde follow-ups de um agente web usando apenas o contexto coletado.'
@@ -3363,7 +3475,7 @@ Regras:
 - não escreva markdown, explicações, saudações nem blocos de código.`;
 
         try {
-            const groqText = await this.callAgentGroqWithRecovery('llama-3.1-8b-instant', [
+            const groqText = await this.callAgentGroqWithRecovery(this.agentReasoningModel, [
                 {
                     role: 'system',
                     content: 'Extraia respostas fundamentadas em JSON estrito.'
@@ -4508,6 +4620,7 @@ Regras:
     // Desativar modo agente
     deactivateAgentMode() {
         console.log('🛑 [AGENT] Desativando Drekee Agent 1.0...');
+        this.stopAgentWorkingState();
         
         // Remover indicador
         const indicator = document.getElementById('agentIndicator');
@@ -5187,7 +5300,7 @@ Regras:
 
 
 
-        this.elements.sendButton.addEventListener('click', () => this.handleSend());
+        this.elements.sendButton.addEventListener('click', this.boundHandleSend);
         this.elements.newChatBtn.addEventListener('click', () => this.createNewChat());
         
         // Configurar dropdown do botão Criar
@@ -11207,20 +11320,15 @@ ${chunk}${bibliographyBlock}
         const sendBtn = this.elements.sendButton;
 
         if (sendBtn) {
-
-            sendBtn.id = 'pauseButton';
-
             sendBtn.innerHTML = '<span style="display: inline-block; width: 20px; height: 20px; background: white; border: 2px solid white; border-radius: 4px;"></span>';
-
             sendBtn.title = 'Parar geração';
-
+            sendBtn.setAttribute('data-agent-state', 'pause');
             sendBtn.classList.remove('w-10', 'h-10');
-
+            sendBtn.classList.add('w-9', 'h-9');
             sendBtn.classList.add('pause-button');
-
-            sendBtn.removeEventListener('click', () => this.handleSend());
-
-            sendBtn.addEventListener('click', () => this.handlePause());
+            sendBtn.removeEventListener('click', this.boundHandleSend);
+            sendBtn.removeEventListener('click', this.boundHandlePause);
+            sendBtn.addEventListener('click', this.boundHandlePause);
 
         }
 
@@ -11230,25 +11338,18 @@ ${chunk}${bibliographyBlock}
 
     updateSendButtonToSend() {
 
-        const pauseBtn = document.getElementById('pauseButton');
+        const pauseBtn = this.elements.sendButton;
 
         if (pauseBtn) {
-
-            pauseBtn.id = 'sendButton';
-
-            this.elements.sendButton = pauseBtn;
-
-            pauseBtn.innerHTML = '<span class="material-icons-outlined text-xl">arrow_upward</span>';
+            pauseBtn.innerHTML = '<span class="material-icons-outlined" style="font-size:1.1rem">arrow_upward</span>';
 
             pauseBtn.title = 'Enviar mensagem';
-
+            pauseBtn.setAttribute('data-agent-state', 'send');
             pauseBtn.classList.remove('pause-button');
-
-            pauseBtn.classList.add('w-10', 'h-10');
-
-            pauseBtn.removeEventListener('click', () => this.handlePause());
-
-            pauseBtn.addEventListener('click', () => this.handleSend());
+            pauseBtn.classList.add('w-9', 'h-9');
+            pauseBtn.removeEventListener('click', this.boundHandlePause);
+            pauseBtn.removeEventListener('click', this.boundHandleSend);
+            pauseBtn.addEventListener('click', this.boundHandleSend);
 
         }
 
@@ -11259,6 +11360,7 @@ ${chunk}${bibliographyBlock}
     handlePause() {
 
         console.log('⏸️ Usuário clicou em pausa');
+        this.stopAgentWorkingState();
 
         this.agent.stopGeneration();
 
