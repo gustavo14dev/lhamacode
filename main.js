@@ -6,6 +6,7 @@ import { ProactiveSuggestions } from './proactive-system.js';
 
 import { PreferenceLearning } from './preference-system.js';
 import {
+    buildUpdateMediaHtml,
     countUnreadUpdates,
     fetchLatestStartupUpdate,
     markStartupUpdateSeen
@@ -4299,20 +4300,25 @@ Regras:
             const activeTool = persistedState?.activeTool || '';
             const pendingMessage = String(persistedState?.pendingMessage || '');
 
-            if (activeTool === 'agent' && !window.isAgentMode) {
-                window.isAgentMode = true;
-                this.activateAgentMode();
-                this.updateCreateButton();
-            } else if (activeTool === 're') {
-                window.isREMode = true;
-            } else if (activeTool === 'investigate') {
-                window.isInvestigateMode = true;
-            }
-
             if (pendingMessage && this.elements?.userInput && !this.elements.userInput.value.trim()) {
                 this.elements.userInput.value = pendingMessage;
                 this.elements.userInput.dispatchEvent(new Event('input', { bubbles: true }));
-                this.showNotification('📝 Restaurei sua mensagem após o redirecionamento.', 'info');
+                if (activeTool) {
+                    this.showNotification('📝 Restaurei sua mensagem. Reative manualmente a ferramenta desejada antes de enviar.', 'info');
+                } else {
+                    this.showNotification('📝 Restaurei sua mensagem após o redirecionamento.', 'info');
+                }
+            }
+
+            if (activeTool) {
+                if (pendingMessage) {
+                    localStorage.setItem('drekee_agent_ui_state_v1', JSON.stringify({
+                        pendingMessage,
+                        updatedAt: new Date().toISOString()
+                    }));
+                } else {
+                    localStorage.removeItem('drekee_agent_ui_state_v1');
+                }
             }
         } catch (error) {
             console.error('❌ [AGENT] Erro ao restaurar estado da UI do agente:', error);
@@ -4995,7 +5001,7 @@ Regras:
                     <span class="toolbar-status-badge toolbar-status-badge-danger">NOVA</span>
                     <span class="text-xs uppercase tracking-[0.18em] text-slate-400">Atualização</span>
                 </div>
-                ${update.image_data_url ? `<img src="${update.image_data_url}" alt="Atualização" class="mb-4 max-h-56 w-full rounded-2xl object-cover">` : ''}
+                ${buildUpdateMediaHtml(update, 'mb-4 max-h-56 w-full rounded-2xl object-cover')}
                 ${update.title ? `<h3 class="mb-2 text-base font-semibold text-white">${this.escapeHtml(update.title)}</h3>` : ''}
                 ${update.body ? `<p class="text-sm leading-6 text-slate-300">${this.escapeHtml(update.body).replace(/\n/g, '<br>')}</p>` : ''}
                 <div class="mt-4 flex items-center justify-between gap-3">

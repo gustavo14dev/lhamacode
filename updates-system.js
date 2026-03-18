@@ -69,6 +69,10 @@ async function getStartupStorageKey() {
     return `${STARTUP_PREFIX}${audienceId}`;
 }
 
+function getUpdateSelectClause() {
+    return 'id, title, body, image_data_url, video_data_url, show_on_startup, is_published, created_at, updated_at';
+}
+
 export async function fetchPublishedUpdates(limit = 50) {
     const supabase = ensureSupabaseClient();
     if (!supabase) {
@@ -77,7 +81,7 @@ export async function fetchPublishedUpdates(limit = 50) {
 
     const { data, error } = await supabase
         .from('site_updates')
-        .select('id, title, body, image_data_url, show_on_startup, is_published, created_at, updated_at')
+        .select(getUpdateSelectClause())
         .eq('is_published', true)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -115,7 +119,7 @@ export async function fetchLatestStartupUpdate() {
 
     const { data, error } = await supabase
         .from('site_updates')
-        .select('id, title, body, image_data_url, show_on_startup, created_at')
+        .select('id, title, body, image_data_url, video_data_url, show_on_startup, created_at')
         .eq('is_published', true)
         .eq('show_on_startup', true)
         .order('created_at', { ascending: false })
@@ -177,25 +181,38 @@ export async function canCurrentUserPostUpdates() {
     return Boolean(data?.user_id);
 }
 
-export async function createSiteUpdate({ title = '', body = '', imageDataUrl = '', showOnStartup = false }) {
+async function ensureUpdateAdminAccess() {
     const supabase = ensureSupabaseClient();
     const user = await getCurrentAuthenticatedUser();
 
     if (!supabase || !user?.id) {
-        throw new Error('É necessário estar logado para postar atualizações.');
+        throw new Error('E necessario estar logado para gerenciar atualizacoes.');
     }
 
     const canPost = await canCurrentUserPostUpdates();
     if (!canPost) {
-        throw new Error('Sua conta não tem permissão para postar atualizações.');
+        throw new Error('Sua conta nao tem permissao para gerenciar atualizacoes.');
     }
+
+    return { supabase, user };
+}
+
+export async function createSiteUpdate({
+    title = '',
+    body = '',
+    imageDataUrl = '',
+    videoDataUrl = '',
+    showOnStartup = false
+}) {
+    const { supabase, user } = await ensureUpdateAdminAccess();
 
     const cleanTitle = String(title || '').trim();
     const cleanBody = String(body || '').trim();
     const cleanImage = String(imageDataUrl || '').trim();
+    const cleanVideo = String(videoDataUrl || '').trim();
 
-    if (!cleanTitle && !cleanBody && !cleanImage) {
-        throw new Error('Preencha pelo menos um título, um texto ou uma imagem.');
+    if (!cleanTitle && !cleanBody && !cleanImage && !cleanVideo) {
+        throw new Error('Preencha pelo menos um titulo, um texto, uma imagem ou um video.');
     }
 
     if (showOnStartup) {
@@ -209,6 +226,7 @@ export async function createSiteUpdate({ title = '', body = '', imageDataUrl = '
         title: cleanTitle || null,
         body: cleanBody || null,
         image_data_url: cleanImage || null,
+        video_data_url: cleanVideo || null,
         show_on_startup: Boolean(showOnStartup),
         is_published: true,
         author_id: user.id
@@ -217,7 +235,7 @@ export async function createSiteUpdate({ title = '', body = '', imageDataUrl = '
     const { data, error } = await supabase
         .from('site_updates')
         .insert(payload)
-        .select('id, title, body, image_data_url, show_on_startup, created_at')
+        .select('id, title, body, image_data_url, video_data_url, show_on_startup, created_at')
         .single();
 
     if (error) {
@@ -225,6 +243,49 @@ export async function createSiteUpdate({ title = '', body = '', imageDataUrl = '
     }
 
     return data;
+}
+
+export async function deleteSiteUpdate(updateId) {
+    const { supabase } = await ensureUpdateAdminAccess();
+    const id = Number(updateId);
+
+    if (!Number.isFinite(id)) {
+        throw new Error('Atualizacao invalida para exclusao.');
+    }
+
+    const { error } = await supabase
+        .from('site_updates')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        throw error;
+    }
+}
+
+export async function setSiteUpdateStartupVisibility(updateId, visible) {
+    const { supabase } = await ensureUpdateAdminAccess();
+    const id = Number(updateId);
+
+    if (!Number.isFinite(id)) {
+        throw new Error('Atualizacao invalida para alterar exibicao inicial.');
+    }
+
+    if (visible) {
+        await supabase
+            .from('site_updates')
+            .update({ show_on_startup: false })
+            .eq('show_on_startup', true);
+    }
+
+    const { error } = await supabase
+        .from('site_updates')
+        .update({ show_on_startup: Boolean(visible) })
+        .eq('id', id);
+
+    if (error) {
+        throw error;
+    }
 }
 
 export async function compressImageToDataUrl(file, maxWidth = 1280, quality = 0.86) {
@@ -247,11 +308,38 @@ export async function compressImageToDataUrl(file, maxWidth = 1280, quality = 0.
     return canvas.toDataURL(outputType, outputType === 'image/png' ? undefined : quality);
 }
 
+export async function encodeUpdateMediaFile(file) {
+    if (!(file instanceof File)) {
+        return { mediaType: '', dataUrl: '' };
+    }
+
+    if (file.type.startsWith('image/')) {
+        return {
+            mediaType: 'image',
+            dataUrl: await compressImageToDataUrl(file)
+        };
+    }
+
+    if (file.type.startsWith('video/')) {
+        const maxVideoSize = 12 * 1024 * 1024;
+        if (file.size > maxVideoSize) {
+            throw new Error('O video excede o limite de 12 MB.');
+        }
+
+        return {
+            mediaType: 'video',
+            dataUrl: await fileToDataUrl(file)
+        };
+    }
+
+    throw new Error('Formato de midia nao suportado. Use imagem ou video.');
+}
+
 function fileToDataUrl(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = () => reject(reader.error || new Error('Falha ao ler imagem.'));
+        reader.onerror = () => reject(reader.error || new Error('Falha ao ler a midia.'));
         reader.readAsDataURL(file);
     });
 }
@@ -275,4 +363,17 @@ export function formatUpdateDate(value) {
         dateStyle: 'medium',
         timeStyle: 'short'
     }).format(date);
+}
+
+export function buildUpdateMediaHtml(update = {}, className = '') {
+    const safeClassName = String(className || '').trim();
+    if (update.video_data_url) {
+        return `<video src="${update.video_data_url}" autoplay muted loop playsinline preload="metadata" class="${safeClassName}" style="pointer-events:none;"></video>`;
+    }
+
+    if (update.image_data_url) {
+        return `<img src="${update.image_data_url}" alt="Atualizacao" class="${safeClassName}">`;
+    }
+
+    return '';
 }

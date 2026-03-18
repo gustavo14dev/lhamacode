@@ -69,8 +69,13 @@
         .action-btn.primary { background:linear-gradient(135deg,#2563eb,#1d4ed8); border-color:transparent; color:#fff; }
         .action-btn:hover { transform:translateY(-1px); }
         .helper { font-size:0.78rem; color:#94a3b8; line-height:1.7; }
-        .preview-image, .update-image { width:100%; border-radius:1rem; object-fit:cover; }
-        .preview-image { max-height:22rem; margin-top:1rem; }
+        .preview-image, .preview-video, .update-image, .update-video {
+            width:100%;
+            border-radius:1rem;
+            object-fit:cover;
+        }
+        .preview-image, .preview-video { max-height:22rem; margin-top:1rem; }
+        .update-video { max-height:18rem; margin-top:1rem; pointer-events:none; }
         .status-card { margin-bottom:1rem; }
         .updates-list { display:grid; gap:0.85rem; }
         .update-card {
@@ -80,6 +85,17 @@
         .update-title { font-size:1rem; font-weight:700; color:#fff; }
         .update-meta { margin-top:0.25rem; font-size:0.76rem; color:#94a3b8; }
         .update-body { margin-top:0.7rem; color:#cbd5e1; line-height:1.7; white-space:pre-wrap; }
+        .card-actions { display:flex; flex-wrap:wrap; gap:0.65rem; margin-top:1rem; }
+        .mini-btn {
+            display:inline-flex; align-items:center; gap:0.4rem;
+            border-radius:9999px; padding:0.55rem 0.85rem;
+            border:1px solid rgba(255,255,255,0.08);
+            background:rgba(255,255,255,0.04);
+            color:#e2e8f0; font-size:0.78rem; transition:all 0.2s ease;
+        }
+        .mini-btn:hover { transform:translateY(-1px); }
+        .mini-btn.danger { border-color:rgba(239,68,68,0.22); color:#fca5a5; }
+        .mini-btn.warning { border-color:rgba(249,115,22,0.22); color:#fdba74; }
         @media (max-width: 1100px) {
             .app-shell { flex-direction:column; }
             .sidebar { width:100%; border-right:0; border-bottom:1px solid rgba(255,255,255,0.07); }
@@ -132,10 +148,11 @@
                         <label class="field-label mt-4" for="updateBody">Texto da atualização</label>
                         <textarea id="updateBody" class="field-textarea" placeholder="Descreva a atualização. Pode ser só texto, só imagem ou os dois."></textarea>
 
-                        <label class="field-label mt-4" for="updateImage">Imagem</label>
-                        <input id="updateImage" class="field-input" type="file" accept="image/*" />
-                        <div class="helper mt-2">A imagem é comprimida e salva como Data URL no banco para evitar depender de bucket agora.</div>
+                        <label class="field-label mt-4" for="updateImage">Midia</label>
+                        <input id="updateImage" class="field-input" type="file" accept="image/*,video/*" />
+                        <div class="helper mt-2">Aceita imagem ou video. O video e reproduzido em loop, sem controles. Limite atual de video: 12 MB.</div>
                         <img id="imagePreview" class="preview-image hidden" alt="Prévia da atualização" />
+                        <video id="videoPreview" class="preview-video hidden" autoplay muted loop playsinline preload="metadata"></video>
 
                         <label class="checkbox-row">
                             <input id="showOnStartup" type="checkbox" class="mt-1 rounded border-white/10 bg-[#0d1627]" />
@@ -169,20 +186,25 @@
 
     <script type="module">
         import {
+            buildUpdateMediaHtml,
             canCurrentUserPostUpdates,
-            compressImageToDataUrl,
             createSiteUpdate,
+            deleteSiteUpdate,
+            encodeUpdateMediaFile,
             fetchPublishedUpdates,
             formatUpdateDate,
-            getCurrentAuthenticatedUser
+            getCurrentAuthenticatedUser,
+            setSiteUpdateStartupVisibility
         } from './updates-system.js';
 
         const statusCard = document.getElementById('statusCard');
         const form = document.getElementById('updateForm');
         const imageInput = document.getElementById('updateImage');
         const imagePreview = document.getElementById('imagePreview');
+        const videoPreview = document.getElementById('videoPreview');
         const latestUpdates = document.getElementById('latestUpdates');
         let currentImageDataUrl = '';
+        let currentVideoDataUrl = '';
 
         async function initPage() {
             await renderLatestUpdates();
@@ -210,18 +232,30 @@
         imageInput.addEventListener('change', async (event) => {
             const [file] = Array.from(event.target.files || []);
             currentImageDataUrl = '';
+            currentVideoDataUrl = '';
             imagePreview.classList.add('hidden');
+            imagePreview.src = '';
+            videoPreview.classList.add('hidden');
+            videoPreview.removeAttribute('src');
+            videoPreview.load();
 
             if (!file) {
                 return;
             }
 
             try {
-                currentImageDataUrl = await compressImageToDataUrl(file);
-                imagePreview.src = currentImageDataUrl;
-                imagePreview.classList.remove('hidden');
+                const media = await encodeUpdateMediaFile(file);
+                if (media.mediaType === 'video') {
+                    currentVideoDataUrl = media.dataUrl;
+                    videoPreview.src = currentVideoDataUrl;
+                    videoPreview.classList.remove('hidden');
+                } else {
+                    currentImageDataUrl = media.dataUrl;
+                    imagePreview.src = currentImageDataUrl;
+                    imagePreview.classList.remove('hidden');
+                }
             } catch (error) {
-                showStatus(error.message || 'Falha ao processar a imagem.', 'error');
+                showStatus(error.message || 'Falha ao processar a midia.', 'error');
             }
         });
 
@@ -241,13 +275,18 @@
                     title,
                     body,
                     imageDataUrl: currentImageDataUrl,
+                    videoDataUrl: currentVideoDataUrl,
                     showOnStartup
                 });
 
                 form.reset();
                 currentImageDataUrl = '';
+                currentVideoDataUrl = '';
                 imagePreview.src = '';
                 imagePreview.classList.add('hidden');
+                videoPreview.removeAttribute('src');
+                videoPreview.classList.add('hidden');
+                videoPreview.load();
                 showStatus('Atualização publicada com sucesso.', 'success');
                 await renderLatestUpdates();
             } catch (error) {
@@ -274,13 +313,61 @@
                         ${update.title ? `<div class="update-title mt-3">${escapeHtml(update.title)}</div>` : ''}
                         <div class="update-meta">${formatUpdateDate(update.created_at)}</div>
                         ${update.body ? `<div class="update-body">${escapeHtml(update.body)}</div>` : ''}
-                        ${update.image_data_url ? `<img src="${update.image_data_url}" alt="Atualização" class="update-image mt-4" />` : ''}
+                        ${buildUpdateMediaHtml(update, update.video_data_url ? 'update-video mt-4' : 'update-image mt-4')}
+                        <div class="card-actions">
+                            <button type="button" class="mini-btn warning" data-action="toggle-startup" data-id="${update.id}" data-visible="${update.show_on_startup ? '0' : '1'}">
+                                <span class="material-icons-outlined" style="font-size:0.95rem">${update.show_on_startup ? 'visibility_off' : 'visibility'}</span>
+                                <span>${update.show_on_startup ? 'Ocultar da tela inicial' : 'Mostrar na tela inicial'}</span>
+                            </button>
+                            <button type="button" class="mini-btn danger" data-action="delete" data-id="${update.id}">
+                                <span class="material-icons-outlined" style="font-size:0.95rem">delete</span>
+                                <span>Excluir post</span>
+                            </button>
+                        </div>
                     </article>
                 `).join('');
             } catch (error) {
                 latestUpdates.innerHTML = `<div class="update-card"><div class="update-body">${escapeHtml(error.message || 'Falha ao carregar atualizações.')}</div></div>`;
             }
         }
+
+        latestUpdates.addEventListener('click', async (event) => {
+            const button = event.target.closest('[data-action]');
+            if (!button) {
+                return;
+            }
+
+            const action = button.dataset.action;
+            const updateId = Number(button.dataset.id);
+            if (!Number.isFinite(updateId)) {
+                return;
+            }
+
+            button.disabled = true;
+
+            try {
+                if (action === 'delete') {
+                    const confirmed = window.confirm('Excluir esta atualização permanentemente?');
+                    if (!confirmed) {
+                        return;
+                    }
+                    await deleteSiteUpdate(updateId);
+                    showStatus('Atualização excluída.', 'success');
+                }
+
+                if (action === 'toggle-startup') {
+                    const shouldShow = button.dataset.visible === '1';
+                    await setSiteUpdateStartupVisibility(updateId, shouldShow);
+                    showStatus(shouldShow ? 'Atualização marcada para a tela inicial.' : 'Atualização removida da tela inicial.', 'success');
+                }
+
+                await renderLatestUpdates();
+            } catch (error) {
+                showStatus(error.message || 'Falha ao atualizar o post.', 'error');
+            } finally {
+                button.disabled = false;
+            }
+        });
 
         function showStatus(message, type = 'warning') {
             const variants = {

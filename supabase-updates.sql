@@ -17,12 +17,16 @@ create table if not exists public.site_updates (
     title text,
     body text,
     image_data_url text,
+    video_data_url text,
     show_on_startup boolean not null default false,
     is_published boolean not null default true,
     author_id uuid references auth.users(id) on delete set null,
     created_at timestamptz not null default timezone('utc', now()),
     updated_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.site_updates
+add column if not exists video_data_url text;
 
 create index if not exists idx_site_updates_created_at on public.site_updates (created_at desc);
 create index if not exists idx_site_updates_startup on public.site_updates (show_on_startup, created_at desc);

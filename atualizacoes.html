@@ -175,6 +175,7 @@
 
     <script type="module">
         import {
+            buildUpdateMediaHtml,
             canCurrentUserPostUpdates,
             countUnreadUpdates,
             fetchPublishedUpdates,
@@ -204,7 +205,7 @@
                             ${update.title ? `<h2 class="update-title mt-3">${escapeHtml(update.title)}</h2>` : ''}
                             <div class="update-meta">${formatUpdateDate(update.created_at)}</div>
                             ${update.body ? `<div class="update-body">${escapeHtml(update.body)}</div>` : ''}
-                            ${update.image_data_url ? `<img src="${update.image_data_url}" alt="Atualização" class="update-image" />` : ''}
+                            ${buildUpdateMediaHtml(update, update.video_data_url ? 'update-image' : 'update-image')}
                         </article>
                     `).join('');
                 }
