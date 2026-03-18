@@ -76,6 +76,12 @@ export default async function handler(req, res) {
         screenshots.push(...taskInteraction.screenshots);
         navigationTrail.push(...taskInteraction.navigationTrail);
 
+        const autonomousLoop = await runAutonomousBrowserLoop(page, task, pageTitle, pageContext, taskInteraction.navigationTrail);
+        pageContext = autonomousLoop.pageContext;
+        pageTitle = autonomousLoop.pageTitle;
+        screenshots.push(...autonomousLoop.screenshots);
+        navigationTrail.push(...autonomousLoop.navigationTrail);
+
         const navigationHints = extractNavigationHints(task).slice(0, 3);
         for (const hint of navigationHints) {
             if (pageAlreadyMatchesHint(page.url(), pageTitle, pageContext, hint)) {
@@ -830,6 +836,440 @@ async function performTaskSpecificInteractions(page, task, initialTitle, initial
         screenshots,
         navigationTrail
     };
+}
+
+async function runAutonomousBrowserLoop(page, task, initialTitle, initialContext, priorTrail = []) {
+    const taskProfile = buildTaskProfile(task);
+    const shouldRunLoop = shouldRunAutonomousBrowserLoop(taskProfile, task, initialContext, priorTrail);
+
+    if (!shouldRunLoop) {
+        return {
+            pageTitle: initialTitle,
+            pageContext: initialContext,
+            screenshots: [],
+            navigationTrail: []
+        };
+    }
+
+    let pageTitle = initialTitle;
+    let pageContext = initialContext;
+    const screenshots = [];
+    const navigationTrail = [];
+    const actionHistory = [];
+    const maxSteps = taskProfile.asksPrice || taskProfile.asksProducts ? 4 : 3;
+
+    for (let step = 1; step <= maxSteps; step += 1) {
+        const state = await collectActionablePageState(page, pageContext);
+        const nextAction = await decideNextBrowserAction(task, state, taskProfile, actionHistory);
+
+        if (!nextAction || nextAction.action === 'finish') {
+            break;
+        }
+
+        const actionResult = await executeBrowserAction(page, nextAction, step);
+        actionHistory.push({
+            step,
+            action: nextAction.action,
+            selector: nextAction.selector || '',
+            text: nextAction.text || '',
+            success: actionResult.success,
+            note: actionResult.note || '',
+            url: page.url()
+        });
+
+        if (!actionResult.success) {
+            continue;
+        }
+
+        await wait(700);
+        await waitForReadableCapture(page);
+
+        const updatedContext = await collectRichPageContext(page);
+        pageContext = mergePageContexts(pageContext, updatedContext);
+        pageTitle = updatedContext.title || pageTitle || await page.title();
+
+        screenshots.push(await captureScreenshot(
+            page,
+            `Ação ${step}: ${describeBrowserAction(nextAction)}`,
+            actionResult.note || `Executei a ação ${nextAction.action}.`
+        ));
+
+        navigationTrail.push({
+            targetHint: nextAction.action,
+            success: true,
+            matchedText: nextAction.selector || nextAction.text || nextAction.direction || nextAction.key || nextAction.action,
+            href: page.url(),
+            previousUrl: actionResult.previousUrl,
+            currentUrl: page.url(),
+            interactionType: 'autonomous-action',
+            action: nextAction.action,
+            selector: nextAction.selector || '',
+            text: nextAction.text || ''
+        });
+
+        if (taskProfile.asksPrice && hasVisiblePriceInContext(pageContext)) {
+            break;
+        }
+    }
+
+    return {
+        pageTitle,
+        pageContext,
+        screenshots,
+        navigationTrail
+    };
+}
+
+function shouldRunAutonomousBrowserLoop(taskProfile = {}, task = '', pageContext = {}, priorTrail = []) {
+    const normalizedTask = normalizeSearchText(task);
+    if (!normalizedTask) {
+        return false;
+    }
+
+    if (hasVisiblePriceInContext(pageContext) || hasProductDetailsInContext(pageContext)) {
+        return false;
+    }
+
+    const alreadySearched = Array.isArray(priorTrail) && priorTrail.some((step) => ['internal-search', 'product-result', 'autonomous-action'].includes(step?.interactionType));
+    if (alreadySearched && !taskProfile.asksPrice && !taskProfile.asksProducts) {
+        return false;
+    }
+
+    return taskProfile.asksPrice
+        || taskProfile.asksProducts
+        || /\b(clicar|digitar|pesquisar|procurar|buscar|rolar|descer|subir|abrir resultado|abrir produto)\b/i.test(normalizedTask);
+}
+
+async function collectActionablePageState(page, pageContext = {}) {
+    const state = await page.evaluate(() => {
+        const isVisible = (element) => {
+            const rect = element.getBoundingClientRect();
+            const style = window.getComputedStyle(element);
+            return rect.width > 16
+                && rect.height > 16
+                && style.visibility !== 'hidden'
+                && style.display !== 'none';
+        };
+
+        const buildSelector = (element) => {
+            if (element.id) {
+                return `#${CSS.escape(element.id)}`;
+            }
+
+            const dataTestId = element.getAttribute('data-testid');
+            if (dataTestId) {
+                return `[data-testid="${CSS.escape(dataTestId)}"]`;
+            }
+
+            const name = element.getAttribute('name');
+            if (name) {
+                return `${element.tagName.toLowerCase()}[name="${CSS.escape(name)}"]`;
+            }
+
+            const ariaLabel = element.getAttribute('aria-label');
+            if (ariaLabel) {
+                return `${element.tagName.toLowerCase()}[aria-label="${CSS.escape(ariaLabel)}"]`;
+            }
+
+            const placeholder = element.getAttribute('placeholder');
+            if (placeholder) {
+                return `${element.tagName.toLowerCase()}[placeholder="${CSS.escape(placeholder)}"]`;
+            }
+
+            const href = element.getAttribute('href');
+            if (href) {
+                return `a[href="${CSS.escape(href)}"]`;
+            }
+
+            const parent = element.parentElement;
+            if (!parent) {
+                return element.tagName.toLowerCase();
+            }
+
+            const siblings = Array.from(parent.children).filter((child) => child.tagName === element.tagName);
+            const index = siblings.indexOf(element) + 1;
+            return `${element.tagName.toLowerCase()}:nth-of-type(${Math.max(index, 1)})`;
+        };
+
+        const elements = Array.from(document.querySelectorAll('input, textarea, button, a[href], [role="button"], [role="searchbox"]'))
+            .filter(isVisible)
+            .map((element) => {
+                const text = `${element.textContent || ''} ${element.getAttribute('aria-label') || ''} ${element.getAttribute('placeholder') || ''} ${element.getAttribute('title') || ''}`
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                return {
+                    tag: element.tagName.toLowerCase(),
+                    type: element.getAttribute('type') || '',
+                    text,
+                    selector: buildSelector(element)
+                };
+            })
+            .filter((item) => item.selector && (item.text || item.tag === 'input' || item.tag === 'textarea'))
+            .slice(0, 40);
+
+        return {
+            url: location.href,
+            title: document.title || '',
+            bodyText: String(document.body?.innerText || '')
+                .split('\n')
+                .map((line) => line.replace(/\s+/g, ' ').trim())
+                .filter(Boolean)
+                .slice(0, 120),
+            elements
+        };
+    });
+
+    return {
+        ...state,
+        bodyText: mergeTextLines(state.bodyText, pageContext.visibleText || []).slice(0, 140)
+    };
+}
+
+async function decideNextBrowserAction(task, pageState = {}, taskProfile = {}, history = []) {
+    if (!process.env.GROQ_API_KEY) {
+        return decideHeuristicBrowserAction(task, pageState, taskProfile, history);
+    }
+
+    const systemPrompt = [
+        'Voce controla um navegador real para cumprir tarefas na web.',
+        'Responda SOMENTE com JSON valido.',
+        'Acoes permitidas:',
+        '{ "action": "click|type|press|scroll|wait|finish", "selector": "css opcional", "text": "texto opcional", "key": "tecla opcional", "direction": "down|up opcional", "reason": "motivo curto" }',
+        'Regras:',
+        '- use apenas seletores presentes na lista de elementos visiveis;',
+        '- se a tarefa pedir produto/preco e houver campo de busca, prefira digitar nele;',
+        '- se houver resultados de produto com o item pedido, clique em um resultado relevante;',
+        '- se ja houver preco visivel e pagina de produto adequada, responda finish;',
+        '- nunca invente seletor; se nada fizer sentido, use wait ou scroll.',
+        '- escolha somente UMA proxima acao.'
+    ].join('\n');
+
+    const userPrompt = [
+        `Tarefa: ${task}`,
+        '',
+        `URL atual: ${pageState.url || ''}`,
+        `Titulo atual: ${pageState.title || ''}`,
+        '',
+        'Historico recente:',
+        JSON.stringify(history.slice(-6), null, 2),
+        '',
+        'Texto visivel da pagina:',
+        pageState.bodyText.slice(0, 60).join('\n'),
+        '',
+        'Elementos interativos visiveis:',
+        JSON.stringify(pageState.elements.slice(0, 30), null, 2),
+        '',
+        'Qual e a proxima acao?'
+    ].join('\n');
+
+    try {
+        const rawResponse = await callGroqBrowserDecision(systemPrompt, userPrompt);
+        const parsed = extractJsonObject(rawResponse);
+        if (parsed?.action) {
+            return normalizeBrowserAction(parsed);
+        }
+    } catch (error) {
+        console.error('Autonomous browser loop decision failed:', error.message);
+    }
+
+    return decideHeuristicBrowserAction(task, pageState, taskProfile, history);
+}
+
+function decideHeuristicBrowserAction(task, pageState = {}, taskProfile = {}, history = []) {
+    const elements = Array.isArray(pageState.elements) ? pageState.elements : [];
+    const normalizedTask = normalizeSearchText(task);
+    const query = taskProfile.searchQuery || '';
+    const historyActions = history.map((item) => item.action);
+
+    if ((taskProfile.asksPrice || taskProfile.asksProducts) && query && !historyActions.includes('type')) {
+        const searchField = elements.find((element) => /input|textarea/.test(element.tag) && /(busca|buscar|search|pesquisar|o que voce procura|pesquise)/i.test(element.text || element.selector));
+        if (searchField) {
+            return {
+                action: 'type',
+                selector: searchField.selector,
+                text: query,
+                reason: 'Preencher a busca interna do site.'
+            };
+        }
+    }
+
+    if ((taskProfile.asksPrice || taskProfile.asksProducts) && historyActions.includes('type') && !historyActions.includes('press')) {
+        return {
+            action: 'press',
+            key: 'Enter',
+            reason: 'Enviar a busca do produto.'
+        };
+    }
+
+    const clickableProduct = elements.find((element) => {
+        const normalizedText = normalizeSearchText(element.text || '');
+        return element.tag === 'a'
+            && /(iphone|galaxy|maquina de lavar|lava e seca|produto|comprar|detalhes)/i.test(normalizedText)
+            && normalizedTask.split(' ').filter((token) => token.length > 2).some((token) => normalizedText.includes(token));
+    });
+
+    if (clickableProduct && !historyActions.includes('click')) {
+        return {
+            action: 'click',
+            selector: clickableProduct.selector,
+            reason: 'Abrir um resultado relevante do produto.'
+        };
+    }
+
+    if (!historyActions.includes('scroll')) {
+        return {
+            action: 'scroll',
+            direction: 'down',
+            reason: 'Coletar mais resultados visiveis.'
+        };
+    }
+
+    return {
+        action: 'finish',
+        reason: 'Nao identifiquei uma proxima acao confiavel.'
+    };
+}
+
+async function callGroqBrowserDecision(systemPrompt, userPrompt) {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [
+                {
+                    role: 'system',
+                    content: systemPrompt
+                },
+                {
+                    role: 'user',
+                    content: userPrompt
+                }
+            ],
+            max_tokens: 300,
+            temperature: 0.1
+        })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.error?.message || `Groq browser decision failed with ${response.status}`);
+    }
+
+    return extractMessageText(data.choices?.[0]?.message?.content);
+}
+
+function normalizeBrowserAction(action = {}) {
+    return {
+        action: String(action.action || '').trim().toLowerCase(),
+        selector: String(action.selector || '').trim(),
+        text: String(action.text || '').trim(),
+        key: String(action.key || '').trim(),
+        direction: String(action.direction || '').trim().toLowerCase(),
+        reason: String(action.reason || '').trim()
+    };
+}
+
+async function executeBrowserAction(page, action = {}, step = 0) {
+    const previousUrl = page.url();
+
+    try {
+        if (action.action === 'click' && action.selector) {
+            await page.click(action.selector, { timeout: 5000 });
+            await waitForPossibleNavigation(page, previousUrl);
+            return { success: true, previousUrl, note: action.reason || `Cliquei em ${action.selector}.` };
+        }
+
+        if (action.action === 'type' && action.selector) {
+            await page.focus(action.selector);
+            await page.evaluate((selector) => {
+                const element = document.querySelector(selector);
+                if (element && 'value' in element) {
+                    element.value = '';
+                }
+            }, action.selector);
+            await page.keyboard.down('Control');
+            await page.keyboard.press('KeyA');
+            await page.keyboard.up('Control');
+            await page.keyboard.press('Backspace');
+            await page.type(action.selector, action.text || '', { delay: 30 });
+            return { success: true, previousUrl, note: action.reason || `Digitei "${action.text}".` };
+        }
+
+        if (action.action === 'press') {
+            await page.keyboard.press(action.key || 'Enter');
+            await waitForPossibleNavigation(page, previousUrl);
+            return { success: true, previousUrl, note: action.reason || `Pressionei ${action.key || 'Enter'}.` };
+        }
+
+        if (action.action === 'scroll') {
+            const direction = action.direction === 'up' ? -1 : 1;
+            await page.evaluate((sign) => {
+                window.scrollBy({ top: sign * Math.max(window.innerHeight * 0.8, 480), behavior: 'auto' });
+            }, direction);
+            return { success: true, previousUrl, note: action.reason || `Rolei a página para ${action.direction || 'down'}.` };
+        }
+
+        if (action.action === 'wait') {
+            await wait(1200);
+            return { success: true, previousUrl, note: action.reason || 'Esperei a página estabilizar.' };
+        }
+    } catch (error) {
+        return {
+            success: false,
+            previousUrl,
+            note: error.message || `Falha na ação ${action.action || `#${step}`}.`
+        };
+    }
+
+    return {
+        success: false,
+        previousUrl,
+        note: `Ação não suportada: ${action.action || 'desconhecida'}.`
+    };
+}
+
+function describeBrowserAction(action = {}) {
+    if (action.action === 'type') {
+        return 'digitar na busca';
+    }
+
+    if (action.action === 'click') {
+        return 'abrir resultado';
+    }
+
+    if (action.action === 'press') {
+        return `tecla ${action.key || 'Enter'}`;
+    }
+
+    if (action.action === 'scroll') {
+        return `rolagem ${action.direction || 'down'}`;
+    }
+
+    return action.action || 'acao';
+}
+
+function hasVisiblePriceInContext(pageContext = {}) {
+    const visibleText = Array.isArray(pageContext?.visibleText) ? pageContext.visibleText : [];
+    return visibleText.some((item) => /R\$\s*[\d\.\,]+/i.test(String(item || '')));
+}
+
+function hasProductDetailsInContext(pageContext = {}) {
+    const visibleText = Array.isArray(pageContext?.visibleText) ? pageContext.visibleText : [];
+    const combined = visibleText.join(' ');
+    return /R\$\s*[\d\.\,]+/i.test(combined)
+        && /(comprar|adicionar ao carrinho|em estoque|parcelado|a vista|pix)/i.test(combined);
+}
+
+function mergeTextLines(left = [], right = []) {
+    return [...left, ...right]
+        .map((item) => String(item || '').replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .filter((item, index, array) => array.indexOf(item) === index);
 }
 
 function buildTaskProfile(task) {
@@ -1790,6 +2230,69 @@ function extractVisibleTextFromHtml(html, limit = 220) {
         .filter((line) => line.length > 1)
         .filter((line, index, array) => array.indexOf(line) === index)
         .slice(0, limit);
+}
+
+function extractMessageText(content) {
+    if (typeof content === 'string') {
+        return content;
+    }
+
+    if (Array.isArray(content)) {
+        return content
+            .map((item) => {
+                if (typeof item === 'string') {
+                    return item;
+                }
+
+                if (item?.type === 'text') {
+                    return item.text || '';
+                }
+
+                return '';
+            })
+            .join('\n')
+            .trim();
+    }
+
+    return '';
+}
+
+function extractJsonObject(rawText) {
+    if (typeof rawText !== 'string') {
+        return null;
+    }
+
+    const trimmed = rawText.trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    const withoutFence = trimmed
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+
+    const direct = tryParseJson(withoutFence);
+    if (direct) {
+        return direct;
+    }
+
+    const start = withoutFence.indexOf('{');
+    const end = withoutFence.lastIndexOf('}');
+    if (start !== -1 && end !== -1 && end > start) {
+        return tryParseJson(withoutFence.slice(start, end + 1));
+    }
+
+    return null;
+}
+
+function tryParseJson(text) {
+    try {
+        return JSON.parse(text);
+    } catch {
+        return null;
+    }
 }
 
 function findMetaContent(html, name) {
