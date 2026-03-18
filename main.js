@@ -3606,7 +3606,16 @@ Regras:
                 };
             }
 
-            directParts.push('Não consegui extrair um preço à vista confiável nas páginas visitadas.');
+            return {
+                resposta_direta: 'Não consegui extrair um preço à vista confiável nas páginas visitadas.',
+                itens_encontrados: [],
+                evidencias: this.coerceAgentList(context?.pageText || [])
+                    .filter((item) => /r\$\s*[\d\.\,]+/i.test(item))
+                    .slice(0, 4),
+                observacao: context?.blocked
+                    ? 'O site limitou parte da navegação automática nesta tentativa.'
+                    : 'Será preciso continuar a navegação até uma página de produto ou resultado com preço visível.'
+            };
         }
 
         if (isListRequest) {
@@ -3696,7 +3705,8 @@ Regras:
                     }
 
                     return left.numericValue - right.numericValue;
-                })[0];
+                })
+                .find((entry) => requestedProductTokens.length === 0 || entry.score > 0);
 
             if (bestEntry) {
                 entries.push(bestEntry);
@@ -3831,7 +3841,7 @@ Regras:
                     ? `Os ${extractedItems.length} itens mais relevantes que encontrei nessa página foram:`
                 : 'Os principais textos e elementos que consegui identificar foram:';
             sections.push(`${listTitle}\n- ${extractedItems.join('\n- ')}`);
-        } else if (pageText && pageText.length) {
+        } else if (!requestedPrice && pageText && pageText.length) {
             sections.push(`Os textos visíveis mais importantes que consegui extrair foram: ${pageText.slice(0, 6).join(', ')}.`);
         }
 

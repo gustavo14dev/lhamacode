@@ -1,4 +1,4 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import puppeteer from 'puppeteer';
@@ -745,7 +745,11 @@ async function performTaskSpecificInteractions(page, task, initialTitle, initial
         };
     }
 
-    const searchResult = await attemptInternalSiteSearch(page, taskProfile.searchQuery);
+    let searchResult = await attemptInternalSiteSearch(page, taskProfile.searchQuery);
+    if (!searchResult.success) {
+        searchResult = await navigateToDirectSiteSearch(page, taskProfile.searchQuery);
+    }
+
     if (!searchResult.success) {
         return {
             pageTitle,
@@ -757,8 +761,9 @@ async function performTaskSpecificInteractions(page, task, initialTitle, initial
 
     await wait(1000);
     await waitForReadableCapture(page);
-    pageContext = await collectRichPageContext(page);
-    pageTitle = pageContext.title || await page.title();
+    const searchContext = await collectRichPageContext(page);
+    pageContext = mergePageContexts(pageContext, searchContext);
+    pageTitle = searchContext.title || pageTitle || await page.title();
 
     screenshots.push(await captureScreenshot(
         page,
@@ -782,8 +787,9 @@ async function performTaskSpecificInteractions(page, task, initialTitle, initial
         if (resultNavigation.success) {
             await wait(1000);
             await waitForReadableCapture(page);
-            pageContext = await collectRichPageContext(page);
-            pageTitle = pageContext.title || await page.title();
+            const productContext = await collectRichPageContext(page);
+            pageContext = mergePageContexts(pageContext, productContext);
+            pageTitle = productContext.title || pageTitle || await page.title();
 
             screenshots.push(await captureScreenshot(
                 page,
@@ -839,13 +845,13 @@ function shouldAttemptInternalSearch(currentUrl, taskProfile = {}) {
 
 function extractSiteSearchQuery(task) {
     const source = String(task || '').replace(/https?:\/\/\S+/gi, ' ').replace(/\bwww\.[^\s]+/gi, ' ');
-    const quoted = source.match(/["“”']([^"“”']{2,80})["“”']/);
+    const quoted = source.match(/["â€œâ€']([^"â€œâ€']{2,80})["â€œâ€']/);
     if (quoted?.[1]) {
         return quoted[1].trim();
     }
 
     const patterns = [
-        /\bpreco d[oa]\s+(.+?)(?=\s+(?:em|no|na|nas|considerando|com|hoje)\b|$)/i,
+        /\bpre[cç]o d[oa]\s+(.+?)(?=\s+(?:em|no|na|nas|considerando|com|hoje)\b|$)/i,
         /\bvalor d[oa]\s+(.+?)(?=\s+(?:em|no|na|nas|considerando|com|hoje)\b|$)/i,
         /\bpesquise(?: por)?\s+(.+?)(?=\s+(?:no|na|nas|em|site|loja)\b|$)/i,
         /\bprocure(?: por)?\s+(.+?)(?=\s+(?:no|na|nas|em|site|loja)\b|$)/i,
@@ -871,8 +877,9 @@ function extractSiteSearchQuery(task) {
 function sanitizeInternalSearchQuery(value) {
     return String(value || '')
         .replace(/\b(ex:\s*.+)$/i, '')
-        .replace(/\b(considerando|hoje|valor|preco|preços|preço)\b/gi, ' ')
-        .replace(/^(o|a|os|as)\s+/i, '')
+        .replace(/\b(pre[cç]o(?:s)?|valor)\s+d[oa]s?\s+/gi, ' ')
+        .replace(/\b(considerando|hoje|valor|a vista|avista|pix|boleto)\b/gi, ' ')
+        .replace(/^(o|a|os|as|um|uma|do|da|dos|das)\s+/i, '')
         .replace(/[()]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
@@ -951,6 +958,73 @@ async function attemptInternalSiteSearch(page, query) {
     };
 }
 
+async function navigateToDirectSiteSearch(page, query) {
+    const previousUrl = page.url();
+    const directSearchUrl = buildDirectSiteSearchUrl(previousUrl, query);
+
+    if (!directSearchUrl || directSearchUrl === previousUrl) {
+        return {
+            success: false,
+            previousUrl
+        };
+    }
+
+    try {
+        await page.goto(directSearchUrl, {
+            waitUntil: 'networkidle2',
+            timeout: 45000
+        });
+        await wait(900);
+        await waitForReadableCapture(page);
+
+        return {
+            success: true,
+            previousUrl,
+            inputLabel: 'busca direta no site',
+            directUrl: directSearchUrl
+        };
+    } catch {
+        return {
+            success: false,
+            previousUrl
+        };
+    }
+}
+
+function buildDirectSiteSearchUrl(currentUrl, query) {
+    const host = safeAgentHostname(currentUrl);
+    const sanitizedQuery = sanitizeInternalSearchQuery(query);
+    if (!host || !sanitizedQuery) {
+        return '';
+    }
+
+    const encodedQuery = encodeURIComponent(sanitizedQuery);
+    const slugQuery = slugifySiteSearchTerm(sanitizedQuery);
+
+    if (/magazineluiza|magalu/i.test(host)) {
+        return `https://www.magazineluiza.com.br/busca/${slugQuery}/`;
+    }
+
+    if (/amazon\.com\.br|amazon/i.test(host)) {
+        return `https://www.amazon.com.br/s?k=${encodedQuery}`;
+    }
+
+    if (/mercadolivre/i.test(host)) {
+        return `https://lista.mercadolivre.com.br/${slugQuery}`;
+    }
+
+    return '';
+}
+
+function slugifySiteSearchTerm(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .toLowerCase();
+}
+
 async function expandSearchInterface(page) {
     return page.evaluate(() => {
         const buttons = Array.from(document.querySelectorAll('button, a, [role="button"]'));
@@ -971,6 +1045,44 @@ async function expandSearchInterface(page) {
 }
 
 async function findBestSearchField(page) {
+    const host = safeAgentHostname(page.url());
+    const preferredSelectors = [];
+
+    if (/magazineluiza|magalu/i.test(host)) {
+        preferredSelectors.push('input[data-testid="input-search"]', 'input[placeholder*="Busca no Magalu" i]');
+    }
+
+    if (/amazon/i.test(host)) {
+        preferredSelectors.push('#twotabsearchtextbox', 'input[name="field-keywords"]');
+    }
+
+    for (const selector of preferredSelectors) {
+        try {
+            const candidate = await page.$eval(selector, (element, currentSelector) => {
+                const rect = element.getBoundingClientRect();
+                const visible = rect.width > 80 && rect.height > 20;
+                if (!visible) {
+                    return null;
+                }
+
+                const label = `${element.getAttribute('aria-label') || ''} ${element.getAttribute('placeholder') || ''} ${element.getAttribute('name') || ''} ${element.getAttribute('id') || ''}`
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                return {
+                    selector: currentSelector,
+                    label
+                };
+            }, selector);
+
+            if (candidate?.selector) {
+                return candidate;
+            }
+        } catch {
+            // keep generic fallback
+        }
+    }
+
     const candidates = await page.evaluate(() => {
         return Array.from(document.querySelectorAll('input, textarea, [role="searchbox"]'))
             .map((element) => {
@@ -991,7 +1103,7 @@ async function findBestSearchField(page) {
                     selector,
                     label: text.replace(/\s+/g, ' ').trim(),
                     visible,
-                    score: /(search|buscar|busca|pesquisar|produto|o que voce procura|o que você procura)/i.test(text) ? 20 : 0
+                    score: /(search|buscar|busca|pesquisar|produto|o que voce procura|o que vocÃª procura)/i.test(text) ? 20 : 0
                         + (/search/i.test(element.getAttribute('type') || '') ? 12 : 0)
                         + (rect.width > 200 ? 4 : 0)
                 };
@@ -1030,105 +1142,142 @@ async function clickSearchSubmit(page, query) {
 
 async function attemptProductResultNavigation(page, query) {
     const previousUrl = page.url();
+    const previousSignature = await page.evaluate(() => `${location.href}\n${document.title}\n${(document.body?.innerText || '').slice(0, 1200)}`);
     const queryTokens = sanitizeInternalSearchQuery(query)
         .toLowerCase()
         .split(/\s+/)
         .filter((token) => token.length > 1)
         .slice(0, 8);
 
-    const candidate = await page.evaluate((tokens) => {
-        const selectors = [
-            'main a[href]',
-            'article a[href]',
-            '[data-testid] a[href]',
-            'li a[href]',
-            'h2 a[href]',
-            'h3 a[href]',
-            'a[href]'
-        ];
-
-        const links = Array.from(new Set(
-            selectors.flatMap((selector) => Array.from(document.querySelectorAll(selector)))
-        ));
-
-        const scored = links
-            .map((link) => {
-                const rect = link.getBoundingClientRect();
-                const visible = rect.width > 40 && rect.height > 16;
-                if (!visible) {
-                    return null;
-                }
-
-                const href = link.href || link.getAttribute('href') || '';
-                const text = (link.textContent || link.getAttribute('aria-label') || link.getAttribute('title') || '')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-
-                if (!href || !text || text.length < 3) {
-                    return null;
-                }
-
-                const normalizedText = text.toLowerCase();
-                const tokenHits = tokens.reduce((score, token) => (
-                    normalizedText.includes(token) ? score + 2 : score
-                ), 0);
-                const productSignals = /(iphone|galaxy|macbook|playstation|smartphone|celular|notebook|produto)/i.test(text) ? 6 : 0;
-                const priceSignals = /r\$\s*[\d\.\,]+/i.test(text) ? 4 : 0;
-                const detailSignals = /(comprar|ver detalhes|detalhes|saiba mais)/i.test(text) ? 2 : 0;
-                const penalty = /(categoria|departamento|oferta|cupom|cartao|login|entrar|cadastro)/i.test(text) ? 8 : 0;
-                const score = tokenHits + productSignals + priceSignals + detailSignals - penalty;
-
-                if (score <= 0) {
-                    return null;
-                }
-
-                let selector = '';
-                if (link.id) {
-                    selector = `#${CSS.escape(link.id)}`;
-                } else if (link.getAttribute('data-testid')) {
-                    selector = `[data-testid="${CSS.escape(link.getAttribute('data-testid'))}"]`;
-                } else if (link.getAttribute('href')) {
-                    selector = `a[href="${CSS.escape(link.getAttribute('href'))}"]`;
-                }
-
-                return {
-                    selector,
-                    href,
-                    text,
-                    score
-                };
-            })
-            .filter(Boolean)
-            .sort((left, right) => right.score - left.score);
-
-        const best = scored[0];
-        if (!best) {
-            return null;
-        }
-
-        const target = best.selector ? document.querySelector(best.selector) : null;
-        (target || links.find((link) => (link.href || link.getAttribute('href') || '') === best.href && (link.textContent || '').replace(/\s+/g, ' ').trim() === best.text))?.click();
-        return best;
-    }, queryTokens);
+    const candidate = await findBestProductResultCandidate(page, queryTokens);
 
     if (!candidate) {
         return { success: false, previousUrl, label: '' };
     }
 
+    let navigationTriggered = false;
+    if (candidate.selector) {
+        try {
+            await page.click(candidate.selector);
+            navigationTriggered = true;
+        } catch {
+            navigationTriggered = false;
+        }
+    }
+
     await waitForPossibleNavigation(page, previousUrl);
 
+    if (page.url() === previousUrl && candidate.href && candidate.href !== previousUrl) {
+        try {
+            await page.goto(candidate.href, {
+                waitUntil: 'networkidle2',
+                timeout: 45000
+            });
+            navigationTriggered = true;
+        } catch {
+            // keep best-effort flow
+        }
+    }
+
+    const nextSignature = await page.evaluate(() => `${location.href}\n${document.title}\n${(document.body?.innerText || '').slice(0, 1200)}`);
+
     return {
-        success: page.url() !== previousUrl,
+        success: page.url() !== previousUrl || nextSignature !== previousSignature,
         previousUrl,
         label: candidate.text || query
     };
+}
+
+async function findBestProductResultCandidate(page, queryTokens = []) {
+    return page.evaluate((tokens) => {
+        const cardSelectors = [
+            '[data-testid*="product" i]',
+            '[data-component-type="s-search-result"]',
+            'article',
+            'li',
+            '.product-card',
+            '.sc-kpOJdX',
+            '.sc-dcJsrY'
+        ];
+
+        const seenLinks = new Set();
+        const candidates = [];
+
+        const collectCandidate = (anchor, container) => {
+            if (!anchor) {
+                return;
+            }
+
+            const href = anchor.href || anchor.getAttribute('href') || '';
+            const rect = anchor.getBoundingClientRect();
+            const visible = rect.width > 40 && rect.height > 16;
+            if (!href || !visible) {
+                return;
+            }
+
+            const containerText = String(container?.innerText || anchor.textContent || anchor.getAttribute('aria-label') || anchor.getAttribute('title') || '')
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (!containerText || seenLinks.has(href)) {
+                return;
+            }
+
+            seenLinks.add(href);
+
+            const normalizedText = containerText.toLowerCase();
+            const tokenHits = tokens.reduce((score, token) => (
+                normalizedText.includes(token) ? score + 3 : score
+            ), 0);
+            const priceSignals = /r\$\s*[\d\.\,]+/i.test(containerText) ? 10 : 0;
+            const productSignals = /(iphone|galaxy|macbook|playstation|smartphone|celular|notebook|lava|lavar|geladeira|tv|console)/i.test(containerText) ? 6 : 0;
+            const hrefSignals = /\/(?:p\/|dp\/|produto|product)/i.test(href) ? 5 : 0;
+            const detailSignals = /(comprar|ver detalhes|detalhes|saiba mais)/i.test(containerText) ? 2 : 0;
+            const penalty = /(categoria|departamento|oferta do dia|cupom|cartao|login|entrar|cadastro|atendimento|ajuda)/i.test(containerText) ? 10 : 0;
+            const score = tokenHits + priceSignals + productSignals + hrefSignals + detailSignals - penalty;
+
+            if (score <= 0) {
+                return;
+            }
+
+            let selector = '';
+            if (anchor.id) {
+                selector = `#${CSS.escape(anchor.id)}`;
+            } else if (anchor.getAttribute('data-testid')) {
+                selector = `[data-testid="${CSS.escape(anchor.getAttribute('data-testid'))}"]`;
+            } else if (anchor.getAttribute('href')) {
+                selector = `a[href="${CSS.escape(anchor.getAttribute('href'))}"]`;
+            }
+
+            candidates.push({
+                href,
+                selector,
+                text: containerText.slice(0, 220),
+                score
+            });
+        };
+
+        cardSelectors.forEach((selector) => {
+            document.querySelectorAll(selector).forEach((container) => {
+                const anchor = container.matches?.('a[href]') ? container : container.querySelector('a[href]');
+                collectCandidate(anchor, container);
+            });
+        });
+
+        if (!candidates.length) {
+            document.querySelectorAll('main a[href], article a[href], h2 a[href], h3 a[href], a[href]').forEach((anchor) => {
+                collectCandidate(anchor, anchor.closest('article, li, div, section') || anchor);
+            });
+        }
+
+        return candidates.sort((left, right) => right.score - left.score)[0] || null;
+    }, queryTokens);
 }
 
 async function collectScrollableSnapshots(page, initialContext, initialTitle, task) {
     const scrollMeta = await resolveScrollableViewport(page);
 
     const maxScrollTop = Math.max(0, scrollMeta.scrollHeight - scrollMeta.viewportHeight);
-    const wantsDeepScan = /modelo|modelos|models|lista|todos|catalogo|downloads|release|pricing|planos|produtos/i.test(task || '');
+    const wantsDeepScan = /modelo|modelos|models|lista|todos|catalogo|downloads|release|pricing|planos|produtos|produto|preco|precos|price|busca|search|iphone|galaxy|notebook|lava|lavar/i.test(task || '');
     const minimumScrollThreshold = wantsDeepScan ? 80 : scrollMeta.viewportHeight * 0.35;
 
     if (maxScrollTop < minimumScrollThreshold) {
@@ -1159,7 +1308,7 @@ async function collectScrollableSnapshots(page, initialContext, initialTitle, ta
         screenshots.push(await captureScreenshot(
             page,
             `Rolagem ${step}`,
-            `Rolei a página para capturar mais conteúdo visível (${step}/${extraSteps}).`
+            `Rolei a pÃ¡gina para capturar mais conteÃºdo visÃ­vel (${step}/${extraSteps}).`
         ));
     }
 
@@ -1429,10 +1578,10 @@ function expandNavigationTokens(hint) {
         modelo: ['models', 'model'],
         preco: ['pricing', 'price', 'plans'],
         precos: ['pricing', 'price', 'plans'],
-        preços: ['pricing', 'price', 'plans'],
-        preço: ['pricing', 'price', 'plans'],
+        'preÃ§os': ['pricing', 'price', 'plans'],
+        'preÃ§o': ['pricing', 'price', 'plans'],
         inicio: ['home'],
-        documentação: ['docs', 'documentation'],
+        'documentaÃ§Ã£o': ['docs', 'documentation'],
         documentacao: ['docs', 'documentation'],
         exemplos: ['examples'],
         blog: ['blog'],
@@ -1806,3 +1955,7 @@ const KNOWN_AGENT_DOMAINS = {
 function wait(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+
+
+
