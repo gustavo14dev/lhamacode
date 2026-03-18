@@ -39,6 +39,7 @@ class UI {
         this.isTransitioned = false;
 
         this.agent = new Agent(this);
+        this.agentLongTermMemory = this.loadAgentMemoryStore();
 
         this.attachedFiles = []; // Lista temporária de anexos (máx 3)
 
@@ -583,7 +584,13 @@ class UI {
             pageText: [],
             resolvedFromSearch: false,
             resolvedSearchTitle: null,
-            resolvedSearchUrl: null
+            resolvedSearchUrl: null,
+            executionMode: null,
+            plan: null,
+            artifacts: [],
+            checkpoints: [],
+            relevantMemories: [],
+            targetResults: []
         };
         
         // Criar mensagem inicial do agente
@@ -619,6 +626,79 @@ class UI {
             chatContainer.appendChild(this.agentResponseElement);
             this.scrollToBottom();
         }
+    }
+
+    addAgentPlan(plan = {}) {
+        const normalizedSteps = Array.isArray(plan?.steps)
+            ? plan.steps.map((step, index) => ({
+                id: step?.id || `step_${index + 1}`,
+                title: step?.title || `Etapa ${index + 1}`,
+                description: step?.description || '',
+                status: step?.status || 'pending',
+                kind: step?.kind || 'step',
+                targetId: step?.targetId || null,
+                note: step?.note || ''
+            }))
+            : [];
+
+        const normalizedPlan = {
+            title: plan?.title || 'Plano de ação',
+            summary: plan?.summary || '',
+            executionMode: plan?.executionMode || 'text',
+            steps: normalizedSteps
+        };
+
+        if (this.agentRunContext) {
+            this.agentRunContext.plan = normalizedPlan;
+        }
+
+        this.addAgentTimelineEntry('plan', normalizedPlan, { immediate: true });
+    }
+
+    updateAgentPlanStep(stepId, patch = {}) {
+        if (!stepId) {
+            return;
+        }
+
+        if (this.agentRunContext?.plan?.steps) {
+            this.agentRunContext.plan.steps = this.agentRunContext.plan.steps.map((step) => (
+                step.id === stepId
+                    ? { ...step, ...patch }
+                    : step
+            ));
+        }
+
+        if (Array.isArray(this.agentTimeline)) {
+            this.agentTimeline = this.agentTimeline.map((entry) => {
+                if (entry?.type !== 'plan' || !Array.isArray(entry.steps)) {
+                    return entry;
+                }
+
+                return {
+                    ...entry,
+                    steps: entry.steps.map((step) => (
+                        step.id === stepId
+                            ? { ...step, ...patch }
+                            : step
+                    ))
+                };
+            });
+        }
+
+        if (this.agentResponseElement) {
+            this.updateAgentResponse();
+        }
+    }
+
+    addAgentCheckpoint(message) {
+        if (this.agentRunContext) {
+            this.agentRunContext.checkpoints.push({
+                message,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        this.addAgentTimelineEntry('checkpoint', { message });
     }
 
     addAgentTimelineEntry(type, payload = {}, options = {}) {
@@ -692,6 +772,10 @@ class UI {
             return 0;
         }
 
+        if (entry.type === 'plan') {
+            return 250;
+        }
+
         if (entry.type === 'thought') {
             return this.agentTimelineDelayMs;
         }
@@ -705,6 +789,10 @@ class UI {
         }
 
         if (entry.type === 'status') {
+            return 500;
+        }
+
+        if (entry.type === 'checkpoint') {
             return 500;
         }
 
@@ -733,6 +821,52 @@ class UI {
             return `
                 <div class="pb-2">
                     <div class="text-gray-100 text-[15px] leading-relaxed whitespace-pre-wrap">${this.escapeHtml(entry.message || '')}</div>
+                </div>
+            `;
+        }
+
+        if (entry.type === 'plan') {
+            const steps = Array.isArray(entry.steps) ? entry.steps : [];
+            const stepHtml = steps.map((step) => {
+                const status = step?.status || 'pending';
+                const statusIcon = status === 'completed'
+                    ? '✓'
+                    : status === 'in_progress'
+                        ? '…'
+                        : status === 'failed'
+                            ? '×'
+                            : '○';
+                const statusClass = status === 'completed'
+                    ? 'border-emerald-600/40 bg-emerald-500/10 text-emerald-100'
+                    : status === 'in_progress'
+                        ? 'border-yellow-600/40 bg-yellow-500/10 text-yellow-100'
+                        : status === 'failed'
+                            ? 'border-red-600/40 bg-red-500/10 text-red-100'
+                            : 'border-gray-700 bg-gray-800/70 text-gray-200';
+
+                return `
+                    <div class="flex items-start gap-3 rounded-2xl border ${statusClass} px-4 py-3">
+                        <div class="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full border ${statusClass} flex-shrink-0 text-xs">${statusIcon}</div>
+                        <div class="min-w-0 flex-1">
+                            <div class="text-sm font-medium text-gray-100">${this.escapeHtml(step?.title || 'Etapa')}</div>
+                            ${step?.description ? `<div class="mt-1 text-xs text-gray-300">${this.escapeHtml(step.description)}</div>` : ''}
+                            ${step?.note ? `<div class="mt-2 text-xs text-gray-400">${this.escapeHtml(step.note)}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="rounded-3xl border border-gray-700/80 bg-gray-900/70 p-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-8 h-8 rounded-full bg-sky-500/15 border border-sky-400/25 flex items-center justify-center text-sm">🧭</div>
+                        <div>
+                            <div class="text-sm font-semibold text-gray-100">${this.escapeHtml(entry.title || 'Plano de ação')}</div>
+                            <div class="text-[11px] uppercase tracking-wide text-gray-500">${this.escapeHtml(entry.executionMode || 'agent')}</div>
+                        </div>
+                    </div>
+                    ${entry.summary ? `<div class="text-sm text-gray-300 leading-relaxed mb-3">${this.escapeHtml(entry.summary)}</div>` : ''}
+                    <div class="space-y-2">${stepHtml}</div>
                 </div>
             `;
         }
@@ -792,6 +926,15 @@ class UI {
                 <div class="pt-2">
                     <div class="text-sm font-semibold text-gray-100 mb-2">${this.escapeHtml(entry.title || 'Resposta do agente')}</div>
                     <div class="text-[15px] text-gray-100 leading-relaxed whitespace-pre-wrap">${this.escapeHtml(entry.message || '')}</div>
+                </div>
+            `;
+        }
+
+        if (entry.type === 'checkpoint') {
+            return `
+                <div class="rounded-2xl border border-blue-600/20 bg-blue-500/5 px-4 py-3">
+                    ${time}
+                    <div class="text-sm text-blue-50">📍 ${this.escapeHtml(entry.message || '')}</div>
                 </div>
             `;
         }
@@ -1060,199 +1203,978 @@ Responda em formato JSON:
             this.agentRunContext.request = cleanMessage;
             this.agentRunContext.followUpMode = followUpStrategy.mode;
             this.agentRunContext.previousContext = previousAgentContext || null;
-
-            const explicitUrl = this.extractAgentUrl(cleanMessage);
+            const explicitUrls = this.extractAgentUrls(cleanMessage);
+            const explicitUrl = explicitUrls[0] || null;
             const shouldAnalyzeCurrentScreen = this.shouldAnalyzeCurrentScreen(cleanMessage);
-            let normalizedUrl = null;
-            let resolvedTarget = null;
+            const relevantMemories = this.getRelevantAgentMemories(cleanMessage);
 
-            if (followUpStrategy.mode === 'answer_from_context' && previousAgentContext) {
-                this.addAgentIntroMessage('Olá! Vou responder com base no que já coletei na pesquisa agêntica anterior, sem abrir uma nova navegação agora.');
-                this.addAgentThoughtLog('🧠 Vou usar o contexto já coletado para responder sua continuação com mais precisão.');
-
-                const finalText = await this.generateAgentContextOnlyResponse(cleanMessage, previousAgentContext, followUpStrategy);
-                this.addAgentSummary('Resposta do agente', finalText);
-                this.finishAgentResponse();
-                this.saveAgentAssistantTurn(finalText, {
-                    ...previousAgentContext,
-                    request: cleanMessage,
-                    followUpMode: 'answer_from_context',
-                    reusedContext: true,
-                    previousRequest: previousAgentContext?.request || null
-                });
-                return;
+            if (this.agentRunContext) {
+                this.agentRunContext.relevantMemories = relevantMemories;
             }
 
-            if (explicitUrl) {
-                this.addAgentIntroMessage(this.buildAgentIntroMessage(cleanMessage, explicitUrl));
-                normalizedUrl = this.normalizeAgentUrl(explicitUrl);
+            this.addAgentIntroMessage(this.buildHyperAgentIntroMessage(
+                cleanMessage,
+                followUpStrategy,
+                explicitUrl,
+                shouldAnalyzeCurrentScreen
+            ));
 
-                if (!normalizedUrl) {
-                    throw new Error(`Nao consegui entender a URL "${explicitUrl}"`);
-                }
-            } else if (shouldAnalyzeCurrentScreen) {
-                this.addAgentIntroMessage(this.buildAgentIntroMessage(cleanMessage, null));
-            } else {
-                if (followUpStrategy.mode === 'continue_research' && previousAgentContext?.targetUrl) {
-                    const continuationUrl = this.normalizeAgentUrl(
-                        followUpStrategy.startingUrl
-                        || previousAgentContext.targetUrl
-                        || previousAgentContext.resolvedSearchUrl
-                    );
-
-                    if (continuationUrl) {
-                        normalizedUrl = continuationUrl;
-                        this.addAgentIntroMessage('Olá! Vou continuar a pesquisa agêntica anterior a partir do contexto que eu já tinha aberto e complementar com uma nova navegação.');
-                        this.addAgentThoughtLog(`🔁 Vou continuar a navegação a partir de ${continuationUrl}.`);
-                    }
-                }
-
-                if (!normalizedUrl) {
-                this.addAgentIntroMessage('Olá! Claro. Vou localizar o site certo, abrir a página correta e seguir a navegação que você pediu.');
-                this.addAgentThoughtLog('🔎 Vou localizar o site mais relevante para começar a tarefa.');
-                this.addAgentAction('Localizando o site correto', 'pending');
-
-                resolvedTarget = await this.resolveAgentTarget(cleanMessage);
-                normalizedUrl = this.normalizeAgentUrl(resolvedTarget?.url);
-
-                if (!normalizedUrl) {
-                    throw new Error('Nao consegui localizar um site confiavel para iniciar a tarefa.');
-                }
-
-                if (this.agentRunContext) {
-                    this.agentRunContext.resolvedFromSearch = true;
-                    this.agentRunContext.resolvedSearchTitle = resolvedTarget?.title || null;
-                    this.agentRunContext.resolvedSearchUrl = normalizedUrl;
-                }
-
-                this.addAgentAction(`Site localizado: ${resolvedTarget?.title || normalizedUrl}`, 'executed');
-                this.addAgentThoughtLog(`🔎 Encontrei ${resolvedTarget?.title || normalizedUrl} e vou abrir esse destino agora.`);
-                }
+            if (relevantMemories.length) {
+                this.addAgentCheckpoint(`Vou considerar ${relevantMemories.length} memória${relevantMemories.length > 1 ? 's persistentes' : ' persistente'} relevante${relevantMemories.length > 1 ? 's' : ''} desta conversa.`);
             }
 
-            if (normalizedUrl) {
-                if (this.agentRunContext) {
-                    this.agentRunContext.visitedUrl = normalizedUrl;
-                }
+            this.addAgentThoughtLog('🧠 Vou decompor a tarefa em etapas, executar o que for necessário e revisar antes de te responder.');
 
-                this.addAgentThoughtLog(`🌐 Vou abrir ${normalizedUrl} em um navegador controlado pelo agente.`);
-                this.addAgentAction(`Abrindo ${normalizedUrl}`, 'pending');
-
-                const session = await this.openAgentBrowserSession(normalizedUrl, cleanMessage);
-                this.agentRunContext.visitedUrl = session.currentUrl || normalizedUrl;
-                this.agentRunContext.mode = session.mode || 'live-browser';
-                this.agentRunContext.navigationTrail = Array.isArray(session.navigationTrail) ? session.navigationTrail : [];
-                this.agentRunContext.pageText = this.coerceAgentList(session?.page?.visibleText);
-
-                this.addAgentAction(`Site carregado: ${session.currentUrl || normalizedUrl}`, 'executed');
-                await this.analyzeOpenedSite(session, cleanMessage);
-                const finalText = await this.generateAgentFinalResponse({
-                    request: cleanMessage,
-                    targetUrl: session.currentUrl || normalizedUrl,
-                    pageTitle: this.agentRunContext.pageTitle,
-                    blocked: this.agentRunContext.blocked,
-                    mode: this.agentRunContext.mode,
-                    screenshots: this.agentRunContext.screenshots,
-                    analysis: this.lastAgentResponse,
-                    pageText: this.agentRunContext.pageText,
-                    navigationTrail: this.agentRunContext.navigationTrail,
-                    screenshotData: this.agentRunContext.lastScreenshotData,
-                    priorContext: previousAgentContext,
-                    responseMode: followUpStrategy.mode
-                });
-                this.addAgentSummary('Resposta do agente', finalText);
-                this.finishAgentResponse();
-                const currentAgentContext = {
-                    request: cleanMessage,
-                    targetUrl: session.currentUrl || normalizedUrl,
-                    pageTitle: this.agentRunContext.pageTitle,
-                    blocked: this.agentRunContext.blocked,
-                    mode: this.agentRunContext.mode,
-                    screenshots: this.agentRunContext.screenshots,
-                    analysis: this.lastAgentResponse,
-                    pageText: this.coerceAgentList(this.agentRunContext.pageText).slice(0, 220),
-                    navigationTrail: this.agentRunContext.navigationTrail,
-                    resolvedFromSearch: this.agentRunContext.resolvedFromSearch,
-                    resolvedSearchTitle: this.agentRunContext.resolvedSearchTitle,
-                    resolvedSearchUrl: this.agentRunContext.resolvedSearchUrl,
-                    followUpMode: followUpStrategy.mode,
-                    previousRequest: previousAgentContext?.request || null,
-                    finalResponse: finalText
-                };
-                this.saveAgentAssistantTurn(
-                    finalText,
-                    followUpStrategy.mode === 'continue_research'
-                        ? this.mergeAgentConversationContext(previousAgentContext, currentAgentContext)
-                        : currentAgentContext
-                );
-                return;
-            }
-
-            this.addAgentThoughtLog('📸 Vou analisar a tela atual do app para responder ao seu pedido.');
-            const imageData = await this.takeScreenshot();
-            this.addAgentScreenshot(imageData.dataUrl, 'Tela atual capturada pelo agente');
-
-            const prompt = this.buildAgentVisionPrompt(cleanMessage, {
-                currentUrl: window.location.href,
-                title: document.title,
-                description: 'Tela atual do proprio app Drekee'
-            }, {
-                label: 'Tela atual'
+            const executionPlan = await this.buildAgentExecutionPlan(cleanMessage, {
+                previousAgentContext,
+                followUpStrategy,
+                explicitUrls,
+                shouldAnalyzeCurrentScreen,
+                relevantMemories
             });
 
-            try {
-                const response = await this.callAgentAPI(prompt, imageData.dataUrl);
-                this.processAgentResponse(response, { label: 'Tela atual' });
-            } catch (error) {
-                console.error('❌ [AGENT] Falha na leitura visual da tela atual, usando fallback local:', error);
-                this.addAgentThoughtLog('⚠️ A leitura visual falhou; usei a estrutura atual da interface para continuar.');
-                const fallback = this.buildAgentFallbackAnalysis(cleanMessage, {
-                    currentUrl: window.location.href,
-                    title: document.title,
-                    description: 'Tela atual do proprio app Drekee',
-                    headings: Array.from(document.querySelectorAll('h1, h2, h3')).map((item) => item.textContent?.trim()).filter(Boolean).slice(0, 4),
-                    interactiveElements: Array.from(document.querySelectorAll('button, a, input, textarea, select'))
-                        .map((item) => item.textContent?.trim() || item.getAttribute('aria-label') || item.placeholder || item.name || item.id)
-                        .filter(Boolean)
-                        .slice(0, 8)
-                }, { label: 'Tela atual' });
-                this.processAgentResponse(fallback, { label: 'Tela atual' });
+            if (this.agentRunContext) {
+                this.agentRunContext.executionMode = executionPlan.executionMode;
             }
 
-            const finalText = await this.generateAgentFinalResponse({
+            this.addAgentPlan(executionPlan);
+
+            const executionContext = await this.executeAgentPlan(executionPlan, {
+                userMessage: cleanMessage,
+                previousAgentContext,
+                followUpStrategy,
+                explicitUrls,
+                shouldAnalyzeCurrentScreen,
+                relevantMemories
+            });
+
+            const finalContext = {
                 request: cleanMessage,
-                targetUrl: window.location.href,
-                pageTitle: document.title,
-                blocked: false,
-                mode: 'current-screen',
-                screenshots: this.agentRunContext.screenshots,
-                analysis: this.lastAgentResponse,
-                pageText: [],
-                navigationTrail: [],
-                screenshotData: this.agentRunContext.lastScreenshotData,
                 priorContext: previousAgentContext,
-                responseMode: followUpStrategy.mode
-            });
+                responseMode: followUpStrategy.mode,
+                relevantMemories,
+                executionPlan,
+                ...executionContext
+            };
+
+            let finalText = executionContext?.directFinalText
+                || executionContext?.contextOnlyAnswer
+                || await this.generateAgentFinalResponse(finalContext);
+            finalText = await this.reviewAndRefineAgentFinalResponse(finalText, finalContext);
+
             this.addAgentSummary('Resposta do agente', finalText);
             this.finishAgentResponse();
-            this.saveAgentAssistantTurn(finalText, {
-                request: cleanMessage,
-                targetUrl: window.location.href,
-                pageTitle: document.title,
-                blocked: false,
-                mode: 'current-screen',
-                screenshots: this.agentRunContext.screenshots,
-                analysis: this.lastAgentResponse,
-                pageText: [],
-                navigationTrail: [],
-                followUpMode: followUpStrategy.mode,
-                previousRequest: previousAgentContext?.request || null,
-                finalResponse: finalText
-            });
+
+            const currentAgentContext = this.buildAgentSavedContext(finalText, finalContext, previousAgentContext, followUpStrategy);
+            this.rememberAgentTurn(cleanMessage, finalText, currentAgentContext);
+            this.saveAgentAssistantTurn(
+                finalText,
+                followUpStrategy.mode === 'continue_research'
+                    ? this.mergeAgentConversationContext(previousAgentContext, currentAgentContext)
+                    : currentAgentContext
+            );
         } catch (error) {
             console.error('❌ [AGENT] Erro no processamento:', error);
             this.addAgentTimelineEntry('error', { message: '❌ Erro: ' + error.message });
             this.finishAgentResponse('❌ Fluxo do agente encerrado com erro');
+        }
+    }
+
+    buildHyperAgentIntroMessage(userMessage, followUpStrategy = {}, explicitUrl = null, shouldAnalyzeCurrentScreen = false) {
+        if (followUpStrategy?.mode === 'answer_from_context') {
+            return 'Olá! Vou retomar a pesquisa agêntica anterior, revisar o que já coletei e te responder com base nesse contexto antes de abrir qualquer nova navegação.';
+        }
+
+        if (followUpStrategy?.mode === 'continue_research') {
+            return 'Olá! Vou continuar a execução da pesquisa agêntica anterior, montar um novo plano de ação e complementar o que ainda falta para responder ao seu pedido.';
+        }
+
+        if (shouldAnalyzeCurrentScreen) {
+            return 'Olá! Vou montar um plano rápido, analisar a tela atual e te responder com base no que eu realmente conseguir observar nela.';
+        }
+
+        if (explicitUrl) {
+            return `Olá! Vou montar um plano de ação, abrir ${explicitUrl} e executar a navegação necessária até conseguir responder ao que você pediu.`;
+        }
+
+        return 'Olá! Vou montar um plano de ação, decidir se preciso pesquisar na web ou não, executar as etapas necessárias e só então te entregar a resposta final.';
+    }
+
+    extractAgentUrls(text) {
+        const matches = [...String(text || '').matchAll(/((?:https?:\/\/|www\.)[^\s]+|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?)/gi)];
+        return matches
+            .map((match) => this.normalizeAgentUrl(match[1]))
+            .filter(Boolean)
+            .filter((item, index, array) => array.indexOf(item) === index);
+    }
+
+    async buildAgentExecutionPlan(userMessage, options = {}) {
+        const executionMode = options?.followUpStrategy?.mode === 'answer_from_context'
+            ? 'context_only'
+            : options?.shouldAnalyzeCurrentScreen
+                ? 'screen'
+                : this.shouldUseWebForAgentRequest(userMessage, options)
+                    ? 'web'
+                    : 'text';
+        const targets = executionMode === 'web'
+            ? await this.resolveAgentPlanTargets(userMessage, options)
+            : [];
+        const steps = this.buildDeterministicAgentPlanSteps(executionMode, targets, userMessage, options);
+
+        return {
+            title: 'Plano de ação',
+            summary: this.buildAgentPlanSummary(userMessage, executionMode, targets, options),
+            executionMode,
+            requiresWeb: executionMode === 'web',
+            targets,
+            steps
+        };
+    }
+
+    shouldUseWebForAgentRequest(userMessage, options = {}) {
+        if (options?.explicitUrls?.length) {
+            return true;
+        }
+
+        if (options?.followUpStrategy?.mode === 'continue_research') {
+            return true;
+        }
+
+        const normalized = this.normalizeSearchText(userMessage);
+        if (!normalized) {
+            return false;
+        }
+
+        const webSignals = [
+            'site',
+            'pagina',
+            'pagina de',
+            'abra',
+            'entre',
+            'acesse',
+            'navegue',
+            'pesquise',
+            'procure',
+            'busque',
+            'compare',
+            'preco',
+            'precos',
+            'cotacao',
+            'google',
+            'groq',
+            'python',
+            'nike',
+            'openai',
+            'vercel',
+            'github',
+            'documentacao',
+            'docs'
+        ];
+
+        const textOnlySignals = [
+            'crie um site',
+            'criar um site',
+            'monte um plano',
+            'escreva um texto',
+            'gere um codigo',
+            'crie um app',
+            'planeje',
+            'roteiro',
+            'estrategia'
+        ];
+
+        const explicitWebIntent = /\b(abra|entre|acesse|navegue|pesquise|procure|busque|site do|site da|site de|pagina de|documentacao|docs|google|groq|python|nike|openai|github|vercel)\b/i.test(normalized);
+
+        if (textOnlySignals.some((signal) => normalized.includes(signal)) && !explicitWebIntent) {
+            return false;
+        }
+
+        return webSignals.some((signal) => normalized.includes(signal));
+    }
+
+    async resolveAgentPlanTargets(userMessage, options = {}) {
+        const explicitUrls = Array.isArray(options?.explicitUrls) ? options.explicitUrls : [];
+        if (explicitUrls.length) {
+            return explicitUrls.map((url, index) => ({
+                id: `target_${index + 1}`,
+                label: this.getReadableSiteLabel(url).replace(/^o site\s+/i, ''),
+                url,
+                query: '',
+                navigationInstruction: userMessage
+            }));
+        }
+
+        if (options?.followUpStrategy?.mode === 'continue_research' && options?.previousAgentContext?.targetUrl) {
+            return [{
+                id: 'target_1',
+                label: this.getReadableSiteLabel(options.previousAgentContext.targetUrl).replace(/^o site\s+/i, ''),
+                url: options.previousAgentContext.targetUrl,
+                query: options.previousAgentContext.targetUrl,
+                navigationInstruction: userMessage
+            }];
+        }
+
+        const llmTargets = await this.inferAgentTargetsWithLLM(userMessage, options);
+        if (llmTargets.length) {
+            return llmTargets;
+        }
+
+        return this.extractAgentTargetsHeuristically(userMessage, options);
+    }
+
+    async inferAgentTargetsWithLLM(userMessage, options = {}) {
+        const previousContext = options?.previousAgentContext || null;
+        const relevantMemories = Array.isArray(options?.relevantMemories) ? options.relevantMemories : [];
+        const prompt = `Você vai extrair alvos de navegação para um agente web.
+
+Pedido do usuário:
+${userMessage}
+
+Contexto anterior:
+- modo de follow-up: ${options?.followUpStrategy?.mode || 'new_research'}
+- última URL: ${previousContext?.targetUrl || 'nenhuma'}
+- último título: ${previousContext?.pageTitle || 'nenhum'}
+
+Memórias relevantes:
+${relevantMemories.map((memory) => `- ${memory.label}: ${memory.value}`).join('\n') || 'nenhuma'}
+
+Responda SOMENTE com JSON válido:
+{
+  "targets": [
+    {
+      "label": "nome curto do site ou fonte",
+      "url": "url exata ou vazio",
+      "query": "consulta curta para localizar a fonte correta",
+      "navigation_instruction": "página, seção ou ação que o agente deve seguir nesse alvo"
+    }
+  ]
+}
+
+Regras:
+- liste no máximo 3 alvos;
+- se a tarefa for continuação do mesmo site, pode devolver um único alvo com a URL anterior;
+- se o pedido não exigir web, devolva targets vazio;
+- não invente URLs específicas se você não tiver certeza; nesse caso, deixe "url" vazio e preencha "query";
+- use rótulos curtos e claros.`;
+
+        try {
+            const rawTargets = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
+                {
+                    role: 'system',
+                    content: 'Extraia alvos de navegação para um agente autônomo em JSON estrito.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ]);
+
+            const parsedTargets = this.tryParseAgentJson(rawTargets);
+            const candidates = Array.isArray(parsedTargets?.targets) ? parsedTargets.targets : [];
+            return candidates
+                .map((target, index) => ({
+                    id: `target_${index + 1}`,
+                    label: String(target?.label || '').trim() || `Fonte ${index + 1}`,
+                    url: this.normalizeAgentUrl(target?.url || '') || '',
+                    query: String(target?.query || '').trim(),
+                    navigationInstruction: String(target?.navigation_instruction || target?.navigationInstruction || '').trim()
+                }))
+                .filter((target) => target.url || target.query)
+                .slice(0, 3);
+        } catch (error) {
+            console.error('❌ [AGENT] Erro ao inferir alvos com LLM:', error);
+            return [];
+        }
+    }
+
+    extractAgentTargetsHeuristically(userMessage, options = {}) {
+        const normalizedMessage = String(userMessage || '')
+            .replace(/https?:\/\/\S+/gi, ' ')
+            .replace(/\bwww\.[^\s]+/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        const targetLabels = [];
+        const explicitSitePatterns = [
+            /site d[oa] ([A-Za-z0-9._-]+)/gi,
+            /site de ([A-Za-z0-9._-]+)/gi
+        ];
+
+        explicitSitePatterns.forEach((pattern) => {
+            let match;
+            while ((match = pattern.exec(normalizedMessage)) !== null) {
+                const label = String(match[1] || '').trim().replace(/[.,;:!?]+$/g, '');
+                if (label) {
+                    targetLabels.push(label);
+                }
+            }
+        });
+
+        const compareMatch = normalizedMessage.match(/(?:compare|comparar|entre)\s+([A-Za-z0-9._-]+)\s+e\s+([A-Za-z0-9._-]+)/i);
+        if (compareMatch) {
+            targetLabels.push(compareMatch[1], compareMatch[2]);
+        }
+
+        const uniqueLabels = targetLabels
+            .map((label) => label.trim())
+            .filter(Boolean)
+            .filter((label, index, array) => array.findIndex((candidate) => this.normalizeSearchText(candidate) === this.normalizeSearchText(label)) === index)
+            .slice(0, 3);
+
+        if (!uniqueLabels.length) {
+            return [{
+                id: 'target_1',
+                label: 'Pesquisa principal',
+                url: '',
+                query: userMessage,
+                navigationInstruction: userMessage
+            }];
+        }
+
+        return uniqueLabels.map((label, index) => ({
+            id: `target_${index + 1}`,
+            label,
+            url: '',
+            query: `site oficial ${label}`,
+            navigationInstruction: userMessage
+        }));
+    }
+
+    buildDeterministicAgentPlanSteps(executionMode, targets = [], userMessage, options = {}) {
+        const steps = [];
+        let order = 1;
+        const nextId = () => `step_${order++}`;
+
+        steps.push({
+            id: nextId(),
+            title: 'Entender o objetivo',
+            description: 'Vou confirmar o pedido, o escopo e o resultado esperado antes de agir.',
+            kind: 'understand',
+            status: 'pending'
+        });
+
+        if (executionMode === 'context_only') {
+            steps.push({
+                id: nextId(),
+                title: 'Retomar o contexto anterior',
+                description: 'Vou reutilizar a pesquisa agêntica já feita para evitar navegação desnecessária.',
+                kind: 'context',
+                status: 'pending'
+            });
+            steps.push({
+                id: nextId(),
+                title: 'Revisar e responder',
+                description: 'Vou revisar o que já coletei e te responder de forma direta.',
+                kind: 'respond',
+                status: 'pending'
+            });
+            return steps;
+        }
+
+        if (executionMode === 'screen') {
+            steps.push({
+                id: nextId(),
+                title: 'Capturar a tela atual',
+                description: 'Vou observar a tela atual do app antes de concluir.',
+                kind: 'screen',
+                status: 'pending'
+            });
+            steps.push({
+                id: nextId(),
+                title: 'Revisar a observação',
+                description: 'Vou validar se a leitura da tela realmente responde ao pedido.',
+                kind: 'synthesize',
+                status: 'pending'
+            });
+            steps.push({
+                id: nextId(),
+                title: 'Entregar a resposta',
+                description: 'Vou transformar a observação em uma resposta útil e objetiva.',
+                kind: 'respond',
+                status: 'pending'
+            });
+            return steps;
+        }
+
+        if (executionMode === 'text') {
+            steps.push({
+                id: nextId(),
+                title: 'Quebrar a tarefa em etapas',
+                description: 'Vou estruturar a execução e definir a melhor abordagem antes de produzir a resposta.',
+                kind: 'text',
+                status: 'pending'
+            });
+            steps.push({
+                id: nextId(),
+                title: 'Auto-revisar a solução',
+                description: 'Vou revisar o plano para evitar uma resposta superficial ou inconsistente.',
+                kind: 'synthesize',
+                status: 'pending'
+            });
+            steps.push({
+                id: nextId(),
+                title: 'Entregar a execução',
+                description: 'Vou consolidar tudo em uma resposta final mais autônoma e acionável.',
+                kind: 'respond',
+                status: 'pending'
+            });
+            return steps;
+        }
+
+        const effectiveTargets = targets.length ? targets : [{
+            id: 'target_1',
+            label: 'Fonte principal',
+            url: '',
+            query: userMessage,
+            navigationInstruction: userMessage
+        }];
+
+        effectiveTargets.forEach((target) => {
+            steps.push({
+                id: nextId(),
+                title: `Localizar ${target.label}`,
+                description: 'Vou garantir que estou indo para a fonte certa antes de navegar.',
+                kind: 'resolve',
+                targetId: target.id,
+                status: 'pending'
+            });
+            steps.push({
+                id: nextId(),
+                title: `Navegar em ${target.label}`,
+                description: target.navigationInstruction || 'Vou abrir o site e seguir a página ou seção relevante.',
+                kind: 'browse',
+                targetId: target.id,
+                status: 'pending'
+            });
+        });
+
+        steps.push({
+            id: nextId(),
+            title: 'Consolidar evidências',
+            description: 'Vou juntar o que coletei e verificar se a resposta está realmente fundamentada.',
+            kind: 'synthesize',
+            status: 'pending'
+        });
+        steps.push({
+            id: nextId(),
+            title: 'Entregar a resposta',
+            description: 'Vou responder exatamente ao que você pediu, com base no que foi coletado.',
+            kind: 'respond',
+            status: 'pending'
+        });
+
+        return steps;
+    }
+
+    buildAgentPlanSummary(userMessage, executionMode, targets = [], options = {}) {
+        if (executionMode === 'context_only') {
+            return 'Vou reutilizar o contexto agêntico já coletado, evitar pesquisa redundante e responder a continuação da conversa com base nele.';
+        }
+
+        if (executionMode === 'screen') {
+            return 'Vou observar a tela atual do app, interpretar o que está visível e validar se isso já responde ao pedido.';
+        }
+
+        if (executionMode === 'text') {
+            return 'Essa solicitação não exige navegação web obrigatória. Vou decompor a tarefa, executar um raciocínio orientado a etapas e revisar a resposta antes de entregar.';
+        }
+
+        if (targets.length > 1) {
+            return `Vou pesquisar e navegar em ${targets.length} fontes nesta mesma execução, coletar evidências de cada uma e consolidar tudo em uma resposta só.`;
+        }
+
+        const firstTarget = targets[0];
+        if (firstTarget?.label) {
+            return `Vou localizar ${firstTarget.label}, navegar pela página relevante, observar o conteúdo real e revisar a resposta antes de entregar.`;
+        }
+
+        return 'Vou localizar a fonte mais adequada, navegar no que for necessário, observar o resultado e revisar a resposta antes de concluir.';
+    }
+
+    async executeAgentPlan(plan, options = {}) {
+        if (plan.executionMode === 'context_only') {
+            return this.executeContextOnlyAgentPlan(plan, options);
+        }
+
+        if (plan.executionMode === 'screen') {
+            return this.executeCurrentScreenAgentPlan(plan, options);
+        }
+
+        if (plan.executionMode === 'text') {
+            return this.executeTextAgentPlan(plan, options);
+        }
+
+        return this.executeWebAgentPlan(plan, options);
+    }
+
+    async runAgentPlanStep(step, runner) {
+        if (!step?.id) {
+            return runner();
+        }
+
+        this.updateAgentPlanStep(step.id, { status: 'in_progress', note: '' });
+
+        try {
+            const result = await runner();
+            this.updateAgentPlanStep(step.id, { status: 'completed' });
+            return result;
+        } catch (error) {
+            this.updateAgentPlanStep(step.id, {
+                status: 'failed',
+                note: error?.message || 'Falha ao executar esta etapa.'
+            });
+            throw error;
+        }
+    }
+
+    async executeContextOnlyAgentPlan(plan, options = {}) {
+        const previousAgentContext = options?.previousAgentContext || null;
+        let contextOnlyAnswer = '';
+
+        for (const step of plan.steps) {
+            await this.runAgentPlanStep(step, async () => {
+                if (step.kind === 'understand') {
+                    this.addAgentThoughtLog('🧠 Vou recuperar a pesquisa anterior e confirmar se ela já é suficiente para responder agora.');
+                    return;
+                }
+
+                if (step.kind === 'context') {
+                    this.addAgentCheckpoint('Recuperei o contexto da pesquisa agêntica anterior para evitar navegação redundante.');
+                    return;
+                }
+
+                if (step.kind === 'respond') {
+                    contextOnlyAnswer = await this.generateAgentContextOnlyResponse(
+                        options?.userMessage,
+                        previousAgentContext,
+                        options?.followUpStrategy
+                    );
+                    this.addAgentThoughtLog('🧪 Revisei o contexto anterior e montei a resposta diretamente a partir dele.');
+                }
+            });
+        }
+
+        return {
+            directFinalText: contextOnlyAnswer,
+            targetUrl: previousAgentContext?.targetUrl || '',
+            pageTitle: previousAgentContext?.pageTitle || '',
+            blocked: Boolean(previousAgentContext?.blocked),
+            mode: 'context-only',
+            screenshots: this.agentRunContext?.screenshots || 0,
+            analysis: previousAgentContext?.analysis || {},
+            pageText: this.coerceAgentList(previousAgentContext?.pageText).slice(0, 220),
+            navigationTrail: Array.isArray(previousAgentContext?.navigationTrail) ? previousAgentContext.navigationTrail : [],
+            screenshotData: this.agentRunContext?.lastScreenshotData || null,
+            artifacts: Array.isArray(previousAgentContext?.artifacts) ? previousAgentContext.artifacts : [],
+            checkpoints: Array.isArray(this.agentRunContext?.checkpoints) ? this.agentRunContext.checkpoints : []
+        };
+    }
+
+    async executeCurrentScreenAgentPlan(plan, options = {}) {
+        for (const step of plan.steps) {
+            await this.runAgentPlanStep(step, async () => {
+                if (step.kind === 'understand') {
+                    this.addAgentThoughtLog('🧠 Vou observar a tela atual do app e validar se ela responde ao que foi pedido.');
+                    return;
+                }
+
+                if (step.kind === 'screen') {
+                    this.addAgentThoughtLog('📸 Vou capturar e analisar a tela atual do app.');
+                    const imageData = await this.takeScreenshot();
+                    this.addAgentScreenshot(imageData.dataUrl, 'Tela atual capturada pelo agente');
+
+                    const prompt = this.buildAgentVisionPrompt(options?.userMessage, {
+                        currentUrl: window.location.href,
+                        title: document.title,
+                        description: 'Tela atual do proprio app Drekee'
+                    }, {
+                        label: 'Tela atual'
+                    });
+
+                    try {
+                        const response = await this.callAgentAPI(prompt, imageData.dataUrl);
+                        this.processAgentResponse(response, { label: 'Tela atual' });
+                    } catch (error) {
+                        console.error('❌ [AGENT] Falha na leitura visual da tela atual, usando fallback local:', error);
+                        const fallback = this.buildAgentFallbackAnalysis(options?.userMessage, {
+                            currentUrl: window.location.href,
+                            title: document.title,
+                            description: 'Tela atual do proprio app Drekee',
+                            headings: Array.from(document.querySelectorAll('h1, h2, h3')).map((item) => item.textContent?.trim()).filter(Boolean).slice(0, 4),
+                            interactiveElements: Array.from(document.querySelectorAll('button, a, input, textarea, select'))
+                                .map((item) => item.textContent?.trim() || item.getAttribute('aria-label') || item.placeholder || item.name || item.id)
+                                .filter(Boolean)
+                                .slice(0, 8)
+                        }, { label: 'Tela atual' });
+                        this.processAgentResponse(fallback, { label: 'Tela atual' });
+                    }
+
+                    this.addAgentCheckpoint('Capturei e interpretei a tela atual antes de responder.');
+                    return;
+                }
+
+                if (step.kind === 'synthesize') {
+                    this.addAgentThoughtLog('🧪 Vou revisar a observação da tela para evitar uma resposta superficial.');
+                    return;
+                }
+
+                if (step.kind === 'respond') {
+                    this.addAgentThoughtLog('✍️ Vou transformar a observação da tela em uma resposta final mais útil.');
+                }
+            });
+        }
+
+        return {
+            targetUrl: window.location.href,
+            pageTitle: document.title,
+            blocked: false,
+            mode: 'current-screen',
+            screenshots: this.agentRunContext?.screenshots || 0,
+            analysis: this.lastAgentResponse,
+            pageText: [],
+            navigationTrail: [],
+            screenshotData: this.agentRunContext?.lastScreenshotData || null,
+            artifacts: [],
+            checkpoints: Array.isArray(this.agentRunContext?.checkpoints) ? this.agentRunContext.checkpoints : []
+        };
+    }
+
+    async executeTextAgentPlan(plan, options = {}) {
+        let directFinalText = '';
+
+        for (const step of plan.steps) {
+            await this.runAgentPlanStep(step, async () => {
+                if (step.kind === 'understand') {
+                    this.addAgentThoughtLog('🧠 Vou estruturar a tarefa e decidir o melhor caminho sem depender de navegação web desnecessária.');
+                    return;
+                }
+
+                if (step.kind === 'text') {
+                    this.addAgentThoughtLog('🛠️ Vou quebrar a tarefa em etapas, executar uma primeira solução e preparar uma revisão crítica.');
+                    return;
+                }
+
+                if (step.kind === 'synthesize') {
+                    this.addAgentThoughtLog('🧪 Vou revisar o resultado textual para garantir que ele responde ao objetivo final, e não só descreve um plano genérico.');
+                    return;
+                }
+
+                if (step.kind === 'respond') {
+                    directFinalText = await this.generateTextAgentAutonomousResponse(options?.userMessage, plan, options);
+                    this.addAgentCheckpoint('Concluí a execução textual autônoma e revisei a resposta final.');
+                }
+            });
+        }
+
+        return {
+            directFinalText,
+            targetUrl: '',
+            pageTitle: 'Execução textual do agente',
+            blocked: false,
+            mode: 'text-agent',
+            screenshots: 0,
+            analysis: {
+                pagina_atual: 'Execução textual planejada e revisada pelo agente.',
+                elementos_interativos: [],
+                acoes_possiveis: [],
+                proximo_passo: 'Continuar a execução conforme o objetivo do usuário'
+            },
+            pageText: [],
+            navigationTrail: [],
+            screenshotData: null,
+            artifacts: [],
+            checkpoints: Array.isArray(this.agentRunContext?.checkpoints) ? this.agentRunContext.checkpoints : []
+        };
+    }
+
+    async executeWebAgentPlan(plan, options = {}) {
+        const targetStates = new Map(
+            (Array.isArray(plan.targets) ? plan.targets : []).map((target) => [target.id, {
+                ...target,
+                resolvedUrl: this.normalizeAgentUrl(target.url || ''),
+                resolvedTitle: '',
+                resolvedFromSearch: false
+            }])
+        );
+
+        for (const step of plan.steps) {
+            await this.runAgentPlanStep(step, async () => {
+                if (step.kind === 'understand') {
+                    this.addAgentThoughtLog('🧠 Vou confirmar os alvos, a ordem de execução e o que preciso coletar em cada etapa.');
+                    return;
+                }
+
+                if (step.kind === 'resolve') {
+                    const target = targetStates.get(step.targetId) || [...targetStates.values()][0];
+                    if (!target) {
+                        return;
+                    }
+
+                    this.addAgentAction(`Localizando ${target.label}`, 'pending');
+                    const resolvedTarget = target.resolvedUrl
+                        ? { url: target.resolvedUrl, title: target.label, source: 'explicit-url' }
+                        : await this.resolveAgentTarget(target.query || options?.userMessage || target.label);
+                    const normalizedUrl = this.normalizeAgentUrl(resolvedTarget?.url);
+
+                    if (!normalizedUrl) {
+                        throw new Error(`Nao consegui localizar uma URL utilizavel para ${target.label}.`);
+                    }
+
+                    target.resolvedUrl = normalizedUrl;
+                    target.resolvedTitle = resolvedTarget?.title || target.label;
+                    target.resolvedFromSearch = !target.url;
+
+                    if (this.agentRunContext) {
+                        this.agentRunContext.resolvedFromSearch = this.agentRunContext.resolvedFromSearch || target.resolvedFromSearch;
+                        this.agentRunContext.resolvedSearchTitle = target.resolvedTitle || this.agentRunContext.resolvedSearchTitle;
+                        this.agentRunContext.resolvedSearchUrl = normalizedUrl || this.agentRunContext.resolvedSearchUrl;
+                    }
+
+                    this.addAgentAction(`Site localizado: ${target.resolvedTitle || normalizedUrl}`, 'executed');
+                    this.addAgentThoughtLog(`🔎 Encontrei ${target.resolvedTitle || normalizedUrl} e vou usar esse destino na etapa seguinte.`);
+                    return;
+                }
+
+                if (step.kind === 'browse') {
+                    const target = targetStates.get(step.targetId) || [...targetStates.values()][0];
+                    if (!target?.resolvedUrl) {
+                        throw new Error(`A etapa de navegação para ${target?.label || 'o alvo'} não tinha uma URL resolvida.`);
+                    }
+
+                    if (this.agentRunContext) {
+                        this.agentRunContext.visitedUrl = target.resolvedUrl;
+                    }
+
+                    this.addAgentThoughtLog(`🌐 Vou abrir ${target.resolvedUrl} e seguir a etapa "${step.title}".`);
+                    this.addAgentAction(`Abrindo ${target.resolvedUrl}`, 'pending');
+
+                    const browserTask = this.buildAgentBrowseTask(options?.userMessage, target, step, plan);
+                    const session = await this.openAgentBrowserSession(target.resolvedUrl, browserTask);
+                    this.addAgentAction(`Site carregado: ${session.currentUrl || target.resolvedUrl}`, 'executed');
+
+                    const analysis = await this.analyzeOpenedSite(session, options?.userMessage, { targetLabel: target.label });
+                    const artifact = this.buildAgentArtifact(target, session, analysis, browserTask);
+                    this.recordAgentArtifact(artifact);
+                    this.addAgentCheckpoint(`Concluí a coleta em ${target.label}${artifact.pageTitle ? ` (${artifact.pageTitle})` : ''}.`);
+                    return;
+                }
+
+                if (step.kind === 'synthesize') {
+                    this.addAgentThoughtLog('🧪 Vou revisar a coleta, verificar se faltou alguma evidência importante e consolidar tudo antes da resposta final.');
+                    return;
+                }
+
+                if (step.kind === 'respond') {
+                    this.addAgentThoughtLog('✍️ Vou transformar a pesquisa completa em uma resposta final direta, fundamentada e útil.');
+                }
+            });
+        }
+
+        const artifacts = Array.isArray(this.agentRunContext?.artifacts) ? this.agentRunContext.artifacts : [];
+        const lastArtifact = artifacts[artifacts.length - 1] || null;
+        const mergedPageText = artifacts
+            .flatMap((artifact) => this.coerceAgentList(artifact?.pageText))
+            .filter((item, index, array) => array.indexOf(item) === index)
+            .slice(0, 220);
+        const mergedNavigationTrail = artifacts
+            .flatMap((artifact) => Array.isArray(artifact?.navigationTrail) ? artifact.navigationTrail : [])
+            .slice(0, 24);
+
+        return {
+            targetUrl: lastArtifact?.targetUrl || this.agentRunContext?.visitedUrl || '',
+            pageTitle: lastArtifact?.pageTitle || this.agentRunContext?.pageTitle || '',
+            blocked: artifacts.some((artifact) => artifact?.blocked),
+            mode: artifacts.length > 1 ? 'multi-site-browser' : this.agentRunContext?.mode || 'live-browser',
+            screenshots: this.agentRunContext?.screenshots || 0,
+            analysis: lastArtifact?.analysis || this.lastAgentResponse,
+            pageText: mergedPageText,
+            navigationTrail: mergedNavigationTrail,
+            screenshotData: this.agentRunContext?.lastScreenshotData || null,
+            artifacts,
+            checkpoints: Array.isArray(this.agentRunContext?.checkpoints) ? this.agentRunContext.checkpoints : []
+        };
+    }
+
+    buildAgentBrowseTask(userMessage, target = {}, step = {}, plan = {}) {
+        return [
+            userMessage,
+            target?.navigationInstruction,
+            step?.description,
+            plan?.targets?.length > 1 ? `Foque em ${target.label}.` : ''
+        ]
+            .map((item) => String(item || '').trim())
+            .filter(Boolean)
+            .join(' ');
+    }
+
+    buildAgentArtifact(target = {}, session = {}, analysis = null, browserTask = '') {
+        const pageContext = session?.page || {};
+        const currentUrl = session?.currentUrl || session?.requestedUrl || target?.resolvedUrl || target?.url || '';
+        const pageTitle = this.agentRunContext?.pageTitle || session?.title || pageContext.title || '';
+        const blocked = Boolean(this.agentRunContext?.blocked);
+
+        return {
+            targetId: target?.id || '',
+            targetLabel: target?.label || '',
+            targetUrl: currentUrl,
+            pageTitle,
+            blocked,
+            mode: session?.mode || this.agentRunContext?.mode || 'live-browser',
+            analysis: analysis || this.lastAgentResponse || {},
+            pageText: this.coerceAgentList(pageContext?.visibleText).slice(0, 220),
+            navigationTrail: Array.isArray(session?.navigationTrail) ? session.navigationTrail : [],
+            browserTask
+        };
+    }
+
+    recordAgentArtifact(artifact = {}) {
+        if (!this.agentRunContext) {
+            return;
+        }
+
+        this.agentRunContext.artifacts.push(artifact);
+        this.agentRunContext.pageTitle = artifact.pageTitle || this.agentRunContext.pageTitle;
+        this.agentRunContext.blocked = this.agentRunContext.blocked || Boolean(artifact.blocked);
+        this.agentRunContext.mode = artifact.mode || this.agentRunContext.mode;
+        this.agentRunContext.visitedUrl = artifact.targetUrl || this.agentRunContext.visitedUrl;
+        this.agentRunContext.pageText = [...this.coerceAgentList(this.agentRunContext.pageText), ...this.coerceAgentList(artifact.pageText)]
+            .filter((item, index, array) => array.indexOf(item) === index)
+            .slice(0, 220);
+        this.agentRunContext.navigationTrail = [...(Array.isArray(this.agentRunContext.navigationTrail) ? this.agentRunContext.navigationTrail : []), ...(Array.isArray(artifact.navigationTrail) ? artifact.navigationTrail : [])]
+            .slice(0, 24);
+    }
+
+    buildAgentSavedContext(finalText, finalContext = {}, previousAgentContext = null, followUpStrategy = {}) {
+        return {
+            request: finalContext?.request || '',
+            targetUrl: finalContext?.targetUrl || '',
+            pageTitle: finalContext?.pageTitle || '',
+            blocked: Boolean(finalContext?.blocked),
+            mode: finalContext?.mode || '',
+            screenshots: finalContext?.screenshots || 0,
+            analysis: finalContext?.analysis || {},
+            pageText: this.coerceAgentList(finalContext?.pageText).slice(0, 220),
+            navigationTrail: Array.isArray(finalContext?.navigationTrail) ? finalContext.navigationTrail.slice(0, 24) : [],
+            resolvedFromSearch: Boolean(this.agentRunContext?.resolvedFromSearch),
+            resolvedSearchTitle: this.agentRunContext?.resolvedSearchTitle || '',
+            resolvedSearchUrl: this.agentRunContext?.resolvedSearchUrl || '',
+            followUpMode: followUpStrategy?.mode || 'new_research',
+            previousRequest: previousAgentContext?.request || '',
+            finalResponse: finalText,
+            reusedContext: followUpStrategy?.mode === 'answer_from_context',
+            executionPlan: finalContext?.executionPlan
+                ? {
+                    executionMode: finalContext.executionPlan.executionMode,
+                    summary: finalContext.executionPlan.summary,
+                    steps: Array.isArray(finalContext.executionPlan.steps)
+                        ? finalContext.executionPlan.steps.map((step) => ({
+                            id: step.id,
+                            title: step.title,
+                            kind: step.kind,
+                            status: step.status
+                        }))
+                        : []
+                }
+                : null,
+            artifacts: Array.isArray(finalContext?.artifacts)
+                ? finalContext.artifacts.slice(0, 4).map((artifact) => ({
+                    targetLabel: artifact.targetLabel,
+                    targetUrl: artifact.targetUrl,
+                    pageTitle: artifact.pageTitle,
+                    blocked: Boolean(artifact.blocked),
+                    mode: artifact.mode,
+                    pageText: this.coerceAgentList(artifact.pageText).slice(0, 80)
+                }))
+                : [],
+            checkpoints: Array.isArray(finalContext?.checkpoints) ? finalContext.checkpoints.slice(-10) : [],
+            memoriesUsed: Array.isArray(finalContext?.relevantMemories)
+                ? finalContext.relevantMemories.slice(0, 6).map((memory) => ({
+                    category: memory.category,
+                    label: memory.label,
+                    value: memory.value
+                }))
+                : []
+        };
+    }
+
+    async reviewAndRefineAgentFinalResponse(finalText, context = {}) {
+        const cleanedText = this.cleanAgentFinalText(finalText);
+        const relevantItems = this.extractRelevantItemsFromPageText(context?.request, context?.pageText || []);
+        const dominantColor = context?.dominantColor
+            || (context?.screenshotData ? await this.detectDominantColorNameFromDataUrl(context.screenshotData) : null);
+
+        if (['text', 'context_only'].includes(context?.executionPlan?.executionMode) && cleanedText.length >= 80) {
+            return cleanedText;
+        }
+
+        if (this.isUsefulAgentFinalText(cleanedText, context?.request, relevantItems, dominantColor)) {
+            return cleanedText;
+        }
+
+        this.addAgentThoughtLog('🧪 Revisei a resposta final e corrigi o que ainda estava superficial ou pouco aderente ao pedido.');
+        const groundedResult = this.buildLocalGroundedAgentResult({
+            ...context,
+            dominantColor,
+            relevantItems
+        });
+
+        return this.buildAgentFallbackNarrative({
+            ...context,
+            dominantColor,
+            relevantItems,
+            groundedResult,
+            responseMode: context?.responseMode || 'new_research',
+            priorContext: context?.priorContext || null
+        });
+    }
+
+    async generateTextAgentAutonomousResponse(userMessage, plan, options = {}) {
+        const relevantMemories = Array.isArray(options?.relevantMemories) ? options.relevantMemories : [];
+        const previousAgentContext = options?.previousAgentContext || null;
+        const prompt = `Você é o Drekee Agent em modo autônomo.
+
+Pedido do usuário:
+${userMessage}
+
+Plano de execução:
+${Array.isArray(plan?.steps) ? plan.steps.map((step, index) => `${index + 1}. ${step.title} - ${step.description || ''}`).join('\n') : 'sem plano'}
+
+Contexto agêntico anterior:
+- último pedido: ${previousAgentContext?.request || 'nenhum'}
+- última página: ${previousAgentContext?.pageTitle || 'nenhuma'}
+
+Memórias relevantes:
+${relevantMemories.map((memory) => `- ${memory.label}: ${memory.value}`).join('\n') || 'nenhuma'}
+
+Entregue uma resposta final em português que:
+- execute o pedido com autonomia, não apenas descreva o plano;
+- seja prática, específica e mais profunda do que uma resposta genérica;
+- use seções curtas quando isso ajudar;
+- inclua decisões, próximos passos e, se fizer sentido, uma primeira proposta de implementação;
+- não mencione JSON, prompts, nem bastidores internos.`;
+
+        try {
+            const rawText = await this.agent.callGroqAPI('qwen/qwen3-32b', [
+                {
+                    role: 'system',
+                    content: 'Você produz respostas finais de um agente autônomo. Seja objetivo, útil e nada superficial.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ]);
+
+            return this.cleanAgentFinalText(rawText);
+        } catch (error) {
+            console.error('❌ [AGENT] Erro na execução textual autônoma:', error);
+            return [
+                'Olá! Estruturei a tarefa em etapas e segui uma execução textual autônoma para não ficar em algo genérico.',
+                `Objetivo: ${userMessage}.`,
+                'Primeiro, defini o resultado esperado e que partes da tarefa dependem de decisão técnica.',
+                'Depois, organizei a execução em blocos menores para reduzir risco e deixar um caminho claro de continuidade.',
+                'Por fim, revisei a saída para que ela já sirva como ponto de partida real, e não só como uma ideia vaga.',
+                'Se você quiser, eu também posso continuar a partir daqui com uma próxima etapa mais concreta.'
+            ].join('\n\n');
         }
     }
 
@@ -1417,6 +2339,10 @@ Responda em formato JSON:
             previousRequest: agentContext?.previousRequest || '',
             finalResponse: finalText,
             reusedContext: Boolean(agentContext?.reusedContext),
+            executionPlan: agentContext?.executionPlan || null,
+            artifacts: Array.isArray(agentContext?.artifacts) ? agentContext.artifacts.slice(0, 4) : [],
+            checkpoints: Array.isArray(agentContext?.checkpoints) ? agentContext.checkpoints.slice(-10) : [],
+            memoriesUsed: Array.isArray(agentContext?.memoriesUsed) ? agentContext.memoriesUsed.slice(0, 6) : [],
             timestamp: new Date().toISOString()
         };
 
@@ -1448,7 +2374,14 @@ Responda em formato JSON:
             ...nextContext,
             pageText: mergeList(previousContext?.pageText, nextContext?.pageText, 220),
             navigationTrail: [...(Array.isArray(previousContext?.navigationTrail) ? previousContext.navigationTrail : []), ...(Array.isArray(nextContext?.navigationTrail) ? nextContext.navigationTrail : [])]
-                .slice(-20)
+                .slice(-20),
+            artifacts: [...(Array.isArray(previousContext?.artifacts) ? previousContext.artifacts : []), ...(Array.isArray(nextContext?.artifacts) ? nextContext.artifacts : [])]
+                .slice(-6),
+            checkpoints: [...(Array.isArray(previousContext?.checkpoints) ? previousContext.checkpoints : []), ...(Array.isArray(nextContext?.checkpoints) ? nextContext.checkpoints : [])]
+                .slice(-12),
+            memoriesUsed: [...(Array.isArray(previousContext?.memoriesUsed) ? previousContext.memoriesUsed : []), ...(Array.isArray(nextContext?.memoriesUsed) ? nextContext.memoriesUsed : [])]
+                .filter((memory, index, array) => array.findIndex((candidate) => `${candidate?.category}:${candidate?.value}` === `${memory?.category}:${memory?.value}`) === index)
+                .slice(-8)
         };
     }
 
@@ -1543,20 +2476,38 @@ Regras:
             'desse modelo',
             'desses modelos',
             'desses itens',
+            'dessas informacoes',
+            'dessas informacoes',
             'dessa pagina',
             'desta pagina',
             'esse modelo',
             'esses modelos',
+            'essas informacoes',
+            'essa informacao',
+            'esses dados',
+            'esses resultados',
             'essa pagina',
             'esse site',
             'isso',
             'nisso',
             'nela',
-            'nele'
+            'nele',
+            'acima',
+            'anterior'
         ].some((token) => normalizedMessage.includes(token));
         const asksNavigation = /\b(va|entre|acesse|abra|navegue|pesquise|procure|busque|continue|volte|role|desca|suba|veja|verifique|compare|colete)\b/i.test(normalizedMessage);
         const asksExtraction = /\b(quais|qual|quantos|me diga|me fale|cite|liste|resuma|explique|parecem|parece)\b/i.test(normalizedMessage);
         const sameHostMentioned = previousHost && normalizedMessage.includes(previousHost);
+        const mentionsNewHost = /\b(site|pagina|compare|comparar|entre|acesse|abra)\b/i.test(normalizedMessage) && !sameHostMentioned;
+        const shortFollowUp = normalizedMessage.split(' ').filter(Boolean).length <= 12;
+
+        if (!mentionsNewHost && shortFollowUp && /^(quais|qual|quantos|me diga|cite|liste|resuma|explique|e quais|e qual)/i.test(normalizedMessage)) {
+            return {
+                mode: asksNavigation ? 'continue_research' : 'answer_from_context',
+                reason: 'deterministic_short_follow_up',
+                startingUrl: asksNavigation ? previousAgentContext?.targetUrl || null : null
+            };
+        }
 
         if ((referencesExistingContext || sameHostMentioned) && asksExtraction && !asksNavigation) {
             return {
@@ -1582,6 +2533,7 @@ Regras:
         const refersToPrevious = /essa pagina|esse site|esses modelos|esses itens|essa lista|isso|nisso|nela|nele|agora|alem disso|alem disso|sobre isso|com base nisso/i.test(normalizedMessage);
         const navigationIntent = /\b(va|entre|acesse|abra|navegue|pesquise|procure|compare|busque|liste|colete|continue)\b/i.test(normalizedMessage);
         const sameHostMentioned = previousHost && normalizedMessage.includes(previousHost);
+        const shortFollowUp = normalizedMessage.split(' ').filter(Boolean).length <= 12;
 
         if ((refersToPrevious || sameHostMentioned) && navigationIntent) {
             return {
@@ -1595,6 +2547,14 @@ Regras:
             return {
                 mode: 'answer_from_context',
                 reason: 'fallback_same_topic_context'
+            };
+        }
+
+        if (shortFollowUp && !/\b(site|pagina|groq|python|nike|openai|vercel|github)\b/i.test(normalizedMessage)) {
+            return {
+                mode: navigationIntent ? 'continue_research' : 'answer_from_context',
+                reason: 'fallback_short_follow_up',
+                startingUrl: navigationIntent ? previousAgentContext?.targetUrl || null : null
             };
         }
 
@@ -1747,7 +2707,7 @@ Regras:
     }
 
     // Analisar site que foi aberto
-    async analyzeOpenedSite(session, userMessage) {
+    async analyzeOpenedSite(session, userMessage, options = {}) {
         const screenshots = Array.isArray(session?.screenshots) ? session.screenshots : [];
         const pageContext = session?.page || {};
         const rawTitle = session?.title || pageContext.title || session?.currentUrl || session?.requestedUrl;
@@ -1788,7 +2748,7 @@ Regras:
         if (session?.mode !== 'live-browser') {
             this.addAgentThoughtLog('🧠 IA pensando...');
             this.processAgentResponse(fallbackAnalysis, { silent: true });
-            return;
+            return this.lastAgentResponse;
         }
 
         try {
@@ -1802,9 +2762,11 @@ Regras:
 
             const response = await this.callAgentAPI(prompt, targetScreenshot.dataUrl);
             this.processAgentResponse(response, { silent: true });
+            return this.lastAgentResponse;
         } catch (error) {
             console.error('❌ [AGENT] Falha na visao do site, usando fallback estrutural:', error);
             this.processAgentResponse(fallbackAnalysis, { silent: true });
+            return this.lastAgentResponse;
         }
     }
 
@@ -2251,13 +3213,14 @@ Regras:
         };
     }
 
-    buildAgentFallbackNarrative({ request, targetUrl, pageTitle, blocked, mode, screenshots, analysis, dominantColor, navigationTrail, pageText, relevantItems = [], groundedResult = null, responseMode = 'new_research', priorContext = null }) {
+    buildAgentFallbackNarrative({ request, targetUrl, pageTitle, blocked, mode, screenshots, analysis, dominantColor, navigationTrail, pageText, relevantItems = [], groundedResult = null, responseMode = 'new_research', priorContext = null, artifacts = [], executionPlan = null }) {
         const sections = [];
         const safeRequest = (request || '').trim();
         const siteLabel = this.getReadableSiteLabel(targetUrl);
         const navigationText = Array.isArray(navigationTrail) && navigationTrail.length
             ? navigationTrail.map((step) => step.matchedText || step.targetHint || step.currentUrl).filter(Boolean).join(' -> ')
             : '';
+        const artifactList = Array.isArray(artifacts) ? artifacts : [];
         const requestedColor = /cor|color/i.test(safeRequest);
         const requestedList = /modelo|modelos|models|lista|todos|quais|itens/i.test(safeRequest);
         const directAnswer = String(groundedResult?.resposta_direta || '').trim();
@@ -2269,12 +3232,16 @@ Regras:
         const observation = String(groundedResult?.observacao || '').trim();
 
         let intro = targetUrl
-            ? requestedList
-                ? `Olá! Abri ${pageTitle ? `"${pageTitle}"` : siteLabel} e extraí os itens diretamente dessa página.`
-                : responseMode === 'continue_research'
-                    ? `Olá! Continuei a pesquisa anterior em ${siteLabel}`
-                    : `Olá! Já fui até ${siteLabel}`
-            : 'Olá! Já analisei a tela que você pediu';
+            ? artifactList.length > 1
+                ? `Olá! Montei um plano, visitei ${artifactList.length} fontes nesta mesma execução e consolidei o que encontrei.`
+                : requestedList
+                    ? `Olá! Abri ${pageTitle ? `"${pageTitle}"` : siteLabel} e extraí os itens diretamente dessa página.`
+                    : responseMode === 'continue_research'
+                        ? `Olá! Continuei a pesquisa anterior em ${siteLabel}`
+                        : `Olá! Já fui até ${siteLabel}`
+            : executionPlan?.executionMode === 'text'
+                ? 'Olá! Estruturei a tarefa em etapas e executei uma resposta autônoma sem depender de navegação web.'
+                : 'Olá! Já analisei a tela que você pediu';
 
         if (navigationText && !requestedList) {
             intro += ` e naveguei por ${navigationText}`;
@@ -2310,6 +3277,20 @@ Regras:
         }
 
         sections.push(resultLines.join(' '));
+
+        if (artifactList.length > 1) {
+            const artifactLines = artifactList
+                .map((artifact) => {
+                    const label = artifact?.targetLabel || this.getReadableSiteLabel(artifact?.targetUrl || '');
+                    const title = artifact?.pageTitle || artifact?.targetUrl || 'Página sem título';
+                    return `- ${label}: ${title}`;
+                })
+                .slice(0, 5);
+
+            if (artifactLines.length) {
+                sections.push(`Fontes e páginas percorridas nesta execução:\n${artifactLines.join('\n')}`);
+            }
+        }
 
         if (extractedItems.length) {
             const listTitle = /modelo|modelos|models/i.test(safeRequest)
@@ -2507,6 +3488,137 @@ Regras:
         } catch {
             return targetUrl;
         }
+    }
+
+    loadAgentMemoryStore() {
+        try {
+            const rawValue = localStorage.getItem('drekee_agent_memory_v1');
+            const parsed = rawValue ? JSON.parse(rawValue) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            console.error('❌ [AGENT] Erro ao carregar memória persistente:', error);
+            return [];
+        }
+    }
+
+    saveAgentMemoryStore() {
+        try {
+            localStorage.setItem('drekee_agent_memory_v1', JSON.stringify(this.agentLongTermMemory || []));
+        } catch (error) {
+            console.error('❌ [AGENT] Erro ao salvar memória persistente:', error);
+        }
+    }
+
+    getRelevantAgentMemories(userMessage, limit = 5) {
+        const memories = Array.isArray(this.agentLongTermMemory) ? this.agentLongTermMemory : [];
+        const normalizedMessage = this.normalizeSearchText(userMessage);
+        const messageTokens = normalizedMessage.split(' ').filter((token) => token.length > 2);
+
+        return memories
+            .map((memory) => {
+                const normalizedValue = this.normalizeSearchText(`${memory?.label || ''} ${memory?.value || ''}`);
+                let score = memory?.category === 'identity' ? 2 : 0;
+
+                for (const token of messageTokens) {
+                    if (normalizedValue.includes(token)) {
+                        score += token.length > 4 ? 3 : 1;
+                    }
+                }
+
+                return {
+                    ...memory,
+                    score
+                };
+            })
+            .filter((memory) => memory.score > 0 || memory.category === 'identity')
+            .sort((left, right) => right.score - left.score)
+            .slice(0, limit);
+    }
+
+    extractAgentMemoryCandidates(userMessage, finalText = '', context = {}) {
+        const candidates = [];
+        const cleanMessage = String(userMessage || '').trim();
+
+        const nameMatch = cleanMessage.match(/\bmeu nome e ([A-Za-zÀ-ÿ' -]{2,40})/i);
+        if (nameMatch?.[1]) {
+            candidates.push({
+                key: 'identity:name',
+                category: 'identity',
+                label: 'Nome do usuário',
+                value: nameMatch[1].trim()
+            });
+        }
+
+        const projectMatch = cleanMessage.match(/\b(?:estou criando|quero criar|estou construindo|estou fazendo)\s+(.{4,120})/i);
+        if (projectMatch?.[1]) {
+            candidates.push({
+                key: 'project:current',
+                category: 'project',
+                label: 'Projeto atual',
+                value: projectMatch[1].trim().replace(/[.?!]+$/g, '')
+            });
+        }
+
+        const preferenceMatch = cleanMessage.match(/\bprefiro\s+(.{3,80})/i);
+        if (preferenceMatch?.[1]) {
+            candidates.push({
+                key: `preference:${this.normalizeSearchText(preferenceMatch[1]).split(' ').slice(0, 4).join('_')}`,
+                category: 'preference',
+                label: 'Preferência declarada',
+                value: preferenceMatch[1].trim().replace(/[.?!]+$/g, '')
+            });
+        }
+
+        const goalMatch = cleanMessage.match(/\b(?:me ajuda a|quero|preciso)\s+(.{4,120})/i);
+        if (goalMatch?.[1] && !/site|pagina|abra|entre|acesse/i.test(goalMatch[1])) {
+            candidates.push({
+                key: `goal:${this.normalizeSearchText(goalMatch[1]).split(' ').slice(0, 5).join('_')}`,
+                category: 'goal',
+                label: 'Objetivo recorrente',
+                value: goalMatch[1].trim().replace(/[.?!]+$/g, '')
+            });
+        }
+
+        if (context?.pageTitle && /projeto|site|app/i.test(cleanMessage) && cleanMessage.length < 160) {
+            candidates.push({
+                key: 'context:last_agent_topic',
+                category: 'context',
+                label: 'Último tema agêntico',
+                value: `${context.pageTitle} | ${context.request || cleanMessage}`
+            });
+        }
+
+        return candidates;
+    }
+
+    rememberAgentTurn(userMessage, finalText, context = {}) {
+        const candidates = this.extractAgentMemoryCandidates(userMessage, finalText, context);
+        if (!candidates.length) {
+            return;
+        }
+
+        const currentMemories = Array.isArray(this.agentLongTermMemory) ? this.agentLongTermMemory : [];
+        const nextMemories = [...currentMemories];
+
+        candidates.forEach((candidate) => {
+            const existingIndex = nextMemories.findIndex((memory) => memory.key === candidate.key);
+            const nextValue = {
+                ...candidate,
+                updatedAt: new Date().toISOString()
+            };
+
+            if (existingIndex >= 0) {
+                nextMemories[existingIndex] = {
+                    ...nextMemories[existingIndex],
+                    ...nextValue
+                };
+            } else {
+                nextMemories.push(nextValue);
+            }
+        });
+
+        this.agentLongTermMemory = nextMemories.slice(-30);
+        this.saveAgentMemoryStore();
     }
 
     normalizeSearchText(value) {
