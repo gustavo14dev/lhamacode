@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Postar atualização - Drekee AI</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #131e30;
+            color: #e2e8f0;
+        }
+        body { overflow-x: hidden; }
+        .app-shell { display:flex; min-height:100vh; }
+        .sidebar {
+            width:18rem; background:rgba(16,24,44,0.97); border-right:1px solid rgba(255,255,255,0.07);
+            padding:1.5rem 1rem; display:flex; flex-direction:column; gap:1rem;
+        }
+        .sidebar-brand { display:flex; align-items:center; gap:0.7rem; }
+        .sidebar-brand-name {
+            font-size:1.1rem; font-weight:700; letter-spacing:-0.02em;
+            background:linear-gradient(135deg,#60a5fa,#818cf8);
+            -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+        }
+        .badge-beta {
+            font-size:0.6rem; font-weight:700; letter-spacing:0.08em; padding:2px 7px; border-radius:9999px;
+            background:linear-gradient(135deg,#3b82f6,#6366f1); color:#fff;
+        }
+        .sidebar-nav-btn {
+            display:flex; align-items:center; justify-content:space-between; gap:0.75rem;
+            width:100%; padding:0.85rem 0.95rem; border-radius:1rem;
+            border:1px solid rgba(59,130,246,0.16); background:rgba(59,130,246,0.06);
+            color:#cbd5e1; text-decoration:none; transition:all 0.2s ease;
+        }
+        .sidebar-nav-btn:hover { background:rgba(59,130,246,0.13); border-color:rgba(59,130,246,0.36); transform:translateY(-1px); }
+        .sidebar-nav-main { display:flex; align-items:center; gap:0.75rem; }
+        .content { flex:1; padding:2rem; }
+        .layout-grid { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(320px,0.85fr); gap:1rem; }
+        .panel {
+            background:rgba(17,27,48,0.78); border:1px solid rgba(255,255,255,0.08);
+            border-radius:1.5rem; padding:1.5rem; backdrop-filter:blur(18px);
+        }
+        .tag {
+            display:inline-flex; align-items:center; justify-content:center;
+            padding:0.18rem 0.55rem; border-radius:9999px; font-size:0.62rem;
+            font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
+        }
+        .tag.blue { background:rgba(59,130,246,0.16); color:#93c5fd; }
+        .tag.orange { background:rgba(249,115,22,0.16); color:#fdba74; }
+        .field-label { display:block; margin-bottom:0.45rem; font-size:0.82rem; color:#cbd5e1; }
+        .field-input, .field-textarea {
+            width:100%; border-radius:1rem; border:1px solid rgba(255,255,255,0.08);
+            background:#0d1627; color:#fff;
+        }
+        .field-input { padding:0.8rem 1rem; }
+        .field-textarea { min-height:11rem; padding:1rem; resize:vertical; }
+        .checkbox-row { display:flex; align-items:flex-start; gap:0.75rem; margin-top:1rem; color:#cbd5e1; }
+        .action-btn {
+            display:inline-flex; align-items:center; justify-content:center; gap:0.45rem;
+            border-radius:9999px; padding:0.78rem 1.1rem; border:1px solid rgba(255,255,255,0.08);
+            background:rgba(255,255,255,0.04); color:#e2e8f0; text-decoration:none; transition:all 0.2s ease;
+        }
+        .action-btn.primary { background:linear-gradient(135deg,#2563eb,#1d4ed8); border-color:transparent; color:#fff; }
+        .action-btn:hover { transform:translateY(-1px); }
+        .helper { font-size:0.78rem; color:#94a3b8; line-height:1.7; }
+        .preview-image, .update-image { width:100%; border-radius:1rem; object-fit:cover; }
+        .preview-image { max-height:22rem; margin-top:1rem; }
+        .status-card { margin-bottom:1rem; }
+        .updates-list { display:grid; gap:0.85rem; }
+        .update-card {
+            border-radius:1.25rem; border:1px solid rgba(255,255,255,0.08);
+            background:rgba(255,255,255,0.03); padding:1rem;
+        }
+        .update-title { font-size:1rem; font-weight:700; color:#fff; }
+        .update-meta { margin-top:0.25rem; font-size:0.76rem; color:#94a3b8; }
+        .update-body { margin-top:0.7rem; color:#cbd5e1; line-height:1.7; white-space:pre-wrap; }
+        @media (max-width: 1100px) {
+            .app-shell { flex-direction:column; }
+            .sidebar { width:100%; border-right:0; border-bottom:1px solid rgba(255,255,255,0.07); }
+            .content { padding:1.2rem; }
+            .layout-grid { grid-template-columns:1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <video autoplay muted loop playsinline class="h-9 w-9 rounded-xl object-cover">
+                    <source src="img/Video Project.mp4" type="video/mp4" />
+                </video>
+                <div class="sidebar-brand-name">Drekee AI</div>
+                <span class="badge-beta">BETA</span>
+            </div>
+
+            <a href="atualizacoes.html" class="sidebar-nav-btn">
+                <span class="sidebar-nav-main">
+                    <span class="material-icons-outlined text-blue-400" style="font-size:1.1rem">campaign</span>
+                    <span class="font-semibold text-sm">Atualizações</span>
+                </span>
+            </a>
+
+            <a href="code.html" class="sidebar-nav-btn">
+                <span class="sidebar-nav-main">
+                    <span class="material-icons-outlined text-blue-400" style="font-size:1.1rem">add_circle</span>
+                    <span class="font-semibold text-sm">Novo Chat</span>
+                </span>
+            </a>
+        </aside>
+
+        <main class="content">
+            <div class="layout-grid">
+                <section class="panel">
+                    <div class="tag blue">Admin</div>
+                    <h1 class="mt-3 text-2xl font-semibold text-white">Postar atualização</h1>
+                    <p class="mt-2 helper">
+                        Esta tela publica cards de atualização no Supabase. Se “Mostrar na tela inicial” estiver ativo, a atualização mais recente com essa flag vira o card de abertura para os usuários.
+                    </p>
+
+                    <div id="statusCard" class="status-card panel hidden"></div>
+
+                    <form id="updateForm" class="mt-5 hidden">
+                        <label class="field-label" for="updateTitle">Título</label>
+                        <input id="updateTitle" class="field-input" type="text" maxlength="120" placeholder="Ex: Novo modo agente com navegação guiada" />
+
+                        <label class="field-label mt-4" for="updateBody">Texto da atualização</label>
+                        <textarea id="updateBody" class="field-textarea" placeholder="Descreva a atualização. Pode ser só texto, só imagem ou os dois."></textarea>
+
+                        <label class="field-label mt-4" for="updateImage">Imagem</label>
+                        <input id="updateImage" class="field-input" type="file" accept="image/*" />
+                        <div class="helper mt-2">A imagem é comprimida e salva como Data URL no banco para evitar depender de bucket agora.</div>
+                        <img id="imagePreview" class="preview-image hidden" alt="Prévia da atualização" />
+
+                        <label class="checkbox-row">
+                            <input id="showOnStartup" type="checkbox" class="mt-1 rounded border-white/10 bg-[#0d1627]" />
+                            <span>
+                                Mostrar como card na tela inicial dos usuários.
+                                <span class="helper block">O card aparece uma vez por usuário para a atualização marcada.</span>
+                            </span>
+                        </label>
+
+                        <div class="mt-6 flex flex-wrap items-center gap-3">
+                            <button id="submitUpdateBtn" type="submit" class="action-btn primary">
+                                <span class="material-icons-outlined" style="font-size:1rem">publish</span>
+                                <span>Publicar atualização</span>
+                            </button>
+                            <a href="atualizacoes.html" class="action-btn">
+                                <span class="material-icons-outlined" style="font-size:1rem">visibility</span>
+                                <span>Ver feed</span>
+                            </a>
+                        </div>
+                    </form>
+                </section>
+
+                <aside class="panel">
+                    <div class="tag orange">Feed atual</div>
+                    <h2 class="mt-3 text-xl font-semibold text-white">Últimas publicações</h2>
+                    <div id="latestUpdates" class="updates-list mt-4"></div>
+                </aside>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import {
+            canCurrentUserPostUpdates,
+            compressImageToDataUrl,
+            createSiteUpdate,
+            fetchPublishedUpdates,
+            formatUpdateDate,
+            getCurrentAuthenticatedUser
+        } from './updates-system.js';
+
+        const statusCard = document.getElementById('statusCard');
+        const form = document.getElementById('updateForm');
+        const imageInput = document.getElementById('updateImage');
+        const imagePreview = document.getElementById('imagePreview');
+        const latestUpdates = document.getElementById('latestUpdates');
+        let currentImageDataUrl = '';
+
+        async function initPage() {
+            await renderLatestUpdates();
+
+            try {
+                const user = await getCurrentAuthenticatedUser();
+                if (!user) {
+                    showStatus('Faça login primeiro para postar atualizações.', 'warning');
+                    return;
+                }
+
+                const canPost = await canCurrentUserPostUpdates();
+                if (!canPost) {
+                    showStatus('Sua conta está logada, mas ainda não foi liberada como admin no Supabase.', 'warning');
+                    return;
+                }
+
+                form.classList.remove('hidden');
+                showStatus(`Admin liberado para ${user.email || user.id}.`, 'success');
+            } catch (error) {
+                showStatus(error.message || 'Falha ao verificar permissões.', 'error');
+            }
+        }
+
+        imageInput.addEventListener('change', async (event) => {
+            const [file] = Array.from(event.target.files || []);
+            currentImageDataUrl = '';
+            imagePreview.classList.add('hidden');
+
+            if (!file) {
+                return;
+            }
+
+            try {
+                currentImageDataUrl = await compressImageToDataUrl(file);
+                imagePreview.src = currentImageDataUrl;
+                imagePreview.classList.remove('hidden');
+            } catch (error) {
+                showStatus(error.message || 'Falha ao processar a imagem.', 'error');
+            }
+        });
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const submitBtn = document.getElementById('submitUpdateBtn');
+            const title = document.getElementById('updateTitle').value;
+            const body = document.getElementById('updateBody').value;
+            const showOnStartup = document.getElementById('showOnStartup').checked;
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">sync</span><span>Publicando...</span>';
+
+            try {
+                await createSiteUpdate({
+                    title,
+                    body,
+                    imageDataUrl: currentImageDataUrl,
+                    showOnStartup
+                });
+
+                form.reset();
+                currentImageDataUrl = '';
+                imagePreview.src = '';
+                imagePreview.classList.add('hidden');
+                showStatus('Atualização publicada com sucesso.', 'success');
+                await renderLatestUpdates();
+            } catch (error) {
+                showStatus(error.message || 'Falha ao publicar atualização.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem">publish</span><span>Publicar atualização</span>';
+            }
+        });
+
+        async function renderLatestUpdates() {
+            try {
+                const updates = await fetchPublishedUpdates(8);
+                if (!updates.length) {
+                    latestUpdates.innerHTML = '<div class="update-card"><div class="update-body">Nenhuma atualização publicada ainda.</div></div>';
+                    return;
+                }
+
+                latestUpdates.innerHTML = updates.map((update) => `
+                    <article class="update-card">
+                        <div class="flex flex-wrap items-center gap-2">
+                            ${update.show_on_startup ? '<span class="tag orange">Tela inicial</span>' : '<span class="tag blue">Publicado</span>'}
+                        </div>
+                        ${update.title ? `<div class="update-title mt-3">${escapeHtml(update.title)}</div>` : ''}
+                        <div class="update-meta">${formatUpdateDate(update.created_at)}</div>
+                        ${update.body ? `<div class="update-body">${escapeHtml(update.body)}</div>` : ''}
+                        ${update.image_data_url ? `<img src="${update.image_data_url}" alt="Atualização" class="update-image mt-4" />` : ''}
+                    </article>
+                `).join('');
+            } catch (error) {
+                latestUpdates.innerHTML = `<div class="update-card"><div class="update-body">${escapeHtml(error.message || 'Falha ao carregar atualizações.')}</div></div>`;
+            }
+        }
+
+        function showStatus(message, type = 'warning') {
+            const variants = {
+                success: {
+                    tag: 'blue',
+                    title: 'Acesso liberado'
+                },
+                warning: {
+                    tag: 'orange',
+                    title: 'Atenção'
+                },
+                error: {
+                    tag: 'orange',
+                    title: 'Erro'
+                }
+            };
+
+            const variant = variants[type] || variants.warning;
+            statusCard.classList.remove('hidden');
+            statusCard.innerHTML = `
+                <div class="tag ${variant.tag}">${variant.title}</div>
+                <div class="mt-3 text-sm leading-7 text-slate-300">${escapeHtml(message)}</div>
+                ${type !== 'success' ? '<div class="helper mt-3">Se esta página deveria aceitar postagem, cadastre seu usuário na tabela <code>app_admins</code> do SQL que eu gerei.</div>' : ''}
+            `;
+        }
+
+        function escapeHtml(value = '') {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/\n/g, '<br>');
+        }
+
+        initPage();
+    </script>
+</body>
+</html>

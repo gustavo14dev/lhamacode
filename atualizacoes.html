@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Atualizações - Drekee AI</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #131e30;
+            color: #e2e8f0;
+        }
+        body { overflow-x: hidden; }
+        .app-shell { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 18rem;
+            background: rgba(16, 24, 44, 0.97);
+            border-right: 1px solid rgba(255,255,255,0.07);
+            padding: 1.5rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .sidebar-brand { display:flex; align-items:center; gap:0.7rem; }
+        .sidebar-brand-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #60a5fa, #818cf8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .badge-beta {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            padding: 2px 7px;
+            border-radius: 9999px;
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+            color: #fff;
+        }
+        .sidebar-nav-btn {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:0.75rem;
+            width:100%;
+            padding:0.85rem 0.95rem;
+            border-radius:1rem;
+            border:1px solid rgba(59,130,246,0.16);
+            background:rgba(59,130,246,0.06);
+            color:#cbd5e1;
+            text-decoration:none;
+            transition:all 0.2s ease;
+        }
+        .sidebar-nav-btn:hover { background:rgba(59,130,246,0.13); border-color:rgba(59,130,246,0.36); transform:translateY(-1px); }
+        .sidebar-nav-btn.active { background:linear-gradient(135deg,#2563eb,#1d4ed8); border-color:transparent; color:#fff; }
+        .sidebar-nav-main { display:flex; align-items:center; gap:0.75rem; }
+        .updates-badge {
+            display:inline-flex; align-items:center; justify-content:center;
+            min-width:1.15rem; height:1.15rem; padding:0 0.35rem;
+            border-radius:9999px; background:#ef4444; color:#fff;
+            font-size:0.66rem; font-weight:700;
+        }
+        .content {
+            flex: 1;
+            padding: 2rem;
+        }
+        .page-header {
+            display:flex;
+            align-items:flex-start;
+            justify-content:space-between;
+            gap:1rem;
+            margin-bottom:1.5rem;
+        }
+        .header-card, .update-card, .empty-state {
+            background: rgba(17, 27, 48, 0.78);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 1.5rem;
+            backdrop-filter: blur(18px);
+        }
+        .header-card { padding: 1.4rem 1.5rem; }
+        .feed { display:grid; gap:1rem; }
+        .update-card { padding:1.25rem; }
+        .update-title { font-size:1.05rem; font-weight:700; color:#fff; }
+        .update-meta { font-size:0.78rem; color:#94a3b8; margin-top:0.2rem; }
+        .update-body { margin-top:0.8rem; color:#cbd5e1; line-height:1.7; white-space:pre-wrap; }
+        .update-image { width:100%; max-height:22rem; object-fit:cover; border-radius:1rem; margin-top:1rem; }
+        .tag {
+            display:inline-flex; align-items:center; justify-content:center;
+            padding:0.18rem 0.55rem; border-radius:9999px;
+            font-size:0.62rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
+        }
+        .tag.blue { background:rgba(59,130,246,0.16); color:#93c5fd; }
+        .tag.orange { background:rgba(249,115,22,0.16); color:#fdba74; }
+        .action-btn {
+            display:inline-flex; align-items:center; gap:0.45rem;
+            border-radius:9999px; padding:0.72rem 1rem; text-decoration:none;
+            border:1px solid rgba(255,255,255,0.08); color:#e2e8f0;
+            background:rgba(255,255,255,0.04); transition:all 0.2s ease;
+        }
+        .action-btn.primary { background:linear-gradient(135deg,#2563eb,#1d4ed8); border-color:transparent; color:#fff; }
+        .action-btn:hover { transform:translateY(-1px); }
+        .empty-state { padding:2rem; text-align:center; color:#94a3b8; }
+        @media (max-width: 960px) {
+            .app-shell { flex-direction: column; }
+            .sidebar { width: 100%; border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
+            .content { padding: 1.2rem; }
+            .page-header { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <video autoplay muted loop playsinline class="h-9 w-9 rounded-xl object-cover">
+                    <source src="img/Video Project.mp4" type="video/mp4" />
+                </video>
+                <div class="sidebar-brand-name">Drekee AI</div>
+                <span class="badge-beta">BETA</span>
+            </div>
+
+            <a href="atualizacoes.html" class="sidebar-nav-btn active">
+                <span class="sidebar-nav-main">
+                    <span class="material-icons-outlined text-blue-200" style="font-size:1.1rem">campaign</span>
+                    <span class="font-semibold text-sm">Atualizações</span>
+                </span>
+                <span id="updatesBadge" class="updates-badge hidden">0</span>
+            </a>
+
+            <a href="code.html" class="sidebar-nav-btn">
+                <span class="sidebar-nav-main">
+                    <span class="material-icons-outlined text-blue-400" style="font-size:1.1rem">add_circle</span>
+                    <span class="font-semibold text-sm">Novo Chat</span>
+                </span>
+            </a>
+        </aside>
+
+        <main class="content">
+            <div class="page-header">
+                <div class="header-card">
+                    <div class="tag blue">Feed</div>
+                    <h1 class="mt-3 text-2xl font-semibold text-white">Atualizações do Drekee</h1>
+                    <p class="mt-2 text-sm leading-7 text-slate-300">
+                        Aqui ficam as novidades publicadas no produto. Ao abrir esta página, as atualizações atuais são marcadas como vistas para o seu usuário.
+                    </p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <a href="code.html" class="action-btn">
+                        <span class="material-icons-outlined" style="font-size:1rem">arrow_back</span>
+                        <span>Voltar ao chat</span>
+                    </a>
+                    <a id="postarLink" href="postar.html" class="action-btn primary hidden">
+                        <span class="material-icons-outlined" style="font-size:1rem">edit_square</span>
+                        <span>Postar atualização</span>
+                    </a>
+                </div>
+            </div>
+
+            <section id="updatesFeed" class="feed"></section>
+            <section id="emptyState" class="empty-state hidden">
+                Nenhuma atualização publicada ainda.
+            </section>
+        </main>
+    </div>
+
+    <script type="module">
+        import {
+            canCurrentUserPostUpdates,
+            countUnreadUpdates,
+            fetchPublishedUpdates,
+            formatUpdateDate,
+            markUpdatesSeen
+        } from './updates-system.js';
+
+        async function initPage() {
+            const updatesFeed = document.getElementById('updatesFeed');
+            const emptyState = document.getElementById('emptyState');
+            const postarLink = document.getElementById('postarLink');
+            const updatesBadge = document.getElementById('updatesBadge');
+
+            try {
+                const updates = await fetchPublishedUpdates();
+                await markUpdatesSeen(updates.map((item) => item.id));
+
+                if (!updates.length) {
+                    emptyState.classList.remove('hidden');
+                } else {
+                    updatesFeed.innerHTML = updates.map((update) => `
+                        <article class="update-card">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="tag blue">Atualização</span>
+                                ${update.show_on_startup ? '<span class="tag orange">Tela inicial</span>' : ''}
+                            </div>
+                            ${update.title ? `<h2 class="update-title mt-3">${escapeHtml(update.title)}</h2>` : ''}
+                            <div class="update-meta">${formatUpdateDate(update.created_at)}</div>
+                            ${update.body ? `<div class="update-body">${escapeHtml(update.body)}</div>` : ''}
+                            ${update.image_data_url ? `<img src="${update.image_data_url}" alt="Atualização" class="update-image" />` : ''}
+                        </article>
+                    `).join('');
+                }
+
+                const unreadCount = await countUnreadUpdates();
+                if (unreadCount > 0) {
+                    updatesBadge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+                    updatesBadge.classList.remove('hidden');
+                } else {
+                    updatesBadge.classList.add('hidden');
+                }
+
+                try {
+                    const canPost = await canCurrentUserPostUpdates();
+                    if (canPost) {
+                        postarLink.classList.remove('hidden');
+                    }
+                } catch {
+                    // Ignore admin check failures for the public page.
+                }
+            } catch (error) {
+                updatesFeed.innerHTML = `
+                    <article class="update-card">
+                        <div class="tag orange">Erro</div>
+                        <h2 class="update-title mt-3">Falha ao carregar as atualizações</h2>
+                        <div class="update-body">${escapeHtml(error.message || 'Erro desconhecido.')}</div>
+                    </article>
+                `;
+            }
+        }
+
+        function escapeHtml(value = '') {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/\n/g, '<br>');
+        }
+
+        initPage();
+    </script>
+</body>
+</html>

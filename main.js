@@ -5,6 +5,11 @@ import { TimelineSystem } from './timeline-system.js';
 import { ProactiveSuggestions } from './proactive-system.js';
 
 import { PreferenceLearning } from './preference-system.js';
+import {
+    countUnreadUpdates,
+    fetchLatestStartupUpdate,
+    markStartupUpdateSeen
+} from './updates-system.js';
 
 
 
@@ -49,6 +54,7 @@ class UI {
 
         this.currentModel = 'rapido';
         this.agentReasoningModel = 'llama-3.3-70b-versatile';
+        this.agentAccessPassword = '#Casa130#';
         this.agentThinkingIndicatorDelayMs = 3000;
         this.agentThinkingIndicatorTimer = null;
         this.isAgentWorking = false;
@@ -90,6 +96,8 @@ class UI {
             codeFileInput: document.getElementById('codeFileInput'),
             imageFileInput: document.getElementById('imageFileInput'),
             attachedFilesContainer: document.getElementById('attachedFilesContainer'),
+            updatesBtn: document.getElementById('updatesBtn'),
+            updatesBadge: document.getElementById('updatesBadge'),
             newChatBtn: document.getElementById('newChatBtn'),
             chatHistoryList: document.getElementById('chatHistoryList'),
             modelButton: document.getElementById('modelButton'),
@@ -141,28 +149,40 @@ class UI {
                         <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3 first:rounded-t-lg" onclick="selectTool('investigate')">
                             <span class="material-icons-outlined text-base text-blue-400 mt-0.5">troubleshoot</span>
                             <div class="flex-1">
-                                <div class="font-medium">Drekee Investigate 1.0</div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="font-medium">Drekee Investigate 1.0</div>
+                                    <span class="tool-card-tag tool-card-tag-blue">INVESTIGATE</span>
+                                </div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Investigação profunda com IA</div>
                             </div>
                         </button>
                         <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3" onclick="selectTool('re')">
                             <span class="material-icons-outlined text-base text-green-400 mt-0.5">calculate</span>
                             <div class="flex-1">
-                                <div class="font-medium">Resolução de Exercícios</div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="font-medium">Resolução de Exercícios</div>
+                                    <span class="tool-card-tag tool-card-tag-green">RE</span>
+                                </div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Resolução completa de questões com cálculo detalhado e justificativa técnica</div>
                             </div>
                         </button>
                         <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3" onclick="toggleCreateSubcard()">
                             <span class="material-icons-outlined text-base text-purple-400 mt-0.5">add_box</span>
                             <div class="flex-1">
-                                <div class="font-medium">Criar</div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="font-medium">Criar</div>
+                                    <span class="tool-card-tag tool-card-tag-purple">CRIAR</span>
+                                </div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Apresentações, Documentos e Mapas Mentais</div>
                             </div>
                         </button>
                         <button class="w-full text-left px-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3" onclick="selectTool('agent')">
                             <span class="material-icons-outlined text-base text-orange-500 mt-0.5">smart_toy</span>
                             <div class="flex-1">
-                                <div class="font-medium">Drekee Agent 1.0</div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="font-medium">Drekee Agent 1.0</div>
+                                    <span class="tool-card-tag tool-card-tag-beta">BETA</span>
+                                </div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Modo agente inteligente com visão computacional</div>
                             </div>
                         </button>
@@ -299,7 +319,7 @@ class UI {
     }
 
     // Selecionar ferramenta (investigate, RE, agent)
-    selectTool(tool) {
+    async selectTool(tool) {
         console.log(`🔧 [TOOL] Ferramenta selecionada: ${tool}`);
         
         // Fechar dropdown
@@ -328,6 +348,9 @@ class UI {
                 break;
                 
             case 'agent':
+                if (!(await this.ensureAgentAccess())) {
+                    return;
+                }
                 window.isAgentMode = true;
                 this.persistAgentUiState({ activeTool: 'agent' });
                 this.activateAgentMode();
@@ -357,6 +380,89 @@ class UI {
         
         // Atualizar UI
         this.updateAgentUI(true);
+    }
+
+    async ensureAgentAccess() {
+        const hasAccess = localStorage.getItem('drekee_agent_access') === 'granted';
+        if (hasAccess) {
+            return true;
+        }
+
+        return new Promise((resolve) => {
+            const existing = document.getElementById('agentAccessModal');
+            if (existing) {
+                existing.remove();
+            }
+
+            const modal = document.createElement('div');
+            modal.id = 'agentAccessModal';
+            modal.className = 'fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4';
+            modal.innerHTML = `
+                <div class="w-full max-w-md rounded-3xl border border-white/10 bg-[#111b30] p-6 shadow-2xl">
+                    <div class="mb-4 flex items-center gap-3">
+                        <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-500/15 text-blue-300">
+                            <span class="material-icons-outlined">smart_toy</span>
+                        </div>
+                        <div>
+                            <div class="text-sm font-semibold text-white">Acesso restrito ao Drekee Agent</div>
+                            <div class="text-xs text-slate-400">Modo em desenvolvimento privado</div>
+                        </div>
+                    </div>
+                    <p class="mb-4 text-sm text-slate-300">
+                        Digite a senha de liberação para ativar o modo agente nesta máquina.
+                    </p>
+                    <input
+                        id="agentAccessInput"
+                        type="password"
+                        placeholder="Senha de acesso"
+                        class="w-full rounded-2xl border border-white/10 bg-[#0d1627] px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500"
+                    />
+                    <div id="agentAccessError" class="mt-2 hidden text-sm text-red-400">Senha incorreta.</div>
+                    <div class="mt-5 flex items-center justify-end gap-3">
+                        <button id="agentAccessCancel" class="rounded-2xl border border-white/10 px-4 py-2 text-sm text-slate-300 transition hover:bg-white/5">Cancelar</button>
+                        <button id="agentAccessSubmit" class="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500">Liberar agente</button>
+                    </div>
+                </div>
+            `;
+
+            const cleanup = (granted) => {
+                modal.remove();
+                resolve(Boolean(granted));
+            };
+
+            const input = modal.querySelector('#agentAccessInput');
+            const error = modal.querySelector('#agentAccessError');
+            const submit = () => {
+                if ((input?.value || '') === this.agentAccessPassword) {
+                    localStorage.setItem('drekee_agent_access', 'granted');
+                    cleanup(true);
+                    return;
+                }
+
+                if (error) {
+                    error.classList.remove('hidden');
+                }
+                input?.focus();
+                input?.select();
+            };
+
+            modal.querySelector('#agentAccessCancel')?.addEventListener('click', () => cleanup(false));
+            modal.querySelector('#agentAccessSubmit')?.addEventListener('click', submit);
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    cleanup(false);
+                }
+            });
+            input?.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    submit();
+                }
+            });
+
+            document.body.appendChild(modal);
+            input?.focus();
+        });
     }
 
     // Adicionar indicador visual do modo agente
@@ -4725,14 +4831,15 @@ Regras:
         const createBtn = document.getElementById('createToggle');
         if (createBtn) {
             if (active) {
-                createBtn.classList.add('bg-orange-500', 'text-white', 'ring-2', 'ring-orange-300');
-                createBtn.classList.remove('bg-gray-100', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-300');
+                createBtn.classList.add('active', 'agent-active');
+                createBtn.classList.remove('bg-gray-100', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-300', 'border-orange-500', 'text-orange-400');
                 createBtn.innerHTML = `
                     <span class="material-icons-outlined">smart_toy</span>
                     <span class="text-xs font-medium">Drekee Agent Ativo</span>
+                    <span class="toolbar-status-badge toolbar-status-badge-beta">BETA</span>
                 `;
             } else {
-                createBtn.classList.remove('bg-orange-500', 'text-white', 'ring-2', 'ring-orange-300');
+                createBtn.classList.remove('active', 'agent-active');
                 createBtn.classList.add('bg-gray-100', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-300');
                 createBtn.innerHTML = `
                     <span class="material-icons-outlined">add_box</span>
@@ -4744,11 +4851,16 @@ Regras:
 
     // Resetar botões de criação
     resetCreateButtons() {
+        const createBtn = document.getElementById('createToggle');
+        if (createBtn) {
+            createBtn.classList.remove('active', 'agent-active');
+        }
+
         const dropdown = document.getElementById('floatingCreateDropdown');
         if (dropdown) {
-            // Resetar texto do botão principal
             const button = dropdown.querySelector('button');
             if (button) {
+                button.classList.remove('active', 'agent-active', 'border-blue-500', 'text-blue-400', 'border-green-500', 'text-green-400');
                 button.innerHTML = `
                     <span class="material-icons-outlined">add</span>
                     <span>Criar</span>
@@ -4767,17 +4879,18 @@ Regras:
             if (button) {
                 if (window.isAgentMode) {
                     button.innerHTML = `
-                        <span class="material-icons-outlined text-orange-400">smart_toy</span>
-                        <span class="text-orange-400">Drekee Agent Ativo</span>
-                        <span class="material-icons-outlined text-orange-400">expand_more</span>
+                        <span class="material-icons-outlined text-white">smart_toy</span>
+                        <span class="text-white">Drekee Agent Ativo</span>
+                        <span class="toolbar-status-badge toolbar-status-badge-beta">BETA</span>
                     `;
-                    button.classList.add('border-orange-500', 'text-orange-400');
+                    button.classList.add('active', 'agent-active');
                 } else if (window.isInvestigateMode) {
                     button.innerHTML = `
                         <span class="material-icons-outlined text-blue-400">search</span>
                         <span class="text-blue-400">Investigate Ativo</span>
                         <span class="material-icons-outlined text-blue-400">expand_more</span>
                     `;
+                    button.classList.remove('agent-active');
                     button.classList.add('border-blue-500', 'text-blue-400');
                 } else if (window.isREMode) {
                     button.innerHTML = `
@@ -4785,6 +4898,7 @@ Regras:
                         <span class="text-green-400">RE Ativo</span>
                         <span class="material-icons-outlined text-green-400">expand_more</span>
                     `;
+                    button.classList.remove('agent-active');
                     button.classList.add('border-green-500', 'text-green-400');
                 } else {
                     this.resetCreateButtons();
@@ -4831,6 +4945,76 @@ Regras:
                 }
             }, 300);
         }, 3000);
+    }
+
+    async initializeUpdatesExperience() {
+        await this.refreshUpdatesBadge();
+        await this.showStartupUpdateCardIfNeeded();
+    }
+
+    async refreshUpdatesBadge() {
+        const badge = this.elements?.updatesBadge;
+        if (!badge) {
+            return;
+        }
+
+        try {
+            const unreadCount = await countUnreadUpdates();
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+                badge.classList.remove('hidden');
+            } else {
+                badge.textContent = '0';
+                badge.classList.add('hidden');
+            }
+        } catch (error) {
+            console.error('❌ Erro ao atualizar badge de atualizações:', error);
+        }
+    }
+
+    async showStartupUpdateCardIfNeeded() {
+        try {
+            const update = await fetchLatestStartupUpdate();
+            if (!update) {
+                return;
+            }
+
+            const existing = document.getElementById('startupUpdateCard');
+            if (existing) {
+                existing.remove();
+            }
+
+            const card = document.createElement('div');
+            card.id = 'startupUpdateCard';
+            card.className = 'fixed right-5 top-20 z-[999] w-[min(380px,calc(100vw-2rem))] rounded-3xl border border-white/10 bg-[#111b30]/95 p-5 shadow-2xl backdrop-blur-xl';
+            card.innerHTML = `
+                <button id="startupUpdateClose" class="absolute right-3 top-3 rounded-full p-1 text-slate-400 transition hover:bg-white/5 hover:text-white">
+                    <span class="material-icons-outlined" style="font-size:1rem">close</span>
+                </button>
+                <div class="mb-3 flex items-center gap-2">
+                    <span class="toolbar-status-badge toolbar-status-badge-danger">NOVA</span>
+                    <span class="text-xs uppercase tracking-[0.18em] text-slate-400">Atualização</span>
+                </div>
+                ${update.image_data_url ? `<img src="${update.image_data_url}" alt="Atualização" class="mb-4 max-h-56 w-full rounded-2xl object-cover">` : ''}
+                ${update.title ? `<h3 class="mb-2 text-base font-semibold text-white">${this.escapeHtml(update.title)}</h3>` : ''}
+                ${update.body ? `<p class="text-sm leading-6 text-slate-300">${this.escapeHtml(update.body).replace(/\n/g, '<br>')}</p>` : ''}
+                <div class="mt-4 flex items-center justify-between gap-3">
+                    <span class="text-xs text-slate-500">${new Date(update.created_at).toLocaleString('pt-BR')}</span>
+                    <a href="atualizacoes.html" class="rounded-2xl bg-blue-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-blue-500">Ver atualização</a>
+                </div>
+            `;
+
+            const dismiss = async () => {
+                await markStartupUpdateSeen(update.id);
+                card.remove();
+                await this.refreshUpdatesBadge();
+            };
+
+            card.querySelector('#startupUpdateClose')?.addEventListener('click', dismiss);
+            document.body.appendChild(card);
+        } catch (error) {
+            console.error('❌ Erro ao mostrar card inicial de atualização:', error);
+        }
     }
 
     setupAttachListeners() {
@@ -5372,6 +5556,11 @@ Regras:
 
         this.elements.sendButton.addEventListener('click', this.boundHandleSend);
         this.elements.newChatBtn.addEventListener('click', () => this.createNewChat());
+        if (this.elements.updatesBtn) {
+            this.elements.updatesBtn.addEventListener('click', () => {
+                window.location.href = 'atualizacoes.html';
+            });
+        }
         
         // Configurar dropdown do botão Criar
         this.setupCreateDropdown();
@@ -5614,6 +5803,7 @@ Regras:
 
         // Inicializar sistema de autenticação
         this.initAuthSystem();
+        this.initializeUpdatesExperience();
 
         
 
@@ -12042,6 +12232,8 @@ ${chunk}${bibliographyBlock}
             this.showGuestMode();
         }
 
+        await this.initializeUpdatesExperience();
+
         // Configurar event listeners
         this.setupAuthListeners();
 
@@ -12062,6 +12254,7 @@ ${chunk}${bibliographyBlock}
                     await this.showLoggedInUser(session.user);
                     await this.loadUserChats();
                     this.startHeartbeat(session.user.id);
+                    await this.initializeUpdatesExperience();
                     
                     // Forçar refresh da UI
                     this.renderChatHistory();
@@ -12071,6 +12264,7 @@ ${chunk}${bibliographyBlock}
                     this.showGuestMode();
                     this.clearUserChats();
                     this.stopHeartbeat();
+                    await this.initializeUpdatesExperience();
                 }
             }, 500); // 500ms delay
         });
