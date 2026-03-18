@@ -3066,7 +3066,15 @@ Regras:
 
         const data = await response.json();
         if (!response.ok) {
-            throw new Error(data.error || `Falha ao abrir ${url}`);
+            const errorMessage = data.error || `Falha ao abrir ${url}`;
+            if (this.isRecoverableAgentBrowserFailure(errorMessage)) {
+                const fallbackSession = await this.requestAgentBrowserMetadataFallback(url, errorMessage);
+                if (fallbackSession) {
+                    this.addAgentThoughtLog('📡 O navegador real do agente ficou indisponivel; continuei com uma visualizacao resumida para nao interromper a tarefa.');
+                    return fallbackSession;
+                }
+            }
+            throw new Error(errorMessage);
         }
 
         if (data.mode === 'hosted-screenshot' || data.mode === 'site-protected-hosted') {
@@ -3078,6 +3086,37 @@ Regras:
         }
 
         return data;
+    }
+
+    isRecoverableAgentBrowserFailure(errorMessage = '') {
+        const message = String(errorMessage || '');
+        return /failed to launch the browser process|chrome do agente nao esta disponivel|could not find chrome|could not find chromium|error while loading shared libraries|libnss3\.so|code:\s*127/i.test(message);
+    }
+
+    async requestAgentBrowserMetadataFallback(url, reason = '') {
+        try {
+            const response = await fetch('/api/agent-browser', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'metadata-fallback',
+                    url,
+                    reason
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                return null;
+            }
+
+            return data;
+        } catch (error) {
+            console.error('Agent browser metadata fallback failed:', error);
+            return null;
+        }
     }
 
     // Analisar site que foi aberto

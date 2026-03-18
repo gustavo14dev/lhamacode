@@ -34,6 +34,16 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Invalid or missing URL' });
     }
 
+    if (action === 'metadata-fallback') {
+        try {
+            const reason = typeof req.body?.reason === 'string' ? req.body.reason : 'O navegador do agente nao estava disponivel.';
+            const fallback = await createMetadataFallback(normalizedUrl, reason);
+            return res.status(200).json(fallback);
+        } catch (error) {
+            return res.status(500).json({ error: error.message || 'Failed to build metadata fallback' });
+        }
+    }
+
     let browser;
 
     try {
@@ -263,6 +273,8 @@ function looksLikeMissingBrowserError(error) {
     return message.includes('Could not find Chrome')
         || message.includes('Could not find Chromium')
         || message.includes('Browser was not found')
+        || message.includes('Failed to launch the browser process')
+        || message.includes('Code: 127')
         || message.includes('error while loading shared libraries')
         || message.includes('libnss3.so')
         || message.includes('libatk-1.0.so.0')
