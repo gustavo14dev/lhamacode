@@ -69,6 +69,12 @@ export default async function handler(req, res) {
 
         screenshots.push(await captureScreenshot(page, 'Homepage carregada', 'Acabei de abrir o site no navegador controlado pelo agente.'));
 
+        const taskInteraction = await performTaskSpecificInteractions(page, task, pageTitle, pageContext);
+        pageContext = taskInteraction.pageContext;
+        pageTitle = taskInteraction.pageTitle;
+        screenshots.push(...taskInteraction.screenshots);
+        navigationTrail.push(...taskInteraction.navigationTrail);
+
         const navigationHints = extractNavigationHints(task).slice(0, 3);
         for (const hint of navigationHints) {
             if (pageAlreadyMatchesHint(page.url(), pageTitle, pageContext, hint)) {
@@ -315,8 +321,27 @@ async function resolveTargetForTask(task) {
 }
 
 function extractExplicitUrl(task) {
-    const match = String(task || '').match(/((?:https?:\/\/|www\.)[^\s]+|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?)/i);
-    return match ? normalizeUrl(match[1]) : null;
+    const source = String(task || '');
+    const explicitMatch = source.match(/((?:https?:\/\/|www\.)[^\s]+)/i);
+    if (explicitMatch?.[1]) {
+        return normalizeUrl(explicitMatch[1]);
+    }
+
+    const bareMatches = [...source.matchAll(/(^|\s)((?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?)/gi)];
+    for (const match of bareMatches) {
+        const prefix = String(match[1] || '');
+        const value = String(match[2] || '');
+        const leadingSlice = source.slice(0, match.index || 0).trimEnd();
+        if (/site:$/i.test(leadingSlice)) {
+            continue;
+        }
+
+        if (prefix !== '' || value) {
+            return normalizeUrl(value);
+        }
+    }
+
+    return null;
 }
 
 function guessUrlFromTask(task) {
@@ -658,6 +683,267 @@ function mergePageContexts(baseContext = {}, nextContext = {}) {
         visibleText: mergeTextList(baseContext.visibleText, nextContext.visibleText),
         scrollHeight: Math.max(baseContext.scrollHeight || 0, nextContext.scrollHeight || 0)
     };
+}
+
+async function performTaskSpecificInteractions(page, task, initialTitle, initialContext) {
+    let pageTitle = initialTitle;
+    let pageContext = initialContext;
+    const screenshots = [];
+    const navigationTrail = [];
+    const taskProfile = buildTaskProfile(task);
+
+    if (!taskProfile.searchQuery || !shouldAttemptInternalSearch(page.url(), taskProfile)) {
+        return {
+            pageTitle,
+            pageContext,
+            screenshots,
+            navigationTrail
+        };
+    }
+
+    const searchResult = await attemptInternalSiteSearch(page, taskProfile.searchQuery);
+    if (!searchResult.success) {
+        return {
+            pageTitle,
+            pageContext,
+            screenshots,
+            navigationTrail
+        };
+    }
+
+    await wait(1000);
+    await waitForReadableCapture(page);
+    pageContext = await collectPageContext(page);
+    pageTitle = await page.title();
+
+    screenshots.push(await captureScreenshot(
+        page,
+        `Busca: ${taskProfile.searchQuery}`,
+        `Pesquisei internamente por ${taskProfile.searchQuery}.`
+    ));
+
+    navigationTrail.push({
+        targetHint: `buscar ${taskProfile.searchQuery}`,
+        success: true,
+        matchedText: searchResult.inputLabel || taskProfile.searchQuery,
+        href: page.url(),
+        previousUrl: searchResult.previousUrl,
+        currentUrl: page.url(),
+        interactionType: 'internal-search',
+        query: taskProfile.searchQuery
+    });
+
+    return {
+        pageTitle,
+        pageContext,
+        screenshots,
+        navigationTrail
+    };
+}
+
+function buildTaskProfile(task) {
+    const normalized = normalizeSearchText(task);
+
+    return {
+        normalized,
+        searchQuery: extractSiteSearchQuery(task),
+        asksPrice: /\b(preco|precos|price|valor|mais barato|loja|lojas|a vista|avista|pix)\b/i.test(normalized),
+        asksProducts: /\b(iphone|galaxy|produto|produtos|tenis|notebook|tv|smartphone|celular)\b/i.test(normalized),
+        asksModels: /\b(modelo|modelos|models)\b/i.test(normalized)
+    };
+}
+
+function shouldAttemptInternalSearch(currentUrl, taskProfile = {}) {
+    const host = safeAgentHostname(currentUrl);
+    if (taskProfile.asksPrice || taskProfile.asksProducts) {
+        return true;
+    }
+
+    if (taskProfile.asksModels && /amazon|magazineluiza|magalu|mercadolivre|casasbahia|kabum|fastshop/i.test(host)) {
+        return false;
+    }
+
+    return /\b(pesquise|procure|busque|search)\b/i.test(taskProfile.normalized || '');
+}
+
+function extractSiteSearchQuery(task) {
+    const source = String(task || '').replace(/https?:\/\/\S+/gi, ' ').replace(/\bwww\.[^\s]+/gi, ' ');
+    const quoted = source.match(/["“”']([^"“”']{2,80})["“”']/);
+    if (quoted?.[1]) {
+        return quoted[1].trim();
+    }
+
+    const patterns = [
+        /\bpreco d[oa]\s+(.+?)(?=\s+(?:em|no|na|nas|considerando|com|hoje)\b|$)/i,
+        /\bvalor d[oa]\s+(.+?)(?=\s+(?:em|no|na|nas|considerando|com|hoje)\b|$)/i,
+        /\bpesquise(?: por)?\s+(.+?)(?=\s+(?:no|na|nas|em|site|loja)\b|$)/i,
+        /\bprocure(?: por)?\s+(.+?)(?=\s+(?:no|na|nas|em|site|loja)\b|$)/i,
+        /\bbusque(?: por)?\s+(.+?)(?=\s+(?:no|na|nas|em|site|loja)\b|$)/i,
+        /\bencontre\s+(.+?)(?=\s+(?:em|no|na|nas|site|loja)\b|$)/i
+    ];
+
+    for (const pattern of patterns) {
+        const match = source.match(pattern);
+        if (match?.[1]) {
+            return sanitizeInternalSearchQuery(match[1]);
+        }
+    }
+
+    const productLike = source.match(/\b(iPhone\s+\d+[^\.,;\n]*|Galaxy\s+[A-Za-z0-9+ -]+|MacBook[^\.,;\n]*|PlayStation\s*\d[^\.,;\n]*)/i);
+    if (productLike?.[1]) {
+        return sanitizeInternalSearchQuery(productLike[1]);
+    }
+
+    return '';
+}
+
+function sanitizeInternalSearchQuery(value) {
+    return String(value || '')
+        .replace(/\b(ex:\s*.+)$/i, '')
+        .replace(/\b(considerando|hoje|valor|preco|preços|preço)\b/gi, ' ')
+        .replace(/^(o|a|os|as)\s+/i, '')
+        .replace(/[()]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 80);
+}
+
+async function attemptInternalSiteSearch(page, query) {
+    const previousUrl = page.url();
+    const expanded = await expandSearchInterface(page);
+    if (expanded) {
+        await wait(500);
+    }
+
+    const searchField = await findBestSearchField(page);
+    if (!searchField) {
+        return { success: false, previousUrl };
+    }
+
+    try {
+        await page.focus(searchField.selector);
+    } catch {
+        // continue with DOM eval fallback
+    }
+
+    await page.evaluate((selector) => {
+        const element = document.querySelector(selector);
+        if (element) {
+            element.focus();
+            if ('value' in element) {
+                element.value = '';
+            }
+        }
+    }, searchField.selector);
+
+    try {
+        await page.keyboard.down('Control');
+        await page.keyboard.press('KeyA');
+        await page.keyboard.up('Control');
+        await page.keyboard.press('Backspace');
+    } catch {
+        // ignore keyboard selection failures
+    }
+
+    await page.type(searchField.selector, query, { delay: 35 });
+
+    try {
+        await page.keyboard.press('Enter');
+    } catch {
+        // ignore
+    }
+
+    await waitForPossibleNavigation(page, previousUrl);
+
+    if (page.url() === previousUrl) {
+        const clickedSubmit = await clickSearchSubmit(page, query);
+        if (clickedSubmit) {
+            await waitForPossibleNavigation(page, previousUrl);
+        }
+    }
+
+    return {
+        success: page.url() !== previousUrl || true,
+        previousUrl,
+        inputLabel: searchField.label || 'campo de busca'
+    };
+}
+
+async function expandSearchInterface(page) {
+    return page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button, a, [role="button"]'));
+        const candidate = buttons.find((element) => {
+            const text = `${element.textContent || ''} ${element.getAttribute('aria-label') || ''} ${element.getAttribute('title') || ''}`.toLowerCase();
+            const rect = element.getBoundingClientRect();
+            const visible = rect.width > 0 && rect.height > 0;
+            return visible && /(buscar|busca|search|pesquisar|lupa)/i.test(text);
+        });
+
+        if (candidate) {
+            candidate.click();
+            return true;
+        }
+
+        return false;
+    });
+}
+
+async function findBestSearchField(page) {
+    const candidates = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll('input, textarea, [role="searchbox"]'))
+            .map((element) => {
+                const rect = element.getBoundingClientRect();
+                const visible = rect.width > 80 && rect.height > 20;
+                const text = `${element.getAttribute('aria-label') || ''} ${element.getAttribute('placeholder') || ''} ${element.getAttribute('name') || ''} ${element.getAttribute('id') || ''} ${element.getAttribute('type') || ''}`;
+                let selector = '';
+
+                if (element.id) {
+                    selector = `#${CSS.escape(element.id)}`;
+                } else if (element.name) {
+                    selector = `${element.tagName.toLowerCase()}[name="${element.name}"]`;
+                } else {
+                    selector = element.tagName.toLowerCase();
+                }
+
+                return {
+                    selector,
+                    label: text.replace(/\s+/g, ' ').trim(),
+                    visible,
+                    score: /(search|buscar|busca|pesquisar|produto|o que voce procura|o que você procura)/i.test(text) ? 20 : 0
+                        + (/search/i.test(element.getAttribute('type') || '') ? 12 : 0)
+                        + (rect.width > 200 ? 4 : 0)
+                };
+            })
+            .filter((item) => item.visible && item.selector);
+    });
+
+    return candidates.sort((left, right) => right.score - left.score)[0] || null;
+}
+
+async function clickSearchSubmit(page, query) {
+    return page.evaluate((searchQuery) => {
+        const buttons = Array.from(document.querySelectorAll('button, a, [role="button"], input[type="submit"]'));
+        const candidate = buttons.find((element) => {
+            const text = `${element.textContent || ''} ${element.getAttribute('aria-label') || ''} ${element.getAttribute('title') || ''} ${element.getAttribute('value') || ''}`.toLowerCase();
+            const rect = element.getBoundingClientRect();
+            const visible = rect.width > 0 && rect.height > 0;
+            return visible && /(buscar|busca|search|pesquisar|ok|ir)/i.test(text);
+        });
+
+        if (candidate) {
+            candidate.click();
+            return true;
+        }
+
+        const forms = Array.from(document.querySelectorAll('form'));
+        const form = forms.find((element) => element.innerText.toLowerCase().includes(searchQuery.toLowerCase()) || element.querySelector('input[type="search"], input[name*="search" i], input[placeholder*="buscar" i]'));
+        if (form) {
+            form.requestSubmit?.();
+            return true;
+        }
+
+        return false;
+    }, query);
 }
 
 async function collectScrollableSnapshots(page, initialContext, initialTitle, task) {

@@ -1023,6 +1023,28 @@ class UI {
         this.scrollToBottom();
     }
 
+    setupAutoScrollObserver() {
+        if (this.autoScrollObserver || !this.elements?.messagesContainer) {
+            return;
+        }
+
+        this.autoScrollObserver = new MutationObserver(() => {
+            const shouldFollow = this.isAgentResponding
+                || Boolean(this.elements.messagesContainer.querySelector('.thinking-message'))
+                || Boolean(this.elements.messagesContainer.querySelector('.typing-animation'));
+
+            if (shouldFollow) {
+                this.scrollToBottom();
+            }
+        });
+
+        this.autoScrollObserver.observe(this.elements.messagesContainer, {
+            childList: true,
+            subtree: true,
+            characterData: true
+        });
+    }
+
     // Expandir screenshot
     expandScreenshot(imageData) {
         const modal = document.createElement('div');
@@ -1527,6 +1549,7 @@ Regras:
             .replace(/\s+/g, ' ')
             .trim();
         const targetLabels = [];
+        const normalizedForMatching = this.normalizeSearchText(normalizedMessage);
         const explicitSitePatterns = [
             /site d[oa] ([A-Za-z0-9._-]+)/gi,
             /site de ([A-Za-z0-9._-]+)/gi
@@ -1547,6 +1570,12 @@ Regras:
             targetLabels.push(compareMatch[1], compareMatch[2]);
         }
 
+        Object.keys(this.getKnownAgentDomains()).forEach((label) => {
+            if (normalizedForMatching.includes(this.normalizeSearchText(label))) {
+                targetLabels.push(label);
+            }
+        });
+
         const uniqueLabels = targetLabels
             .map((label) => label.trim())
             .filter(Boolean)
@@ -1563,18 +1592,14 @@ Regras:
             }];
         }
 
-        return uniqueLabels.map((label, index) => ({
-            id: `target_${index + 1}`,
-            label,
-            url: '',
-            query: `site oficial ${label}`,
-            navigationInstruction: userMessage
-        }));
+        return uniqueLabels.map((label, index) => this.buildOfficialAgentTarget(label, userMessage, index));
     }
 
     shouldAllowMultipleAgentTargets(userMessage) {
         const normalized = this.normalizeSearchText(userMessage);
-        return /\b(compare|comparar|versus|vs|diferenca|diferencas|entre .* e .*|dois sites|duas fontes|varios sites|muitos sites)\b/i.test(normalized);
+        const comparisonSignals = /\b(compare|comparar|versus|vs|diferenca|diferencas|dois sites|duas fontes|duas lojas|varias lojas|varios sites|muitos sites)\b/i.test(normalized);
+        const knownLabels = Object.keys(this.getKnownAgentDomains()).filter((label) => normalized.includes(this.normalizeSearchText(label)));
+        return comparisonSignals || knownLabels.length >= 2;
     }
 
     getKnownAgentDomains() {
@@ -1584,7 +1609,17 @@ Regras:
             openai: 'https://openai.com',
             nike: 'https://www.nike.com.br',
             vercel: 'https://vercel.com',
-            github: 'https://github.com'
+            github: 'https://github.com',
+            magalu: 'https://www.magazineluiza.com.br',
+            magazineluiza: 'https://www.magazineluiza.com.br',
+            'magazine luiza': 'https://www.magazineluiza.com.br',
+            amazon: 'https://www.amazon.com.br',
+            'mercado livre': 'https://www.mercadolivre.com.br',
+            mercadolivre: 'https://www.mercadolivre.com.br',
+            casasbahia: 'https://www.casasbahia.com.br',
+            'casas bahia': 'https://www.casasbahia.com.br',
+            kabum: 'https://www.kabum.com.br',
+            fastshop: 'https://www.fastshop.com.br'
         };
     }
 
@@ -1617,7 +1652,8 @@ Regras:
         const normalizedLabel = this.normalizeSearchText(label);
         const matchedDomain = Object.entries(knownDomains).find(([key]) => normalizedLabel.includes(key));
         const baseUrl = matchedDomain ? matchedDomain[1] : '';
-        const baseHost = baseUrl ? new URL(baseUrl).hostname.replace(/^www\./i, '') : '';
+        const preferredUrl = this.getPreferredAgentUrlForRequest(normalizedLabel, userMessage, baseUrl) || baseUrl;
+        const baseHost = preferredUrl ? new URL(preferredUrl).hostname.replace(/^www\./i, '') : baseUrl ? new URL(baseUrl).hostname.replace(/^www\./i, '') : '';
         const requestsModels = /\b(modelo|modelos|models)\b/i.test(this.normalizeSearchText(userMessage));
         const requestsLatest = /\b(recente|recentes|latest|novo|novos|mais recente)\b/i.test(this.normalizeSearchText(userMessage));
         const queryParts = [
@@ -1631,11 +1667,29 @@ Regras:
         return {
             id: `target_${index + 1}`,
             label,
-            url: '',
+            url: preferredUrl || '',
             query: queryParts.join(' '),
             navigationInstruction: userMessage,
             expectedHost: baseHost
         };
+    }
+
+    getPreferredAgentUrlForRequest(normalizedLabel, userMessage, fallbackUrl = '') {
+        const normalizedRequest = this.normalizeSearchText(userMessage);
+
+        if (normalizedLabel.includes('openai') && /\b(modelo|modelos|models)\b/i.test(normalizedRequest)) {
+            return 'https://platform.openai.com/docs/models';
+        }
+
+        if (normalizedLabel.includes('groq') && /\b(modelo|modelos|models)\b/i.test(normalizedRequest)) {
+            return 'https://console.groq.com/docs/models';
+        }
+
+        if (normalizedLabel.includes('python') && /\b(download|downloads)\b/i.test(normalizedRequest)) {
+            return 'https://www.python.org/downloads/';
+        }
+
+        return fallbackUrl || '';
     }
 
     buildDeterministicAgentPlanSteps(executionMode, targets = [], userMessage, options = {}) {
@@ -3413,9 +3467,33 @@ Regras:
         const directParts = [];
         const isListRequest = /modelo|modelos|models|lista|todos|itens/i.test(request);
         const asksAudio = /audio|voz|speech|transcri|asr|tts/i.test(this.normalizeSearchText(request));
+        const asksPriceComparison = /preco|precos|price|valor|mais barato|loja|lojas|a vista|avista|pix/i.test(this.normalizeSearchText(request));
 
         if (/cor|color/i.test(request) && context?.dominantColor) {
             directParts.push(`A cor predominante da página é ${context.dominantColor}.`);
+        }
+
+        if (asksPriceComparison) {
+            const priceComparison = this.extractAgentPriceComparisons(context?.artifacts || [], request);
+            if (priceComparison.entries.length) {
+                const cheaper = priceComparison.cheapest;
+                directParts.push(
+                    cheaper
+                        ? `Comparei ${priceComparison.entries.length} loja${priceComparison.entries.length > 1 ? 's' : ''} e a opção mais barata à vista foi ${cheaper.store} por ${cheaper.displayPrice}.`
+                        : `Encontrei ${priceComparison.entries.length} preço${priceComparison.entries.length > 1 ? 's' : ''} à vista nas fontes visitadas.`
+                );
+
+                return {
+                    resposta_direta: directParts.join(' '),
+                    itens_encontrados: priceComparison.entries.map((entry) => `${entry.store}: ${entry.displayPrice}`),
+                    evidencias: priceComparison.entries.map((entry) => entry.evidence).filter(Boolean).slice(0, 4),
+                    observacao: context?.blocked
+                        ? 'O site limitou parte da navegação automática nesta tentativa.'
+                        : ''
+                };
+            }
+
+            directParts.push('Não consegui extrair um preço à vista confiável nas páginas visitadas.');
         }
 
         if (isListRequest) {
@@ -3454,6 +3532,94 @@ Regras:
         };
     }
 
+    extractAgentPriceComparisons(artifacts = [], request = '') {
+        const requestedProductTokens = this.extractAgentProductTokens(request);
+        const entries = [];
+
+        const artifactList = Array.isArray(artifacts) ? artifacts : [];
+
+        artifactList.forEach((artifact) => {
+            const store = artifact?.targetLabel || this.getReadableSiteLabel(artifact?.targetUrl || '');
+            const pageText = this.coerceAgentList(artifact?.pageText || []);
+            const priceLines = [];
+
+            pageText.forEach((line, index) => {
+                const matches = String(line || '').match(/R\$\s*[\d\.\,]+/gi) || [];
+                matches.forEach((match) => {
+                    const numericValue = this.parseBrazilianCurrency(match);
+                    if (!Number.isFinite(numericValue)) {
+                        return;
+                    }
+
+                    const normalizedLine = this.normalizeSearchText(line);
+                    const nearbyLines = [
+                        pageText[index - 1] || '',
+                        pageText[index] || '',
+                        pageText[index + 1] || ''
+                    ].join(' ');
+                    const normalizedNearby = this.normalizeSearchText(nearbyLines);
+                    const productScore = requestedProductTokens.reduce((score, token) => (
+                        normalizedNearby.includes(token) ? score + 2 : score
+                    ), 0);
+                    const cashScore = /a vista|avista|pix|boleto/i.test(normalizedLine) ? 10 : 0;
+                    const score = productScore + cashScore;
+
+                    priceLines.push({
+                        store,
+                        displayPrice: match.replace(/\s+/g, ' ').trim(),
+                        numericValue,
+                        score,
+                        evidence: `${store}: ${line}`.trim()
+                    });
+                });
+            });
+
+            const bestEntry = priceLines
+                .sort((left, right) => {
+                    if (right.score !== left.score) {
+                        return right.score - left.score;
+                    }
+
+                    return left.numericValue - right.numericValue;
+                })[0];
+
+            if (bestEntry) {
+                entries.push(bestEntry);
+            }
+        });
+
+        const uniqueEntries = entries
+            .filter((entry, index, array) => array.findIndex((candidate) => candidate.store === entry.store) === index)
+            .sort((left, right) => left.numericValue - right.numericValue);
+
+        return {
+            entries: uniqueEntries,
+            cheapest: uniqueEntries[0] || null
+        };
+    }
+
+    extractAgentProductTokens(request = '') {
+        const normalized = this.normalizeSearchText(request)
+            .replace(/\b(preco|precos|valor|loja|lojas|mais barato|hoje|considerando|a vista|avista|pix|duas|diferentes|oficial|site|magalu|amazon|mercado livre|mercadolivre|casas bahia|casasbahia|kabum|fastshop|brasileiras|ex)\b/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        return normalized
+            .split(' ')
+            .filter((token) => token.length > 1)
+            .slice(0, 8);
+    }
+
+    parseBrazilianCurrency(value) {
+        const normalized = String(value || '')
+            .replace(/R\$\s*/i, '')
+            .replace(/\./g, '')
+            .replace(',', '.')
+            .trim();
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
     buildAgentFallbackNarrative({ request, targetUrl, pageTitle, blocked, mode, screenshots, analysis, dominantColor, navigationTrail, pageText, relevantItems = [], groundedResult = null, responseMode = 'new_research', priorContext = null, artifacts = [], executionPlan = null }) {
         const sections = [];
         const safeRequest = (request || '').trim();
@@ -3464,6 +3630,7 @@ Regras:
         const artifactList = Array.isArray(artifacts) ? artifacts : [];
         const requestedColor = /cor|color/i.test(safeRequest);
         const requestedList = /modelo|modelos|models|lista|todos|quais|itens/i.test(safeRequest);
+        const requestedPrice = /preco|precos|price|valor|mais barato|a vista|avista|pix/i.test(this.normalizeSearchText(safeRequest));
         const directAnswer = String(groundedResult?.resposta_direta || '').trim();
         const extractedItems = this.coerceAgentList(groundedResult?.itens_encontrados || relevantItems)
             .slice(0, this.extractRequestedItemCount(safeRequest));
@@ -3539,7 +3706,9 @@ Regras:
         }
 
         if (extractedItems.length) {
-            const listTitle = /modelo|modelos|models/i.test(safeRequest)
+            const listTitle = requestedPrice
+                ? 'Os preços que consegui confirmar nas fontes visitadas foram:'
+                : /modelo|modelos|models/i.test(safeRequest)
                 ? `Os ${extractedItems.length} modelos de IA que aparecem nessa página são:`
                 : requestedList
                     ? `Os ${extractedItems.length} itens mais relevantes que encontrei nessa página foram:`
@@ -4952,6 +5121,7 @@ Regras:
 
         // Botão de anexar arquivo
         this.setupAttachListeners();
+        this.setupAutoScrollObserver();
         this.restorePersistedAgentUiState();
         
         // Processar arquivos de código
