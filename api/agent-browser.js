@@ -164,6 +164,17 @@ export default async function handler(req, res) {
 }
 
 async function launchAgentBrowser() {
+    const remoteEndpoint = resolveRemoteBrowserEndpoint();
+    if (remoteEndpoint) {
+        try {
+            return await puppeteer.connect({
+                browserWSEndpoint: remoteEndpoint
+            });
+        } catch (error) {
+            console.error('Remote agent browser connection failed:', error);
+        }
+    }
+
     const isServerlessRuntime = Boolean(process.env.VERCEL || process.env.AWS_REGION || process.env.LAMBDA_TASK_ROOT);
     const executablePath = await resolveExecutablePath(isServerlessRuntime);
     const launchOptions = {
@@ -251,11 +262,27 @@ function looksLikeMissingBrowserError(error) {
     const message = String(error?.message || '');
     return message.includes('Could not find Chrome')
         || message.includes('Could not find Chromium')
-        || message.includes('Browser was not found');
+        || message.includes('Browser was not found')
+        || message.includes('error while loading shared libraries')
+        || message.includes('libnss3.so')
+        || message.includes('libatk-1.0.so.0')
+        || message.includes('libdrm.so.2')
+        || message.includes('libxkbcommon.so.0')
+        || message.includes('libxshmfence.so.1');
 }
 
 function isBrowserUnavailableError(error) {
     return error?.code === 'BROWSER_UNAVAILABLE' || looksLikeMissingBrowserError(error);
+}
+
+function resolveRemoteBrowserEndpoint() {
+    const candidates = [
+        process.env.BROWSER_WS_ENDPOINT,
+        process.env.PUPPETEER_WS_ENDPOINT,
+        process.env.BROWSERLESS_WS_ENDPOINT
+    ].filter(Boolean);
+
+    return candidates.find((value) => /^wss?:\/\//i.test(String(value || '').trim())) || '';
 }
 
 function normalizeUrl(rawUrl) {

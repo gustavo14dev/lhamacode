@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Chat with AI code assistant",
   "type": "module",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "lint": "eslint *.js",
     "lint:fix": "eslint *.js --fix",
