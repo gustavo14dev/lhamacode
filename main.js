@@ -3467,6 +3467,7 @@ Regras:
         const directParts = [];
         const isListRequest = /modelo|modelos|models|lista|todos|itens/i.test(request);
         const asksAudio = /audio|voz|speech|transcri|asr|tts/i.test(this.normalizeSearchText(request));
+        const asksLatest = /mais recente|mais recentes|latest|recent/i.test(this.normalizeSearchText(request));
         const asksPriceComparison = /preco|precos|price|valor|mais barato|loja|lojas|a vista|avista|pix/i.test(this.normalizeSearchText(request));
 
         if (/cor|color/i.test(request) && context?.dominantColor) {
@@ -3500,6 +3501,8 @@ Regras:
             if (relevantItems.length) {
                 if (asksAudio) {
                     directParts.push(`Entre os modelos visíveis em "${pageTitle}", os que mais parecem ser voltados a áudio são ${relevantItems.join(', ')}.`);
+                } else if (asksLatest) {
+                    directParts.push(`Na ordem em que a documentação exibiu os itens mais atuais, os ${relevantItems.length} modelos que consegui identificar em "${pageTitle}" foram ${relevantItems.join(', ')}.`);
                 } else {
                     directParts.push(`Encontrei ${relevantItems.length} modelo${relevantItems.length > 1 ? 's' : ''} de IA explicitamente listado${relevantItems.length > 1 ? 's' : ''} em "${pageTitle}".`);
                 }
@@ -3708,6 +3711,8 @@ Regras:
         if (extractedItems.length) {
             const listTitle = requestedPrice
                 ? 'Os preços que consegui confirmar nas fontes visitadas foram:'
+                : /modelo|modelos|models/i.test(safeRequest) && /mais recente|mais recentes|latest|recent/i.test(this.normalizeSearchText(safeRequest))
+                ? `Os ${extractedItems.length} modelos mais recentes que consegui identificar nessa página foram:`
                 : /modelo|modelos|models/i.test(safeRequest)
                 ? `Os ${extractedItems.length} modelos de IA que aparecem nessa página são:`
                 : requestedList
@@ -3827,47 +3832,124 @@ Regras:
         const lines = this.coerceAgentList(pageText)
             .map((item) => item.replace(/\s+/g, ' ').trim())
             .filter(Boolean);
-        const displayPattern = /\b(?:llama|gpt|whisper|qwen|gemma|mistral|moonshot|deepseek|compound|claude|kimi|codex|sora|dall(?:\s|-)?e|o1|o3|o4(?:\s|-)?mini|o4(?:\s|-)?mini(?:\s|-)?high)\b/i;
+        const displayPattern = /\b(?:llama|gpt(?:-[a-z0-9.]+)?|whisper|qwen|gemma|mistral|moonshot|deepseek|compound|claude|kimi|codex|sora|dall(?:\s|-)?e|o\d|text-embedding|gpt-image|gpt-realtime|omni-moderation|tts|transcription)\b/i;
         const modelIdPattern = /^(?:[a-z0-9-]+\/)?[a-z0-9][a-z0-9./-]*$/i;
         const ignoredModelLabels = /browser search|agentic ai|modalities|capabilities|token speed|documentation|getting started|core features|tools integrations|overview|quickstart/i;
         const pairedItems = [];
         const standaloneItems = [];
+        const allowedSuffixTokens = new Set(['mini', 'nano', 'pro', 'latest', 'high', 'low', 'turbo', 'large', 'small', 'medium', 'preview']);
+        const extractLeadingModelLabel = (value = '') => {
+            const tokens = String(value || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+            if (!tokens.length) {
+                return '';
+            }
+
+            const firstToken = tokens[0];
+            if (!displayPattern.test(firstToken) && !/^o\d(?:-\w+)?$/i.test(firstToken)) {
+                return '';
+            }
+
+            const selected = [firstToken];
+            for (let index = 1; index < tokens.length; index += 1) {
+                const token = tokens[index];
+                const normalizedToken = token.toLowerCase().replace(/[^\w-]/g, '');
+                const isVersionToken = /^v\d+$/i.test(token) || /^\d+$/.test(token);
+                if (!allowedSuffixTokens.has(normalizedToken) && !isVersionToken) {
+                    break;
+                }
+                selected.push(token);
+                if (selected.length >= 4) {
+                    break;
+                }
+            }
+
+            return selected.join(' ').trim();
+        };
+        const sanitizeDisplay = (value = '') => {
+            const clean = String(value || '').replace(/\s+/g, ' ').trim();
+            if (!clean) {
+                return '';
+            }
+
+            let normalized = clean
+                .replace(/^latest:\s*/i, '')
+                .replace(/^model id\s+/i, '')
+                .replace(/\s+\|\s+openai.*$/i, '')
+                .trim();
+
+            const openAiCardMatch = normalized.match(/^((?:GPT|Whisper|Codex|Sora|DALL(?:\s|-)?E|gpt-image|gpt-realtime|text-embedding|omni-moderation|o\d)[A-Za-z0-9 .:+/-]{0,48}?)(?:\s+(?:New|Preview|Best|Fastest|Flagship|Our|Built|For)\b|$)/i);
+            if (openAiCardMatch?.[1]) {
+                normalized = openAiCardMatch[1].trim();
+            }
+
+            const leadingLabel = extractLeadingModelLabel(normalized);
+            if (leadingLabel) {
+                normalized = leadingLabel;
+            }
+
+            normalized = normalized
+                .replace(/\s{2,}.*/, '')
+                .replace(/\b(New|Preview|Beta|Legacy|Deprecated)\b.*$/i, '')
+                .replace(/[,:;.-]+$/g, '')
+                .trim();
+
+            return normalized;
+        };
+        const extractModelId = (value = '') => {
+            const clean = String(value || '').replace(/\s+/g, ' ').trim();
+            if (!clean) {
+                return '';
+            }
+
+            const prefixed = clean.match(/\bmodel id\s+([a-z0-9][a-z0-9./-]*)\b/i);
+            if (prefixed?.[1]) {
+                return prefixed[1];
+            }
+
+            if (modelIdPattern.test(clean) && !clean.includes(' ') && (clean.includes('/') || /\d/.test(clean) || displayPattern.test(clean))) {
+                return clean;
+            }
+
+            return '';
+        };
 
         for (let index = 0; index < lines.length; index += 1) {
             const current = lines[index];
             const previous = lines[index - 1] || '';
             const next = lines[index + 1] || '';
-            const currentLooksLikeDisplay = displayPattern.test(current) && current.length <= 60 && !/[.!?]/.test(current);
-            const currentLooksLikeId = modelIdPattern.test(current)
-                && current.length <= 80
-                && !current.includes(' ')
-                && (current.includes('/') || /\d/.test(current) || displayPattern.test(current));
-            const nextLooksLikeId = modelIdPattern.test(next)
-                && next.length <= 80
-                && !next.includes(' ')
-                && (next.includes('/') || /\d/.test(next) || displayPattern.test(next));
+            const currentDisplay = sanitizeDisplay(current);
+            const previousDisplay = sanitizeDisplay(previous);
+            const currentLooksLikeDisplay = Boolean(currentDisplay) && displayPattern.test(currentDisplay) && currentDisplay.length <= 80 && !ignoredModelLabels.test(currentDisplay);
+            const currentLooksLikeId = extractModelId(current);
+            const nextLooksLikeId = extractModelId(next);
 
             if (currentLooksLikeDisplay && nextLooksLikeId) {
-                pairedItems.push(`${current} (${next})`);
+                pairedItems.push(`${currentDisplay} (${nextLooksLikeId})`);
                 continue;
             }
 
-            if (currentLooksLikeId && displayPattern.test(previous) && previous.length <= 60 && !/[.!?]/.test(previous)) {
-                pairedItems.push(`${previous} (${current})`);
+            if (currentLooksLikeId && previousDisplay && displayPattern.test(previousDisplay) && previousDisplay.length <= 80 && !ignoredModelLabels.test(previousDisplay)) {
+                pairedItems.push(`${previousDisplay} (${currentLooksLikeId})`);
                 continue;
             }
 
             if (currentLooksLikeId) {
-                standaloneItems.push(current);
+                standaloneItems.push(currentLooksLikeId);
                 continue;
             }
 
-            if (currentLooksLikeDisplay && !ignoredModelLabels.test(current) && !/[()]/.test(current)) {
-                standaloneItems.push(current);
+            if (currentLooksLikeDisplay && !/[()]/.test(currentDisplay)) {
+                standaloneItems.push(currentDisplay);
             }
         }
 
-        return [...pairedItems, ...standaloneItems]
+        const pairedDisplayNames = new Set(
+            pairedItems
+                .map((item) => item.match(/^(.+?)\s+\(/)?.[1]?.trim())
+                .filter(Boolean)
+        );
+
+        return [...pairedItems, ...standaloneItems.filter((item) => !pairedDisplayNames.has(item))]
             .filter((item, index, array) => array.indexOf(item) === index)
             .filter((item) => item.length >= 3 && item.length <= 90)
             .slice(0, 15);

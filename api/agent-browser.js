@@ -49,8 +49,8 @@ export default async function handler(req, res) {
         await wait(1200);
         await waitForReadableCapture(page);
 
-        let pageContext = await collectPageContext(page);
-        let pageTitle = await page.title();
+        let pageContext = await collectRichPageContext(page);
+        let pageTitle = pageContext.title || await page.title();
 
         if (isProtectedPage(pageTitle, pageContext)) {
             const fallback = await createMetadataFallback(
@@ -99,8 +99,8 @@ export default async function handler(req, res) {
 
             await wait(1200);
             await waitForReadableCapture(page);
-            pageContext = await collectPageContext(page);
-            pageTitle = await page.title();
+            pageContext = await collectRichPageContext(page);
+            pageTitle = pageContext.title || await page.title();
 
             screenshots.push(await captureScreenshot(
                 page,
@@ -663,6 +663,50 @@ async function collectPageContext(page) {
     });
 }
 
+async function collectRichPageContext(page) {
+    const baseContext = await collectPageContext(page);
+    return enrichSparsePageContext(page, baseContext);
+}
+
+async function enrichSparsePageContext(page, pageContext = {}) {
+    const visibleText = Array.isArray(pageContext.visibleText) ? pageContext.visibleText : [];
+    const hasReadableTitle = Boolean(pageContext.title) && !looksLikeUrlText(pageContext.title);
+    const hasUsefulText = visibleText.length >= 16 || visibleText.some((item) => String(item || '').length >= 60);
+    const hasDescription = Boolean(pageContext.description) && !/sem descricao detectada/i.test(pageContext.description);
+
+    if (hasReadableTitle && hasUsefulText && hasDescription) {
+        return pageContext;
+    }
+
+    let html = '';
+    try {
+        html = await page.content();
+    } catch {
+        return pageContext;
+    }
+
+    if (!html) {
+        return pageContext;
+    }
+
+    const metadata = extractPageMetadata(html, page.url());
+    const htmlVisibleText = extractVisibleTextFromHtml(html, 260);
+
+    return mergePageContexts({
+        title: metadata.title,
+        description: metadata.description,
+        headings: metadata.headings,
+        interactiveElements: metadata.interactiveElements,
+        visibleText: [...metadata.visibleText, ...htmlVisibleText],
+        scrollHeight: pageContext.scrollHeight || 0
+    }, pageContext);
+}
+
+function looksLikeUrlText(value) {
+    const text = String(value || '').trim();
+    return !text || /^https?:\/\//i.test(text) || /^[a-z0-9.-]+\.[a-z]{2,}(?:\/|$)/i.test(text);
+}
+
 function mergePageContexts(baseContext = {}, nextContext = {}) {
     const mergeTextList = (left = [], right = []) => [...left, ...right]
         .map((item) => String(item || '').replace(/\s+/g, ' ').trim())
@@ -713,8 +757,8 @@ async function performTaskSpecificInteractions(page, task, initialTitle, initial
 
     await wait(1000);
     await waitForReadableCapture(page);
-    pageContext = await collectPageContext(page);
-    pageTitle = await page.title();
+    pageContext = await collectRichPageContext(page);
+    pageTitle = pageContext.title || await page.title();
 
     screenshots.push(await captureScreenshot(
         page,
@@ -732,6 +776,33 @@ async function performTaskSpecificInteractions(page, task, initialTitle, initial
         interactionType: 'internal-search',
         query: taskProfile.searchQuery
     });
+
+    if (taskProfile.asksPrice || taskProfile.asksProducts) {
+        const resultNavigation = await attemptProductResultNavigation(page, taskProfile.searchQuery);
+        if (resultNavigation.success) {
+            await wait(1000);
+            await waitForReadableCapture(page);
+            pageContext = await collectRichPageContext(page);
+            pageTitle = pageContext.title || await page.title();
+
+            screenshots.push(await captureScreenshot(
+                page,
+                `Produto: ${resultNavigation.label || taskProfile.searchQuery}`,
+                `Abri o resultado mais relevante para ${taskProfile.searchQuery}.`
+            ));
+
+            navigationTrail.push({
+                targetHint: `abrir resultado de ${taskProfile.searchQuery}`,
+                success: true,
+                matchedText: resultNavigation.label || taskProfile.searchQuery,
+                href: page.url(),
+                previousUrl: resultNavigation.previousUrl,
+                currentUrl: page.url(),
+                interactionType: 'product-result',
+                query: taskProfile.searchQuery
+            });
+        }
+    }
 
     return {
         pageTitle,
@@ -810,6 +881,7 @@ function sanitizeInternalSearchQuery(value) {
 
 async function attemptInternalSiteSearch(page, query) {
     const previousUrl = page.url();
+    const previousSignature = await page.evaluate(() => `${location.href}\n${document.title}\n${(document.body?.innerText || '').slice(0, 800)}`);
     const expanded = await expandSearchInterface(page);
     if (expanded) {
         await wait(500);
@@ -862,8 +934,18 @@ async function attemptInternalSiteSearch(page, query) {
         }
     }
 
+    const nextSignature = await page.evaluate(() => `${location.href}\n${document.title}\n${(document.body?.innerText || '').slice(0, 800)}`);
+    const queryTokens = sanitizeInternalSearchQuery(query)
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((token) => token.length > 1);
+    const searchEchoFound = await page.evaluate((tokens) => {
+        const bodyText = String(document.body?.innerText || '').toLowerCase();
+        return tokens.length > 0 && tokens.every((token) => bodyText.includes(token));
+    }, queryTokens);
+
     return {
-        success: page.url() !== previousUrl || true,
+        success: page.url() !== previousUrl || nextSignature !== previousSignature || searchEchoFound,
         previousUrl,
         inputLabel: searchField.label || 'campo de busca'
     };
@@ -946,6 +1028,102 @@ async function clickSearchSubmit(page, query) {
     }, query);
 }
 
+async function attemptProductResultNavigation(page, query) {
+    const previousUrl = page.url();
+    const queryTokens = sanitizeInternalSearchQuery(query)
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((token) => token.length > 1)
+        .slice(0, 8);
+
+    const candidate = await page.evaluate((tokens) => {
+        const selectors = [
+            'main a[href]',
+            'article a[href]',
+            '[data-testid] a[href]',
+            'li a[href]',
+            'h2 a[href]',
+            'h3 a[href]',
+            'a[href]'
+        ];
+
+        const links = Array.from(new Set(
+            selectors.flatMap((selector) => Array.from(document.querySelectorAll(selector)))
+        ));
+
+        const scored = links
+            .map((link) => {
+                const rect = link.getBoundingClientRect();
+                const visible = rect.width > 40 && rect.height > 16;
+                if (!visible) {
+                    return null;
+                }
+
+                const href = link.href || link.getAttribute('href') || '';
+                const text = (link.textContent || link.getAttribute('aria-label') || link.getAttribute('title') || '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                if (!href || !text || text.length < 3) {
+                    return null;
+                }
+
+                const normalizedText = text.toLowerCase();
+                const tokenHits = tokens.reduce((score, token) => (
+                    normalizedText.includes(token) ? score + 2 : score
+                ), 0);
+                const productSignals = /(iphone|galaxy|macbook|playstation|smartphone|celular|notebook|produto)/i.test(text) ? 6 : 0;
+                const priceSignals = /r\$\s*[\d\.\,]+/i.test(text) ? 4 : 0;
+                const detailSignals = /(comprar|ver detalhes|detalhes|saiba mais)/i.test(text) ? 2 : 0;
+                const penalty = /(categoria|departamento|oferta|cupom|cartao|login|entrar|cadastro)/i.test(text) ? 8 : 0;
+                const score = tokenHits + productSignals + priceSignals + detailSignals - penalty;
+
+                if (score <= 0) {
+                    return null;
+                }
+
+                let selector = '';
+                if (link.id) {
+                    selector = `#${CSS.escape(link.id)}`;
+                } else if (link.getAttribute('data-testid')) {
+                    selector = `[data-testid="${CSS.escape(link.getAttribute('data-testid'))}"]`;
+                } else if (link.getAttribute('href')) {
+                    selector = `a[href="${CSS.escape(link.getAttribute('href'))}"]`;
+                }
+
+                return {
+                    selector,
+                    href,
+                    text,
+                    score
+                };
+            })
+            .filter(Boolean)
+            .sort((left, right) => right.score - left.score);
+
+        const best = scored[0];
+        if (!best) {
+            return null;
+        }
+
+        const target = best.selector ? document.querySelector(best.selector) : null;
+        (target || links.find((link) => (link.href || link.getAttribute('href') || '') === best.href && (link.textContent || '').replace(/\s+/g, ' ').trim() === best.text))?.click();
+        return best;
+    }, queryTokens);
+
+    if (!candidate) {
+        return { success: false, previousUrl, label: '' };
+    }
+
+    await waitForPossibleNavigation(page, previousUrl);
+
+    return {
+        success: page.url() !== previousUrl,
+        previousUrl,
+        label: candidate.text || query
+    };
+}
+
 async function collectScrollableSnapshots(page, initialContext, initialTitle, task) {
     const scrollMeta = await resolveScrollableViewport(page);
 
@@ -974,9 +1152,9 @@ async function collectScrollableSnapshots(page, initialContext, initialTitle, ta
         await scrollViewportTo(page, top);
         await waitForReadableCapture(page);
 
-        const stepContext = await collectPageContext(page);
+        const stepContext = await collectRichPageContext(page);
         mergedContext = mergePageContexts(mergedContext, stepContext);
-        pageTitle = pageTitle || await page.title();
+        pageTitle = stepContext.title || pageTitle || await page.title();
 
         screenshots.push(await captureScreenshot(
             page,
@@ -1416,17 +1594,36 @@ function extractPageMetadata(html, normalizedUrl) {
     const headings = extractMatches(html, /<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi, 6);
     const links = extractMatches(html, /<a\b[^>]*>([\s\S]*?)<\/a>/gi, 10);
     const buttons = extractMatches(html, /<button\b[^>]*>([\s\S]*?)<\/button>/gi, 6);
+    const htmlVisibleText = extractVisibleTextFromHtml(html, 120);
 
     return {
         title,
         description,
         headings,
-        visibleText: [...headings, description].filter(Boolean),
+        visibleText: [...headings, description, ...htmlVisibleText].filter(Boolean),
         interactiveElements: [...links, ...buttons].slice(0, 12).map((text) => ({
             tag: 'interactive',
             text
         }))
     };
+}
+
+function extractVisibleTextFromHtml(html, limit = 220) {
+    const source = String(html || '')
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, ' ')
+        .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, ' ')
+        .replace(/<!--[\s\S]*?-->/g, ' ')
+        .replace(/<\/(p|div|section|article|main|header|footer|li|ul|ol|h1|h2|h3|h4|h5|h6|tr|td|th|br)>/gi, '\n');
+
+    return source
+        .split(/\n+/)
+        .flatMap((line) => decodeHtml(stripTags(line)).split(/\s{2,}/))
+        .map((line) => line.replace(/\s+/g, ' ').trim())
+        .filter((line) => line.length > 1)
+        .filter((line, index, array) => array.indexOf(line) === index)
+        .slice(0, limit);
 }
 
 function findMetaContent(html, name) {
@@ -1546,6 +1743,21 @@ async function waitForReadableCapture(page) {
         });
     } catch {
         // Ignore transient evaluate failures and keep the capture flow moving.
+    }
+
+    try {
+        await page.waitForFunction(() => {
+            const bodyText = String(document.body?.innerText || '').replace(/\s+/g, ' ').trim();
+            if (bodyText.length >= 120) {
+                return true;
+            }
+
+            return Boolean(
+                document.querySelector('main h1, main h2, article h1, article h2, h1, h2, p, li')
+            );
+        }, { timeout: 6000 });
+    } catch {
+        // Some sites stay sparse; keep the flow moving and rely on HTML fallback extraction.
     }
 
     await wait(500);
