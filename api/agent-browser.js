@@ -1,7 +1,8 @@
 ﻿import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import puppeteer from 'puppeteer';
+import chromium from '@sparticuz/chromium';
+import puppeteer from 'puppeteer-core';
 
 const VIEWPORT = {
     width: 1440,
@@ -157,18 +158,25 @@ export default async function handler(req, res) {
 }
 
 async function launchAgentBrowser() {
-    const executablePath = resolveExecutablePath();
+    const isServerlessRuntime = Boolean(process.env.VERCEL || process.env.AWS_REGION || process.env.LAMBDA_TASK_ROOT);
+    const executablePath = await resolveExecutablePath(isServerlessRuntime);
     const launchOptions = {
         headless: true,
-        pipe: true,
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--disable-background-networking',
-            '--disable-extensions'
-        ]
+        pipe: !isServerlessRuntime,
+        args: isServerlessRuntime
+            ? [
+                ...chromium.args,
+                '--disable-background-networking',
+                '--disable-extensions'
+            ]
+            : [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--disable-background-networking',
+                '--disable-extensions'
+            ]
     };
 
     if (executablePath) {
@@ -176,11 +184,15 @@ async function launchAgentBrowser() {
     }
 
     try {
+        if (isServerlessRuntime && typeof chromium.setGraphicsMode === 'boolean') {
+            chromium.setGraphicsMode = false;
+        }
+
         return await puppeteer.launch(launchOptions);
     } catch (error) {
         if (looksLikeMissingBrowserError(error)) {
             const wrapped = new Error(
-                'Chrome do agente nao esta disponivel. Instale com "npx puppeteer browsers install chrome" ou configure PUPPETEER_EXECUTABLE_PATH.'
+                'Chrome do agente nao esta disponivel no runtime atual. Configure PUPPETEER_EXECUTABLE_PATH ou habilite o Chromium serverless no deploy.'
             );
             wrapped.code = 'BROWSER_UNAVAILABLE';
             throw wrapped;
@@ -190,7 +202,7 @@ async function launchAgentBrowser() {
     }
 }
 
-function resolveExecutablePath() {
+async function resolveExecutablePath(isServerlessRuntime = false) {
     const envCandidates = [
         process.env.PUPPETEER_EXECUTABLE_PATH,
         process.env.CHROME_EXECUTABLE_PATH,
@@ -203,13 +215,15 @@ function resolveExecutablePath() {
         }
     }
 
-    try {
-        const bundled = puppeteer.executablePath();
-        if (bundled && fs.existsSync(bundled)) {
-            return bundled;
+    if (isServerlessRuntime) {
+        try {
+            const serverlessExecutable = await chromium.executablePath();
+            if (serverlessExecutable) {
+                return serverlessExecutable;
+            }
+        } catch {
+            // Ignore and keep searching common OS paths.
         }
-    } catch {
-        // Ignore and keep searching common OS paths.
     }
 
     const homeDir = os.homedir();

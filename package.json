@@ -7,14 +7,15 @@
     "lint": "eslint *.js",
     "lint:fix": "eslint *.js --fix",
     "format": "prettier --write *.js",
-    "postinstall": "puppeteer browsers install chrome",
     "test": "jest",
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@sparticuz/chromium": "^123.0.1",
     "@myriaddreamin/typst.ts": "^0.6.0",
     "multiparty": "^4.2.3",
-    "pdfjs-dist": "^3.11.174"
+    "pdfjs-dist": "^3.11.174",
+    "puppeteer-core": "^24.36.1"
   },
   "devDependencies": {
     "@tailwindcss/container-queries": "^0.1.1",
