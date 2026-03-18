@@ -2309,7 +2309,7 @@ Regras:
     }
 
     buildAgentBrowseTask(userMessage, target = {}, step = {}, plan = {}) {
-        return [
+        const baseTask = [
             userMessage,
             target?.navigationInstruction,
             step?.description,
@@ -2318,6 +2318,16 @@ Regras:
             .map((item) => String(item || '').trim())
             .filter(Boolean)
             .join(' ');
+
+        const normalized = this.normalizeSearchText(baseTask);
+        const asksPrice = /\b(preco|precos|price|valor|mais barato|a vista|avista|pix)\b/i.test(normalized);
+        const asksProduct = /\b(iphone|galaxy|macbook|playstation|maquina de lavar|lava e seca|geladeira|notebook|smartphone|celular|tv)\b/i.test(normalized);
+
+        if (asksPrice || asksProduct) {
+            return `${baseTask} Pesquise no site, abra um resultado de produto relevante e colete apenas preços realmente visíveis.`;
+        }
+
+        return baseTask;
     }
 
     verifyAgentSourceIdentity(target = {}, session = {}, userMessage = '') {
@@ -3533,6 +3543,8 @@ Regras:
             return null;
         }
 
+        const request = String(context?.request || '');
+        const asksPriceComparison = /preco|precos|price|valor|mais barato|loja|lojas|a vista|avista|pix/i.test(this.normalizeSearchText(request));
         const pagePool = [
             context?.pageTitle || '',
             context?.targetUrl || '',
@@ -3554,9 +3566,18 @@ Regras:
             });
 
         const respostaDireta = String(result?.resposta_direta || result?.answer || '').trim();
-        const itensEncontrados = validateList(result?.itens_encontrados || result?.items || []);
-        const evidencias = validateList(result?.evidencias || result?.evidence || []).slice(0, 5);
+        let itensEncontrados = validateList(result?.itens_encontrados || result?.items || []);
+        let evidencias = validateList(result?.evidencias || result?.evidence || []).slice(0, 5);
         const observacao = String(result?.observacao || result?.observation || '').trim();
+
+        if (asksPriceComparison) {
+            itensEncontrados = itensEncontrados.filter((item) => /R\$\s*[\d\.\,]+/i.test(item));
+            evidencias = evidencias.filter((item) => /R\$\s*[\d\.\,]+/i.test(item));
+
+            if (!itensEncontrados.length && !evidencias.length) {
+                return null;
+            }
+        }
 
         if (!respostaDireta && !itensEncontrados.length && !evidencias.length && !observacao) {
             return null;

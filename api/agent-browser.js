@@ -853,6 +853,9 @@ function extractSiteSearchQuery(task) {
     const patterns = [
         /\bpre[cç]o d[oa]\s+(.+?)(?=\s+(?:em|no|na|nas|considerando|com|hoje)\b|$)/i,
         /\bvalor d[oa]\s+(.+?)(?=\s+(?:em|no|na|nas|considerando|com|hoje)\b|$)/i,
+        /\bprocurar\s+(.+?)(?=\s+(?:no|na|nas|em|site|loja|e\b|para\b)\b|$)/i,
+        /\bbuscar\s+(.+?)(?=\s+(?:no|na|nas|em|site|loja|e\b|para\b)\b|$)/i,
+        /\bpesquisar\s+(.+?)(?=\s+(?:no|na|nas|em|site|loja|e\b|para\b)\b|$)/i,
         /\bpesquise(?: por)?\s+(.+?)(?=\s+(?:no|na|nas|em|site|loja)\b|$)/i,
         /\bprocure(?: por)?\s+(.+?)(?=\s+(?:no|na|nas|em|site|loja)\b|$)/i,
         /\bbusque(?: por)?\s+(.+?)(?=\s+(?:no|na|nas|em|site|loja)\b|$)/i,
@@ -866,7 +869,7 @@ function extractSiteSearchQuery(task) {
         }
     }
 
-    const productLike = source.match(/\b(iPhone\s+\d+[^\.,;\n]*|Galaxy\s+[A-Za-z0-9+ -]+|MacBook[^\.,;\n]*|PlayStation\s*\d[^\.,;\n]*)/i);
+    const productLike = source.match(/\b(iPhone\s+\d+[^\.,;\n]*|Galaxy\s+[A-Za-z0-9+ -]+|MacBook[^\.,;\n]*|PlayStation\s*\d[^\.,;\n]*|m[aá]quina\s+de\s+lavar[^\.,;\n]*|lava\s+e\s+seca[^\.,;\n]*)/i);
     if (productLike?.[1]) {
         return sanitizeInternalSearchQuery(productLike[1]);
     }
