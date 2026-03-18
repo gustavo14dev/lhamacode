@@ -335,11 +335,69 @@ function guessUrlFromTask(task) {
 }
 
 function buildSearchQuery(task) {
-    return `${String(task || '')
+    const searchContext = buildAgentSearchContext(task);
+    const cleanTask = String(task || '')
         .replace(/https?:\/\/\S+/gi, ' ')
         .replace(/\bwww\.[^\s]+/gi, ' ')
         .replace(/\s+/g, ' ')
-        .trim()} site oficial`;
+        .trim();
+
+    return [
+        cleanTask,
+        searchContext.preferredHost ? `site:${searchContext.preferredHost}` : '',
+        searchContext.asksModels ? 'models model modelos IA' : '',
+        searchContext.asksLatest ? 'latest recent mais recentes' : '',
+        'site oficial'
+    ].filter(Boolean).join(' ');
+}
+
+function buildAgentSearchContext(task) {
+    const normalized = normalizeSearchText(task);
+    const preferredHost = extractPreferredOfficialHost(task);
+
+    return {
+        preferredHost,
+        officialOnly: /site oficial|site d[oa]|site de/i.test(task || ''),
+        asksModels: /\b(modelo|modelos|models)\b/i.test(normalized),
+        asksLatest: /\b(recente|recentes|latest|novo|novos|mais recente)\b/i.test(normalized)
+    };
+}
+
+function extractPreferredOfficialHost(task) {
+    const explicitUrl = extractExplicitUrl(task);
+    if (explicitUrl) {
+        try {
+            return new URL(explicitUrl).hostname.replace(/^www\./i, '');
+        } catch {
+            return '';
+        }
+    }
+
+    const normalized = normalizeSearchText(task);
+    const siteOperator = String(task || '').match(/\bsite:([a-z0-9.-]+\.[a-z]{2,})/i);
+    if (siteOperator?.[1]) {
+        return siteOperator[1].replace(/^www\./i, '').toLowerCase();
+    }
+
+    const explicitEntity = normalized.match(/site oficial d[oa] ([a-z0-9-]+)/i)
+        || normalized.match(/site d[oa] ([a-z0-9-]+)/i)
+        || normalized.match(/site de ([a-z0-9-]+)/i);
+
+    if (!explicitEntity?.[1]) {
+        return '';
+    }
+
+    const label = explicitEntity[1].toLowerCase();
+    const knownUrl = KNOWN_AGENT_DOMAINS[label];
+    if (!knownUrl) {
+        return '';
+    }
+
+    try {
+        return new URL(knownUrl).hostname.replace(/^www\./i, '');
+    } catch {
+        return '';
+    }
 }
 
 async function callAgentTavilySearch(query) {
@@ -408,16 +466,17 @@ function selectBestAgentSearchResult(task, results = []) {
 
     const entityTokens = extractAgentEntityTokens(task);
     const intentTokens = extractAgentIntentTokens(task);
+    const searchContext = buildAgentSearchContext(task);
 
     return results
         .map((result, index) => ({
             ...result,
-            score: scoreAgentSearchResult(result, entityTokens, intentTokens, index)
+            score: scoreAgentSearchResult(result, entityTokens, intentTokens, index, searchContext)
         }))
         .sort((left, right) => right.score - left.score)[0] || null;
 }
 
-function scoreAgentSearchResult(result, entityTokens, intentTokens, index) {
+function scoreAgentSearchResult(result, entityTokens, intentTokens, index, searchContext = {}) {
     const url = String(result?.url || '');
     const title = String(result?.title || '');
     const content = String(result?.content || '');
@@ -438,6 +497,14 @@ function scoreAgentSearchResult(result, entityTokens, intentTokens, index) {
 
     if (entityTokens.length && !hostMatchesEntity) {
         score -= 24;
+    }
+
+    if (searchContext.preferredHost) {
+        if (host === searchContext.preferredHost || host.endsWith(`.${searchContext.preferredHost}`)) {
+            score += 48;
+        } else {
+            score -= 70;
+        }
     }
 
     for (const token of intentTokens) {
@@ -463,6 +530,25 @@ function scoreAgentSearchResult(result, entityTokens, intentTokens, index) {
 
     if (/official|oficial/i.test(title)) {
         score += 4;
+    }
+
+    if (searchContext.asksModels) {
+        if (/models?|docs\/models|api\/models|api\/?$/i.test(url) || /models?|modelos?/i.test(`${title} ${content}`)) {
+            score += 24;
+        }
+
+        try {
+            const parsed = new URL(normalizeUrl(url));
+            if ((parsed.pathname === '/' || !parsed.pathname) && !/models?|api|docs/i.test(`${title} ${content}`)) {
+                score -= 18;
+            }
+        } catch {
+            // ignore malformed URL
+        }
+    }
+
+    if (searchContext.asksLatest && /latest|recent|new|frontier|release|launch|updated/i.test(`${url} ${title} ${content}`)) {
+        score += 12;
     }
 
     return score;

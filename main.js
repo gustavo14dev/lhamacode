@@ -309,16 +309,19 @@ class UI {
         switch(tool) {
             case 'investigate':
                 window.isInvestigateMode = true;
+                this.persistAgentUiState({ activeTool: 'investigate' });
                 this.showNotification('🔍 Modo Investigate ativado - Envie sua dúvida para investigação profunda', 'info');
                 break;
                 
             case 're':
                 window.isREMode = true;
+                this.persistAgentUiState({ activeTool: 're' });
                 this.showNotification('🧮 Modo Resolução de Exercícios ativado - Envie o exercício para resolver', 'info');
                 break;
                 
             case 'agent':
                 window.isAgentMode = true;
+                this.persistAgentUiState({ activeTool: 'agent' });
                 this.activateAgentMode();
                 // Atualizar botão para mostrar estado ativo
                 this.updateCreateButton();
@@ -811,6 +814,7 @@ class UI {
             .join('') || '<div class="text-gray-300">🔍 Analisando ambiente...</div>';
 
         responseContainer.innerHTML = html;
+        this.bindDynamicAutoScroll(responseContainer);
         this.scrollToBottom();
     }
 
@@ -915,6 +919,7 @@ class UI {
                         src="${entry.data}"
                         class="block w-full max-w-3xl cursor-zoom-in"
                         alt="Captura do agente"
+                        onload="window.ui && window.ui.handleDynamicContentRendered && window.ui.handleDynamicContentRendered()"
                         onclick="window.ui.expandScreenshot(this.src)"
                     >
                 </div>
@@ -997,6 +1002,25 @@ class UI {
     finishAgentResponse(message = '✅ Análise concluída') {
         this.addAgentTimelineEntry('status', { message });
         this.isAgentResponding = false;
+    }
+
+    bindDynamicAutoScroll(container) {
+        if (!container) {
+            return;
+        }
+
+        container.querySelectorAll('img').forEach((image) => {
+            if (image.dataset.autoScrollBound === 'true') {
+                return;
+            }
+
+            image.dataset.autoScrollBound = 'true';
+            image.addEventListener('load', () => this.handleDynamicContentRendered());
+        });
+    }
+
+    handleDynamicContentRendered() {
+        this.scrollToBottom();
     }
 
     // Expandir screenshot
@@ -1394,6 +1418,9 @@ Responda em formato JSON:
 
     async resolveAgentPlanTargets(userMessage, options = {}) {
         const explicitUrls = Array.isArray(options?.explicitUrls) ? options.explicitUrls : [];
+        const officialSources = this.extractOfficialAgentSources(userMessage);
+        const targetLimit = this.shouldAllowMultipleAgentTargets(userMessage) ? 3 : 1;
+
         if (explicitUrls.length) {
             return explicitUrls.map((url, index) => ({
                 id: `target_${index + 1}`,
@@ -1402,6 +1429,12 @@ Responda em formato JSON:
                 query: '',
                 navigationInstruction: userMessage
             }));
+        }
+
+        if (officialSources.length) {
+            return officialSources
+                .slice(0, targetLimit)
+                .map((label, index) => this.buildOfficialAgentTarget(label, userMessage, index));
         }
 
         if (options?.followUpStrategy?.mode === 'continue_research' && options?.previousAgentContext?.targetUrl) {
@@ -1416,10 +1449,10 @@ Responda em formato JSON:
 
         const llmTargets = await this.inferAgentTargetsWithLLM(userMessage, options);
         if (llmTargets.length) {
-            return llmTargets;
+            return llmTargets.slice(0, targetLimit);
         }
 
-        return this.extractAgentTargetsHeuristically(userMessage, options);
+        return this.extractAgentTargetsHeuristically(userMessage, options).slice(0, targetLimit);
     }
 
     async inferAgentTargetsWithLLM(userMessage, options = {}) {
@@ -1458,7 +1491,7 @@ Regras:
 - use rótulos curtos e claros.`;
 
         try {
-            const rawTargets = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
+            const rawTargets = await this.callAgentGroqWithRecovery('llama-3.1-8b-instant', [
                 {
                     role: 'system',
                     content: 'Extraia alvos de navegação para um agente autônomo em JSON estrito.'
@@ -1537,6 +1570,72 @@ Regras:
             query: `site oficial ${label}`,
             navigationInstruction: userMessage
         }));
+    }
+
+    shouldAllowMultipleAgentTargets(userMessage) {
+        const normalized = this.normalizeSearchText(userMessage);
+        return /\b(compare|comparar|versus|vs|diferenca|diferencas|entre .* e .*|dois sites|duas fontes|varios sites|muitos sites)\b/i.test(normalized);
+    }
+
+    getKnownAgentDomains() {
+        return {
+            python: 'https://www.python.org',
+            groq: 'https://groq.com',
+            openai: 'https://openai.com',
+            nike: 'https://www.nike.com.br',
+            vercel: 'https://vercel.com',
+            github: 'https://github.com'
+        };
+    }
+
+    extractOfficialAgentSources(userMessage) {
+        const text = String(userMessage || '');
+        const patterns = [
+            /site oficial d[oa]\s+([A-Za-z0-9._-]+)/gi,
+            /site d[oa]\s+([A-Za-z0-9._-]+)/gi,
+            /site de\s+([A-Za-z0-9._-]+)/gi
+        ];
+        const results = [];
+
+        patterns.forEach((pattern) => {
+            let match;
+            while ((match = pattern.exec(text)) !== null) {
+                const label = String(match[1] || '').trim().replace(/[.,;:!?]+$/g, '');
+                if (label) {
+                    results.push(label);
+                }
+            }
+        });
+
+        return results
+            .filter(Boolean)
+            .filter((label, index, array) => array.findIndex((candidate) => this.normalizeSearchText(candidate) === this.normalizeSearchText(label)) === index);
+    }
+
+    buildOfficialAgentTarget(label, userMessage, index = 0) {
+        const knownDomains = this.getKnownAgentDomains();
+        const normalizedLabel = this.normalizeSearchText(label);
+        const matchedDomain = Object.entries(knownDomains).find(([key]) => normalizedLabel.includes(key));
+        const baseUrl = matchedDomain ? matchedDomain[1] : '';
+        const baseHost = baseUrl ? new URL(baseUrl).hostname.replace(/^www\./i, '') : '';
+        const requestsModels = /\b(modelo|modelos|models)\b/i.test(this.normalizeSearchText(userMessage));
+        const requestsLatest = /\b(recente|recentes|latest|novo|novos|mais recente)\b/i.test(this.normalizeSearchText(userMessage));
+        const queryParts = [
+            baseHost ? `site:${baseHost}` : '',
+            label,
+            requestsModels ? 'models model modelos IA' : '',
+            requestsLatest ? 'latest recent mais recentes' : '',
+            'site oficial'
+        ].filter(Boolean);
+
+        return {
+            id: `target_${index + 1}`,
+            label,
+            url: '',
+            query: queryParts.join(' '),
+            navigationInstruction: userMessage,
+            expectedHost: baseHost
+        };
     }
 
     buildDeterministicAgentPlanSteps(executionMode, targets = [], userMessage, options = {}) {
@@ -1948,11 +2047,60 @@ Regras:
                     this.addAgentAction(`Abrindo ${target.resolvedUrl}`, 'pending');
 
                     const browserTask = this.buildAgentBrowseTask(options?.userMessage, target, step, plan);
-                    const session = await this.openAgentBrowserSession(target.resolvedUrl, browserTask);
+                    let session = await this.openAgentBrowserSession(target.resolvedUrl, browserTask);
+                    let sourceCheck = this.verifyAgentSourceIdentity(target, session, options?.userMessage);
+
+                    if (!sourceCheck.valid && !target.retryUsed) {
+                        target.retryUsed = true;
+                        this.addAgentThoughtLog(`⚠️ A fonte aberta não correspondeu a ${target.label}. Vou corrigir a rota e tentar de novo.`);
+                        this.addAgentAction(`Corrigindo a fonte de ${target.label}`, 'pending');
+
+                        const retriedTarget = await this.resolveAgentTarget(this.buildStrictSourceRetryQuery(target, options?.userMessage));
+                        const retriedUrl = this.normalizeAgentUrl(retriedTarget?.url);
+                        if (retriedUrl) {
+                            target.resolvedUrl = retriedUrl;
+                            session = await this.openAgentBrowserSession(retriedUrl, browserTask);
+                            sourceCheck = this.verifyAgentSourceIdentity(target, session, options?.userMessage);
+                        }
+                    }
+
+                    if (!sourceCheck.valid) {
+                        this.addAgentCheckpoint(`A fonte final aberta para ${target.label} não pôde ser verificada com segurança. Vou marcar isso na resposta.`);
+                    } else {
+                        this.addAgentCheckpoint(`Fonte verificada para ${target.label}: ${sourceCheck.actualHost || target.label}.`);
+                    }
+
                     this.addAgentAction(`Site carregado: ${session.currentUrl || target.resolvedUrl}`, 'executed');
 
                     const analysis = await this.analyzeOpenedSite(session, options?.userMessage, { targetLabel: target.label });
-                    const artifact = this.buildAgentArtifact(target, session, analysis, browserTask);
+                    let artifact = this.buildAgentArtifact(target, session, analysis, browserTask);
+                    artifact.sourceVerified = sourceCheck.valid;
+                    artifact.sourceVerificationReason = sourceCheck.reason;
+
+                    const requestsModels = /\b(modelo|modelos|models)\b/i.test(this.normalizeSearchText(options?.userMessage || ''));
+                    const extractedModels = this.extractModelItemsFromPageText(this.coerceAgentList(artifact?.pageText));
+                    if (requestsModels && sourceCheck.valid && extractedModels.length === 0 && !target.modelRetryUsed) {
+                        target.modelRetryUsed = true;
+                        const retryHost = target.expectedHost || sourceCheck.actualHost || this.extractHostToken(artifact.targetUrl);
+                        if (retryHost) {
+                            this.addAgentThoughtLog(`🔁 A página aberta ainda não expôs os modelos de forma clara. Vou tentar uma rota mais específica dentro da fonte oficial.`);
+                            const retryQuery = `site:${retryHost} ${target.label} latest models model modelos IA`;
+                            const retriedTarget = await this.resolveAgentTarget(retryQuery);
+                            const retriedUrl = this.normalizeAgentUrl(retriedTarget?.url);
+                            if (retriedUrl && retriedUrl !== artifact.targetUrl) {
+                                const retrySession = await this.openAgentBrowserSession(retriedUrl, `${browserTask} modelos recentes`);
+                                const retryAnalysis = await this.analyzeOpenedSite(retrySession, options?.userMessage, { targetLabel: target.label });
+                                const retrySourceCheck = this.verifyAgentSourceIdentity(target, retrySession, options?.userMessage);
+                                const retryArtifact = this.buildAgentArtifact(target, retrySession, retryAnalysis, `${browserTask} modelos recentes`);
+                                retryArtifact.sourceVerified = retrySourceCheck.valid;
+                                retryArtifact.sourceVerificationReason = retrySourceCheck.reason;
+                                if (this.extractModelItemsFromPageText(this.coerceAgentList(retryArtifact?.pageText)).length > 0) {
+                                    artifact = retryArtifact;
+                                }
+                            }
+                        }
+                    }
+
                     this.recordAgentArtifact(artifact);
                     this.addAgentCheckpoint(`Concluí a coleta em ${target.label}${artifact.pageTitle ? ` (${artifact.pageTitle})` : ''}.`);
                     return;
@@ -2004,6 +2152,55 @@ Regras:
             .map((item) => String(item || '').trim())
             .filter(Boolean)
             .join(' ');
+    }
+
+    verifyAgentSourceIdentity(target = {}, session = {}, userMessage = '') {
+        const actualUrl = session?.currentUrl || session?.requestedUrl || '';
+        const pageTitle = String(session?.title || session?.page?.title || '');
+        const actualHost = actualUrl ? this.extractHostToken(actualUrl) : '';
+        const normalizedLabel = this.normalizeSearchText(target?.label || '');
+        const labelTokens = normalizedLabel.split(' ').filter((token) => token.length > 2);
+        const expectedHost = String(target?.expectedHost || '').replace(/^www\./i, '');
+        const identityText = this.normalizeSearchText(`${actualUrl} ${pageTitle}`);
+
+        if (expectedHost && actualUrl) {
+            try {
+                const hostname = new URL(actualUrl).hostname.replace(/^www\./i, '');
+                if (hostname === expectedHost || hostname.endsWith(`.${expectedHost}`)) {
+                    return { valid: true, actualHost: hostname, reason: 'expected_host_match' };
+                }
+            } catch {
+                // ignore
+            }
+        }
+
+        if (!labelTokens.length) {
+            return { valid: true, actualHost, reason: 'no_label_tokens' };
+        }
+
+        const hasTokenMatch = labelTokens.some((token) => identityText.includes(token));
+        if (hasTokenMatch) {
+            return { valid: true, actualHost, reason: 'title_or_url_match' };
+        }
+
+        const officialRequest = /site oficial|site d[oa]|site de/i.test(userMessage || '');
+        return {
+            valid: !officialRequest,
+            actualHost,
+            reason: officialRequest ? 'official_source_mismatch' : 'soft_mismatch',
+            pageTitle
+        };
+    }
+
+    buildStrictSourceRetryQuery(target = {}, userMessage = '') {
+        const expectedHost = String(target?.expectedHost || '').replace(/^www\./i, '');
+        const label = target?.label || 'fonte oficial';
+        return [
+            expectedHost ? `site:${expectedHost}` : '',
+            label,
+            userMessage,
+            'fonte oficial'
+        ].filter(Boolean).join(' ');
     }
 
     buildAgentArtifact(target = {}, session = {}, analysis = null, browserTask = '') {
@@ -2082,6 +2279,7 @@ Regras:
                     pageTitle: artifact.pageTitle,
                     blocked: Boolean(artifact.blocked),
                     mode: artifact.mode,
+                    sourceVerified: artifact.sourceVerified !== false,
                     pageText: this.coerceAgentList(artifact.pageText).slice(0, 80)
                 }))
                 : [],
@@ -2153,7 +2351,7 @@ Entregue uma resposta final em português que:
 - não mencione JSON, prompts, nem bastidores internos.`;
 
         try {
-            const rawText = await this.agent.callGroqAPI('qwen/qwen3-32b', [
+            const rawText = await this.callAgentGroqWithRecovery('qwen/qwen3-32b', [
                 {
                     role: 'system',
                     content: 'Você produz respostas finais de um agente autônomo. Seja objetivo, útil e nada superficial.'
@@ -2439,7 +2637,7 @@ Regras:
 - não invente fatos e não escreva nada fora do JSON.`;
 
         try {
-            const rawDecision = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
+            const rawDecision = await this.callAgentGroqWithRecovery('llama-3.1-8b-instant', [
                 {
                     role: 'system',
                     content: 'Classifique continuidade de conversa de um agente web usando JSON estrito.'
@@ -2619,7 +2817,7 @@ Regras:
 - seja objetivo, útil e profissional.`;
 
         try {
-            const answer = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
+            const answer = await this.callAgentGroqWithRecovery('llama-3.1-8b-instant', [
                 {
                     role: 'system',
                     content: 'Você responde follow-ups de um agente web usando apenas o contexto coletado.'
@@ -2793,26 +2991,69 @@ Analise a imagem e responda com este formato:
 }`;
     }
 
+    isAgentRateLimitError(error) {
+        const message = String(error?.message || error || '');
+        return /429|rate limit|rate_limit|tpm|too many requests/i.test(message);
+    }
+
+    async waitForAgentRateLimitRecovery(providerLabel = 'API', delayMs = 90000) {
+        this.addAgentThoughtLog(`⚠️ Houve limitação temporária na ${providerLabel}. Vou pausar por 1 min 30 s e retomar automaticamente assim que possível.`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        this.addAgentThoughtLog(`🔄 Retomei a execução após a pausa de recuperação da ${providerLabel}.`);
+    }
+
+    async callAgentGroqWithRecovery(model, messages, providerLabel = 'Groq') {
+        try {
+            return await this.agent.callGroqAPI(model, messages);
+        } catch (error) {
+            if (!this.isAgentRateLimitError(error)) {
+                throw error;
+            }
+
+            await this.waitForAgentRateLimitRecovery(providerLabel);
+            return this.agent.callGroqAPI(model, messages);
+        }
+    }
+
     async callAgentAPI(prompt, imageData) {
         this.addAgentThoughtLog('🧠 IA pensando...');
 
-        try {
-            const geminiResponse = await this.callGeminiVision(prompt, imageData);
-            if (geminiResponse) {
-                return geminiResponse;
+        let rateLimitDetected = false;
+
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+            try {
+                const geminiResponse = await this.callGeminiVision(prompt, imageData);
+                if (geminiResponse) {
+                    return geminiResponse;
+                }
+
+                throw new Error('Gemini retornou resposta vazia');
+            } catch (error) {
+                console.error('❌ [AGENT] Erro na chamada da API:', error);
+                rateLimitDetected = rateLimitDetected || this.isAgentRateLimitError(error);
+
+                try {
+                    const groqResponse = await this.callGroqVision(prompt, imageData);
+                    if (groqResponse) {
+                        return groqResponse;
+                    }
+                } catch (groqError) {
+                    console.error('❌ [AGENT] Erro no fallback da API:', groqError);
+                    rateLimitDetected = rateLimitDetected || this.isAgentRateLimitError(groqError);
+                    if (!rateLimitDetected || attempt > 0) {
+                        throw groqError;
+                    }
+                }
             }
 
-            throw new Error('Gemini retornou resposta vazia');
-        } catch (error) {
-            console.error('❌ [AGENT] Erro na chamada da API:', error);
-
-            const groqResponse = await this.callGroqVision(prompt, imageData);
-            if (groqResponse) {
-                return groqResponse;
+            if (rateLimitDetected && attempt === 0) {
+                await this.waitForAgentRateLimitRecovery('API de visão');
+                rateLimitDetected = false;
+                continue;
             }
-
-            throw new Error('Ambas as APIs de visao falharam');
         }
+
+        throw new Error('Ambas as APIs de visao falharam');
     }
 
     // Chamar Groq Vision
@@ -3068,7 +3309,7 @@ Regras:
 - não escreva markdown, explicações, saudações nem blocos de código.`;
 
         try {
-            const groqText = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
+            const groqText = await this.callAgentGroqWithRecovery('llama-3.1-8b-instant', [
                 {
                     role: 'system',
                     content: 'Extraia respostas fundamentadas em JSON estrito.'
@@ -3276,6 +3517,11 @@ Regras:
             resultLines.push('Consegui abrir a página e acompanhar o conteúdo visual sem travar o fluxo do agente.');
         }
 
+        const unverifiedSources = artifactList.filter((artifact) => artifact?.sourceVerified === false);
+        if (unverifiedSources.length) {
+            resultLines.push('Nem todas as fontes puderam ser verificadas com segurança; considerei isso ao consolidar o resultado.');
+        }
+
         sections.push(resultLines.join(' '));
 
         if (artifactList.length > 1) {
@@ -3357,12 +3603,10 @@ Regras:
                 return extractedModelItems;
             }
 
-            const preferredModelItems = cleanItems.filter((item) => /llama|gpt|whisper|qwen|gemma|mistral|moonshot|deepseek|compound|claude|kimi|openai\/|meta-llama\/|groq\//i.test(item));
-            const remainingItems = cleanItems.filter((item) => !preferredModelItems.includes(item));
-
-            return [...preferredModelItems, ...remainingItems]
+            const preferredModelItems = cleanItems.filter((item) => /llama|gpt|whisper|qwen|gemma|mistral|moonshot|deepseek|compound|claude|kimi|codex|sora|dall(?:\s|-)?e|\bo1\b|\bo3\b|\bo4\b|openai\/|meta-llama\/|groq\//i.test(item));
+            return preferredModelItems
                 .filter((item) => !genericNavItems.has(this.normalizeSearchText(item)))
-                .filter((item) => item.length >= 2 && item.length <= 80)
+                .filter((item) => item.length >= 2 && item.length <= 90)
                 .slice(0, 12);
         }
 
@@ -3414,7 +3658,7 @@ Regras:
         const lines = this.coerceAgentList(pageText)
             .map((item) => item.replace(/\s+/g, ' ').trim())
             .filter(Boolean);
-        const displayPattern = /llama|gpt|whisper|qwen|gemma|mistral|moonshot|deepseek|compound|claude|kimi/i;
+        const displayPattern = /\b(?:llama|gpt|whisper|qwen|gemma|mistral|moonshot|deepseek|compound|claude|kimi|codex|sora|dall(?:\s|-)?e|o1|o3|o4(?:\s|-)?mini|o4(?:\s|-)?mini(?:\s|-)?high)\b/i;
         const modelIdPattern = /^(?:[a-z0-9-]+\/)?[a-z0-9][a-z0-9./-]*$/i;
         const ignoredModelLabels = /browser search|agentic ai|modalities|capabilities|token speed|documentation|getting started|core features|tools integrations|overview|quickstart/i;
         const pairedItems = [];
@@ -3487,6 +3731,52 @@ Regras:
             return `o site ${host}`;
         } catch {
             return targetUrl;
+        }
+    }
+
+    persistAgentUiState(patch = {}) {
+        try {
+            const currentState = JSON.parse(localStorage.getItem('drekee_agent_ui_state_v1') || '{}');
+            const nextState = {
+                ...currentState,
+                ...patch,
+                updatedAt: new Date().toISOString()
+            };
+
+            if (!nextState.activeTool && !nextState.pendingMessage) {
+                localStorage.removeItem('drekee_agent_ui_state_v1');
+                return;
+            }
+
+            localStorage.setItem('drekee_agent_ui_state_v1', JSON.stringify(nextState));
+        } catch (error) {
+            console.error('❌ [AGENT] Erro ao persistir estado da UI do agente:', error);
+        }
+    }
+
+    restorePersistedAgentUiState() {
+        try {
+            const persistedState = JSON.parse(localStorage.getItem('drekee_agent_ui_state_v1') || '{}');
+            const activeTool = persistedState?.activeTool || '';
+            const pendingMessage = String(persistedState?.pendingMessage || '');
+
+            if (activeTool === 'agent' && !window.isAgentMode) {
+                window.isAgentMode = true;
+                this.activateAgentMode();
+                this.updateCreateButton();
+            } else if (activeTool === 're') {
+                window.isREMode = true;
+            } else if (activeTool === 'investigate') {
+                window.isInvestigateMode = true;
+            }
+
+            if (pendingMessage && this.elements?.userInput && !this.elements.userInput.value.trim()) {
+                this.elements.userInput.value = pendingMessage;
+                this.elements.userInput.dispatchEvent(new Event('input', { bubbles: true }));
+                this.showNotification('📝 Restaurei sua mensagem após o redirecionamento.', 'info');
+            }
+        } catch (error) {
+            console.error('❌ [AGENT] Erro ao restaurar estado da UI do agente:', error);
         }
     }
 
@@ -3987,6 +4277,7 @@ Regras:
         window.isAgentMode = false;
         this.isAgentPaused = false;
         this.lastAgentResponse = null;
+        this.persistAgentUiState({ activeTool: null, pendingMessage: '' });
         
         // Notificação
         this.showNotification('🛑 Drekee Agent 1.0 desativado', 'info');
@@ -4661,6 +4952,7 @@ Regras:
 
         // Botão de anexar arquivo
         this.setupAttachListeners();
+        this.restorePersistedAgentUiState();
         
         // Processar arquivos de código
         const codeFileInput = document.getElementById('codeFileInput');
@@ -6432,9 +6724,18 @@ ${latexCode}
         
         if (!isGuest && !isLoggedIn) {
             // Redirecionar para login apenas se não for visitante e não estiver logado
+            this.persistAgentUiState({
+                activeTool: window.isAgentMode ? 'agent' : window.isREMode ? 're' : window.isInvestigateMode ? 'investigate' : null,
+                pendingMessage: message
+            });
             window.location.href = 'login.html';
             return;
         }
+
+        this.persistAgentUiState({
+            activeTool: window.isAgentMode ? 'agent' : window.isREMode ? 're' : window.isInvestigateMode ? 'investigate' : null,
+            pendingMessage: ''
+        });
 
         // Se modo agente está ativo, processar mensagem com o agente
         if (window.isAgentMode) {
@@ -10594,37 +10895,34 @@ ${chunk}${bibliographyBlock}
 
         if (!chat) return;
 
-        // Força scroll absoluto (imediato)
+        const messagesContainer = this.elements.messagesContainer || document.getElementById('messagesContainer');
+        const performScroll = () => {
+            const targetHeight = Math.max(
+                chat.scrollHeight || 0,
+                messagesContainer?.scrollHeight || 0,
+                document.documentElement?.scrollHeight || 0,
+                document.body?.scrollHeight || 0
+            );
 
-        chat.scrollTop = chat.scrollHeight;
+            chat.scrollTop = targetHeight;
+            if (messagesContainer) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
 
-        // Depois tenta smooth (caso suporte)
+            try {
+                chat.scrollTo({ top: targetHeight, behavior: 'smooth' });
+            } catch (e) {}
 
-        try {
+            try {
+                window.scrollTo({ top: targetHeight, behavior: 'smooth' });
+            } catch (e) {}
+        };
 
-            chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
-
-        } catch (e) {}
-
-        // Reforço após 50ms
-
-        setTimeout(() => {
-
-            chat.scrollTop = chat.scrollHeight;
-
-            try { chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' }); } catch (e) {}
-
-        }, 50);
-
-        // Reforço após 300ms
-
-        setTimeout(() => {
-
-            chat.scrollTop = chat.scrollHeight;
-
-            try { chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' }); } catch (e) {}
-
-        }, 300);
+        performScroll();
+        requestAnimationFrame(performScroll);
+        setTimeout(performScroll, 50);
+        setTimeout(performScroll, 180);
+        setTimeout(performScroll, 420);
 
     }
 
