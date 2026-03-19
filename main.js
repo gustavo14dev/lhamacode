@@ -59,6 +59,8 @@ class UI {
         this.agentThinkingIndicatorDelayMs = 3000;
         this.agentThinkingIndicatorTimer = null;
         this.isAgentWorking = false;
+        this.responseCodeBlocks = new Map();
+        this.dragOverlayCounter = 0;
         this.boundHandleSend = this.handleSend.bind(this);
         this.boundHandlePause = this.handlePause.bind(this);
 
@@ -97,6 +99,7 @@ class UI {
             codeFileInput: document.getElementById('codeFileInput'),
             imageFileInput: document.getElementById('imageFileInput'),
             attachedFilesContainer: document.getElementById('attachedFilesContainer'),
+            dragDropOverlay: document.getElementById('dragDropOverlay'),
             updatesBtn: document.getElementById('updatesBtn'),
             updatesBadge: document.getElementById('updatesBadge'),
             newChatBtn: document.getElementById('newChatBtn'),
@@ -114,7 +117,6 @@ class UI {
 
         this.cameraStream = null;
         this.currentFacingMode = 'user';
-        this.setupAttachListeners();
 
         // Debug (somente se flag ativada)
         if (DEBUG) {
@@ -5152,53 +5154,261 @@ Regras:
     }
 
     addAttachment(file) {
-        if (this.attachedFiles.length >= 5) {
-            alert('Máximo de 5 anexos permitidos.');
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const attachment = {
-                id: Date.now().toString(),
-                file: file,
-                preview: e.target.result,
-                name: file.name,
-                mime: file.type,
-                type: 'image',
-                content: e.target.result
-            };
-            
-            this.attachedFiles.push(attachment);
-            this.renderAttachments();
-        };
-        reader.readAsDataURL(file);
+        return this.attachImageFile(file);
     }
 
     removeAttachment(id) {
-        this.attachedFiles = this.attachedFiles.filter(a => a.id !== id);
-        this.renderAttachments();
+        this.attachedFiles = this.attachedFiles.filter((attachment) => attachment.id !== id);
+        this.renderAttachedFiles();
     }
 
     renderAttachments() {
-        const container = this.elements.attachedFilesContainer;
-        if (!container) return;
-        
-        if (this.attachedFiles.length === 0) {
-            container.classList.add('hidden');
-            container.innerHTML = '';
-            return;
+        this.renderAttachedFiles();
+    }
+
+    readFileAsDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ''));
+            reader.onerror = () => reject(reader.error || new Error('Falha ao ler o arquivo.'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async attachImageFile(file, options = {}) {
+        const { silent = false } = options;
+        if (!file) return false;
+
+        if (!String(file.type || '').startsWith('image/')) {
+            if (!silent) {
+                this.showNotification(`❌ ${file.name || 'Arquivo'} não é uma imagem válida.`, 'error');
+            }
+            return false;
         }
-        
-        container.classList.remove('hidden');
-        container.innerHTML = this.attachedFiles.map(a => `
-            <div class="relative inline-block mr-2 mb-2 group">
-                <img src="${a.preview}" class="w-16 h-16 object-cover rounded-lg border border-white/10">
-                <button onclick="window.ui.removeAttachment('${a.id}')" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span class="material-icons-outlined" style="font-size:14px">close</span>
-                </button>
-            </div>
-        `).join('');
+
+        if (this.attachedFiles.length >= 5) {
+            if (!silent) {
+                this.showNotification('❌ Máximo de 5 imagens anexadas.', 'error');
+            }
+            return false;
+        }
+
+        const MAX_SIZE = 4 * 1024 * 1024;
+        if ((file.size || 0) > MAX_SIZE) {
+            if (!silent) {
+                this.showNotification(`❌ A imagem ${file.name || 'selecionada'} excede 4MB.`, 'error');
+            }
+            return false;
+        }
+
+        try {
+            const dataUrl = await this.readFileAsDataUrl(file);
+            const attachment = {
+                id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                file,
+                preview: dataUrl,
+                name: file.name || `imagem_${Date.now()}.png`,
+                mime: file.type || 'image/png',
+                type: 'image',
+                content: dataUrl,
+                size: file.size || 0
+            };
+            this.attachedFiles.push(attachment);
+            this.renderAttachedFiles();
+            if (!silent) {
+                this.showNotification(`🖼️ ${attachment.name} anexada com sucesso.`, 'success');
+            }
+            return true;
+        } catch (error) {
+            console.error('❌ Erro ao anexar imagem:', error);
+            if (!silent) {
+                this.showNotification('❌ Não consegui anexar essa imagem.', 'error');
+            }
+            return false;
+        }
+    }
+
+    async attachImageFromUrl(url, options = {}) {
+        const { silent = false } = options;
+        if (!url) return false;
+
+        const normalizedUrl = String(url).trim();
+        const candidateUrls = [
+            normalizedUrl,
+            `/api/image-proxy?url=${encodeURIComponent(normalizedUrl)}`
+        ];
+
+        for (const candidateUrl of candidateUrls) {
+            try {
+                const response = await fetch(candidateUrl);
+                if (!response.ok) {
+                    continue;
+                }
+                const blob = await response.blob();
+                const extension = (blob.type || 'image/png').split('/')[1] || 'png';
+                const file = new File([blob], `imagem_arrastada_${Date.now()}.${extension}`, {
+                    type: blob.type || 'image/png'
+                });
+                const attached = await this.attachImageFile(file, { silent });
+                if (attached) {
+                    return true;
+                }
+            } catch (error) {
+                console.warn('Falha ao importar imagem por URL:', candidateUrl, error);
+            }
+        }
+
+        if (!silent) {
+            this.showNotification('❌ Não consegui anexar a imagem arrastada.', 'error');
+        }
+        return false;
+    }
+
+    extractDraggedImageUrls(dataTransfer) {
+        const urls = new Set();
+        const html = dataTransfer?.getData('text/html') || '';
+        const uriList = dataTransfer?.getData('text/uri-list') || '';
+        const plainText = dataTransfer?.getData('text/plain') || '';
+
+        if (html) {
+            try {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                doc.querySelectorAll('img[src]').forEach((img) => {
+                    if (img.src) urls.add(img.src);
+                });
+            } catch (error) {
+                console.warn('Falha ao ler HTML arrastado:', error);
+            }
+        }
+
+        uriList
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .forEach((line) => urls.add(line));
+
+        if (/^https?:\/\//i.test(plainText) && /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(plainText)) {
+            urls.add(plainText.trim());
+        }
+
+        return Array.from(urls);
+    }
+
+    hasImageDataTransfer(dataTransfer) {
+        if (!dataTransfer) return false;
+        const items = Array.from(dataTransfer.items || []);
+        if (items.some((item) => item.kind === 'file' && String(item.type || '').startsWith('image/'))) {
+            return true;
+        }
+        const types = Array.from(dataTransfer.types || []);
+        return types.includes('Files') || types.includes('text/html') || types.includes('text/uri-list');
+    }
+
+    showDragDropOverlay() {
+        const overlay = this.elements.dragDropOverlay;
+        if (!overlay) return;
+        overlay.classList.add('is-visible');
+    }
+
+    hideDragDropOverlay(force = false) {
+        const overlay = this.elements.dragDropOverlay;
+        if (!overlay) return;
+        if (force) {
+            this.dragOverlayCounter = 0;
+        }
+        if (this.dragOverlayCounter <= 0 || force) {
+            overlay.classList.remove('is-visible');
+        }
+    }
+
+    setupClipboardImagePaste() {
+        const input = this.elements.userInput;
+        if (!input) return;
+
+        input.addEventListener('paste', async (event) => {
+            const items = Array.from(event.clipboardData?.items || []);
+            const imageItems = items.filter((item) => item.kind === 'file' && String(item.type || '').startsWith('image/'));
+            if (imageItems.length === 0) {
+                return;
+            }
+
+            event.preventDefault();
+            let addedCount = 0;
+            for (const item of imageItems) {
+                const file = item.getAsFile();
+                if (!file) continue;
+                const attached = await this.attachImageFile(file, { silent: true });
+                if (attached) {
+                    addedCount += 1;
+                }
+            }
+
+            if (addedCount > 0) {
+                this.showNotification(`🖼️ ${addedCount} imagem(ns) colada(s) como anexo.`, 'success');
+            }
+        });
+    }
+
+    setupDragAndDropAttachments() {
+        const overlay = this.elements.dragDropOverlay;
+        if (!overlay) return;
+
+        const onDragEnter = (event) => {
+            if (!this.hasImageDataTransfer(event.dataTransfer)) return;
+            event.preventDefault();
+            this.dragOverlayCounter += 1;
+            this.showDragDropOverlay();
+        };
+
+        const onDragOver = (event) => {
+            if (!this.hasImageDataTransfer(event.dataTransfer)) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+            this.showDragDropOverlay();
+        };
+
+        const onDragLeave = (event) => {
+            if (!this.hasImageDataTransfer(event.dataTransfer)) return;
+            event.preventDefault();
+            this.dragOverlayCounter = Math.max(0, this.dragOverlayCounter - 1);
+            this.hideDragDropOverlay();
+        };
+
+        const onDrop = async (event) => {
+            if (!this.hasImageDataTransfer(event.dataTransfer)) return;
+            event.preventDefault();
+            this.hideDragDropOverlay(true);
+
+            let addedCount = 0;
+            const imageFiles = Array.from(event.dataTransfer?.files || []).filter((file) => String(file.type || '').startsWith('image/'));
+            for (const file of imageFiles) {
+                const attached = await this.attachImageFile(file, { silent: true });
+                if (attached) {
+                    addedCount += 1;
+                }
+            }
+
+            if (addedCount === 0) {
+                const draggedUrls = this.extractDraggedImageUrls(event.dataTransfer).slice(0, Math.max(0, 5 - this.attachedFiles.length));
+                for (const url of draggedUrls) {
+                    const attached = await this.attachImageFromUrl(url, { silent: true });
+                    if (attached) {
+                        addedCount += 1;
+                    }
+                }
+            }
+
+            if (addedCount > 0) {
+                this.showNotification(`🖼️ ${addedCount} imagem(ns) anexada(s) por arrastar e soltar.`, 'success');
+            } else {
+                this.showNotification('❌ Não encontrei imagens válidas para anexar.', 'error');
+            }
+        };
+
+        window.addEventListener('dragenter', onDragEnter);
+        window.addEventListener('dragover', onDragOver);
+        window.addEventListener('dragleave', onDragLeave);
+        window.addEventListener('drop', onDrop);
     }
 
     // MODO RE - Card especial de anexos
@@ -5663,92 +5873,6 @@ Regras:
         }
 
         
-
-        // Processar arquivos de imagem
-        const imageFileInput = document.getElementById('imageFileInput');
-        if (imageFileInput) {
-
-            imageFileInput.addEventListener('change', (e) => {
-
-                const rawFiles = Array.from(e.target.files || []);
-
-                if (rawFiles.length === 0) return;
-
-                const limited = rawFiles.slice(0, 5); // Máximo 5 imagens
-
-                
-
-                limited.forEach(f => {
-
-                    if (!f.type.startsWith('image/')) {
-
-                        this.addAssistantMessage(`❗ ${f.name} não é uma imagem válida.`);
-
-                        return;
-
-                    }
-
-                    
-
-                    // Verificar tamanho (máximo 4MB para base64)
-
-                    const MAX_SIZE = 4 * 1024 * 1024; // 4MB
-
-                    if (f.size > MAX_SIZE) {
-
-                        this.addAssistantMessage(`❗ A imagem ${f.name} excede o limite de 4MB e não será anexada.`);
-
-                        return;
-
-                    }
-
-                    
-
-                    const reader = new FileReader();
-
-                    reader.onload = () => {
-
-                        const base64 = String(reader.result);
-
-                        this.attachedFiles.push({ 
-
-                            name: f.name, 
-
-                            content: base64,
-
-                            mime: f.type,
-
-                            type: 'image',
-
-                            size: f.size
-
-                        });
-
-                        this.renderAttachedFiles();
-
-                        console.log('🖼️ Imagem anexada:', f.name, '(', f.size, 'bytes)');
-
-                        this.addAssistantMessage(`🖼️ ${this.attachedFiles.length} imagem(ns) anexada(s). Ao enviar, será usado o modelo 'meta-llama/llama-4-scout-17b-16e-instruct'.`);
-
-                    };
-
-                    reader.readAsDataURL(f);
-
-                });
-
-                
-
-                if (limited.length === 0) {
-
-                    this.addAssistantMessage('❗ Nenhuma imagem foi anexada.');
-
-                }
-
-                e.target.value = null;
-            });
-        }
-
-        
         // Criar dropdown flutuante
         this.createFloatingDropdown();
         
@@ -5804,6 +5928,8 @@ Regras:
 
         // Auto-resize da caixa de mensagem
         this.setupAutoResize();
+        this.setupClipboardImagePaste();
+        this.setupDragAndDropAttachments();
 
         
 
@@ -6034,6 +6160,17 @@ Regras:
 
                 </button>
 
+                <button class="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3 last:rounded-b-lg" data-external-url="https://drekeepro.vercel.app">
+
+                    <span class="material-icons-outlined text-base text-cyan-400 mt-0.5">rocket_launch</span>
+
+                    <div class="flex-1">
+                        <div class="font-medium">Ultra</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Drekee 1.5 Pro</div>
+                    </div>
+
+                </button>
+
             </div>
 
         `;
@@ -6046,7 +6183,7 @@ Regras:
 
         // Setup dos botões do dropdown
 
-        const buttons = document.querySelectorAll('#floatingModelDropdown button[data-model]');
+        const buttons = document.querySelectorAll('#floatingModelDropdown button[data-model], #floatingModelDropdown button[data-external-url]');
 
         buttons.forEach(btn => {
 
@@ -6055,10 +6192,12 @@ Regras:
                 e.stopPropagation();
 
                 if (!btn.disabled) {
-
-                    const model = btn.dataset.model;
-
-                    this.setModel(model);
+                    if (btn.dataset.externalUrl) {
+                        window.open(btn.dataset.externalUrl, '_blank', 'noopener,noreferrer');
+                    } else {
+                        const model = btn.dataset.model;
+                        this.setModel(model);
+                    }
 
                     document.getElementById('floatingModelDropdown').classList.add('hidden');
 
@@ -9966,7 +10105,7 @@ ${chunk}${bibliographyBlock}
 
                 // Texto normal - formatar
 
-                responseDiv.innerHTML = this.formatResponse(text);
+                responseDiv.innerHTML = this.formatResponse(text, responseDiv.id);
 
             }
 
@@ -10396,6 +10535,7 @@ ${chunk}${bibliographyBlock}
         console.log('🔍 [TYPE] Callback:', typeof callback);
         
         text = (text == null) ? '' : String(text);
+        const responseKey = element?.id || `response_${Date.now()}`;
 
         console.log('🔍 [TYPE] Iniciando typewriter com imagesHtml length:', imagesHtml.length);
         console.log('🔍 [TYPE] ImagesHtml preview:', imagesHtml.substring(0, 100));
@@ -10406,7 +10546,7 @@ ${chunk}${bibliographyBlock}
 
             // Sem animação; renderizar direto com imagens
 
-            const formattedHtml = this.formatResponse(text);
+            const formattedHtml = this.formatResponse(text, responseKey);
             
             // Combinar imagens + texto
             element.innerHTML = imagesHtml + formattedHtml;
@@ -10457,7 +10597,7 @@ ${chunk}${bibliographyBlock}
 
                 // Formatar o texto parcial já bonito
 
-                const formattedPartial = this.formatResponse(partialText);
+                const formattedPartial = this.formatResponse(partialText, responseKey);
 
                 // Combinar imagens + texto durante animação
                 element.innerHTML = imagesHtml + formattedPartial;
@@ -10497,7 +10637,7 @@ ${chunk}${bibliographyBlock}
 
         // Garantir formatação final completa
 
-        const finalFormatted = this.formatResponse(text);
+        const finalFormatted = this.formatResponse(text, responseKey);
 
         // Combinar imagens + texto final
         element.innerHTML = imagesHtml + finalFormatted;
@@ -10517,7 +10657,7 @@ ${chunk}${bibliographyBlock}
 
 
 
-    formatResponse(text) {
+    formatResponse(text, responseKey = null) {
 
         if (!text || text.length === 0) {
 
@@ -10593,6 +10733,7 @@ ${chunk}${bibliographyBlock}
         // Extrair todos os blocos de código e armazená-los
 
         const codeBlocks = [];
+        const normalizedResponseKey = responseKey || `response_${Date.now()}`;
 
         let cleanText = textWithMathPlaceholders.replace(/```([\w-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
 
@@ -10653,9 +10794,9 @@ ${chunk}${bibliographyBlock}
 
         
 
-        // Remover código inline
+        // Preservar código inline curto dentro da resposta
 
-        formatted = formatted.replace(/`([^`]+)`/g, '$1');
+        formatted = formatted.replace(/`([^`]+)`/g, '<code class="inline-flex items-center rounded-md border border-slate-700 bg-slate-900/95 px-2 py-0.5 font-mono text-[0.92em] text-slate-100">$1</code>');
 
         
 
@@ -10817,6 +10958,17 @@ ${chunk}${bibliographyBlock}
 
         
 
+        this.storeResponseCodeBlocks(normalizedResponseKey, codeBlocks);
+
+        const inlineCodeBlocks = codeBlocks
+            .map((block, index) => ({ block, index }))
+            .filter(({ block }) => this.shouldRenderInlineCodeBlock(block))
+            .map(({ block, index }) => this.renderInlineCodeBlock(block, index, normalizedResponseKey));
+
+        if (inlineCodeBlocks.length > 0) {
+            formatted += `<div class="mt-4 space-y-3">${inlineCodeBlocks.join('')}</div>`;
+        }
+
         // Adicionar botões para abrir códigos ao final
 
         if (codeBlocks.length > 0) {
@@ -10824,10 +10976,7 @@ ${chunk}${bibliographyBlock}
             formatted += '<div class="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-2">';
 
             codeBlocks.forEach((block, index) => {
-
-                const btnId = 'codeBtn_' + Date.now() + '_' + index;
-
-                formatted += `<button onclick="openCodeModal(${index}, '${block.lang}')" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white text-sm font-semibold rounded-lg transition-all transform hover:scale-105 active:scale-95">
+                formatted += `<button onclick="window.ui && window.ui.openCodeModalForResponse(${JSON.stringify(normalizedResponseKey)}, ${index}, ${JSON.stringify(block.lang || 'plaintext')})" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white text-sm font-semibold rounded-lg transition-all transform hover:scale-105 active:scale-95">
 
                     <span class="material-icons-outlined" style="font-size:18px;">code</span>
 
@@ -10841,8 +10990,6 @@ ${chunk}${bibliographyBlock}
 
             
 
-            // Armazenar os códigos em uma variável global para acesso posterior
-
             window._lastCodeBlocks = codeBlocks;
 
         }
@@ -10851,6 +10998,168 @@ ${chunk}${bibliographyBlock}
 
         return formatted;
 
+    }
+
+    storeResponseCodeBlocks(responseKey, codeBlocks = []) {
+        if (!responseKey) return;
+        if (!Array.isArray(codeBlocks) || codeBlocks.length === 0) {
+            this.responseCodeBlocks.delete(responseKey);
+            return;
+        }
+        this.responseCodeBlocks.set(responseKey, codeBlocks);
+    }
+
+    getResponseCodeBlocks(responseKey) {
+        if (responseKey && this.responseCodeBlocks.has(responseKey)) {
+            return this.responseCodeBlocks.get(responseKey) || [];
+        }
+        return Array.isArray(window._lastCodeBlocks) ? window._lastCodeBlocks : [];
+    }
+
+    normalizeCodeLanguage(lang = '') {
+        const value = String(lang || 'plaintext').trim().toLowerCase();
+        const aliases = {
+            js: 'javascript',
+            ts: 'typescript',
+            py: 'python',
+            sh: 'bash',
+            shell: 'bash',
+            zsh: 'bash',
+            cmd: 'plaintext',
+            ps1: 'powershell'
+        };
+        return aliases[value] || value || 'plaintext';
+    }
+
+    highlightCodeBlockContent(code = '', lang = 'plaintext') {
+        const normalizedLang = this.normalizeCodeLanguage(lang);
+        const safeCode = this.escapeHtml(code);
+        try {
+            if (window.hljs && normalizedLang !== 'plaintext' && hljs.getLanguage(normalizedLang)) {
+                return hljs.highlight(code, { language: normalizedLang, ignoreIllegals: true }).value;
+            }
+            if (window.hljs) {
+                return hljs.highlightAuto(code).value;
+            }
+        } catch (error) {
+            console.warn('Falha ao destacar bloco de código:', error);
+        }
+        return safeCode;
+    }
+
+    shouldRenderInlineCodeBlock(block = {}) {
+        const code = String(block.code || '').trim();
+        if (!code) return false;
+        const lineCount = code.split('\n').length;
+        const normalizedLang = this.normalizeCodeLanguage(block.lang);
+        const isCommandLike = /^(npm|npx|node|pnpm|yarn|python|pip|git|ollama|docker|curl|powershell|cmd|cd|ls|dir|mkdir|rm|del|cp|mv)\b/i.test(code);
+        return isCommandLike || normalizedLang === 'bash' || normalizedLang === 'powershell' || normalizedLang === 'plaintext' || lineCount <= 8 || code.length <= 420;
+    }
+
+    renderInlineCodeBlock(block = {}, index = 0, responseKey = '') {
+        const normalizedLang = this.normalizeCodeLanguage(block.lang);
+        const languageLabel = normalizedLang === 'plaintext' ? 'Comando' : normalizedLang.charAt(0).toUpperCase() + normalizedLang.slice(1);
+        const highlightedCode = this.highlightCodeBlockContent(block.code || '', normalizedLang);
+        return `
+            <div class="overflow-hidden rounded-2xl border border-slate-700/70 bg-[#0b1220] shadow-[0_14px_34px_-20px_rgba(15,23,42,0.95)]">
+                <div class="flex items-center justify-between gap-3 border-b border-slate-700/70 bg-slate-900/90 px-4 py-3">
+                    <div class="text-sm font-semibold text-slate-100">${this.escapeHtml(languageLabel)}</div>
+                    <button onclick="window.ui && window.ui.copyCodeBlockFromResponse(${JSON.stringify(responseKey)}, ${index}, this)" class="inline-flex items-center gap-1.5 rounded-full border border-slate-600/80 bg-slate-800/90 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:border-slate-500 hover:bg-slate-700/90">
+                        <span class="material-icons-outlined text-sm">content_copy</span>
+                        Copiar
+                    </button>
+                </div>
+                <div class="overflow-x-auto p-4">
+                    <pre class="m-0 whitespace-pre-wrap break-words"><code class="hljs language-${normalizedLang} text-sm leading-6 text-slate-100">${highlightedCode}</code></pre>
+                </div>
+            </div>
+        `;
+    }
+
+    openCodeModalForResponse(responseKey, index, lang = 'plaintext') {
+        const blocks = this.getResponseCodeBlocks(responseKey);
+        const block = blocks[index];
+        if (!block) {
+            this.showNotification('❌ Não encontrei esse código para abrir.', 'error');
+            return;
+        }
+
+        const normalizedLang = this.normalizeCodeLanguage(block.lang || lang);
+        const highlighted = this.highlightCodeBlockContent(block.code || '', normalizedLang);
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm z-[900] flex items-center justify-center p-4';
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                modal.remove();
+            }
+        });
+        modal.innerHTML = `
+            <div class="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-slate-700 bg-slate-950 shadow-2xl">
+                <div class="flex items-center justify-between gap-4 border-b border-slate-800 px-5 py-4">
+                    <div>
+                        <div class="text-sm font-semibold text-slate-100">Código gerado pela IA</div>
+                        <div class="text-xs text-slate-400">${this.escapeHtml(normalizedLang)}</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="codeModalCopyBtn" class="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500">
+                            <span class="material-icons-outlined text-base">content_copy</span>
+                            Copiar código
+                        </button>
+                        <button id="codeModalCloseBtn" class="inline-flex items-center gap-2 rounded-full border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-900">
+                            <span class="material-icons-outlined text-base">close</span>
+                            Fechar
+                        </button>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-auto bg-slate-950 p-5">
+                    <pre class="m-0"><code class="hljs language-${normalizedLang} text-sm leading-6 text-slate-100">${highlighted}</code></pre>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const copyBtn = modal.querySelector('#codeModalCopyBtn');
+        const closeBtn = modal.querySelector('#codeModalCloseBtn');
+
+        copyBtn?.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(block.code || '');
+                copyBtn.innerHTML = '<span class="material-icons-outlined text-base">check</span>Copiado';
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<span class="material-icons-outlined text-base">content_copy</span>Copiar código';
+                }, 1600);
+            } catch (error) {
+                console.warn('Falha ao copiar código:', error);
+                copyBtn.innerHTML = '<span class="material-icons-outlined text-base">error</span>Erro ao copiar';
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<span class="material-icons-outlined text-base">content_copy</span>Copiar código';
+                }, 1600);
+            }
+        });
+
+        closeBtn?.addEventListener('click', () => modal.remove());
+    }
+
+    async copyCodeBlockFromResponse(responseKey, index, button) {
+        const blocks = this.getResponseCodeBlocks(responseKey);
+        const block = blocks[index];
+        if (!block) {
+            this.showNotification('❌ Não encontrei esse código para copiar.', 'error');
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(block.code || '');
+            if (button) {
+                const original = button.innerHTML;
+                button.innerHTML = '<span class="material-icons-outlined text-sm">check</span>Copiado';
+                setTimeout(() => {
+                    button.innerHTML = original;
+                }, 1500);
+            }
+        } catch (error) {
+            console.warn('Falha ao copiar bloco de código:', error);
+            this.showNotification('❌ Não consegui copiar o código.', 'error');
+        }
     }
 
 
@@ -10862,12 +11171,7 @@ ${chunk}${bibliographyBlock}
     
 
     openCodeModal(index, lang) {
-
-        // Função global que será chamada pelos botões (manter compatibilidade)
-
-        window.openCodeModal = window.openCodeModal || function(){};
-
-        window.openCodeModal(index, lang);
+        this.openCodeModalForResponse(null, index, lang);
 
     }
 

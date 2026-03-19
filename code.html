@@ -605,18 +605,65 @@ display:flex;
 }
 
 .agent-thinking-indicator video {
-width:2.5rem;
-height:2.5rem;
+width:3.35rem;
+height:3.35rem;
 border-radius:9999px;
 object-fit:cover;
 flex-shrink:0;
 }
 
 .agent-thinking-indicator span {
-font-size:0.96rem;
+font-size:1.02rem;
 line-height:1;
 color:#94a3b8;
 letter-spacing:0.01em;
+}
+
+.drag-drop-overlay {
+position:fixed;
+inset:0;
+display:flex;
+align-items:center;
+justify-content:center;
+padding:1.5rem;
+background:rgba(5,10,20,0.58);
+backdrop-filter:blur(16px);
+-webkit-backdrop-filter:blur(16px);
+opacity:0;
+pointer-events:none;
+transition:opacity 0.18s ease;
+z-index:800;
+}
+
+.drag-drop-overlay.is-visible {
+opacity:1;
+pointer-events:auto;
+}
+
+.drag-drop-overlay-card {
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+gap:0.85rem;
+min-width:min(92vw, 420px);
+padding:2rem 2.2rem;
+border-radius:1.75rem;
+border:1px dashed rgba(147,197,253,0.4);
+background:rgba(15,23,42,0.72);
+box-shadow:0 20px 60px -28px rgba(15,23,42,0.95);
+}
+
+.drag-drop-overlay-card .material-icons-outlined {
+font-size:3rem;
+color:#93c5fd;
+}
+
+.drag-drop-overlay-card span {
+font-size:1.1rem;
+font-weight:600;
+letter-spacing:-0.01em;
+color:#e2e8f0;
 }
 
 /* ── Typing indicator ───────────────────────────── */
@@ -1041,6 +1088,13 @@ INPUT WRAPPER — sempre fixo no rodapé, nunca sobrepõe o título
 <button class="absolute right-6 w-10 h-10 rounded-full flex items-center justify-center opacity-0 pointer-events-none animate-fadeIn transition-all" id="scrollToBottomBtn" style="bottom:5rem;background:rgba(15,23,42,0.9);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;box-shadow:none">
 <span class="material-icons-outlined" style="font-size:1.1rem">arrow_downward</span>
 </button>
+</div>
+</div>
+
+<div id="dragDropOverlay" class="drag-drop-overlay" aria-hidden="true">
+<div class="drag-drop-overlay-card">
+<span class="material-icons-outlined">imagesmode</span>
+<span>Arraste suas imagens pra anexar</span>
 </div>
 </div>
 
