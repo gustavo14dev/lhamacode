@@ -36,6 +36,7 @@ export default async function handler(req, res) {
     const userMessage = fields.message ? fields.message[0] : '';
     const context = fields.context ? JSON.parse(fields.context[0]) : [];
     const model = fields.model ? fields.model[0] : 'gemini-2.5-flash';
+    const customSystemPrompt = fields.system_prompt ? fields.system_prompt[0] : '';
     
     try {
       const parts = [{ text: userMessage }];
@@ -65,7 +66,7 @@ export default async function handler(req, res) {
       }
 
       // Adicionar contexto se houver
-      let systemInstruction = "Você é o Drekee AI, um assistente de IA focado em codificação e produtividade.";
+      let systemInstruction = customSystemPrompt || "Voce e o Drekee AI, um assistente de IA focado em codificacao e produtividade.";
       if (context && context.length > 0) {
           systemInstruction += "\n\nContexto da conversa:\n" + context.map(m => `${m.role}: ${m.content}`).join('\n');
       }

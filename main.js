@@ -13094,65 +13094,9 @@ ${chunk}${bibliographyBlock}
         const processingId = this.addAssistantMessage('🧮 Resolvendo exercício...');
         
         try {
-            // Gerar resposta com sistema especializado
-            let response = await this.generateREResponse(message, sendFiles);
-            
-            // GARANTIR que TODAS as respostas RE tenham destaque amarelo
-            if (!response.includes('re-final-answer')) {
-                // Se a IA não incluiu o destaque, adicionar automaticamente
-                const lines = response.split('\n');
-                let finalAnswerLine = -1;
-                
-                // Procurar por linha que parece ser resposta final
-                for (let i = lines.length - 1; i >= 0; i--) {
-                    const line = lines[i].trim();
-                    if (line.includes('Resultado Final:') || 
-                        line.includes('RESPOSTA FINAL:') ||
-                        line.includes('Resposta:') ||
-                        (line.match(/^\d+[\.\)]/) && line.includes('='))) {
-                        finalAnswerLine = i;
-                        break;
-                    }
-                }
-                
-                if (finalAnswerLine >= 0) {
-                    // Adicionar destaque amarelo à resposta final
-                    lines[finalAnswerLine] = `<div class="re-final-answer"><strong>RESPOSTA FINAL:</strong> ${lines[finalAnswerLine].replace(/^.*?[:\)]\s*/, '')}</div>`;
-                    response = lines.join('\n');
-                } else {
-                    // Se não encontrou linha clara, adicionar no final
-                    response += `\n\n<div class="re-final-answer"><strong>RESPOSTA FINAL:</strong> Verificar resposta acima</div>`;
-                }
-            }
-            
-            // Montar HTML final do RE:
-            // - O corpo passa por formatResponse (para formatação + KaTeX)
-            // - O card amarelo é HTML real (não pode passar pelo escape do formatResponse)
-            const responseBodyHtml = this.formatResponse(response);
-
-            let finalAnswerText = null;
-            const rawLines = String(response || '').split(/\r?\n/);
-            for (let i = rawLines.length - 1; i >= 0; i--) {
-                const line = rawLines[i].trim();
-                if (!line) continue;
-                if (line.includes('Resultado Final:') || line.includes('RESPOSTA FINAL:')) {
-                    finalAnswerText = line.replace(/^.*?:\s*/, '').trim();
-                    break;
-                }
-            }
-            if (!finalAnswerText) {
-                // fallback simples: pega a última linha não vazia
-                for (let i = rawLines.length - 1; i >= 0; i--) {
-                    const line = rawLines[i].trim();
-                    if (line) {
-                        finalAnswerText = line;
-                        break;
-                    }
-                }
-            }
-
-            const finalAnswerHtml = `<div class="re-final-answer"><strong>RESPOSTA FINAL:</strong> ${this.escapeHtml(finalAnswerText || 'Verificar resposta acima')}</div>`;
-            const finalHtml = `<div>${responseBodyHtml}${finalAnswerHtml}</div>`;
+            const response = await this.generateREResponse(message, sendFiles);
+            const normalizedResponse = this.normalizeREResponse(response);
+            const finalHtml = `<div class="re-response-body">${this.formatResponse(normalizedResponse, `re_${processingId}`)}</div>`;
 
             // Atualizar com a resposta completa (como HTML)
             this.updateProcessingMessage(processingId, finalHtml);
@@ -13169,60 +13113,161 @@ ${chunk}${bibliographyBlock}
     
     // Gerar resposta no formato RE
     async generateREResponse(exercise, sendFiles = null) {
-        const systemPrompt = `Você é um especialista acadêmico em resolução de exercícios com abordagem puramente técnica e objetiva.
+        const systemPrompt = `Você é uma IA especializada no MODO RE (Resolução de Exercícios).
 
-REGRAS ESTRITAS PARA O MODO RE (RESOLUÇÃO DE EXERCÍCIOS):
+OBJETIVO:
+Resolver exercícios exatamente como um aluno escreveria no caderno, com respostas diretas, organizadas e sem explicações desnecessárias.
 
-1. ESTRUTURA OBRIGATÓRIA - USE EXATAMENTE ESTAS SEÇÕES:
-   **Raciocínio Lógico:** [Explicação técnica direta da estratégia de resolução]
-   
-   **Passo a Passo (Memória de Cálculo):** [Todas as etapas detalhadas com cálculos explícitos]
-   
-   **Resultado Final:** [A resposta final destacada]
-   
-   **Justificativa:** [O fundamento técnico do resultado]
+REGRA PRINCIPAL:
+NUNCA aja como professor explicativo. SEMPRE aja como um aluno resolvendo a questão para entregar no caderno.
 
-2. TOM E ESTILO:
-   - Puramente utilitário e objetivo
-   - Sem saudações, cumprimentos ou frases motivacionais
-   - Foco exclusivo na resolução técnica
+COMPORTAMENTO GERAL:
+- Seja direto e objetivo.
+- NÃO explique conceitos, a menos que seja absolutamente necessário para a resposta.
+- NÃO use linguagem didática longa.
+- NÃO diga frases como "vamos resolver", "primeiro fazemos", "portanto", "concluímos".
+- NÃO faça introduções ou conclusões.
+- NÃO use emojis.
+- NÃO use markdown.
+- NÃO use listas com marcadores.
+- NÃO use blocos de código.
+- NÃO use HTML.
 
-3. CÁLCULOS DETALHADOS:
-   - Mostre as contas passo a passo (ex: 2+2=4, não apenas "o resultado é 4")
-   - Use LaTeX extensivamente: $$\frac{a}{b}$$, $$\sqrt{x}$$, $$\int f(x)dx$$
-   - Use \[ \] para blocos matemáticos e \( \) para inline
+DETECÇÃO AUTOMÁTICA:
+1. Matemática:
+- Mostrar todos os cálculos passo a passo.
+- Cada linha deve representar um passo lógico.
+- Não pular etapas.
 
-4. RESULTADO FINAL:
-   - Coloque a resposta final dentro de um card amarelo destacado
-   - Use HTML: <div class="re-final-answer"><strong>RESPOSTA FINAL:</strong> [valor]</div>
-   - Esta é a resposta para "colocar no livro"
+2. Interpretação de texto / Português:
+- Resposta curta e direta.
+- Baseada no texto.
+- 1 a 3 linhas no máximo.
 
-5. LATEX AVANÇADO:
-   - Frações: \frac{numerador}{denominador}
-   - Raízes: \sqrt{n} ou \sqrt[n]{x}
-   - Integrais: \int_{a}^{b} f(x)dx
-   - Somatórios: \sum_{i=1}^{n}
-   - Limites: \lim_{x \to \infty}
-   - Matrizes: \begin{pmatrix} a & b \\ c & d \end{pmatrix}
+3. Ciências / História / Geografia:
+- Resposta objetiva.
+- Sem explicação longa.
+- Apenas o necessário para acertar.
 
-Exercício: ${exercise}`;
+4. Múltipla escolha:
+- Indicar apenas a alternativa correta.
+Exemplo:
+Resposta: A
+
+FORMATAÇÃO (ESTILO CADERNO):
+- Organize como se estivesse escrito à mão no caderno.
+- Use apenas texto simples e linhas limpas.
+- Em matemática, cada linha deve conter uma etapa.
+- Se precisar de fração, raiz, potência, equação ou expressão algébrica, escreva usando notação matemática renderizável com delimitadores $...$ ou $$...$$ para que o visual final fique limpo.
+- Para frações, prefira $\\frac{a}{b}$.
+- Para raízes, prefira $\\sqrt{x}$.
+- Para potências, prefira $x^2$.
+- Para multiplicação, prefira ×.
+- Para divisão simples, prefira ÷.
+- Evite deixar /, *, %, &, @, ! soltos quando isso puder ser escrito de forma matemática ou por extenso.
+- Em porcentagem, prefira escrever "por cento" quando isso deixar a linha mais limpa.
+
+ENTRADA POR IMAGEM:
+- Extraia o texto.
+- Identifique as questões.
+- Resolva cada uma separadamente.
+- Numere as respostas.
+
+MODO PROVA:
+- Se o usuário indicar "modo prova", NÃO mostrar cálculos.
+- Mostrar apenas a resposta final.
+
+REGRAS CRÍTICAS:
+- NUNCA inventar dados.
+- Se não souber, responda exatamente: "Não foi possível resolver com as informações fornecidas."
+- NÃO fugir do formato.
+- NÃO misturar explicação com resposta.
+
+SAÍDA FINAL:
+- Apenas a resolução.
+- Nada antes.
+- Nada depois.`;
 
         // Escolher API baseado na presença de anexos
         if (sendFiles && sendFiles.length > 0) {
             console.log('📎 [RE] Usando Gemini com anexos...');
-            const response = await this.agent.processMessage(exercise, sendFiles, systemPrompt);
-            return response;
+            return this.callREGeminiAPI(systemPrompt, exercise, sendFiles);
         } else {
             console.log('🧮 [RE] Usando Groq sem anexos...');
-            const response = await this.callAPI(systemPrompt, exercise);
-            return response;
+            return this.callAPI(systemPrompt, exercise);
         }
+    }
+
+    normalizeREResponse(response) {
+        let text = String(response || '')
+            .replace(/```[a-z0-9_-]*\n?/gi, '')
+            .replace(/```/g, '')
+            .replace(/^\s*[*#>-]+\s*/gm, '')
+            .replace(/\*\*(.*?)\*\*/g, '$1')
+            .replace(/__(.*?)__/g, '$1')
+            .replace(/\r\n/g, '\n')
+            .trim();
+
+        const lines = text
+            .split('\n')
+            .map((line) => this.normalizeREMathLine(line))
+            .filter(Boolean);
+
+        return lines.join('\n').trim() || 'Não foi possível resolver com as informações fornecidas.';
+    }
+
+    normalizeREMathLine(line) {
+        let text = String(line || '').trim();
+        if (!text) {
+            return '';
+        }
+
+        text = text
+            .replace(/\s*\u2022\s*/g, ' ')
+            .replace(/\b([A-Za-z0-9]+)\s*\/\s*([A-Za-z0-9]+)\b/g, '$\\\\frac{$1}{$2}$')
+            .replace(/\(([^()]+)\)\s*\/\s*\(([^()]+)\)/g, '$\\\\frac{$1}{$2}$')
+            .replace(/√\s*\(([^()]+)\)/g, '$\\\\sqrt{$1}$')
+            .replace(/√\s*([A-Za-z0-9]+)/g, '$\\\\sqrt{$1}$')
+            .replace(/([A-Za-z0-9)])\^(\d+)/g, '$$$1^{$2}$$')
+            .replace(/\s*\*\s*/g, ' × ')
+            .replace(/\s*\/\s*/g, ' ÷ ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        text = text.replace(/\$\$+/g, '$');
+        return text;
+    }
+
+    async callREGeminiAPI(systemPrompt, userMessage, sendFiles = []) {
+        const formData = new FormData();
+        formData.append('message', userMessage);
+        formData.append('system_prompt', systemPrompt);
+        formData.append('model', 'gemini-2.5-flash');
+
+        sendFiles.forEach((fileEntry, index) => {
+            if (fileEntry?.file) {
+                formData.append(`file_${index}`, fileEntry.file, fileEntry.name || `file_${index}`);
+            }
+        });
+
+        const response = await fetch('/api/gemini-chat', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Erro na API Gemini RE: ${errorText}`);
+        }
+
+        const data = await response.json();
+        return data.text || data.response || '';
     }
 
     // Método auxiliar para chamadas de API
     async callAPI(systemPrompt, userMessage) {
         try {
-            const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
+            const response = await this.agent.callGroqAPI('llama-3.3-70b-versatile', [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userMessage }
             ]);
