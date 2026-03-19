@@ -13208,12 +13208,37 @@ SAÍDA FINAL:
             .replace(/\r\n/g, '\n')
             .trim();
 
-        const lines = text
+        const rawLines = text
             .split('\n')
             .map((line) => this.normalizeREMathLine(line))
             .filter(Boolean);
 
-        return lines.join('\n').trim() || 'Não foi possível resolver com as informações fornecidas.';
+        const blocks = [];
+        let mathBuffer = [];
+        const flushMathBuffer = () => {
+            if (!mathBuffer.length) {
+                return;
+            }
+            const alignedLines = mathBuffer.map((line) => this.convertRELineToLatex(line));
+            if (alignedLines.length === 1) {
+                blocks.push(`$$${alignedLines[0]}$$`);
+            } else {
+                blocks.push(`$$\\begin{aligned}\n${alignedLines.join(' \\\\\n')}\n\\end{aligned}$$`);
+            }
+            mathBuffer = [];
+        };
+
+        rawLines.forEach((line) => {
+            if (this.isREMathLine(line)) {
+                mathBuffer.push(line);
+                return;
+            }
+            flushMathBuffer();
+            blocks.push(line);
+        });
+
+        flushMathBuffer();
+        return blocks.join('\n\n').trim() || 'Não foi possível resolver com as informações fornecidas.';
     }
 
     normalizeREMathLine(line) {
@@ -13222,20 +13247,94 @@ SAÍDA FINAL:
             return '';
         }
 
+        if (text.includes(':')) {
+            const tail = text.split(':').pop().trim();
+            if (this.looksLikeREMathExpression(tail)) {
+                text = tail;
+            }
+        } else {
+            const equalityMatch = text.match(/([A-Za-z0-9π√(][A-Za-z0-9π√()\s+\-*/×÷=.,^]+=[A-Za-z0-9π√()\s+\-*/×÷=.,^]+)$/i);
+            if (equalityMatch) {
+                text = equalityMatch[1].trim();
+            }
+        }
+
         text = text
+            .replace(/^\d+\)\s*/g, '')
+            .replace(/^\d+\.\s*/g, '')
             .replace(/\s*\u2022\s*/g, ' ')
-            .replace(/\b([A-Za-z0-9]+)\s*\/\s*([A-Za-z0-9]+)\b/g, '$\\\\frac{$1}{$2}$')
-            .replace(/\(([^()]+)\)\s*\/\s*\(([^()]+)\)/g, '$\\\\frac{$1}{$2}$')
-            .replace(/√\s*\(([^()]+)\)/g, '$\\\\sqrt{$1}$')
-            .replace(/√\s*([A-Za-z0-9]+)/g, '$\\\\sqrt{$1}$')
-            .replace(/([A-Za-z0-9)])\^(\d+)/g, '$$$1^{$2}$$')
-            .replace(/\s*\*\s*/g, ' × ')
-            .replace(/\s*\/\s*/g, ' ÷ ')
+            .replace(/\bpi\b/gi, 'π')
             .replace(/\s+/g, ' ')
             .trim();
 
-        text = text.replace(/\$\$+/g, '$');
         return text;
+    }
+
+    looksLikeREMathExpression(text) {
+        const value = String(text || '').trim();
+        if (!value) {
+            return false;
+        }
+        return /[=+\-×÷*/^√π]/.test(value) || /\d/.test(value) || /[a-z]\s*=\s*/i.test(value);
+    }
+
+    isREMathLine(line) {
+        const text = String(line || '').trim();
+        if (!text) {
+            return false;
+        }
+        if (/^resposta\s*:/i.test(text) && !this.looksLikeREMathExpression(text.replace(/^resposta\s*:/i, ''))) {
+            return false;
+        }
+        return this.looksLikeREMathExpression(text);
+    }
+
+    convertRELineToLatex(line) {
+        let text = String(line || '').trim();
+        if (!text) {
+            return '';
+        }
+
+        text = text.replace(/^\d+\)\s*/g, '').replace(/^\d+\.\s*/g, '');
+        text = text.replace(/^resposta\s*:\s*/i, '');
+        text = this.convertREFractionsToLatex(text);
+        text = text
+            .replace(/\bpi\b/gi, '\\pi')
+            .replace(/π/g, '\\pi')
+            .replace(/√\s*\(([^()]+)\)/g, '\\sqrt{$1}')
+            .replace(/√\s*([A-Za-z0-9]+)/g, '\\sqrt{$1}')
+            .replace(/([A-Za-z0-9)\]])\^([A-Za-z0-9]+)/g, '$1^{$2}')
+            .replace(/×/g, '\\times ')
+            .replace(/\*/g, '\\times ')
+            .replace(/÷/g, '\\div ')
+            .replace(/([A-Za-z0-9)\]}])\s+([A-Za-z(\\])/g, '$1 $2')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (text.includes('=')) {
+            const parts = text.split('=').map((part) => part.trim()).filter(Boolean);
+            if (parts.length >= 2) {
+                return `${parts[0]} &= ${parts.slice(1).join(' = ')}`;
+            }
+        }
+
+        return text;
+    }
+
+    convertREFractionsToLatex(text) {
+        let output = String(text || '');
+        const fractionPatterns = [
+            /\(([^()]+)\)\s*\/\s*\(([^()]+)\)/g,
+            /\(([^()]+)\)\s*\/\s*([A-Za-z0-9]+)/g,
+            /([A-Za-z0-9]+)\s*\/\s*\(([^()]+)\)/g,
+            /([A-Za-z0-9]+)\s*\/\s*([A-Za-z0-9]+)/g
+        ];
+
+        fractionPatterns.forEach((pattern) => {
+            output = output.replace(pattern, (_, numerator, denominator) => `\\frac{${numerator.trim()}}{${denominator.trim()}}`);
+        });
+
+        return output;
     }
 
     async callREGeminiAPI(systemPrompt, userMessage, sendFiles = []) {
