@@ -7318,6 +7318,7 @@ ${latexCode}
             // Se o texto contém HTML completo (como documentos renderizados), usar diretamente
             if (text.includes('<div') && text.includes('</div>')) {
                 messageElement.innerHTML = text;
+                this.queueMathTypeset(messageElement);
             } else {
                 // Para mensagens de processamento simples, mostrar com animação
                 messageElement.innerHTML = `
@@ -7339,6 +7340,7 @@ ${latexCode}
                     </div>
 
                 `;
+                this.queueMathTypeset(messageElement);
             }
 
             console.log('✅ Mensagem de processamento atualizada:', text);
@@ -10189,12 +10191,14 @@ ${chunk}${bibliographyBlock}
                 }
                 
                 responseDiv.innerHTML = processedText;
+                this.queueMathTypeset(responseDiv);
 
             } else {
 
                 // Texto normal - formatar
 
                 responseDiv.innerHTML = this.formatResponse(text, responseDiv.id);
+                this.queueMathTypeset(responseDiv);
 
             }
 
@@ -10639,6 +10643,7 @@ ${chunk}${bibliographyBlock}
             
             // Combinar imagens + texto
             element.innerHTML = imagesHtml + formattedHtml;
+            this.queueMathTypeset(element);
             
             console.log('🔍 [TYPE] Renderizado direto com imagens + texto');
 
@@ -10730,6 +10735,7 @@ ${chunk}${bibliographyBlock}
 
         // Combinar imagens + texto final
         element.innerHTML = imagesHtml + finalFormatted;
+        this.queueMathTypeset(element);
         
         console.log('🔍 [TYPE] Renderizado final com imagesHtml length:', imagesHtml.length);
         console.log('🔍 [TYPE] Final HTML preview:', (imagesHtml + finalFormatted).substring(0, 200));
@@ -10790,8 +10796,13 @@ ${chunk}${bibliographyBlock}
         // Extrair blocos matemáticos ANTES do escapeHtml, renderizando com KaTeX.
         // Isso evita que entidades HTML (ex: &#x27;) e HTML escapado entrem no parser do KaTeX.
         const mathRenders = [];
+        const preferMathJaxDisplay = String(responseKey || '').startsWith('re_');
         const mathPlaceholder = (i) => `___MATH_RENDER_${i}___`;
         const renderMathToHtml = (math, displayMode) => {
+            if (preferMathJaxDisplay) {
+                const cleanedMath = String(math).trim();
+                return displayMode ? `$$${cleanedMath}$$` : `$${cleanedMath}$`;
+            }
             try {
                 if (typeof katex !== 'undefined' && katex && typeof katex.renderToString === 'function') {
                     return katex.renderToString(String(math).trim(), { throwOnError: false, displayMode });
@@ -11823,6 +11834,46 @@ ${chunk}${bibliographyBlock}
 
         }
 
+    }
+
+    queueMathTypeset(element = null) {
+        const targetElement = element && element.nodeType === 1 ? element : document.body;
+        if (!targetElement) {
+            return;
+        }
+
+        const containsMathMarkers = /\$\$[\s\S]+?\$\$/.test(targetElement.textContent || '') || targetElement.querySelector('.MathJax, mjx-container, .katex');
+        if (!containsMathMarkers) {
+            return;
+        }
+
+        const typeset = () => {
+            if (!window.MathJax) {
+                return;
+            }
+
+            try {
+                if (typeof window.MathJax.typesetPromise === 'function') {
+                    window.MathJax.typesetClear?.([targetElement]);
+                    window.MathJax.typesetPromise([targetElement]).catch((error) => {
+                        console.warn('Falha no MathJax.typesetPromise:', error);
+                    });
+                    return;
+                }
+
+                if (typeof window.MathJax.typeset === 'function') {
+                    window.MathJax.typeset([targetElement]);
+                }
+            } catch (error) {
+                console.warn('Falha ao renderizar matemática com MathJax:', error);
+            }
+        };
+
+        if (typeof window.requestAnimationFrame === 'function') {
+            window.requestAnimationFrame(typeset);
+        } else {
+            setTimeout(typeset, 0);
+        }
     }
 
 
