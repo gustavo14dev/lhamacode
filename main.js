@@ -3479,6 +3479,10 @@ Analise a imagem e responda com este formato:
 
         return {
             ...parsed,
+            pagina_atual: this.sanitizeAgentTextItem(parsed.pagina_atual, { maxLength: 280 }) || 'Sem resumo confiável da página.',
+            elementos_interativos: this.coerceAgentList(parsed.elementos_interativos || parsed.elementosInterativos).slice(0, 12),
+            acoes_possiveis: this.coerceAgentList(parsed.acoes_possiveis || parsed.acoesPossiveis || parsed.acoes_sugeridas).slice(0, 8),
+            proximo_passo: this.sanitizeAgentTextItem(parsed.proximo_passo || parsed.proximoPasso, { maxLength: 180 }) || 'Continuar com uma etapa mais concreta.',
             _meta: {
                 providerUsed: response?.providerUsed || parsed?._meta?.providerUsed || null,
                 fallbackUsed: Boolean(response?.fallbackUsed || parsed?._meta?.fallbackUsed)
@@ -3919,25 +3923,31 @@ Regras:
         const safeRequest = (request || '').trim();
         const siteLabel = this.getReadableSiteLabel(targetUrl);
         const navigationText = Array.isArray(navigationTrail) && navigationTrail.length
-            ? navigationTrail.map((step) => step.matchedText || step.targetHint || step.currentUrl).filter(Boolean).join(' -> ')
+            ? navigationTrail
+                .map((step) => this.sanitizeAgentTextItem(step.matchedText || step.targetHint || step.currentUrl, { maxLength: 120 }))
+                .filter(Boolean)
+                .join(' -> ')
             : '';
         const artifactList = Array.isArray(artifacts) ? artifacts : [];
         const requestedColor = /cor|color/i.test(safeRequest);
         const requestedList = /modelo|modelos|models|lista|todos|quais|itens/i.test(safeRequest);
         const requestedPrice = /preco|precos|price|valor|mais barato|a vista|avista|pix/i.test(this.normalizeSearchText(safeRequest));
-        const directAnswer = String(groundedResult?.resposta_direta || '').trim();
+        const safePageTitle = this.sanitizeAgentTextItem(pageTitle, { maxLength: 120 }) || pageTitle;
+        const safePageText = this.coerceAgentList(pageText).slice(0, 220);
+        const directAnswer = this.sanitizeAgentTextItem(groundedResult?.resposta_direta, { maxLength: 320 });
         const extractedItems = this.coerceAgentList(groundedResult?.itens_encontrados || relevantItems)
             .slice(0, this.extractRequestedItemCount(safeRequest));
         const evidences = this.coerceAgentList(groundedResult?.evidencias || [])
             .filter((item) => !extractedItems.includes(item))
             .slice(0, 4);
-        const observation = String(groundedResult?.observacao || '').trim();
+        const observation = this.sanitizeAgentTextItem(groundedResult?.observacao, { maxLength: 220 });
+        const safeNextStep = this.sanitizeAgentTextItem(analysis?.proximo_passo, { maxLength: 180 });
 
         let intro = targetUrl
             ? artifactList.length > 1
                 ? `Olá! Montei um plano, visitei ${artifactList.length} fontes nesta mesma execução e consolidei o que encontrei.`
                 : requestedList
-                    ? `Olá! Abri ${pageTitle ? `"${pageTitle}"` : siteLabel} e extraí os itens diretamente dessa página.`
+                    ? `Olá! Abri ${safePageTitle ? `"${safePageTitle}"` : siteLabel} e extraí os itens diretamente dessa página.`
                     : responseMode === 'continue_research'
                         ? `Olá! Continuei a pesquisa anterior em ${siteLabel}`
                         : `Olá! Já fui até ${siteLabel}`
@@ -3954,8 +3964,8 @@ Regras:
         sections.push(intro);
 
         const resultLines = [];
-        if (pageTitle) {
-            resultLines.push(`A página final aberta pelo agente foi "${pageTitle}"${targetUrl ? ` (${targetUrl})` : ''}.`);
+        if (safePageTitle) {
+            resultLines.push(`A página final aberta pelo agente foi "${safePageTitle}"${targetUrl ? ` (${targetUrl})` : ''}.`);
         }
 
         if (requestedColor && dominantColor) {
@@ -3965,7 +3975,7 @@ Regras:
         if (directAnswer) {
             resultLines.push(directAnswer);
         } else if (analysis?.pagina_atual) {
-            resultLines.push(`O conteúdo principal que consegui identificar foi: ${analysis.pagina_atual}.`);
+            resultLines.push(`O conteúdo principal que consegui identificar foi: ${this.sanitizeAgentTextItem(analysis.pagina_atual, { maxLength: 280 })}.`);
         }
 
         if (blocked) {
@@ -3989,7 +3999,7 @@ Regras:
             const artifactLines = artifactList
                 .map((artifact) => {
                     const label = artifact?.targetLabel || this.getReadableSiteLabel(artifact?.targetUrl || '');
-                    const title = artifact?.pageTitle || artifact?.targetUrl || 'Página sem título';
+                    const title = this.sanitizeAgentTextItem(artifact?.pageTitle || artifact?.targetUrl || 'Página sem título', { maxLength: 140 }) || 'Página sem título';
                     return `- ${label}: ${title}`;
                 })
                 .slice(0, 5);
@@ -4010,8 +4020,8 @@ Regras:
                     ? `Os ${extractedItems.length} itens mais relevantes que encontrei nessa página foram:`
                 : 'Os principais textos e elementos que consegui identificar foram:';
             sections.push(`${listTitle}\n- ${extractedItems.join('\n- ')}`);
-        } else if (!requestedPrice && pageText && pageText.length) {
-            sections.push(`Os textos visíveis mais importantes que consegui extrair foram: ${pageText.slice(0, 6).join(', ')}.`);
+        } else if (!requestedPrice && safePageText.length) {
+            sections.push(`Os textos visíveis mais importantes que consegui extrair foram: ${safePageText.slice(0, 6).join(', ')}.`);
         }
 
         if (evidences.length) {
@@ -4023,16 +4033,17 @@ Regras:
             closing.push(`Gerei ${screenshots} captura${screenshots > 1 ? 's' : ''} durante a execução, uma para cada etapa relevante da navegação.`);
         }
 
-        if (responseMode === 'continue_research' && priorContext?.pageTitle && priorContext.pageTitle !== pageTitle) {
-            closing.push(`Esta etapa complementa a pesquisa anterior, cuja última página relevante era "${priorContext.pageTitle}".`);
+        const priorPageTitle = this.sanitizeAgentTextItem(priorContext?.pageTitle, { maxLength: 120 });
+        if (responseMode === 'continue_research' && priorPageTitle && priorPageTitle !== safePageTitle) {
+            closing.push(`Esta etapa complementa a pesquisa anterior, cuja última página relevante era "${priorPageTitle}".`);
         }
 
         if (observation) {
             closing.push(observation);
         }
 
-        if (!requestedColor && !requestedList && analysis?.proximo_passo && !blocked) {
-            closing.push(`Se você quiser, eu também posso continuar a navegação a partir daqui em "${analysis.proximo_passo}".`);
+        if (!requestedColor && !requestedList && safeNextStep && !blocked) {
+            closing.push(`Se você quiser, eu também posso continuar a navegação a partir daqui em "${safeNextStep}".`);
         }
 
         if (closing.length) {
@@ -4618,23 +4629,83 @@ Regras:
             return value
                 .map((item) => {
                     if (typeof item === 'string') {
-                        return item.trim();
+                        return this.sanitizeAgentTextItem(item);
                     }
 
                     if (item && typeof item === 'object') {
-                        return item.text || item.label || item.name || item.tag || '';
+                        return this.sanitizeAgentTextItem(item.text || item.label || item.name || item.tag || '');
                     }
 
-                    return String(item || '').trim();
+                    return this.sanitizeAgentTextItem(String(item || ''));
                 })
                 .filter(Boolean);
         }
 
         if (typeof value === 'string') {
-            return value.split(',').map((item) => item.trim()).filter(Boolean);
+            const delimiter = value.includes('\n') ? /\n+/ : /,\s*/;
+            return value
+                .split(delimiter)
+                .map((item) => this.sanitizeAgentTextItem(item))
+                .filter(Boolean);
         }
 
         return [];
+    }
+
+    looksLikeAgentNoise(text = '') {
+        const sample = String(text || '').trim();
+        if (!sample) {
+            return true;
+        }
+
+        if (sample.length > 500) {
+            return true;
+        }
+
+        const suspiciousPatterns = [
+            /<script\b|<\/script>|<style\b|<\/style>|<!doctype|<html\b|<\/html>/i,
+            /@font-face|src:url\(|format\(['"]truetype['"]\)|dataLayer|AF_initData|WIZ_global_data/i,
+            /\bfunction\b|\breturn\b|=>|var\s+[a-z_$][\w$]*|const\s+[a-z_$][\w$]*|let\s+[a-z_$][\w$]*/i,
+            /_[A-Za-z0-9]+\s*=\s*function|\bSymbol\(|Object\.defineProperties|Array\.prototype|Promise|WeakMap/i,
+            /[{};]{4,}|\\x[0-9a-f]{2}|\.call\(this\)|prototype\./i
+        ];
+
+        if (suspiciousPatterns.some((pattern) => pattern.test(sample))) {
+            return true;
+        }
+
+        const punctuationChars = sample.replace(/[A-Za-z0-9À-ÿ\s]/g, '');
+        if (sample.length > 120 && punctuationChars.length / sample.length > 0.22) {
+            return true;
+        }
+
+        return false;
+    }
+
+    sanitizeAgentTextItem(value, { maxLength = 220 } = {}) {
+        if (value == null) {
+            return '';
+        }
+
+        let text = String(value)
+            .replace(/[\u200B-\u200F\u202A-\u202E\u2060]/g, ' ')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (!text) {
+            return '';
+        }
+
+        if (this.looksLikeAgentNoise(text)) {
+            return '';
+        }
+
+        if (text.length > maxLength) {
+            text = `${text.slice(0, maxLength - 1).trim()}…`;
+        }
+
+        return text;
     }
 
     // Habilitar ações do agente

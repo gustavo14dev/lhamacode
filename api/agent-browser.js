@@ -672,7 +672,7 @@ function safeAgentHostname(rawUrl) {
 }
 
 async function collectPageContext(page) {
-    return page.evaluate(() => {
+    const context = await page.evaluate(() => {
         const metaDescription = document.querySelector('meta[name="description"]')?.getAttribute('content') || '';
         const headings = Array.from(document.querySelectorAll('h1, h2, h3'))
             .map((element) => element.textContent?.trim())
@@ -720,6 +720,7 @@ async function collectPageContext(page) {
             )
         };
     });
+    return sanitizePageContext(context);
 }
 
 async function collectRichPageContext(page) {
@@ -766,9 +767,81 @@ function looksLikeUrlText(value) {
     return !text || /^https?:\/\//i.test(text) || /^[a-z0-9.-]+\.[a-z]{2,}(?:\/|$)/i.test(text);
 }
 
+function looksLikeExtractedCodeNoise(text) {
+    const sample = String(text || '').trim();
+    if (!sample) {
+        return true;
+    }
+
+    if (sample.length > 520) {
+        return true;
+    }
+
+    const suspiciousPatterns = [
+        /<script\b|<\/script>|<style\b|<\/style>|<!doctype|<html\b|<\/html>/i,
+        /@font-face|src:url\(|format\(['"]truetype['"]\)|dataLayer|AF_initData|WIZ_global_data/i,
+        /\bfunction\b|\breturn\b|=>|var\s+[a-z_$][\w$]*|const\s+[a-z_$][\w$]*|let\s+[a-z_$][\w$]*/i,
+        /_[A-Za-z0-9]+\s*=\s*function|\bSymbol\(|Object\.defineProperties|Array\.prototype|Promise|WeakMap/i,
+        /[{};]{4,}|\\x[0-9a-f]{2}|prototype\.|\.call\(this\)/i
+    ];
+
+    if (suspiciousPatterns.some((pattern) => pattern.test(sample))) {
+        return true;
+    }
+
+    const punctuationChars = sample.replace(/[A-Za-z0-9À-ÿ\s]/g, '');
+    return sample.length > 120 && punctuationChars.length / sample.length > 0.22;
+}
+
+function sanitizeExtractedTextItem(value, maxLength = 240) {
+    if (value == null) {
+        return '';
+    }
+
+    let text = String(value)
+        .replace(/[\u200B-\u200F\u202A-\u202E\u2060]/g, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (!text || looksLikeExtractedCodeNoise(text)) {
+        return '';
+    }
+
+    if (text.length > maxLength) {
+        text = `${text.slice(0, maxLength - 1).trim()}…`;
+    }
+
+    return text;
+}
+
+function sanitizePageContext(pageContext = {}) {
+    const sanitizeList = (items = [], maxLength = 240) => [...items]
+        .map((item) => sanitizeExtractedTextItem(item, maxLength))
+        .filter(Boolean)
+        .filter((item, index, array) => array.indexOf(item) === index);
+
+    const sanitizeInteractiveElements = (items = []) => [...items]
+        .map((item) => ({
+            ...(item || {}),
+            text: sanitizeExtractedTextItem(item?.text, 140)
+        }))
+        .filter((item) => item.text)
+        .filter((item, index, array) => array.findIndex((candidate) => candidate?.tag === item?.tag && candidate?.text === item?.text) === index);
+
+    return {
+        ...pageContext,
+        title: sanitizeExtractedTextItem(pageContext.title, 140) || pageContext.title || '',
+        description: sanitizeExtractedTextItem(pageContext.description, 220) || pageContext.description || '',
+        headings: sanitizeList(pageContext.headings || [], 140).slice(0, 8),
+        interactiveElements: sanitizeInteractiveElements(pageContext.interactiveElements || []).slice(0, 20),
+        visibleText: sanitizeList(pageContext.visibleText || [], 240).slice(0, 260)
+    };
+}
+
 function mergePageContexts(baseContext = {}, nextContext = {}) {
     const mergeTextList = (left = [], right = []) => [...left, ...right]
-        .map((item) => String(item || '').replace(/\s+/g, ' ').trim())
+        .map((item) => sanitizeExtractedTextItem(item, 240))
         .filter(Boolean)
         .filter((item, index, array) => array.indexOf(item) === index)
         .slice(0, 260);
@@ -778,14 +851,14 @@ function mergePageContexts(baseContext = {}, nextContext = {}) {
         .filter((item, index, array) => array.findIndex((candidate) => candidate?.tag === item?.tag && candidate?.text === item?.text) === index)
         .slice(0, 40);
 
-    return {
+    return sanitizePageContext({
         title: nextContext.title || baseContext.title || '',
         description: nextContext.description || baseContext.description || '',
         headings: mergeTextList(baseContext.headings, nextContext.headings),
         interactiveElements: mergeInteractiveElements(baseContext.interactiveElements, nextContext.interactiveElements),
         visibleText: mergeTextList(baseContext.visibleText, nextContext.visibleText),
         scrollHeight: Math.max(baseContext.scrollHeight || 0, nextContext.scrollHeight || 0)
-    };
+    });
 }
 
 async function performTaskSpecificInteractions(page, task, initialTitle, initialContext) {
@@ -2234,8 +2307,8 @@ async function fetchHostedScreenshot(normalizedUrl) {
 }
 
 function extractPageMetadata(html, normalizedUrl) {
-    const title = decodeHtml(findFirstMatch(html, /<title[^>]*>([\s\S]*?)<\/title>/i)) || normalizedUrl;
-    const description = decodeHtml(findMetaContent(html, 'description')) || 'Sem descricao detectada no HTML.';
+    const title = sanitizeExtractedTextItem(decodeHtml(findFirstMatch(html, /<title[^>]*>([\s\S]*?)<\/title>/i)), 140) || normalizedUrl;
+    const description = sanitizeExtractedTextItem(decodeHtml(findMetaContent(html, 'description')), 220) || 'Sem descricao detectada no HTML.';
     const headings = extractMatches(html, /<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi, 6);
     const links = extractMatches(html, /<a\b[^>]*>([\s\S]*?)<\/a>/gi, 10);
     const buttons = extractMatches(html, /<button\b[^>]*>([\s\S]*?)<\/button>/gi, 6);
@@ -2265,8 +2338,7 @@ function extractVisibleTextFromHtml(html, limit = 220) {
     return source
         .split(/\n+/)
         .flatMap((line) => decodeHtml(stripTags(line)).split(/\s{2,}/))
-        .map((line) => line.replace(/\s+/g, ' ').trim())
-        .filter((line) => line.length > 1)
+        .map((line) => sanitizeExtractedTextItem(line, 240))
         .filter((line, index, array) => array.indexOf(line) === index)
         .slice(0, limit);
 }
@@ -2350,7 +2422,7 @@ function extractMatches(html, regex, limit) {
     const source = String(html || '');
 
     while ((match = regex.exec(source)) && results.length < limit) {
-        const clean = decodeHtml(stripTags(match[1]).replace(/\s+/g, ' ').trim());
+        const clean = sanitizeExtractedTextItem(decodeHtml(stripTags(match[1]).replace(/\s+/g, ' ').trim()), 160);
         if (clean) {
             results.push(clean);
         }
