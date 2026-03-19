@@ -13419,7 +13419,7 @@ SAÍDA FINAL:
         text = text.replace(/\s+/g, ' ').trim();
         
         // Detectar frações simples (a/b)
-        const simpleFractionMatch = text.match(/^([0-9]+(?:\.[0-9]+)?)\s*/\s*([0-9]+(?:\.[0-9]+)?)$/);
+        const simpleFractionMatch = text.match(/^([0-9]+(?:\.[0-9]+)?)\s*\/\s*([0-9]+(?:\.[0-9]+)?)$/);
         if (simpleFractionMatch) {
             return `\\frac{${simpleFractionMatch[1]}}{${simpleFractionMatch[2]}}`;
         }
