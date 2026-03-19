@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Teste Modo RE - Matemática Visual</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <!-- MathJax -->
+    <script>
+    window.MathJax = {
+        tex: {
+            displayMath: [['$$', '$$']],
+            inlineMath: [['$', '$']]
+        },
+        options: {
+            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+    };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #131e30;
+            color: #e2e8f0;
+            padding: 2rem;
+        }
+        
+        .re-response-body {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .re-math-block {
+            background: #1e293b !important;
+            border: 1px solid #374151 !important;
+            border-radius: 8px !important;
+            padding: 16px !important;
+            margin: 16px 0 !important;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .re-text-block {
+            margin: 12px 0;
+        }
+
+        .re-mixed-block {
+            background: rgba(59, 130, 246, 0.05);
+            border-left: 3px solid #3b82f6;
+            padding-left: 12px;
+            margin: 12px 0;
+        }
+
+        .re-text-line {
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+            margin: 4px 0;
+        }
+
+        .re-math-block .MathJax,
+        .re-math-block mjx-container {
+            font-size: 1.2em !important;
+            color: #f9fafb !important;
+        }
+        
+        .test-section {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .test-title {
+            color: #93c5fd;
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="text-2xl font-bold text-white mb-6">🧮 Teste do Modo RE - Renderização Matemática Visual</h1>
+    
+    <div class="test-section">
+        <div class="test-title">📊 Frações Empilhadas</div>
+        <div class="re-response-body">
+            <div class="re-math-block">$$\frac{3}{4} + \frac{2}{5} = \frac{15}{20} + \frac{8}{20} = \frac{23}{20}$$</div>
+            <div class="re-text-line">Resultado: $1\frac{3}{20}$</div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">🔢 Expoentes Elevados</div>
+        <div class="re-response-body">
+            <div class="re-math-block">$$x^2 + 2x + 1 = (x + 1)^2$$</div>
+            <div class="re-text-line">Para $x = 3$: $3^2 + 2(3) + 1 = 16$</div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">√ Raiz Quadrada</div>
+        <div class="re-response-body">
+            <div class="re-math-block">$$\sqrt{16} = 4$$</div>
+            <div class="re-math-block">$$\sqrt{x^2 + 4}$$</div>
+            <div class="re-text-line">$\sqrt{25} = 5$</div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">π Símbolo PI</div>
+        <div class="re-response-body">
+            <div class="re-math-block">$$A = \pi r^2$$</div>
+            <div class="re-text-line">Para $r = 5$: $A = \pi \times 5^2 = 25\pi$</div>
+            <div class="re-text-line">Aproximadamente: $78.54$ unidades²</div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">📐 Equações Alinhadas</div>
+        <div class="re-response-body">
+            <div class="re-math-block">$$\begin{aligned}
+2x + 3y &= 7 \\
+x - y &= 1 \\
+\end{aligned}$$</div>
+            <div class="re-text-line">Resolvendo: $x = 2$, $y = 1$</div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">🧪 Expressões Complexas</div>
+        <div class="re-response-body">
+            <div class="re-mixed-block">
+                <div class="re-text-line">1. Calcular a integral: $\int x^2 dx = \frac{x^3}{3} + C$</div>
+                <div class="re-text-line">2. Derivada: $\frac{d}{dx}(x^3) = 3x^2$</div>
+                <div class="re-text-line">3. Limite: $\lim_{x \to \infty} \frac{1}{x} = 0$</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">✅ Verificação Visual</div>
+        <div class="re-response-body">
+            <div class="re-text-line">- Frações devem aparecer com numerador sobre denominador</div>
+            <div class="re-text-line">- Expoentes devem aparecer elevados (superíndice)</div>
+            <div class="re-text-line">- Raiz quadrada deve ter o símbolo √ correto</div>
+            <div class="re-text-line">- PI deve aparecer como π, não "pi"</div>
+            <div class="re-text-line">- Equações devem estar alinhadas verticalmente</div>
+        </div>
+    </div>
+    
+    <script>
+        // Forçar renderização MathJax após carregar
+        setTimeout(() => {
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise([document.body]).then(() => {
+                    console.log('✅ MathJax renderizado com sucesso!');
+                }).catch((error) => {
+                    console.error('❌ Erro no MathJax:', error);
+                });
+            }
+        }, 100);
+    </script>
+</body>
+</html>

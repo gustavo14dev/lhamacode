@@ -13152,6 +13152,14 @@ ${chunk}${bibliographyBlock}
             // Atualizar com a resposta completa (como HTML)
             this.updateProcessingMessage(processingId, finalHtml);
             
+            // Forçar renderização MathJax para o modo RE
+            setTimeout(() => {
+                const messageElement = document.getElementById(`responseText_${processingId}`);
+                if (messageElement) {
+                    this.queueMathTypeset(messageElement);
+                }
+            }, 100);
+            
         } catch (error) {
             console.error('❌ Erro no modo RE:', error);
             this.updateProcessingMessage(processingId, `❌ Erro ao processar exercício: ${error.message}`);
@@ -13300,17 +13308,26 @@ SAÍDA FINAL:
 
         return blocks.map((block) => {
             if (/^\$\$[\s\S]+\$\$$/.test(block)) {
-                return `<div class="re-math-block my-3 overflow-x-auto">${block}</div>`;
+                // Renderizar bloco matemático com MathJax
+                return `<div class="re-math-block my-3 overflow-x-auto p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">${block}</div>`;
             }
 
+            // Verificar se o bloco contém expressões matemáticas inline
+            const hasInlineMath = /\$[^$\n]+\$/.test(block);
+            
             const lines = block
                 .split('\n')
                 .map((line) => line.trim())
                 .filter(Boolean);
 
-            return lines
-                .map((line) => `<div class="re-text-line text-gray-700 dark:text-gray-200 leading-8">${this.escapeHtml(line)}</div>`)
-                .join('');
+            const renderedLines = lines.map((line) => {
+                // Converter expressões matemáticas simples para LaTeX se não tiver delimitadores
+                let processedLine = this.convertSimpleMathToLatex(line);
+                return `<div class="re-text-line text-gray-700 dark:text-gray-200 leading-8 my-1">${this.escapeHtml(processedLine)}</div>`;
+            });
+
+            const containerClass = hasInlineMath ? 're-mixed-block my-3' : 're-text-block my-2';
+            return `<div class="${containerClass}">${renderedLines.join('')}</div>`;
         }).join('');
     }
 
@@ -13400,6 +13417,13 @@ SAÍDA FINAL:
         }
 
         text = text.replace(/\s+/g, ' ').trim();
+        
+        // Detectar frações simples (a/b)
+        const simpleFractionMatch = text.match(/^([0-9]+(?:\.[0-9]+)?)\s*/\s*([0-9]+(?:\.[0-9]+)?)$/);
+        if (simpleFractionMatch) {
+            return `\\frac{${simpleFractionMatch[1]}}{${simpleFractionMatch[2]}}`;
+        }
+        
         const slashIndex = this.findTopLevelSlashIndex(text);
         if (slashIndex !== -1) {
             const numerator = this.stripOuterParentheses(text.slice(0, slashIndex).trim());
@@ -13407,6 +13431,63 @@ SAÍDA FINAL:
             if (numerator && denominator) {
                 return `\\frac{${this.convertREExpressionToLatex(numerator)}}{${this.convertREExpressionToLatex(denominator)}}`;
             }
+        }
+
+        return text;
+    }
+
+    // Converter expressões matemáticas simples para LaTeX inline
+    convertSimpleMathToLatex(line) {
+        let text = String(line || '').trim();
+        if (!text) {
+            return '';
+        }
+
+        // Se já tem delimitadores LaTeX, não processar
+        if (/\$.*\$/.test(text) || /\$\$.*\$\$/.test(text)) {
+            return text;
+        }
+
+        // Converter símbolos matemáticos comuns
+        text = text
+            .replace(/\bpi\b/gi, 'π')
+            .replace(/\bPI\b/g, 'π')
+            .replace(/√/g, '√')
+            .replace(/×/g, '×')
+            .replace(/÷/g, '÷');
+
+        // Detectar padrões matemáticos e adicionar delimitadores $
+        const mathPatterns = [
+            // Frações: a/b ou (a+b)/(c+d)
+            /([a-zA-Z0-9π√()\s+\-*/]+)\s*\/\s*([a-zA-Z0-9π√()\s+\-*/]+)/g,
+            // Potências: x^2, x^n
+            /([a-zA-Z])\^([0-9]+)/g,
+            // Equações: x = 2, y = 3x + 1
+            /([a-zA-Z])\s*=\s*([a-zA-Z0-9π√()\s+\-*/×÷,.]+)/g,
+            // Raízes: √x, √(a+b)
+            /√\s*([a-zA-Z0-9π∅()]+)/g
+        ];
+
+        let hasMath = false;
+        
+        // Verificar se contém padrões matemáticos
+        if (mathPatterns.some(pattern => pattern.test(text))) {
+            hasMath = true;
+            
+            // Converter para LaTeX
+            text = text
+                .replace(mathPatterns[0], (match, num, den) => {
+                    const cleanNum = num.trim();
+                    const cleanDen = den.trim();
+                    return `\\frac{${cleanNum}}{${cleanDen}}`;
+                })
+                .replace(mathPatterns[1], (match, base, exp) => `${base}^{${exp}}`)
+                .replace(mathPatterns[3], (match, expr) => `\\sqrt{${expr}}`);
+        }
+
+        // Se detectou matemática, adicionar delimitadores $
+        if (hasMath) {
+            text = `$${text}$`;
         }
 
         return text;
