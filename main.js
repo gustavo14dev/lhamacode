@@ -13147,7 +13147,7 @@ ${chunk}${bibliographyBlock}
         try {
             const response = await this.generateREResponse(message, sendFiles);
             const normalizedResponse = this.normalizeREResponse(response);
-            const finalHtml = `<div class="re-response-body">${this.formatResponse(normalizedResponse, `re_${processingId}`)}</div>`;
+            const finalHtml = `<div class="re-response-body">${this.renderREResponseHtml(normalizedResponse)}</div>`;
 
             // Atualizar com a resposta completa (como HTML)
             this.updateProcessingMessage(processingId, finalHtml);
@@ -13292,6 +13292,28 @@ SAÍDA FINAL:
         return blocks.join('\n\n').trim() || 'Não foi possível resolver com as informações fornecidas.';
     }
 
+    renderREResponseHtml(responseText) {
+        const blocks = String(responseText || '')
+            .split(/\n{2,}/)
+            .map((block) => block.trim())
+            .filter(Boolean);
+
+        return blocks.map((block) => {
+            if (/^\$\$[\s\S]+\$\$$/.test(block)) {
+                return `<div class="re-math-block my-3 overflow-x-auto">${block}</div>`;
+            }
+
+            const lines = block
+                .split('\n')
+                .map((line) => line.trim())
+                .filter(Boolean);
+
+            return lines
+                .map((line) => `<div class="re-text-line text-gray-700 dark:text-gray-200 leading-8">${this.escapeHtml(line)}</div>`)
+                .join('');
+        }).join('');
+    }
+
     normalizeREMathLine(line) {
         let text = String(line || '').trim();
         if (!text) {
@@ -13322,7 +13344,7 @@ SAÍDA FINAL:
     }
 
     looksLikeREMathExpression(text) {
-        const value = String(text || '').trim();
+        const value = String(text || '').trim().replace(/^resposta\s*:\s*/i, '');
         if (!value) {
             return false;
         }
@@ -13348,7 +13370,6 @@ SAÍDA FINAL:
 
         text = text.replace(/^\d+\)\s*/g, '').replace(/^\d+\.\s*/g, '');
         text = text.replace(/^resposta\s*:\s*/i, '');
-        text = this.convertREFractionsToLatex(text);
         text = text
             .replace(/\bpi\b/gi, '\\pi')
             .replace(/π/g, '\\pi')
@@ -13357,35 +13378,85 @@ SAÍDA FINAL:
             .replace(/([A-Za-z0-9)\]])\^([A-Za-z0-9]+)/g, '$1^{$2}')
             .replace(/×/g, '\\times ')
             .replace(/\*/g, '\\times ')
-            .replace(/÷/g, '\\div ')
+            .replace(/÷/g, '/')
             .replace(/([A-Za-z0-9)\]}])\s+([A-Za-z(\\])/g, '$1 $2')
             .replace(/\s+/g, ' ')
             .trim();
 
         if (text.includes('=')) {
-            const parts = text.split('=').map((part) => part.trim()).filter(Boolean);
+            const parts = text.split('=').map((part) => this.convertREExpressionToLatex(part)).filter(Boolean);
             if (parts.length >= 2) {
                 return `${parts[0]} &= ${parts.slice(1).join(' = ')}`;
+            }
+        }
+
+        return this.convertREExpressionToLatex(text);
+    }
+
+    convertREExpressionToLatex(expression) {
+        let text = String(expression || '').trim();
+        if (!text) {
+            return '';
+        }
+
+        text = text.replace(/\s+/g, ' ').trim();
+        const slashIndex = this.findTopLevelSlashIndex(text);
+        if (slashIndex !== -1) {
+            const numerator = this.stripOuterParentheses(text.slice(0, slashIndex).trim());
+            const denominator = this.stripOuterParentheses(text.slice(slashIndex + 1).trim());
+            if (numerator && denominator) {
+                return `\\frac{${this.convertREExpressionToLatex(numerator)}}{${this.convertREExpressionToLatex(denominator)}}`;
             }
         }
 
         return text;
     }
 
-    convertREFractionsToLatex(text) {
-        let output = String(text || '');
-        const fractionPatterns = [
-            /\(([^()]+)\)\s*\/\s*\(([^()]+)\)/g,
-            /\(([^()]+)\)\s*\/\s*([A-Za-z0-9]+)/g,
-            /([A-Za-z0-9]+)\s*\/\s*\(([^()]+)\)/g,
-            /([A-Za-z0-9]+)\s*\/\s*([A-Za-z0-9]+)/g
-        ];
+    findTopLevelSlashIndex(text) {
+        let depth = 0;
+        for (let index = 0; index < text.length; index += 1) {
+            const char = text[index];
+            if (char === '(' || char === '{' || char === '[') {
+                depth += 1;
+                continue;
+            }
+            if (char === ')' || char === '}' || char === ']') {
+                depth = Math.max(0, depth - 1);
+                continue;
+            }
+            if (char === '/' && depth === 0) {
+                return index;
+            }
+        }
+        return -1;
+    }
 
-        fractionPatterns.forEach((pattern) => {
-            output = output.replace(pattern, (_, numerator, denominator) => `\\frac{${numerator.trim()}}{${denominator.trim()}}`);
-        });
+    stripOuterParentheses(text) {
+        let value = String(text || '').trim();
+        while (
+            value.startsWith('(') &&
+            value.endsWith(')') &&
+            this.hasBalancedOuterParentheses(value)
+        ) {
+            value = value.slice(1, -1).trim();
+        }
+        return value;
+    }
 
-        return output;
+    hasBalancedOuterParentheses(text) {
+        let depth = 0;
+        for (let index = 0; index < text.length; index += 1) {
+            const char = text[index];
+            if (char === '(') {
+                depth += 1;
+            } else if (char === ')') {
+                depth -= 1;
+                if (depth === 0 && index < text.length - 1) {
+                    return false;
+                }
+            }
+        }
+        return depth === 0;
     }
 
     async callREGeminiAPI(systemPrompt, userMessage, sendFiles = []) {
