@@ -333,6 +333,9 @@ class UI {
         window.isREMode = false;
         window.isInvestigateMode = false;
         window.isAgentMode = false;
+        window.isDocumentModeActive = false;
+        window.isSlidesModeActive = false;
+        this.currentCreateType = null;
         
         // Resetar botões
         this.resetCreateButtons();
@@ -342,12 +345,14 @@ class UI {
                 window.isInvestigateMode = true;
                 this.persistAgentUiState({ activeTool: 'investigate' });
                 this.showNotification('🔍 Modo Investigate ativado - Envie sua dúvida para investigação profunda', 'info');
+                this.updateCreateButton();
                 break;
                 
             case 're':
                 window.isREMode = true;
                 this.persistAgentUiState({ activeTool: 're' });
                 this.showNotification('🧮 Modo Resolução de Exercícios ativado - Envie o exercício para resolver', 'info');
+                this.updateCreateButton();
                 break;
                 
             case 'agent':
@@ -4933,57 +4938,70 @@ Regras:
         const createBtn = document.getElementById('createToggle');
         if (createBtn) {
             createBtn.classList.remove('active', 'agent-active');
-        }
-
-        const dropdown = document.getElementById('floatingCreateDropdown');
-        if (dropdown) {
-            const button = dropdown.querySelector('button');
-            if (button) {
-                button.classList.remove('active', 'agent-active', 'border-blue-500', 'text-blue-400', 'border-green-500', 'text-green-400');
-                button.innerHTML = `
-                    <span class="material-icons-outlined">add</span>
-                    <span>Criar</span>
-                    <span class="material-icons-outlined">expand_more</span>
-                `;
-            }
+            createBtn.classList.remove('border-blue-500', 'text-blue-400', 'border-green-500', 'text-green-400');
+            createBtn.innerHTML = `
+                <span class="material-icons-outlined" style="font-size:1rem">edit</span>
+                <span>Ferramentas</span>
+            `;
         }
     }
 
     // Atualizar botão de criação para mostrar modo ativo
     updateCreateButton() {
-        const dropdown = document.getElementById('floatingCreateDropdown');
-        if (dropdown) {
-            // Atualizar texto do botão principal
-            const button = dropdown.querySelector('button');
-            if (button) {
-                if (window.isAgentMode) {
-                    button.innerHTML = `
-                        <span class="material-icons-outlined text-white">smart_toy</span>
-                        <span class="text-white">Drekee Agent Ativo</span>
-                        <span class="toolbar-status-badge toolbar-status-badge-beta">BETA</span>
-                    `;
-                    button.classList.add('active', 'agent-active');
-                } else if (window.isInvestigateMode) {
-                    button.innerHTML = `
-                        <span class="material-icons-outlined text-blue-400">search</span>
-                        <span class="text-blue-400">Investigate Ativo</span>
-                        <span class="material-icons-outlined text-blue-400">expand_more</span>
-                    `;
-                    button.classList.remove('agent-active');
-                    button.classList.add('border-blue-500', 'text-blue-400');
-                } else if (window.isREMode) {
-                    button.innerHTML = `
-                        <span class="material-icons-outlined text-green-400">calculate</span>
-                        <span class="text-green-400">RE Ativo</span>
-                        <span class="material-icons-outlined text-green-400">expand_more</span>
-                    `;
-                    button.classList.remove('agent-active');
-                    button.classList.add('border-green-500', 'text-green-400');
-                } else {
-                    this.resetCreateButtons();
-                }
-            }
+        const createBtn = document.getElementById('createToggle');
+        if (!createBtn) {
+            return;
         }
+
+        createBtn.classList.remove('border-blue-500', 'text-blue-400', 'border-green-500', 'text-green-400');
+
+        if (window.isAgentMode) {
+            createBtn.classList.add('active', 'agent-active');
+            createBtn.innerHTML = `
+                <span class="material-icons-outlined">smart_toy</span>
+                <span>Drekee Agent Ativo</span>
+                <span class="toolbar-status-badge toolbar-status-badge-beta">BETA</span>
+            `;
+            return;
+        }
+
+        if (window.isInvestigateMode) {
+            createBtn.classList.add('active');
+            createBtn.innerHTML = `
+                <span class="material-icons-outlined" style="font-size:1rem">troubleshoot</span>
+                <span>Drekee Investigate</span>
+            `;
+            return;
+        }
+
+        if (window.isREMode) {
+            createBtn.classList.add('active');
+            createBtn.innerHTML = `
+                <span class="material-icons-outlined" style="font-size:1rem">calculate</span>
+                <span>RE Ativo</span>
+            `;
+            return;
+        }
+
+        if (window.isDocumentModeActive) {
+            createBtn.classList.add('active');
+            createBtn.innerHTML = `
+                <span class="material-icons-outlined" style="font-size:1rem">description</span>
+                <span>Documento</span>
+            `;
+            return;
+        }
+
+        if (window.isSlidesModeActive) {
+            createBtn.classList.add('active');
+            createBtn.innerHTML = `
+                <span class="material-icons-outlined" style="font-size:1rem">slideshow</span>
+                <span>Apresentação</span>
+            `;
+            return;
+        }
+
+        this.resetCreateButtons();
     }
 
     // Mostrar notificação (função que estava faltando)
@@ -6619,7 +6637,7 @@ Regras:
             }
             
             if (text) {
-                text.textContent = createLabels[createType];
+                text.textContent = createNames[createType] || 'Criar';
             }
         }
         
@@ -13228,22 +13246,37 @@ window.selectTool = function(tool) {
 
 window.deactivateCurrentFunction = function() {
     if (window.ui) {
+        const userInput = document.getElementById('userInput');
         if (window.isAgentMode) {
             window.ui.deactivateAgentMode();
         } else if (window.isREMode) {
-            // Desativar modo RE
             window.isREMode = false;
             window.ui.showNotification('🛑 Modo Resolução de Exercícios desativado', 'info');
             window.ui.resetCreateButtons();
         } else if (window.isInvestigateMode) {
-            // Desativar modo Investigate
             window.isInvestigateMode = false;
             window.ui.showNotification('🛑 Modo Investigate desativado', 'info');
             window.ui.resetCreateButtons();
         } else if (window.isDocumentModeActive) {
-            window.ui.selectCreateType('document');
+            window.isDocumentModeActive = false;
+            window.ui.currentCreateType = null;
+            if (window.ui.setCreateType) {
+                window.ui.setCreateType(null);
+            }
+            window.ui.showNotification('🛑 Modo Documento desativado', 'info');
+            window.ui.resetCreateButtons();
         } else if (window.isSlidesModeActive) {
-            window.ui.selectCreateType('slides');
+            window.isSlidesModeActive = false;
+            window.ui.currentCreateType = null;
+            if (window.ui.setCreateType) {
+                window.ui.setCreateType(null);
+            }
+            window.ui.showNotification('🛑 Modo Apresentação desativado', 'info');
+            window.ui.resetCreateButtons();
+        }
+
+        if (userInput) {
+            userInput.placeholder = 'Pergunte qualquer coisa...';
         }
         
         // Esconder botão de desativação
