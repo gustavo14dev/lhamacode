@@ -13278,12 +13278,12 @@ SAÍDA FINAL:
             if (!mathBuffer.length) {
                 return;
             }
-            const alignedLines = mathBuffer.map((line) => this.convertRELineToLatex(line));
-            if (alignedLines.length === 1) {
-                blocks.push(`$$${alignedLines[0]}$$`);
-            } else {
-                blocks.push(`$$\\begin{aligned}\n${alignedLines.join(' \\\\\n')}\n\\end{aligned}$$`);
-            }
+            mathBuffer
+                .map((line) => this.convertRELineToLatex(line))
+                .filter(Boolean)
+                .forEach((latexLine) => {
+                    blocks.push(`$$${latexLine}$$`);
+                });
             mathBuffer = [];
         };
 
@@ -13308,12 +13308,8 @@ SAÍDA FINAL:
 
         return blocks.map((block) => {
             if (/^\$\$[\s\S]+\$\$$/.test(block)) {
-                // Renderizar bloco matemático com MathJax
-                return `<div class="re-math-block my-3 overflow-x-auto p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">${block}</div>`;
+                return this.renderREMathCard(block);
             }
-
-            // Verificar se o bloco contém expressões matemáticas inline
-            const hasInlineMath = /\$[^$\n]+\$/.test(block);
             
             const lines = block
                 .split('\n')
@@ -13321,14 +13317,35 @@ SAÍDA FINAL:
                 .filter(Boolean);
 
             const renderedLines = lines.map((line) => {
-                // Converter expressões matemáticas simples para LaTeX se não tiver delimitadores
                 let processedLine = this.convertSimpleMathToLatex(line);
+
+                if (/^\$\$[\s\S]+\$\$$/.test(processedLine)) {
+                    return this.renderREMathCard(processedLine);
+                }
+
+                if (/^\$[^$\n]+\$$/.test(processedLine)) {
+                    return this.renderREMathCard(`$$${processedLine.slice(1, -1)}$$`);
+                }
+
+                if (this.isREMathLine(line)) {
+                    return this.renderREMathCard(`$$${this.convertRELineToLatex(line)}$$`);
+                }
+
                 return `<div class="re-text-line text-gray-700 dark:text-gray-200 leading-8 my-1">${this.escapeHtml(processedLine)}</div>`;
             });
 
-            const containerClass = hasInlineMath ? 're-mixed-block my-3' : 're-text-block my-2';
-            return `<div class="${containerClass}">${renderedLines.join('')}</div>`;
+            return `<div class="re-text-block my-2">${renderedLines.join('')}</div>`;
         }).join('');
+    }
+
+    renderREMathCard(latexBlock) {
+        return `
+            <div class="re-math-card">
+                <div class="re-math-card-inner">
+                    <div class="re-math-block">${latexBlock}</div>
+                </div>
+            </div>
+        `;
     }
 
     normalizeREMathLine(line) {

@@ -878,21 +878,46 @@ font-style: italic;
     font-family: 'Inter', sans-serif;
     font-size: 0.95rem;
     line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.re-math-card {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.re-math-card-inner {
+    width: min(100%, 420px);
+    background: #f8fafc !important;
+    border: 1px solid #dbe4f0 !important;
+    border-radius: 14px !important;
+    padding: 14px 18px !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
 .re-math-block {
-    background: #f8fafc !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 8px !important;
-    padding: 16px !important;
-    margin: 16px 0 !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
     text-align: center;
     font-size: 1.1em;
+    overflow-x: auto;
+}
+
+.dark .re-math-card-inner {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    box-shadow: 0 8px 24px rgba(2, 6, 23, 0.35);
 }
 
 .dark .re-math-block {
-    background: #1e293b !important;
-    border-color: #374151 !important;
+    background: transparent !important;
+    border-color: transparent !important;
 }
 
 .re-text-block {
