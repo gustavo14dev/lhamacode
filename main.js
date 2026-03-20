@@ -13448,45 +13448,41 @@ SAÍDA FINAL:
             return text;
         }
 
-        // Converter símbolos matemáticos comuns
-        text = text
-            .replace(/\bpi\b/gi, 'π')
-            .replace(/\bPI\b/g, 'π')
-            .replace(/√/g, '√')
-            .replace(/×/g, '×')
-            .replace(/÷/g, '÷');
+        // Converter padrões matemáticos comuns
+        let converted = false;
 
-        // Detectar padrões matemáticos e adicionar delimitadores $
-        const mathPatterns = [
-            // Frações: a/b ou (a+b)/(c+d)
-            /([a-zA-Z0-9π√()\s+\-*/]+)\s*\/\s*([a-zA-Z0-9π√()\s+\-*/]+)/g,
-            // Potências: x^2, x^n
-            /([a-zA-Z])\^([0-9]+)/g,
-            // Equações: x = 2, y = 3x + 1
-            /([a-zA-Z])\s*=\s*([a-zA-Z0-9π√()\s+\-*/×÷,.]+)/g,
-            // Raízes: √x, √(a+b)
-            /√\s*([a-zA-Z0-9π∅()]+)/g
-        ];
-
-        let hasMath = false;
-        
-        // Verificar se contém padrões matemáticos
-        if (mathPatterns.some(pattern => pattern.test(text))) {
-            hasMath = true;
-            
-            // Converter para LaTeX
-            text = text
-                .replace(mathPatterns[0], (match, num, den) => {
-                    const cleanNum = num.trim();
-                    const cleanDen = den.trim();
-                    return `\\frac{${cleanNum}}{${cleanDen}}`;
-                })
-                .replace(mathPatterns[1], (match, base, exp) => `${base}^{${exp}}`)
-                .replace(mathPatterns[3], (match, expr) => `\\sqrt{${expr}}`);
+        // Equações: x = 2 -> $x = 2$
+        if (text.includes('=') && /[a-zA-Z0-9]/.test(text)) {
+            converted = true;
         }
 
-        // Se detectou matemática, adicionar delimitadores $
-        if (hasMath) {
+        // Frações: a/b -> \frac{a}{b}
+        if (text.includes('/')) {
+            const fractionMatch = text.match(/^([a-zA-Z0-9\s+\-*/()]+)\s*\/\s*([a-zA-Z0-9\s+\-*/()]+)$/);
+            if (fractionMatch) {
+                text = `\\frac{${fractionMatch[1].trim()}}{${fractionMatch[2].trim()}}`;
+                converted = true;
+            }
+        }
+
+        // Potências: x^2 -> x^{2}
+        text = text.replace(/([a-zA-Z])\^([0-9]+)/g, '$1^{$2}');
+        if (text.includes('^{')) converted = true;
+
+        // PI: pi -> \pi
+        text = text.replace(/\bpi\b/gi, '\\pi');
+        if (text.includes('\\pi')) converted = true;
+
+        // Raiz: sqrt(x) -> \sqrt{x}
+        text = text.replace(/sqrt\(\s*([^)]+)\s*\)/g, '\\sqrt{$1}');
+        if (text.includes('\\sqrt')) converted = true;
+
+        // Multiplicação: × -> \times
+        text = text.replace(/×/g, '\\times');
+        if (text.includes('\\times')) converted = true;
+
+        // Se converteu algo, adicionar delimitadores
+        if (converted) {
             text = `$${text}$`;
         }
 
