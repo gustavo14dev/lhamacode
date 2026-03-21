@@ -3,8 +3,16 @@ const SDXL_MODEL = 'stabilityai/stable-diffusion-xl-base-1.0';
 const HUGGING_API_BASE = 'https://api-inference.huggingface.co/models';
 
 function extractPrompt(body = {}) {
-  const payload = typeof body === 'string' ? JSON.parse(body || '{}') : body;
-  return String(payload?.prompt || '').trim();
+  if (typeof body === 'string') {
+    try {
+      const parsed = JSON.parse(body || '{}');
+      return String(parsed?.prompt || '').trim();
+    } catch (error) {
+      return '';
+    }
+  }
+
+  return String(body?.prompt || '').trim();
 }
 
 function chooseHuggingFaceModel(prompt = '') {
@@ -51,7 +59,7 @@ async function requestHuggingFaceImage(apiKey, model, prompt) {
     };
   }
 
-  const rawText = await response.text();
+  const rawText = await response.text().catch(() => '');
   let data = null;
 
   try {
@@ -68,35 +76,90 @@ async function requestHuggingFaceImage(apiKey, model, prompt) {
   };
 }
 
+async function requestPollinationsImage(prompt) {
+  const url = buildPollinationsUrl(prompt);
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'image/*',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    }
+  });
+
+  if (!response.ok) {
+    const rawText = await response.text().catch(() => '');
+    return {
+      ok: false,
+      url,
+      status: response.status,
+      details: rawText || 'Falha ao buscar imagem no Pollinations'
+    };
+  }
+
+  const contentType = response.headers.get('content-type') || 'image/jpeg';
+  const arrayBuffer = await response.arrayBuffer();
+
+  return {
+    ok: true,
+    url,
+    imageUrl: bufferToDataUrl(arrayBuffer, contentType),
+    contentType
+  };
+}
+
+async function buildPollinationsFallback(prompt, reason = '') {
+  const pollinationsUrl = buildPollinationsUrl(prompt);
+
+  try {
+    const result = await requestPollinationsImage(prompt);
+    if (result.ok && result.imageUrl) {
+      return {
+        success: true,
+        imageUrl: result.imageUrl,
+        prompt,
+        model: 'pollinations',
+        usedFallback: true,
+        fallbackReason: reason || 'Fallback para Pollinations'
+      };
+    }
+
+    console.error('[HUGGING-IMAGE] Pollinations respondeu sem imagem válida:', result);
+    return {
+      success: true,
+      imageUrl: `/api/image-proxy?url=${encodeURIComponent(pollinationsUrl)}`,
+      prompt,
+      model: 'pollinations',
+      usedFallback: true,
+      fallbackReason: reason || result.details || 'Fallback para Pollinations'
+    };
+  } catch (error) {
+    console.error('[HUGGING-IMAGE] Erro ao buscar Pollinations:', error);
+    return {
+      success: true,
+      imageUrl: `/api/image-proxy?url=${encodeURIComponent(pollinationsUrl)}`,
+      prompt,
+      model: 'pollinations',
+      usedFallback: true,
+      fallbackReason: reason || error.message || 'Fallback para Pollinations'
+    };
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  let prompt = '';
-  try {
-    prompt = extractPrompt(req.body);
-  } catch (error) {
-    prompt = '';
-  }
-
+  const prompt = extractPrompt(req.body);
   if (!prompt) {
     return res.status(400).json({ error: 'Prompt parameter is required' });
   }
 
   const apiKey = process.env.HUGGING_API_KEY || '';
   const model = chooseHuggingFaceModel(prompt);
-  const pollinationsUrl = buildPollinationsUrl(prompt);
 
   if (!apiKey) {
-    console.error('[HUGGING-IMAGE] HUGGING_API_KEY não configurada. Usando Pollinations.');
-    return res.status(200).json({
-      success: true,
-      imageUrl: pollinationsUrl,
-      prompt,
-      model: 'pollinations',
-      usedFallback: true
-    });
+    console.error('[HUGGING-IMAGE] HUGGING_API_KEY nao configurada. Usando Pollinations.');
+    return res.status(200).json(await buildPollinationsFallback(prompt, 'HUGGING_API_KEY nao configurada'));
   }
 
   try {
@@ -125,23 +188,9 @@ export default async function handler(req, res) {
       details: result.details
     });
 
-    return res.status(200).json({
-      success: true,
-      imageUrl: pollinationsUrl,
-      prompt,
-      model: 'pollinations',
-      usedFallback: true,
-      fallbackReason: result.details || 'Falha na Hugging Face'
-    });
+    return res.status(200).json(await buildPollinationsFallback(prompt, result.details || 'Falha na Hugging Face'));
   } catch (error) {
     console.error('[HUGGING-IMAGE] Erro interno. Usando Pollinations.', error);
-    return res.status(200).json({
-      success: true,
-      imageUrl: pollinationsUrl,
-      prompt,
-      model: 'pollinations',
-      usedFallback: true,
-      fallbackReason: error.message || 'Erro interno na Hugging Face'
-    });
+    return res.status(200).json(await buildPollinationsFallback(prompt, error.message || 'Erro interno na Hugging Face'));
   }
 }
