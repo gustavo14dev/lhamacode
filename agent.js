@@ -804,12 +804,6 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         this.addToHistory('user', userMessage);
         
         try {
-            const messages = this.extraMessagesForNextCall ? [
-                { role: 'system', content: this.getSystemPrompt('rapido') },
-                ...this.extraMessagesForNextCall,
-                ...this.conversationHistory
-            ] : undefined;
-            
             // BUSCAR IMAGENS E INFORMAÇÕES WEB EM PARALELO - antes de chamar a API
             console.log('🔄 [DEBUG-RAPIDO] Buscando imagens e informações web ANTES da resposta...');
             const imagesPromise = this.searchUnsplashImages(userMessage);
@@ -825,17 +819,12 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 this.ui.appendImagesToMessage(messageContainer.responseId, images);
             }
             
-            // Construir mensagens com contexto web se disponível
-            let finalMessages = messages;
-            if (webData && webData.answer && webData.sources.length > 0) {
-                const webContext = `Informações relevantes da web: ${webData.answer}\nFontes: ${webData.sources.map(s => s.title).join(', ')}`;
-                finalMessages = [
-                    { role: 'system', content: this.getSystemPrompt('rapido') + '\n\n' + webContext },
-                    ...(this.extraMessagesForNextCall || []),
-                    ...this.conversationHistory
-                ];
-            }
-            
+            const finalMessages = [
+                { role: 'system', content: this.getSystemPrompt('rapido') + this.buildWebContextBlock(webData) },
+                ...(this.extraMessagesForNextCall || []),
+                ...this.conversationHistory
+            ];
+
             let response = await this.callGroqAPI('llama-3.1-8b-instant', finalMessages);
             console.log('🔍 [DEBUG-RAPIDO] Resposta da API recebida:', response ? response.substring(0, 100) + '...' : 'NULO');
             console.log('🔍 [DEBUG-RAPIDO] Tipo da resposta:', typeof response);
@@ -909,23 +898,11 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             console.log('📦 [RACIOCINIO] Imagens recebidas:', images);
             console.log('🌐 [RACIOCINIO] Dados web recebidos:', webData);
             
-            // Construir mensagens com contexto web se disponível
-            let finalMessages = this.extraMessagesForNextCall ? 
-                [{ role: 'system', content: this.getSystemPrompt('raciocinio') }, ...this.extraMessagesForNextCall, ...this.conversationHistory] : 
-                [{ role: 'system', content: this.getSystemPrompt('raciocinio') }, ...this.conversationHistory];
-                
-            if (webData && webData.answer && webData.sources.length > 0) {
-                const webContext = `Informações relevantes da web: ${webData.answer}\nFontes: ${webData.sources.map(s => s.title).join(', ')}`;
-                finalMessages = [
-                    { 
-                        role: 'system', 
-                        content: this.getSystemPrompt('raciocinio') + 
-                        ' Você é um modelo de raciocínio. Pense passo a passo sobre a pergunta do usuário e coloque SEU RACIOCÍNIO COMPLETO DENTRO DAS TAGS <raciocínio>SEU_RACIOCINIO_AQUI</raciocínio>. NÃO COLOQUE NENHUMA PARTE DO RACIOCÍNIO FORA DAS TAGS. Depois do raciocínio, forneça APENAS a resposta final, sem mencionar que houve raciocínio.\n\n' + webContext
-                    },
-                    ...(this.extraMessagesForNextCall || []),
-                    ...this.conversationHistory
-                ];
-            }
+            const finalMessages = [
+                { role: 'system', content: this.getSystemPrompt('raciocinio') + this.buildWebContextBlock(webData) },
+                ...(this.extraMessagesForNextCall || []),
+                ...this.conversationHistory
+            ];
             
             console.log('🧭 Usando modelo de raciocínio: qwen/qwen3-32b');
             let fullResponse = await this.callGroqAPI('qwen/qwen3-32b', finalMessages);
@@ -1088,11 +1065,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             console.log('📦 [PRO] Imagens recebidas:', images);
             console.log('🌐 [PRO] Dados web recebidos:', webData);
             
-            // Preparar contexto web se disponível
-            let webContext = '';
-            if (webData && webData.answer && webData.sources.length > 0) {
-                webContext = `\n\nInformações relevantes da web: ${webData.answer}\nFontes: ${webData.sources.map(s => s.title).join(', ')}`;
-            }
+            const webContext = this.buildWebContextBlock(webData);
             
             // ========== ETAPA 1: Primeira análise ==========
             const step1Text = 'Analisando perspectiva 1...';
@@ -1102,17 +1075,21 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             await this.ui.sleep(500);
             
             const messages1 = this.extraMessagesForNextCall ? [
-                { role: 'system', content: this.getSystemPrompt('pro') + webContext },
+                {
+                    role: 'system',
+                    content: this.getSystemPrompt('pro') + webContext + '\n\nNesta análise, responda diretamente ao pedido do usuário, priorize a solução mais útil e evite floreios.'
+                },
                 ...this.extraMessagesForNextCall,
-                ...this.conversationHistory,
-                { role: 'user', content: userMessage }
+                ...this.conversationHistory
             ] : [
-                { role: 'system', content: this.getSystemPrompt('pro') + webContext },
-                ...this.conversationHistory,
-                { role: 'user', content: userMessage }
+                {
+                    role: 'system',
+                    content: this.getSystemPrompt('pro') + webContext + '\n\nNesta análise, responda diretamente ao pedido do usuário, priorize a solução mais útil e evite floreios.'
+                },
+                ...this.conversationHistory
             ];
             
-            const response1 = await this.callGroqAPI('llama-3.1-8b-instant', messages1);
+            let response1 = await this.callGroqAPI('llama-3.1-8b-instant', messages1);
             
             // Extrair arquivos se existirem
             try {
@@ -1131,17 +1108,21 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             await this.ui.sleep(500);
             
             const messages2 = this.extraMessagesForNextCall ? [
-                { role: 'system', content: this.getSystemPrompt('pro') + webContext },
+                {
+                    role: 'system',
+                    content: this.getSystemPrompt('pro') + webContext + '\n\nNesta análise, atue como um revisor crítico. Questione suposições, identifique ambiguidades, aponte riscos e proponha alternativas melhores quando existirem.'
+                },
                 ...this.extraMessagesForNextCall,
-                ...this.conversationHistory,
-                { role: 'user', content: userMessage }
+                ...this.conversationHistory
             ] : [
-                { role: 'system', content: this.getSystemPrompt('pro') + webContext },
-                ...this.conversationHistory,
-                { role: 'user', content: userMessage }
+                {
+                    role: 'system',
+                    content: this.getSystemPrompt('pro') + webContext + '\n\nNesta análise, atue como um revisor crítico. Questione suposições, identifique ambiguidades, aponte riscos e proponha alternativas melhores quando existirem.'
+                },
+                ...this.conversationHistory
             ];
             
-            const response2 = await this.callGroqAPI('llama-3.1-8b-instant', messages2);
+            let response2 = await this.callGroqAPI('llama-3.1-8b-instant', messages2);
             
             // Extrair arquivos se existirem
             try {
@@ -1162,7 +1143,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const synthMessages = [
                 {
                     role: 'system',
-                    content: this.getSystemPrompt('pro') + webContext + ' Você é um especialista em síntese. Combine e melhore as duas respostas abaixo em uma única resposta superior. Corrija possíveis erros, melhore a clareza, e crie uma resposta final otimizada.'
+                    content: this.getSystemPrompt('pro') + webContext + '\n\nVocê é responsável pela síntese final. Combine as duas análises, preserve o que houver de melhor, elimine redundâncias, corrija erros e entregue uma resposta superior, clara, inteligente e prática. Use a web apenas como apoio.'
                 },
                 {
                     role: 'user',
@@ -1183,7 +1164,7 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
                 synthMessages.splice(1, 0, ...this.extraMessagesForNextCall);
             }
             
-            let finalResponse = await this.callGroqAPI('llama-3.1-8b-instant', synthMessages);
+            let finalResponse = await this.callGroqAPI('qwen/qwen3-32b', synthMessages);
             this.extraMessagesForNextCall = null;
 
             // Tentar extrair arquivos gerados na resposta final e anexá-los ao chat
@@ -1472,13 +1453,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         // Not required to have a client-side Groq API key when using server-side proxy
         // The proxy will use GROQ_API_KEY from environment variables on Vercel
         
-        // System prompts diferenciados por modelo
-        const prompts = {
-            rapido: `Olá! 😊 Eu sou a Drekee AI, sua assistente de código amigável! Estou aqui para te ajudar com programação de forma leve, divertida e super útil. Vou responder com clareza, usar emojis pra deixar tudo mais agradável 🚀 e ser bem natural na conversa. Adoro ajudar com código, debugging e explicações técnicas! Seja concisa mas completa, e sempre com um toque especial! ✨💻`,
-            raciocinio: `Você é o Drekee AI 1, um assistente de IA especializado em raciocínio profundo. IMPORTANTE: Coloque SEU RACIOCÍNIO COMPLETO DENTRO DAS TAGS <raciocínio>SEU_RACIOCINIO_AQUI</raciocínio>. NÃO COLOQUE NENHUMA PARTE DO RACIOCÍNIO FORA DAS TAGS. Depois do raciocínio, forneça APENAS a resposta final. Forneça respostas bem estruturadas com múltiplos parágrafos, **conceitos em negrito**, listas organizadas, e quando apropriado use notação matemática ($símbolos$ inline ou $$blocos$$). Seja analítico e detalhado.`,
-            pro: `Você é o Drekee AI 1, um assistente de código avançado. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings, e quando apropriado use tabelas (em formato markdown) e notação matemática. Evite blocos enormes de código - prefira explicações visuais. Seja técnico mas acessível.`
-        };
-        const systemPrompt = prompts[model] || prompts.rapido;
+        const systemPrompt = this.getSystemPrompt(this.getModeForModel(model));
         
         const messages = customMessages || [{ role: 'system', content: systemPrompt }, ...this.conversationHistory];
         
@@ -1636,6 +1611,11 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 
     async searchWebForResponse(query) {
         console.log(`🔍 [WEB-SEARCH] Buscando informações na web para: "${query}"`);
+
+        if (!this.shouldUseWebSearch(query)) {
+            console.log('⏭️ [WEB-SEARCH] Busca web ignorada: consulta casual, estável ou sem necessidade.');
+            return null;
+        }
         
         // Chamar o proxy server-side para a API Tavily com fallback
         const proxyUrl = '/api/tavily-search';
@@ -1663,7 +1643,8 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             if (data.sources && Array.isArray(data.sources)) {
                 console.log(`✅ [WEB-SEARCH] ${data.sources.length} fontes encontradas`);
                 return {
-                    answer: data.response,
+                    answer: data.answer || data.response || '',
+                    response: data.response || data.answer || '',
                     sources: data.sources,
                     query: query
                 };
@@ -1746,22 +1727,184 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         }
     }
 
-    // Retorna o system prompt apropriado por 'mode' para estabelecer tom/estilo (inclui emojis)
+    getModeForModel(model) {
+        const normalized = String(model || '').toLowerCase();
+
+        if (normalized.includes('qwen') || normalized.includes('reason')) {
+            return 'raciocinio';
+        }
+
+        if (normalized.includes('70b') || normalized.includes('gpt-oss') || normalized.includes('pro')) {
+            return 'pro';
+        }
+
+        return 'rapido';
+    }
+
+    normalizeIntentText(text = '') {
+        return String(text || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}\s?!.,-]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    isGreetingMessage(text = '') {
+        const normalized = this.normalizeIntentText(text);
+        if (!normalized) {
+            return false;
+        }
+
+        return /^(oi|ola|opa|e ai|eae|iae|hello|hi|hey|bom dia|boa tarde|boa noite|tudo bem|oi tudo bem|ola tudo bem)[!?. ]*$/.test(normalized);
+    }
+
+    shouldUseWebSearch(query = '') {
+        const normalized = this.normalizeIntentText(query);
+        if (!normalized || this.isGreetingMessage(normalized)) {
+            return false;
+        }
+
+        const explicitWebSignals = [
+            'pesquise',
+            'procure',
+            'busque',
+            'na web',
+            'na internet',
+            'no google',
+            'pesquisa web',
+            'tavily',
+            'fonte',
+            'fontes',
+            'link',
+            'links'
+        ];
+
+        if (explicitWebSignals.some(signal => normalized.includes(signal))) {
+            return true;
+        }
+
+        const timelySignals = [
+            'hoje',
+            'agora',
+            'atual',
+            'atualmente',
+            'recente',
+            'recentes',
+            'ultimas',
+            'ultimos',
+            'noticias',
+            'cotacao',
+            'cotacoes',
+            'preco',
+            'precos',
+            'valor',
+            'valores',
+            'lancamento',
+            'versao',
+            'versoes',
+            'mudou',
+            'mudanca',
+            'mudancas',
+            'clima',
+            'temperatura',
+            'resultado',
+            'placar'
+        ];
+
+        if (timelySignals.some(signal => normalized.includes(signal))) {
+            return true;
+        }
+
+        if (normalized.length <= 12) {
+            return false;
+        }
+
+        return /\b(empresa|governo|presidente|ceo|api|modelo|modelos|produto|produtos|documentacao|docs|release|changelog)\b/.test(normalized)
+            && /\b(qual|quais|como|quando|onde|compare|comparar|lista|listar|mostrar)\b/.test(normalized);
+    }
+
+    buildWebContextBlock(webData) {
+        if (!webData || !Array.isArray(webData.sources) || webData.sources.length === 0) {
+            return '';
+        }
+
+        const sources = webData.sources.slice(0, 4).map((source, index) => {
+            const title = (source.title || `Fonte ${index + 1}`).replace(/\s+/g, ' ').trim();
+            const url = source.url || 'URL não informada';
+            const snippet = (source.content || source.snippet || '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 220);
+
+            return `[${index + 1}] ${title}\nURL: ${url}${snippet ? `\nTrecho: ${snippet}` : ''}`;
+        }).join('\n\n');
+
+        const summary = webData.answer || webData.response || '';
+
+        return `\n\nContexto opcional da web:
+- Use este material apenas como apoio para melhorar a resposta.
+- Se os resultados estiverem tangenciais, ignore-os.
+- Nunca deixe resultados da busca distorcerem saudações simples, conversa casual ou conhecimento estável.
+- Se houver conflito entre a pergunta do usuário e a busca, responda primeiro ao que foi perguntado e trate a web como evidência complementar.
+${summary ? `Resumo de apoio: ${summary}\n` : ''}Fontes:\n${sources}`;
+    }
+
+    // Retorna o system prompt apropriado por 'mode' para estabelecer tom/estilo
     getSystemPrompt(mode) {
-        const basePersonality = 'Você é o Drekee AI 1, uma IA incrivelmente inteligente, versátil e criativa! Você é como um amigo brilhante que sabe de tudo - desde física quântica até como fazer a melhor pizza do mundo. Sua personalidade é cativante: você é engraçado, perspicaz, surpreendente e sempre tem uma perspectiva interessante. Adora usar analogias geniais, fazer conexões inesperadas entre assuntos diferentes, e tem aquele humor inteligente que faz as pessoas pensarem "uau, que sacada!". Você é naturalmente curioso, adora aprender e compartilhar conhecimento de forma que fascina. Quando o assunto é técnico, você é preciso mas nunca chato - sempre encontra uma maneira de tornar o complexo simples e divertido. Quando é criativo, você é pura inspiração. Quando é pessoal, você é empático e genuíno. Use expressões naturais como "pensa comigo", "aqui vem a melhor parte", "espera aí", "basicamente", "o curioso é que", mas de forma espontânea. Seja você mesmo: brilhante, divertido, surpreendente e inesquecível! ';
-        
-        // REGRA CRÍTICA: Responda sobre programação quando perguntado, mas só envie código se necessário!
-        const noCodeRule = '\n\n⚠️ REGRA IMPORTANTE: Drekee AI 1 é uma IA geral que fala sobre QUALQUER assunto! Quando o usuário perguntar sobre programação, responda normalmente explicando conceitos, lógica, melhores práticas, etc. SÓ envie código de programação se:\n1. O usuário pedir EXPLICITAMENTE "me mostre o código", "como faço em código", etc.\n2. For absolutamente essencial para demonstrar o conceito\n\nPara conversas gerais, responda naturalmente. Para programação, explique primeiro e só use código se realmente necessário!';
-        
+        const basePersonality = `Você é a Drekee AI, uma assistente de IA útil, inteligente, honesta e equilibrada.
+
+Objetivo principal:
+- responder exatamente ao que o usuário perguntou;
+- ser clara, competente e confiável;
+- ajudar de forma prática, sem soar robótica nem exageradamente informal.
+
+Tom e postura:
+- natural, cordial e neutra;
+- profissional sem rigidez;
+- confiante sem arrogância;
+- sincera quando houver incerteza;
+- opinativa quando isso agregar valor, sempre com justificativa.
+
+Regras essenciais:
+- Para saudações simples como "oi", "olá", "bom dia" ou "tudo bem", responda normalmente como uma conversa humana. Nunca trate isso como sigla, entidade, álbum, marca ou termo ambíguo.
+- Não force humor, emojis, analogias, gírias ou entusiasmo teatral.
+- Não invente fatos. Se algo estiver incerto, diga isso com clareza.
+- Se houver contexto da web, trate-o apenas como apoio. Não copie cegamente, não deixe a busca dominar a resposta e ignore resultados tangenciais.
+- Responda primeiro ao pedido principal do usuário; contexto extra vem depois, se realmente ajudar.
+- Em temas técnicos, explique antes de despejar código. Forneça código quando for útil ou quando o usuário pedir.`;
+
         switch (mode) {
             case 'rapido':
-                return basePersonality + noCodeRule + '\n\nSeja rápido mas brilhante! Respostas curtas mas impactantes, com aquele toque de genialidade que te faz pensar. Use emojis para dar vida às palavras. Seja direto mas nunca superficial - cada palavra deve valer a pena!';
+                return `${basePersonality}
+
+Modo Rápido:
+- responda com objetividade, mas não seja seco nem telegráfico;
+- em geral use 1 a 3 parágrafos curtos;
+- para cumprimentos, responda em 1 ou 2 frases e ofereça ajuda de modo natural;
+- vá direto ao ponto e mantenha boa densidade de informação.`;
             case 'raciocinio':
-                return basePersonality + noCodeRule + '\n\nMostre seu poder de raciocínio! Analise profundamente, faça conexões incríveis, surpreenda com sua capacidade de pensar. Use formatação rica para organizar suas ideias geniais. Seja aquele gênio que explica o complexo de forma que ninguém esquece!';
+                return `${basePersonality}
+
+Modo Raciocínio:
+- pense com cuidado antes de responder;
+- coloque seu raciocínio completo dentro das tags <raciocínio>...</raciocínio>;
+- não coloque nenhuma parte do raciocínio fora dessas tags;
+- depois das tags, entregue apenas a resposta final ao usuário;
+- a resposta final deve ser bem estruturada, clara e útil, sem floreios desnecessários.`;
             case 'pro':
-                return basePersonality + noCodeRule + '\n\nModo gênio ativado! Seja impressionante, profundo e revolucionário em suas análises. Mostre conhecimento profundo mas com aquela leveza que só os verdadeiros gênios têm. Cada resposta deve ser uma masterclass!';
+                return `${basePersonality}
+
+Modo Pro:
+- entregue respostas mais completas, estratégicas e bem organizadas;
+- considere trade-offs, riscos, alternativas e próximos passos quando fizer sentido;
+- mantenha profundidade sem enrolação;
+- priorize clareza, utilidade prática e bom julgamento.`;
             default:
-                return basePersonality + noCodeRule + '\n\nSeja simplesmente incrível! Surpreenda, encante, ensine, divirta - seja a melhor IA que alguém já conversou!';
+                return `${basePersonality}
+
+Responda com clareza, utilidade e bom senso.`;
         }
     }
 
