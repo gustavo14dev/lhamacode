@@ -13701,6 +13701,19 @@ window.handleGeneratedImageFallback = function(img) {
     }
 
     try {
+        const currentSrc = String(img.currentSrc || img.src || '');
+        const retryCount = Number(img.dataset?.retryCount || '0');
+        if (/pollinations\.ai/i.test(currentSrc) && retryCount < 2) {
+            const separator = currentSrc.includes('?') ? '&' : '?';
+            const retryUrl = `${currentSrc}${separator}retry=${Date.now()}`;
+            img.dataset.retryCount = String(retryCount + 1);
+            console.warn('🔁 Repetindo tentativa de imagem Pollinations:', retryUrl);
+            setTimeout(() => {
+                img.src = retryUrl;
+            }, 1500);
+            return;
+        }
+
         const raw = img.dataset?.fallbacks ? decodeURIComponent(img.dataset.fallbacks) : '[]';
         const candidates = JSON.parse(raw);
         const currentIndex = Number(img.dataset?.fallbackIndex || '0');

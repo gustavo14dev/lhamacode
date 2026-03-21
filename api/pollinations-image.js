@@ -16,9 +16,12 @@ function buildPollinationsCandidates(prompt = '') {
   const seed = Date.now();
 
   const directCandidates = [
-    `https://gen.pollinations.ai/image/${encodedPrompt}?model=flux&width=1024&height=1024&seed=${seed}`,
-    `https://gen.pollinations.ai/image/${encodedPrompt}?model=turbo&width=1024&height=1024&seed=${seed + 1}`,
-    `https://image.pollinations.ai/prompt/${encodedPrompt}?model=flux&width=1024&height=1024&seed=${seed + 2}`
+    `https://image.pollinations.ai/prompt/${encodedPrompt}`,
+    `https://image.pollinations.ai/prompt/${encodedPrompt}?nologo=true`,
+    `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${seed}`,
+    `https://image.pollinations.ai/prompt/${encodedPrompt}?model=flux&width=1024&height=1024&seed=${seed + 1}`,
+    `https://gen.pollinations.ai/image/${encodedPrompt}`,
+    `https://gen.pollinations.ai/image/${encodedPrompt}?seed=${seed + 2}`
   ];
 
   const proxyCandidates = directCandidates.map((url) => `/api/image-proxy?url=${encodeURIComponent(url)}`);
@@ -48,7 +51,7 @@ export default async function handler(req, res) {
     success: true,
     imageUrl: directCandidates[0],
     prompt,
-    model: 'pollinations:flux',
+    model: 'pollinations',
     usedFallback: false,
     openUrl: directCandidates[0],
     fallbackCandidates: [
