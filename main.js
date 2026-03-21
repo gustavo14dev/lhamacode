@@ -9582,6 +9582,33 @@ ${chunk}${bibliographyBlock}
         URL.revokeObjectURL(url);
     }
 
+    async copyTextToClipboard(text = '') {
+        const content = String(text ?? '');
+
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(content);
+            return;
+        }
+
+        const textarea = document.createElement('textarea');
+        textarea.value = content;
+        textarea.setAttribute('readonly', 'readonly');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        textarea.style.pointerEvents = 'none';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+
+        const copied = document.execCommand('copy');
+        document.body.removeChild(textarea);
+
+        if (!copied) {
+            throw new Error('Nao foi possivel copiar o texto');
+        }
+    }
+
     async downloadImageFromUrl(url, filename = 'drekee-unsplash.jpg', button = null) {
         if (!url) return;
 
@@ -10347,11 +10374,11 @@ ${chunk}${bibliographyBlock}
         const regenerateBtn = document.getElementById(`regenerateBtn_${uniqueId}`);
         
         if (copyBtn) {
-            copyBtn.addEventListener('click', () => {
+            copyBtn.addEventListener('click', async () => {
                 const responseText = document.getElementById(`responseText_${uniqueId}`);
                 if (responseText) {
                     const copyTarget = document.getElementById(`response-text-responseText_${uniqueId}`) || responseText;
-                    navigator.clipboard.writeText(copyTarget.textContent).then(() => {
+                    this.copyTextToClipboard(copyTarget.textContent).then(() => {
                         copyBtn.innerHTML = '<span class="material-icons-outlined text-sm text-green-600">check</span>';
                         setTimeout(() => {
                             copyBtn.innerHTML = '<span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-400">content_copy</span>';
@@ -10461,7 +10488,7 @@ ${chunk}${bibliographyBlock}
 
         if (copyBtn) {
 
-            copyBtn.addEventListener('click', () => {
+            copyBtn.addEventListener('click', async () => {
 
                 const responseText = document.getElementById(`responseText_${uniqueId}`);
 
@@ -10469,7 +10496,7 @@ ${chunk}${bibliographyBlock}
 
                     const copyTarget = document.getElementById(`response-text-responseText_${uniqueId}`) || responseText;
 
-                    navigator.clipboard.writeText(copyTarget.textContent).then(() => {
+                    this.copyTextToClipboard(copyTarget.textContent).then(() => {
 
                         copyBtn.innerHTML = '<span class="material-icons-outlined text-sm text-green-600">check</span>';
 
@@ -10689,9 +10716,81 @@ ${chunk}${bibliographyBlock}
 
 
 
+    ensureResponseAnimationStyles() {
+        if (document.getElementById('responseWindStyles')) {
+            return;
+        }
+
+        const style = document.createElement('style');
+        style.id = 'responseWindStyles';
+        style.textContent = `
+            @keyframes responseWindReveal {
+                0% {
+                    opacity: 0.74;
+                    filter: blur(8px);
+                    transform: translate3d(14px, 0, 0);
+                }
+                55% {
+                    opacity: 0.96;
+                    filter: blur(2px);
+                }
+                100% {
+                    opacity: 1;
+                    filter: blur(0);
+                    transform: translate3d(0, 0, 0);
+                }
+            }
+
+            .response-wind-reveal {
+                animation: responseWindReveal 220ms cubic-bezier(0.16, 1, 0.3, 1);
+                will-change: transform, filter, opacity;
+            }
+        `;
+
+        document.head.appendChild(style);
+    }
+
+    triggerResponseReveal(element) {
+        if (!element) return;
+
+        this.ensureResponseAnimationStyles();
+        element.classList.remove('response-wind-reveal');
+        void element.offsetWidth;
+        element.classList.add('response-wind-reveal');
+    }
+
+    buildTypewriterChunks(text = '') {
+        const glyphs = Array.from(String(text || ''));
+        const chunks = [];
+        let index = 0;
+
+        const baseSize = glyphs.length > 4000 ? 24
+            : glyphs.length > 2500 ? 18
+            : glyphs.length > 1400 ? 12
+            : glyphs.length > 700 ? 8
+            : 5;
+
+        while (index < glyphs.length) {
+            let size = baseSize;
+            const nextChar = glyphs[index + size - 1] || '';
+
+            if (/[.,;:!?]/.test(nextChar)) {
+                size += 1;
+            }
+
+            if (nextChar === '\n') {
+                size = Math.max(2, baseSize - 1);
+            }
+
+            chunks.push(glyphs.slice(index, index + size).join(''));
+            index += size;
+        }
+
+        return chunks;
+    }
+
     async typewriterEffect(text, element, callback, imagesHtml = '') {
 
-        // Garantir que temos string
         console.log('🔍 [TYPE] Iniciando typewriterEffect');
         console.log('🔍 [TYPE] Text length:', text ? text.length : 0);
         console.log('🔍 [TYPE] Element:', !!element);
@@ -10703,121 +10802,38 @@ ${chunk}${bibliographyBlock}
         console.log('🔍 [TYPE] Iniciando typewriter com imagesHtml length:', imagesHtml.length);
         console.log('🔍 [TYPE] ImagesHtml preview:', imagesHtml.substring(0, 100));
 
-
-
         if (!text || text.length === 0) {
-
-            // Sem animação; renderizar direto com imagens
-
             const formattedHtml = this.formatResponse(text, responseKey);
-            
-            // Combinar imagens + texto
             element.innerHTML = imagesHtml + formattedHtml;
             this.queueMathTypeset(element);
-            
-            console.log('🔍 [TYPE] Renderizado direto com imagens + texto');
-
-            setTimeout(() => this.scrollToBottom(), 100);
-
             if (callback) callback();
-
             return;
-
         }
 
-        
+        const chunks = this.buildTypewriterChunks(text);
+        let partialText = '';
 
-        // ANIMAÇÃO LINHA POR LINHA JÁ FORMATADA
+        for (let index = 0; index < chunks.length; index++) {
+            partialText += chunks[index];
 
-        const lines = text.split('\n');
+            const formattedPartial = this.formatResponse(partialText, responseKey);
+            element.innerHTML = imagesHtml + formattedPartial;
+            this.triggerResponseReveal(element);
 
-        let displayedLines = [];
-
-        
-
-        for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-
-            const currentLine = lines[lineIndex];
-
-            let displayedLine = '';
-
-            
-
-            // Animar caractere por caractere da linha atual
-
-            for (let charIndex = 0; charIndex < currentLine.length; charIndex++) {
-
-                displayedLine += currentLine[charIndex];
-
-                
-
-                // Combinar linhas já formatadas + linha atual sendo digitada
-
-                const allLines = [...displayedLines, displayedLine];
-
-                const partialText = allLines.join('\n');
-
-                
-
-                // Formatar o texto parcial já bonito
-
-                const formattedPartial = this.formatResponse(partialText, responseKey);
-
-                // Combinar imagens + texto durante animação
-                element.innerHTML = imagesHtml + formattedPartial;
-                
-                // Log a cada 10 caracteres para não poluir muito
-                if (charIndex % 10 === 0) {
-                    console.log('🔍 [TYPE] Animando char', charIndex, 'com imagesHtml length:', imagesHtml.length);
-                }
-
-                
-
-                if (charIndex % 10 === 0) { // Scroll menos frequente para melhor performance
-
-                    this.scrollToBottom();
-
-                }
-
-                await this.sleep(0); // MUITO mais rápido: 0ms por caractere
-
+            if (index % 2 === 0 || index === chunks.length - 1) {
+                this.scrollToBottom();
             }
 
-            
-
-            // Adicionar linha completa ao array de linhas exibidas
-
-            displayedLines.push(currentLine);
-
-            
-
-            // Pequena pausa entre linhas
-
-            await this.sleep(0); // Pausa instantânea entre linhas
-
+            await this.sleep(chunks.length > 320 ? 4 : chunks.length > 180 ? 6 : 8);
         }
 
-        
-
-        // Garantir formatação final completa
-
         const finalFormatted = this.formatResponse(text, responseKey);
-
-        // Combinar imagens + texto final
         element.innerHTML = imagesHtml + finalFormatted;
         this.queueMathTypeset(element);
-        
-        console.log('🔍 [TYPE] Renderizado final com imagesHtml length:', imagesHtml.length);
-        console.log('🔍 [TYPE] Final HTML preview:', (imagesHtml + finalFormatted).substring(0, 200));
 
-        setTimeout(() => this.scrollToBottom(), 100);
-
-        
-
-        // Executar callback no final da animação
+        setTimeout(() => this.scrollToBottom(), 60);
 
         if (callback) callback();
-
     }
 
 
@@ -10900,16 +10916,18 @@ ${chunk}${bibliographyBlock}
             return mathPlaceholder(idx);
         });
 
-        // Extrair todos os blocos de código e armazená-los
+        // Extrair todos os blocos de código e manter placeholders para preservar a ordem original
 
         const codeBlocks = [];
         const normalizedResponseKey = responseKey || `response_${Date.now()}`;
+        const codePlaceholder = (index) => `___CODE_BLOCK_RENDER_${index}___`;
 
         let cleanText = textWithMathPlaceholders.replace(/```([\w-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
 
+            const blockIndex = codeBlocks.length;
             codeBlocks.push({ lang: lang || 'plaintext', code: code.trim() });
 
-            return '';
+            return `\n\n${codePlaceholder(blockIndex)}\n\n`;
 
         });
 
@@ -11130,41 +11148,47 @@ ${chunk}${bibliographyBlock}
 
         this.storeResponseCodeBlocks(normalizedResponseKey, codeBlocks);
 
-        const inlineCodeBlocks = codeBlocks
-            .map((block, index) => ({ block, index }))
-            .filter(({ block }) => this.shouldRenderInlineCodeBlock(block))
-            .map(({ block, index }) => this.renderInlineCodeBlock(block, index, normalizedResponseKey));
+        const deferredCodeBlocks = [];
+        const renderCodeBlockPlaceholder = (index) => {
+            const block = codeBlocks[index];
+            if (!block) return '';
 
-        if (inlineCodeBlocks.length > 0) {
-            formatted += `<div class="mt-4 space-y-3">${inlineCodeBlocks.join('')}</div>`;
-        }
+            if (this.shouldRenderInlineCodeBlock(block)) {
+                return this.renderInlineCodeBlock(block, index, normalizedResponseKey);
+            }
 
-        // Adicionar botões para abrir códigos ao final
+            deferredCodeBlocks.push({ block, index });
+            return '';
+        };
 
-        if (codeBlocks.length > 0) {
+        formatted = formatted.replace(/<p[^>]*>\s*___CODE_BLOCK_RENDER_(\d+)___\s*<\/p>/g, (match, index) => {
+            return renderCodeBlockPlaceholder(Number(index));
+        });
 
+        formatted = formatted.replace(/___CODE_BLOCK_RENDER_(\d+)___/g, (match, index) => {
+            return renderCodeBlockPlaceholder(Number(index));
+        });
+
+        if (deferredCodeBlocks.length > 0) {
             formatted += '<div class="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-2">';
 
-            codeBlocks.forEach((block, index) => {
+            deferredCodeBlocks.forEach(({ block, index }, deferredIndex) => {
                 formatted += `<button onclick="window.ui && window.ui.openCodeModalForResponse(${JSON.stringify(normalizedResponseKey)}, ${index}, ${JSON.stringify(block.lang || 'plaintext')})" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white text-sm font-semibold rounded-lg transition-all transform hover:scale-105 active:scale-95">
 
                     <span class="material-icons-outlined" style="font-size:18px;">code</span>
 
-                    Ver Código ${codeBlocks.length > 1 ? index + 1 : ''}
+                    Mostrar código ${deferredCodeBlocks.length > 1 ? deferredIndex + 1 : ''}
 
                 </button>`;
 
             });
 
             formatted += '</div>';
-
-            
-
-            window._lastCodeBlocks = codeBlocks;
-
         }
 
-        
+        if (codeBlocks.length > 0) {
+            window._lastCodeBlocks = codeBlocks;
+        }
 
         return formatted;
 
@@ -11221,9 +11245,9 @@ ${chunk}${bibliographyBlock}
         const code = String(block.code || '').trim();
         if (!code) return false;
         const lineCount = code.split('\n').length;
-        const normalizedLang = this.normalizeCodeLanguage(block.lang);
         const isCommandLike = /^(npm|npx|node|pnpm|yarn|python|pip|git|ollama|docker|curl|powershell|cmd|cd|ls|dir|mkdir|rm|del|cp|mv)\b/i.test(code);
-        return isCommandLike || normalizedLang === 'bash' || normalizedLang === 'powershell' || normalizedLang === 'plaintext' || lineCount <= 8 || code.length <= 420;
+        const isHugeBlock = lineCount > 40 || code.length > 3200;
+        return isCommandLike || !isHugeBlock;
     }
 
     renderInlineCodeBlock(block = {}, index = 0, responseKey = '') {
@@ -11231,7 +11255,7 @@ ${chunk}${bibliographyBlock}
         const languageLabel = normalizedLang === 'plaintext' ? 'Comando' : normalizedLang.charAt(0).toUpperCase() + normalizedLang.slice(1);
         const highlightedCode = this.highlightCodeBlockContent(block.code || '', normalizedLang);
         return `
-            <div class="overflow-hidden rounded-2xl border border-slate-700/70 bg-[#0b1220] shadow-[0_14px_34px_-20px_rgba(15,23,42,0.95)]">
+            <div class="my-4 overflow-hidden rounded-2xl border border-slate-700/70 bg-[#0b1220] shadow-[0_14px_34px_-20px_rgba(15,23,42,0.95)]">
                 <div class="flex items-center justify-between gap-3 border-b border-slate-700/70 bg-slate-900/90 px-4 py-3">
                     <div class="text-sm font-semibold text-slate-100">${this.escapeHtml(languageLabel)}</div>
                     <button onclick="window.ui && window.ui.copyCodeBlockFromResponse(${JSON.stringify(responseKey)}, ${index}, this)" class="inline-flex items-center gap-1.5 rounded-full border border-slate-600/80 bg-slate-800/90 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:border-slate-500 hover:bg-slate-700/90">
@@ -11293,7 +11317,7 @@ ${chunk}${bibliographyBlock}
 
         copyBtn?.addEventListener('click', async () => {
             try {
-                await navigator.clipboard.writeText(block.code || '');
+                await this.copyTextToClipboard(block.code || '');
                 copyBtn.innerHTML = '<span class="material-icons-outlined text-base">check</span>Copiado';
                 setTimeout(() => {
                     copyBtn.innerHTML = '<span class="material-icons-outlined text-base">content_copy</span>Copiar código';
@@ -11318,7 +11342,7 @@ ${chunk}${bibliographyBlock}
             return;
         }
         try {
-            await navigator.clipboard.writeText(block.code || '');
+            await this.copyTextToClipboard(block.code || '');
             if (button) {
                 const original = button.innerHTML;
                 button.innerHTML = '<span class="material-icons-outlined text-sm">check</span>Copiado';
