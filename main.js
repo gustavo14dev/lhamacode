@@ -10716,59 +10716,16 @@ ${chunk}${bibliographyBlock}
 
 
 
-    ensureResponseAnimationStyles() {
-        if (document.getElementById('responseWindStyles')) {
-            return;
-        }
-
-        const style = document.createElement('style');
-        style.id = 'responseWindStyles';
-        style.textContent = `
-            @keyframes responseWindReveal {
-                0% {
-                    opacity: 0.74;
-                    filter: blur(8px);
-                    transform: translate3d(14px, 0, 0);
-                }
-                55% {
-                    opacity: 0.96;
-                    filter: blur(2px);
-                }
-                100% {
-                    opacity: 1;
-                    filter: blur(0);
-                    transform: translate3d(0, 0, 0);
-                }
-            }
-
-            .response-wind-reveal {
-                animation: responseWindReveal 220ms cubic-bezier(0.16, 1, 0.3, 1);
-                will-change: transform, filter, opacity;
-            }
-        `;
-
-        document.head.appendChild(style);
-    }
-
-    triggerResponseReveal(element) {
-        if (!element) return;
-
-        this.ensureResponseAnimationStyles();
-        element.classList.remove('response-wind-reveal');
-        void element.offsetWidth;
-        element.classList.add('response-wind-reveal');
-    }
-
     buildTypewriterChunks(text = '') {
         const glyphs = Array.from(String(text || ''));
         const chunks = [];
         let index = 0;
 
-        const baseSize = glyphs.length > 4000 ? 24
-            : glyphs.length > 2500 ? 18
-            : glyphs.length > 1400 ? 12
-            : glyphs.length > 700 ? 8
-            : 5;
+        const baseSize = glyphs.length > 4000 ? 10
+            : glyphs.length > 2500 ? 8
+            : glyphs.length > 1400 ? 6
+            : glyphs.length > 700 ? 4
+            : 2;
 
         while (index < glyphs.length) {
             let size = baseSize;
@@ -10787,6 +10744,40 @@ ${chunk}${bibliographyBlock}
         }
 
         return chunks;
+    }
+
+    parseResponseSegments(text = '') {
+        const source = String(text || '');
+        const regex = /```([\w-]*)\n([\s\S]*?)```/g;
+        const segments = [];
+        let lastIndex = 0;
+        let match;
+
+        while ((match = regex.exec(source)) !== null) {
+            if (match.index > lastIndex) {
+                segments.push({
+                    type: 'text',
+                    content: source.slice(lastIndex, match.index)
+                });
+            }
+
+            segments.push({
+                type: 'code',
+                lang: match[1] || 'plaintext',
+                code: (match[2] || '').trim()
+            });
+
+            lastIndex = regex.lastIndex;
+        }
+
+        if (lastIndex < source.length) {
+            segments.push({
+                type: 'text',
+                content: source.slice(lastIndex)
+            });
+        }
+
+        return segments;
     }
 
     async typewriterEffect(text, element, callback, imagesHtml = '') {
@@ -10810,24 +10801,46 @@ ${chunk}${bibliographyBlock}
             return;
         }
 
-        const chunks = this.buildTypewriterChunks(text);
-        let partialText = '';
+        const segments = this.parseResponseSegments(text);
+        const activeCodeBlocks = [];
+        let assembledText = '';
 
-        for (let index = 0; index < chunks.length; index++) {
-            partialText += chunks[index];
-
-            const formattedPartial = this.formatResponse(partialText, responseKey);
-            element.innerHTML = imagesHtml + formattedPartial;
-            this.triggerResponseReveal(element);
-
-            if (index % 2 === 0 || index === chunks.length - 1) {
+        for (const segment of segments) {
+            if (segment.type === 'code') {
+                const codeIndex = activeCodeBlocks.length;
+                activeCodeBlocks.push({
+                    lang: segment.lang,
+                    code: segment.code
+                });
+                assembledText += `\n\n%%CODEBLOCK${codeIndex}%%\n\n`;
+                element.innerHTML = imagesHtml + this.formatResponse(assembledText, responseKey, {
+                    providedCodeBlocks: activeCodeBlocks
+                });
                 this.scrollToBottom();
+                continue;
             }
 
-            await this.sleep(chunks.length > 320 ? 4 : chunks.length > 180 ? 6 : 8);
+            const chunks = this.buildTypewriterChunks(segment.content);
+
+            for (let index = 0; index < chunks.length; index++) {
+                assembledText += chunks[index];
+
+                const formattedPartial = this.formatResponse(assembledText, responseKey, {
+                    providedCodeBlocks: activeCodeBlocks
+                });
+                element.innerHTML = imagesHtml + formattedPartial;
+
+                if (index % 2 === 0 || index === chunks.length - 1) {
+                    this.scrollToBottom();
+                }
+
+                await this.sleep(chunks.length > 220 ? 2 : chunks.length > 120 ? 3 : 4);
+            }
         }
 
-        const finalFormatted = this.formatResponse(text, responseKey);
+        const finalFormatted = this.formatResponse(assembledText, responseKey, {
+            providedCodeBlocks: activeCodeBlocks
+        });
         element.innerHTML = imagesHtml + finalFormatted;
         this.queueMathTypeset(element);
 
@@ -10838,7 +10851,7 @@ ${chunk}${bibliographyBlock}
 
 
 
-    formatResponse(text, responseKey = null) {
+    formatResponse(text, responseKey = null, options = {}) {
 
         if (!text || text.length === 0) {
 
@@ -10916,20 +10929,20 @@ ${chunk}${bibliographyBlock}
             return mathPlaceholder(idx);
         });
 
-        // Extrair todos os blocos de código e manter placeholders para preservar a ordem original
-
-        const codeBlocks = [];
+        const providedCodeBlocks = Array.isArray(options?.providedCodeBlocks) ? options.providedCodeBlocks : null;
+        const codeBlocks = providedCodeBlocks ? [...providedCodeBlocks] : [];
         const normalizedResponseKey = responseKey || `response_${Date.now()}`;
-        const codePlaceholder = (index) => `___CODE_BLOCK_RENDER_${index}___`;
+        const codePlaceholder = (index) => `%%CODEBLOCK${index}%%`;
 
-        let cleanText = textWithMathPlaceholders.replace(/```([\w-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+        let cleanText = String(textWithMathPlaceholders);
 
-            const blockIndex = codeBlocks.length;
-            codeBlocks.push({ lang: lang || 'plaintext', code: code.trim() });
-
-            return `\n\n${codePlaceholder(blockIndex)}\n\n`;
-
-        });
+        if (!providedCodeBlocks) {
+            cleanText = cleanText.replace(/```([\w-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+                const blockIndex = codeBlocks.length;
+                codeBlocks.push({ lang: lang || 'plaintext', code: code.trim() });
+                return `\n\n${codePlaceholder(blockIndex)}\n\n`;
+            });
+        }
 
         
 
@@ -11161,11 +11174,11 @@ ${chunk}${bibliographyBlock}
             return '';
         };
 
-        formatted = formatted.replace(/<p[^>]*>\s*___CODE_BLOCK_RENDER_(\d+)___\s*<\/p>/g, (match, index) => {
+        formatted = formatted.replace(/<p[^>]*>\s*%%CODEBLOCK(\d+)%%\s*<\/p>/g, (match, index) => {
             return renderCodeBlockPlaceholder(Number(index));
         });
 
-        formatted = formatted.replace(/___CODE_BLOCK_RENDER_(\d+)___/g, (match, index) => {
+        formatted = formatted.replace(/%%CODEBLOCK(\d+)%%/g, (match, index) => {
             return renderCodeBlockPlaceholder(Number(index));
         });
 
