@@ -78,7 +78,7 @@ export class Agent {
         const imagePrompt = this.extractImageGenerationPrompt(userMessage);
         if (imagePrompt) {
             console.log('--------------------------------------------------');
-            console.log('🤖 [MODELO UTILIZADO]: GROK IMAGINE IMAGE');
+            console.log('🤖 [MODELO UTILIZADO]: HUGGING FACE IMAGE');
             console.log('🎨 MOTIVO: Solicitação de geração de imagem detectada.');
             console.log('--------------------------------------------------');
             console.log('🎨 [DETECÇÃO] Usuário quer gerar imagem:', imagePrompt);
@@ -278,7 +278,7 @@ export class Agent {
         await this.ui.sleep(500);
 
         try {
-            const imageData = await this.generateImageWithGrok(prompt);
+            const imageData = await this.generateImageWithHuggingFace(prompt);
             
             if (imageData && imageData.imageUrl) {
                 console.log('✅ [IMAGE-GEN] Imagem gerada com sucesso!');
@@ -299,7 +299,7 @@ export class Agent {
                                  onclick="window.open('${imageData.imageUrl}', '_blank')"
                                  title="Clique para ampliar">
                             <div style="margin-top: 8px; font-size: 12px; color: #6b7280; font-style: italic;">
-                                🎨 Gerado por Grok Imagine Image • ${prompt}
+                                🎨 Gerado por Hugging Face${imageData.usedFallback ? ' via Pollinations' : ''} • ${prompt}
                             </div>
                         </div>
                     `;
@@ -1667,31 +1667,37 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         }
     }
 
-    async generateImageWithGrok(prompt) {
-        console.log(`🎨 [GROK-IMAGE] Gerando imagem para: "${prompt}"`);
+    async generateImageWithHuggingFace(prompt) {
+        console.log(`🎨 [HUGGING-IMAGE] Gerando imagem para: "${prompt}"`);
         
         try {
-            const response = await fetch('/api/grok-image', {
+            const response = await fetch('/api/hugging-image', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    prompt: prompt,
-                    model: 'grok-imagine-image'
+                    prompt: prompt
                 })
             });
             
             if (!response.ok) {
                 if (response.status === 429) {
-                    console.error('⏳ Rate limit da Grok Image - aguarde alguns segundos');
+                    console.error('⏳ Rate limit da Hugging Face Image - aguarde alguns segundos');
                     throw new Error('Muitas solicitações! Tente novamente em alguns segundos.');
                 }
-                const errorData = await response.json().catch(() => null);
-                console.error('Erro ao gerar imagem com Grok:', response.status, errorData);
+                const errorText = await response.text();
+                let errorData = null;
+                try {
+                    errorData = errorText ? JSON.parse(errorText) : null;
+                } catch (parseError) {
+                    errorData = null;
+                }
+                console.error('Erro ao gerar imagem com Hugging Face:', response.status, errorData || errorText);
                 throw new Error(
                     errorData?.friendly_message ||
                     errorData?.details ||
+                    errorText ||
                     errorData?.error ||
                     'Não foi possível gerar a imagem'
                 );
@@ -1700,18 +1706,19 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const data = await response.json();
             
             if (data.imageUrl) {
-                console.log(`✅ [GROK-IMAGE] Imagem gerada: ${data.imageUrl}`);
+                console.log(`✅ [HUGGING-IMAGE] Imagem gerada: ${data.imageUrl}`);
                 return {
                     imageUrl: data.imageUrl,
                     prompt: prompt,
-                    model: data.model || 'grok-imagine-image'
+                    model: data.model || 'stabilityai/stable-diffusion-2',
+                    usedFallback: Boolean(data.usedFallback)
                 };
             }
 
-            console.log('⚠️ [GROK-IMAGE] Nenhuma imagem gerada');
+            console.log('⚠️ [HUGGING-IMAGE] Nenhuma imagem gerada');
             return null;
         } catch (error) {
-            console.error('Erro ao gerar imagem com Grok Imagine Image:', error);
+            console.error('Erro ao gerar imagem com Hugging Face:', error);
             throw error;
         }
     }

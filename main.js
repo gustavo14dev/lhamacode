@@ -12771,6 +12771,11 @@ ${chunk}${bibliographyBlock}
                     });
             }
         } catch (error) {
+            const statusCode = error?.code || error?.status || error?.statusCode;
+            if (statusCode === 403 || String(error?.message || '').includes('403')) {
+                console.warn('⚠️ Sem permissão para user_sessions. Ignorando heartbeat de sessão.');
+                return;
+            }
             console.error('❌ Erro ao atualizar sessão do usuário:', error);
         }
     }
