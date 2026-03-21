@@ -24,7 +24,7 @@ function chooseHuggingFaceModel(prompt = '') {
 }
 
 function buildPollinationsUrl(prompt = '') {
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true&seed=42`;
 }
 
 function bufferToDataUrl(arrayBuffer, mimeType = 'image/png') {
@@ -49,7 +49,6 @@ async function requestHuggingFaceImage(apiKey, model, prompt) {
   });
 
   const contentType = response.headers.get('content-type') || '';
-
   if (response.ok && contentType.startsWith('image/')) {
     const arrayBuffer = await response.arrayBuffer();
     return {
@@ -61,7 +60,6 @@ async function requestHuggingFaceImage(apiKey, model, prompt) {
 
   const rawText = await response.text().catch(() => '');
   let data = null;
-
   try {
     data = rawText ? JSON.parse(rawText) : null;
   } catch (error) {
@@ -76,8 +74,7 @@ async function requestHuggingFaceImage(apiKey, model, prompt) {
   };
 }
 
-async function requestPollinationsImage(prompt) {
-  const url = buildPollinationsUrl(prompt);
+async function requestPollinationsImage(url) {
   const response = await fetch(url, {
     redirect: 'follow',
     headers: {
@@ -92,18 +89,24 @@ async function requestPollinationsImage(prompt) {
     const rawText = await response.text().catch(() => '');
     return {
       ok: false,
-      url,
       status: response.status,
       details: rawText || 'Falha ao buscar imagem no Pollinations'
     };
   }
 
-  const contentType = response.headers.get('content-type') || 'image/jpeg';
-  const arrayBuffer = await response.arrayBuffer();
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.startsWith('image/')) {
+    const rawText = await response.text().catch(() => '');
+    return {
+      ok: false,
+      status: 502,
+      details: rawText || `Resposta não é imagem (${contentType})`
+    };
+  }
 
+  const arrayBuffer = await response.arrayBuffer();
   return {
     ok: true,
-    url,
     imageUrl: bufferToDataUrl(arrayBuffer, contentType),
     contentType
   };
@@ -111,9 +114,10 @@ async function requestPollinationsImage(prompt) {
 
 async function buildPollinationsFallback(prompt, reason = '') {
   const pollinationsUrl = buildPollinationsUrl(prompt);
+  const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(pollinationsUrl)}`;
 
   try {
-    const result = await requestPollinationsImage(prompt);
+    const result = await requestPollinationsImage(pollinationsUrl);
     if (result.ok && result.imageUrl) {
       return {
         success: true,
@@ -121,28 +125,34 @@ async function buildPollinationsFallback(prompt, reason = '') {
         prompt,
         model: 'pollinations',
         usedFallback: true,
-        fallbackReason: reason || 'Fallback para Pollinations'
+        fallbackReason: reason || 'Fallback para Pollinations',
+        fallbackCandidates: [pollinationsUrl, proxyUrl],
+        openUrl: pollinationsUrl
       };
     }
 
     console.error('[HUGGING-IMAGE] Pollinations respondeu sem imagem válida:', result);
     return {
       success: true,
-      imageUrl: `/api/image-proxy?url=${encodeURIComponent(pollinationsUrl)}`,
+      imageUrl: pollinationsUrl,
       prompt,
       model: 'pollinations',
       usedFallback: true,
-      fallbackReason: reason || result.details || 'Fallback para Pollinations'
+      fallbackReason: reason || result.details || 'Fallback para Pollinations',
+      fallbackCandidates: [proxyUrl],
+      openUrl: pollinationsUrl
     };
   } catch (error) {
     console.error('[HUGGING-IMAGE] Erro ao buscar Pollinations:', error);
     return {
       success: true,
-      imageUrl: `/api/image-proxy?url=${encodeURIComponent(pollinationsUrl)}`,
+      imageUrl: pollinationsUrl,
       prompt,
       model: 'pollinations',
       usedFallback: true,
-      fallbackReason: reason || error.message || 'Fallback para Pollinations'
+      fallbackReason: reason || error.message || 'Fallback para Pollinations',
+      fallbackCandidates: [proxyUrl],
+      openUrl: pollinationsUrl
     };
   }
 }
@@ -181,7 +191,8 @@ export default async function handler(req, res) {
         imageUrl: result.imageUrl,
         prompt,
         model,
-        usedFallback: false
+        usedFallback: false,
+        openUrl: result.imageUrl
       });
     }
 

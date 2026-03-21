@@ -292,11 +292,20 @@ export class Agent {
                 // Exibir resposta
                 this.ui.setResponseText(response, messageContainer.responseId, async () => {
                     // Adicionar imagem gerada
+                    const fallbackCandidates = Array.isArray(imageData.fallbackCandidates) ? imageData.fallbackCandidates : [];
+                    const encodedFallbacks = encodeURIComponent(JSON.stringify(fallbackCandidates));
+                    const openUrl = imageData.openUrl || imageData.imageUrl;
                     const imageHtml = `
                         <div style="margin-top: 15px; text-align: center;">
                             <img src="${imageData.imageUrl}" alt="Imagem gerada: ${prompt}" 
+                                 data-fallbacks="${encodedFallbacks}"
+                                 data-fallback-index="0"
+                                 data-open-url="${openUrl}"
+                                 referrerpolicy="no-referrer"
+                                 crossorigin="anonymous"
+                                 onerror="window.handleGeneratedImageFallback && window.handleGeneratedImageFallback(this)"
                                  style="max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); cursor: pointer;"
-                                 onclick="window.open('${imageData.imageUrl}', '_blank')"
+                                 onclick="window.open(this.dataset.openUrl || this.src, '_blank')"
                                  title="Clique para ampliar">
                             <div style="margin-top: 8px; font-size: 12px; color: #6b7280; font-style: italic;">
                                 🎨 Gerado por Hugging Face${imageData.usedFallback ? ' via Pollinations' : ''} • ${prompt}

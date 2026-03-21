@@ -13695,6 +13695,33 @@ window.updateDeactivateButton = function() {
     }
 };
 
+window.handleGeneratedImageFallback = function(img) {
+    if (!img) {
+        return;
+    }
+
+    try {
+        const raw = img.dataset?.fallbacks ? decodeURIComponent(img.dataset.fallbacks) : '[]';
+        const candidates = JSON.parse(raw);
+        const currentIndex = Number(img.dataset?.fallbackIndex || '0');
+
+        if (!Array.isArray(candidates) || currentIndex >= candidates.length) {
+            img.onerror = null;
+            img.style.opacity = '0.6';
+            console.warn('⚠️ Sem mais fallbacks para imagem gerada.');
+            return;
+        }
+
+        const nextUrl = candidates[currentIndex];
+        img.dataset.fallbackIndex = String(currentIndex + 1);
+        console.warn('🔄 Tentando fallback de imagem:', nextUrl);
+        img.src = nextUrl;
+    } catch (error) {
+        console.error('❌ Erro ao aplicar fallback da imagem gerada:', error);
+        img.onerror = null;
+    }
+};
+
 // Inicialização do app
 document.addEventListener('DOMContentLoaded', () => {
     window.ui = new UI();
