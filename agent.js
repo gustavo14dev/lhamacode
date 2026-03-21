@@ -75,14 +75,14 @@ export class Agent {
         }
 
         // Verificar se o usuário quer gerar uma imagem
-        const imageGenerationMatch = userMessage.match(/^(gere|crie|criar|desenhe|produza|faça).*imagem\s+(sobre|de|do|com)?\s*(.+)$/i);
-        if (imageGenerationMatch) {
+        const imagePrompt = this.extractImageGenerationPrompt(userMessage);
+        if (imagePrompt) {
             console.log('--------------------------------------------------');
-            console.log('🤖 [MODELO UTILIZADO]: GEMINI IMAGEN (Imagen 4.0)');
+            console.log('🤖 [MODELO UTILIZADO]: GROK IMAGINE IMAGE');
             console.log('🎨 MOTIVO: Solicitação de geração de imagem detectada.');
             console.log('--------------------------------------------------');
-            console.log('🎨 [DETECÇÃO] Usuário quer gerar imagem:', imageGenerationMatch[3]);
-            await this.processImageGeneration(imageGenerationMatch[3]);
+            console.log('🎨 [DETECÇÃO] Usuário quer gerar imagem:', imagePrompt);
+            await this.processImageGeneration(imagePrompt);
             return;
         }
 
@@ -248,18 +248,37 @@ export class Agent {
         }
     }
 
+    extractImageGenerationPrompt(userMessage = '') {
+        const text = String(userMessage || '').trim();
+        if (!text) {
+            return '';
+        }
+
+        const patterns = [
+            /^(?:gere|gera|crie|cria|criar|desenhe|produza|faça|faca)\b[\s\S]*?\bimagem\b(?:\s+(?:sobre|de|do|da|com))?\s+(.+)$/i,
+            /^(?:imagem|foto|ilustracao|ilustração)\s+(?:sobre|de|do|da|com)\s+(.+)$/i
+        ];
+
+        for (const pattern of patterns) {
+            const match = text.match(pattern);
+            if (match?.[1]) {
+                return match[1].trim();
+            }
+        }
+
+        return '';
+    }
+
     async processImageGeneration(prompt) {
         console.log(`🎨 [IMAGE-GEN] Processando geração de imagem: "${prompt}"`);
         
         const messageContainer = this.ui.createAssistantMessageContainer();
-        const timestamp = Date.now();
 
         this.ui.setThinkingHeader('🎨 Gerando imagem...', messageContainer.headerId);
         await this.ui.sleep(500);
 
         try {
-            // Gerar imagem com Gemini Imagen
-            const imageData = await this.generateImageWithGemini(prompt);
+            const imageData = await this.generateImageWithGrok(prompt);
             
             if (imageData && imageData.imageUrl) {
                 console.log('✅ [IMAGE-GEN] Imagem gerada com sucesso!');
@@ -280,7 +299,7 @@ export class Agent {
                                  onclick="window.open('${imageData.imageUrl}', '_blank')"
                                  title="Clique para ampliar">
                             <div style="margin-top: 8px; font-size: 12px; color: #6b7280; font-style: italic;">
-                                🎨 Gerado por Gemini 2.0 Flash • ${prompt}
+                                🎨 Gerado por Grok Imagine Image • ${prompt}
                             </div>
                         </div>
                     `;
@@ -1648,103 +1667,48 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         }
     }
 
-    async generateImageWithGemini(prompt) {
-        console.log(`🎨 [GEMINI-IMAGEN] Gerando imagem para: "${prompt}"`);
+    async generateImageWithGrok(prompt) {
+        console.log(`🎨 [GROK-IMAGE] Gerando imagem para: "${prompt}"`);
         
         try {
-            const response = await fetch('/api/gemini-image', {
+            const response = await fetch('/api/grok-image', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     prompt: prompt,
-                    model: 'gemini-2.0-flash-exp-image-generation'
+                    model: 'grok-imagine-image'
                 })
             });
             
             if (!response.ok) {
                 if (response.status === 429) {
-                    console.error('⏳ Rate limit da Gemini - aguarde alguns segundos');
-                    throw new Error('RATE_LIMIT');
+                    console.error('⏳ Rate limit da Grok Image - aguarde alguns segundos');
+                    throw new Error('Muitas solicitações! Tente novamente em alguns segundos.');
                 }
-                const errorText = await response.text();
-                console.error('Erro ao gerar imagem com Gemini:', response.status, errorText);
-                throw new Error('Não foi possível gerar a imagem');
+                const errorData = await response.json().catch(() => null);
+                console.error('Erro ao gerar imagem com Grok:', response.status, errorData);
+                throw new Error(errorData?.friendly_message || errorData?.error || 'Não foi possível gerar a imagem');
             }
             
             const data = await response.json();
             
             if (data.imageUrl) {
-                console.log(`✅ [GEMINI-IMAGEN] Imagem gerada: ${data.imageUrl}`);
+                console.log(`✅ [GROK-IMAGE] Imagem gerada: ${data.imageUrl}`);
                 return {
                     imageUrl: data.imageUrl,
-                    prompt: prompt
+                    prompt: prompt,
+                    model: data.model || 'grok-imagine-image'
                 };
-            } else {
-                console.log(`⚠️ [GEMINI-IMAGEN] Nenhuma imagem gerada`);
-                return null;
             }
-        } catch (error) {
-            console.error('Erro ao gerar imagem com Gemini Imagen:', error);
-            
-            // Se for rate limit, tentar fallback
-            if (error.message === 'RATE_LIMIT') {
-                console.log('🔄 [FALLBACK] Tentando gerar imagem com fallback...');
-                try {
-                    const fallbackResult = await this.generateImageWithFallback(prompt);
-                    if (fallbackResult) {
-                        console.log('✅ [FALLBACK] Imagem gerada com sucesso:', fallbackResult.provider);
-                        this.addToHistory('assistant', `Imagem gerada com sucesso usando ${fallbackResult.provider}.`);
-                        this.ui.setResponseText(`✅ Imagem gerada com sucesso usando ${fallbackResult.provider}!`, messageContainer.responseId);
-                        this.ui.setThinkingHeader('', messageContainer.headerId);
-                        return;
-                    }
-                } catch (fallbackError) {
-                    console.error('❌ Erro no fallback também:', fallbackError);
-                }
-            }
-            
-            this.ui.setResponseText('❌ Desculpe, ocorreu um erro ao gerar a imagem. Tente novamente em alguns segundos.', messageContainer.responseId);
-            this.ui.setThinkingHeader('', messageContainer.headerId);
-        }
-    }
 
-    async generateImageWithFallback(prompt) {
-        console.log('🔄 [FALLBACK] Iniciando geração de imagem com fallback...');
-        
-        const providers = [
-            { name: 'Stability AI', url: '/api/stability-image' },
-            { name: 'OpenRouter', url: '/api/openrouter-image' },
-            { name: 'Image Proxy', url: '/api/image-proxy' }
-        ];
-        
-        for (const provider of providers) {
-            try {
-                console.log(`🔄 [FALLBACK] Tentando ${provider.name}...`);
-                const response = await fetch(provider.url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt })
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.imageUrl) {
-                        console.log(`✅ [FALLBACK] Sucesso com ${provider.name}: ${data.imageUrl}`);
-                        return {
-                            imageUrl: data.imageUrl,
-                            prompt: prompt,
-                            provider: provider.name
-                        };
-                    }
-                }
-            } catch (error) {
-                console.error(`❌ [FALLBACK] Erro com ${provider.name}:`, error.message);
-            }
+            console.log('⚠️ [GROK-IMAGE] Nenhuma imagem gerada');
+            return null;
+        } catch (error) {
+            console.error('Erro ao gerar imagem com Grok Imagine Image:', error);
+            throw error;
         }
-        
-        return null;
     }
     // ==================== UTILITIES ====================
     addToHistory(role, content) {
