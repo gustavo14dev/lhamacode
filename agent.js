@@ -846,7 +846,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 }
 
                 // Mostrar botões de ação quando resposta estiver completa
-                const actionsDiv = document.getElementById(`actions_${messageContainer.uniqueId}`);
+                const actionsDiv = document.getElementById(messageContainer.actionsId);
                 if (actionsDiv) {
                     actionsDiv.classList.remove('opacity-0');
                     actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
@@ -1028,7 +1028,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             }
             
             // Mostrar botões de ação quando resposta estiver completa
-            const actionsDiv = document.getElementById(`actions_${messageContainer.container.id.replace('msg_', '')}`);
+            const actionsDiv = document.getElementById(messageContainer.actionsId);
             if (actionsDiv) {
                 actionsDiv.classList.remove('opacity-0');
                 actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
@@ -1192,7 +1192,7 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
             });
             
             // Mostrar botões de ação quando resposta estiver completa
-            const actionsDiv = document.getElementById(`actions_${messageContainer.container.id.replace('msg_', '')}`);
+            const actionsDiv = document.getElementById(messageContainer.actionsId);
             if (actionsDiv) {
                 actionsDiv.classList.remove('opacity-0');
                 actionsDiv.classList.add('opacity-60', 'hover:opacity-100');

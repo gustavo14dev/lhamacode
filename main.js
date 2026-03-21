@@ -9581,6 +9581,70 @@ ${chunk}${bibliographyBlock}
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
     }
+
+    async downloadImageFromUrl(url, filename = 'drekee-unsplash.jpg', button = null) {
+        if (!url) return;
+
+        const originalLabel = button ? button.innerHTML : '';
+
+        try {
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<span class="material-icons-outlined" style="font-family: \'Material Icons Outlined\'; font-size: 18px; line-height: 1;">downloading</span>';
+            }
+
+            const candidates = [
+                `/api/image-proxy?url=${encodeURIComponent(url)}`,
+                url
+            ];
+
+            let imageBlob = null;
+
+            for (const candidate of candidates) {
+                try {
+                    const response = await fetch(candidate);
+                    if (!response.ok) continue;
+
+                    imageBlob = await response.blob();
+                    if (imageBlob && imageBlob.size > 0) {
+                        break;
+                    }
+                } catch (fetchError) {
+                    console.warn('⚠️ Falha ao baixar imagem por uma rota candidata:', fetchError);
+                }
+            }
+
+            if (!imageBlob) {
+                throw new Error('Nao foi possivel baixar a imagem');
+            }
+
+            const objectUrl = URL.createObjectURL(imageBlob);
+            const link = document.createElement('a');
+            link.href = objectUrl;
+            link.download = filename;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(objectUrl);
+
+            if (button) {
+                button.innerHTML = '<span class="material-icons-outlined" style="font-family: \'Material Icons Outlined\'; font-size: 18px; line-height: 1;">check</span>';
+            }
+        } catch (error) {
+            console.error('❌ Erro ao baixar imagem:', error);
+            if (button) {
+                button.innerHTML = '<span class="material-icons-outlined" style="font-family: \'Material Icons Outlined\'; font-size: 18px; line-height: 1;">error</span>';
+            }
+        } finally {
+            if (button) {
+                setTimeout(() => {
+                    button.disabled = false;
+                    button.innerHTML = originalLabel;
+                }, 1800);
+            }
+        }
+    }
     
     
     
@@ -10264,12 +10328,13 @@ ${chunk}${bibliographyBlock}
         
         // Adicionar barra invisível com botões de ação
         const actionsDiv = document.createElement('div');
-        actionsDiv.className = 'flex gap-2 justify-start mt-4 mb-2 px-2 opacity-0 transition-opacity duration-300';
+        actionsDiv.id = `actions_${uniqueId}`;
+        actionsDiv.className = 'flex items-center gap-1.5 mt-2 mb-1 ml-11 px-2 opacity-0 transition-opacity duration-300';
         actionsDiv.innerHTML = `
-            <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors" id="copyBtn_${uniqueId}" title="Copiar resposta">
+            <button class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white/80 text-gray-600 shadow-sm backdrop-blur hover:bg-gray-100 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 transition-colors" id="copyBtn_${uniqueId}" title="Copiar resposta">
                 <span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-400">content_copy</span>
             </button>
-            <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors" id="regenerateBtn_${uniqueId}" title="Gerar novamente">
+            <button class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white/80 text-gray-600 shadow-sm backdrop-blur hover:bg-gray-100 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 transition-colors" id="regenerateBtn_${uniqueId}" title="Gerar novamente">
                 <span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-400">refresh</span>
             </button>
         `;
@@ -10285,7 +10350,8 @@ ${chunk}${bibliographyBlock}
             copyBtn.addEventListener('click', () => {
                 const responseText = document.getElementById(`responseText_${uniqueId}`);
                 if (responseText) {
-                    navigator.clipboard.writeText(responseText.textContent).then(() => {
+                    const copyTarget = document.getElementById(`response-text-responseText_${uniqueId}`) || responseText;
+                    navigator.clipboard.writeText(copyTarget.textContent).then(() => {
                         copyBtn.innerHTML = '<span class="material-icons-outlined text-sm text-green-600">check</span>';
                         setTimeout(() => {
                             copyBtn.innerHTML = '<span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-400">content_copy</span>';
@@ -10297,8 +10363,8 @@ ${chunk}${bibliographyBlock}
         
         if (regenerateBtn) {
             regenerateBtn.addEventListener('click', () => {
-                if (window.agent) {
-                    window.agent.regenerateLastResponse();
+                if (window.ui && typeof window.ui.showRegenerateModal === 'function') {
+                    window.ui.showRegenerateModal();
                 }
             });
         }
@@ -10308,6 +10374,7 @@ ${chunk}${bibliographyBlock}
             uniqueId: uniqueId,
             headerId: `thinkingHeader_${uniqueId}`,
             responseId: `responseText_${uniqueId}`,
+            actionsId: `actions_${uniqueId}`,
             stepsId: null // Para compatibilidade com modelos que usam steps
         };
     }
@@ -10357,18 +10424,18 @@ ${chunk}${bibliographyBlock}
         // Adicionar flieira invisível com botões de ação
 
         const actionsDiv = document.createElement('div');
-
-        actionsDiv.className = 'flex gap-2 justify-start mt-4 mb-2 px-2 opacity-0 transition-opacity duration-300';
+        actionsDiv.id = `actions_${uniqueId}`;
+        actionsDiv.className = 'flex items-center gap-1.5 mt-2 mb-1 ml-11 px-2 opacity-0 transition-opacity duration-300';
 
         actionsDiv.innerHTML = `
 
-            <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors" id="copyBtn_${uniqueId}" title="Copiar resposta">
+            <button class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white/80 text-gray-600 shadow-sm backdrop-blur hover:bg-gray-100 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 transition-colors" id="copyBtn_${uniqueId}" title="Copiar resposta">
 
                 <span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-400">content_copy</span>
 
             </button>
 
-            <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors" id="regenerateBtn_${uniqueId}" title="Gerar novamente">
+            <button class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white/80 text-gray-600 shadow-sm backdrop-blur hover:bg-gray-100 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 transition-colors" id="regenerateBtn_${uniqueId}" title="Gerar novamente">
 
                 <span class="material-icons-outlined text-sm text-gray-600 dark:text-gray-400">refresh</span>
 
@@ -10400,7 +10467,9 @@ ${chunk}${bibliographyBlock}
 
                 if (responseText) {
 
-                    navigator.clipboard.writeText(responseText.textContent).then(() => {
+                    const copyTarget = document.getElementById(`response-text-responseText_${uniqueId}`) || responseText;
+
+                    navigator.clipboard.writeText(copyTarget.textContent).then(() => {
 
                         copyBtn.innerHTML = '<span class="material-icons-outlined text-sm text-green-600">check</span>';
 
@@ -10424,9 +10493,9 @@ ${chunk}${bibliographyBlock}
 
             regenerateBtn.addEventListener('click', () => {
 
-                if (window.agent) {
+                if (window.ui && typeof window.ui.showRegenerateModal === 'function') {
 
-                    window.agent.regenerateLastResponse();
+                    window.ui.showRegenerateModal();
 
                 }
 
@@ -10441,6 +10510,7 @@ ${chunk}${bibliographyBlock}
             uniqueId: uniqueId,
             headerId: `thinkingHeader_${uniqueId}`,
             responseId: `responseText_${uniqueId}`,
+            actionsId: `actions_${uniqueId}`,
             stepsId: null // Para compatibilidade com modelos que usam steps
         };
 
@@ -11296,8 +11366,15 @@ ${chunk}${bibliographyBlock}
         const carouselHtml = `
             <div id="${carouselId}" class="${carouselClass}" style="margin-bottom: 20px; display: flex !important; flex-direction: row !important; gap: 8px; width: 100%; justify-content: space-between; align-items: stretch;">
                 ${images.slice(0, 3).map((img, index) => `
-                    <div class="carousel-img-${index}" style="flex: 1 !important; min-width: 0; height: 200px; border-radius: 12px; overflow: hidden; cursor: pointer; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); display: block !important;"
+                    <div class="carousel-img-${index}" style="flex: 1 !important; min-width: 0; height: 200px; border-radius: 12px; overflow: hidden; cursor: pointer; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); display: block !important; position: relative;"
                          onclick="window.open('${img.src}', '_blank')">
+                        <button
+                            type="button"
+                            title="Baixar imagem"
+                            onclick="event.stopPropagation(); event.preventDefault(); window.ui && window.ui.downloadImageFromUrl('${img.src}', 'drekee-unsplash-${index + 1}.jpg', this)"
+                            style="position: absolute; top: 10px; right: 10px; z-index: 3; width: 36px; height: 36px; border-radius: 9999px; border: 1px solid rgba(255,255,255,0.35); background: rgba(15,23,42,0.62); color: white; display: inline-flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 6px 20px rgba(0,0,0,0.22);">
+                            <span class="material-icons-outlined" style="font-family: 'Material Icons Outlined'; font-size: 18px; line-height: 1;">download</span>
+                        </button>
                         <img src="${img.src}" alt="${img.alt || ''}" 
                              style="width: 100% !important; height: 100% !important; object-fit: cover; display: block !important; max-width: none !important;"
                              crossorigin="anonymous"
@@ -11343,7 +11420,7 @@ ${chunk}${bibliographyBlock}
                     transition: none !important; 
                     animation: none !important;
                     transform: none !important;
-                    position: static !important;
+                    position: relative !important;
                     float: none !important;
                     clear: none !important;
                     vertical-align: top !important;
@@ -11417,11 +11494,33 @@ ${chunk}${bibliographyBlock}
                     transition: none !important;
                     animation: none !important;
                     transform: none !important;
-                    position: static !important;
+                    position: relative !important;
                     float: none !important;
                     clear: none !important;
                     vertical-align: top !important;
                     box-sizing: border-box !important;
+                }
+                .download-btn {
+                    position: absolute !important;
+                    top: 10px !important;
+                    right: 10px !important;
+                    z-index: 3 !important;
+                    width: 36px !important;
+                    height: 36px !important;
+                    border-radius: 9999px !important;
+                    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+                    background: rgba(15, 23, 42, 0.62) !important;
+                    color: #fff !important;
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    backdrop-filter: blur(10px) !important;
+                    -webkit-backdrop-filter: blur(10px) !important;
+                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22) !important;
+                    cursor: pointer !important;
+                }
+                .download-btn:hover {
+                    background: rgba(15, 23, 42, 0.78) !important;
                 }
                 .carousel-img {
                     width: 100% !important;
@@ -11443,6 +11542,14 @@ ${chunk}${bibliographyBlock}
                 <div class="carousel-container">
                     ${images.slice(0, 3).map((img, index) => `
                         <div class="carousel-item" onclick="window.open('${img.src}', '_blank')">
+                            <button
+                                class="download-btn"
+                                type="button"
+                                title="Baixar imagem"
+                                onclick="event.stopPropagation(); event.preventDefault(); window.ui && window.ui.downloadImageFromUrl('${img.src}', 'drekee-unsplash-${index + 1}.jpg', this)"
+                            >
+                                <span class="material-icons-outlined" style="font-family: 'Material Icons Outlined'; font-size: 18px; line-height: 1;">download</span>
+                            </button>
                             <img class="carousel-img" src="${img.src}" alt="${img.alt || ''}" 
                                  crossorigin="anonymous"
                                  referrerpolicy="no-referrer"
@@ -11501,7 +11608,7 @@ ${chunk}${bibliographyBlock}
                         imgDiv.style.transition = 'none';
                         imgDiv.style.animation = 'none';
                         imgDiv.style.transform = 'none';
-                        imgDiv.style.position = 'static';
+                        imgDiv.style.position = 'relative';
                         imgDiv.style.float = 'none';
                         imgDiv.style.clear = 'none';
                         
