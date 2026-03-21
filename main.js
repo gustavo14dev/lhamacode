@@ -7687,7 +7687,7 @@ ${latexCode}
 
 
 
-        if (!this.currentChatId) {
+        if (!this.currentChatId || !this.chats.find(c => c.id === this.currentChatId)) {
 
             this.createNewChat();
 
@@ -12950,7 +12950,10 @@ ${chunk}${bibliographyBlock}
 
             const chat = this.chats.find(c => c.id === chatId);
             if (!chat) {
-                console.error('❌ Chat não encontrado:', chatId);
+                console.warn('⚠️ Chat não encontrado para salvar:', chatId);
+                if (this.currentChatId === chatId) {
+                    this.currentChatId = null;
+                }
                 return;
             }
 
@@ -13000,9 +13003,13 @@ ${chunk}${bibliographyBlock}
         if (!this.currentChatId) return;
         
         const chat = this.chats.find(c => c.id === this.currentChatId);
-        if (chat) {
-            chat.updated = new Date().toLocaleString('pt-BR');
+        if (!chat) {
+            console.warn('⚠️ Chat atual não existe mais. Limpando currentChatId:', this.currentChatId);
+            this.currentChatId = null;
+            return;
         }
+
+        chat.updated = new Date().toLocaleString('pt-BR');
 
         // Salvar APENAS no Supabase se estiver logado (não for visitante)
         const isGuest = localStorage.getItem('isGuest') === 'true';

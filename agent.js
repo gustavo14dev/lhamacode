@@ -1689,7 +1689,12 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 }
                 const errorData = await response.json().catch(() => null);
                 console.error('Erro ao gerar imagem com Grok:', response.status, errorData);
-                throw new Error(errorData?.friendly_message || errorData?.error || 'Não foi possível gerar a imagem');
+                throw new Error(
+                    errorData?.friendly_message ||
+                    errorData?.details ||
+                    errorData?.error ||
+                    'Não foi possível gerar a imagem'
+                );
             }
             
             const data = await response.json();

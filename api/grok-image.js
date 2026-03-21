@@ -19,7 +19,45 @@ function inferMimeTypeFromBase64(base64 = '') {
 }
 
 function extractPrompt(body = {}) {
-  return String(body?.prompt || '').trim();
+  let payload = body;
+  if (typeof body === 'string') {
+    try {
+      payload = JSON.parse(body || '{}');
+    } catch (error) {
+      payload = {};
+    }
+  }
+  return String(payload?.prompt || '').trim();
+}
+
+function getApiKey() {
+  return process.env.GROK_API_KEY || process.env.XAI_API_KEY || '';
+}
+
+async function requestImageGeneration(apiKey, prompt, extraBody = {}) {
+  const upstreamResponse = await fetch(XAI_IMAGE_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: DEFAULT_MODEL,
+      prompt,
+      ...extraBody
+    })
+  });
+
+  const rawText = await upstreamResponse.text();
+  let data = null;
+
+  try {
+    data = rawText ? JSON.parse(rawText) : null;
+  } catch (parseError) {
+    data = null;
+  }
+
+  return { upstreamResponse, data, rawText };
 }
 
 export default async function handler(req, res) {
@@ -32,7 +70,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Prompt parameter is required' });
   }
 
-  const apiKey = process.env.GROK_API_KEY;
+  const apiKey = getApiKey();
   if (!apiKey) {
     return res.status(500).json({
       error: 'GROK_API_KEY not configured',
@@ -41,27 +79,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const upstreamResponse = await fetch(XAI_IMAGE_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: DEFAULT_MODEL,
-        prompt,
-        response_format: 'b64_json'
-      })
-    });
-
-    const rawText = await upstreamResponse.text();
-    let data = null;
-
-    try {
-      data = rawText ? JSON.parse(rawText) : null;
-    } catch (parseError) {
-      data = null;
-    }
+    let { upstreamResponse, data, rawText } = await requestImageGeneration(apiKey, prompt);
 
     if (!upstreamResponse.ok) {
       const details = data?.error?.message || rawText || 'Erro desconhecido na API Grok Image';
@@ -77,15 +95,38 @@ export default async function handler(req, res) {
     }
 
     const imageEntry = Array.isArray(data?.data) ? data.data[0] : null;
-    const base64Image = imageEntry?.b64_json || '';
-    const imageUrl = base64Image
-      ? `data:${inferMimeTypeFromBase64(base64Image)};base64,${base64Image}`
-      : imageEntry?.url || '';
+    let imageUrl = imageEntry?.url || '';
+
+    if (!imageUrl) {
+      ({ upstreamResponse, data, rawText } = await requestImageGeneration(apiKey, prompt, {
+        response_format: 'b64_json'
+      }));
+
+      if (!upstreamResponse.ok) {
+        const details = data?.error?.message || rawText || 'Erro desconhecido na API Grok Image';
+        const statusCode = upstreamResponse.status === 429 ? 429 : 500;
+
+        return res.status(statusCode).json({
+          error: 'Failed to generate image',
+          friendly_message: upstreamResponse.status === 429
+            ? 'Muitas solicitações para gerar imagem. Tente novamente em alguns segundos.'
+            : 'Não foi possível gerar a imagem com Grok no momento.',
+          details
+        });
+      }
+
+      const base64Entry = Array.isArray(data?.data) ? data.data[0] : null;
+      const base64Image = base64Entry?.b64_json || '';
+      imageUrl = base64Image
+        ? `data:${inferMimeTypeFromBase64(base64Image)};base64,${base64Image}`
+        : '';
+    }
 
     if (!imageUrl) {
       return res.status(500).json({
         error: 'No image returned',
-        friendly_message: 'A API Grok respondeu, mas não enviou nenhuma imagem.'
+        friendly_message: 'A API Grok respondeu, mas não enviou nenhuma imagem.',
+        details: rawText || 'Resposta sem data[0].url e sem data[0].b64_json'
       });
     }
 
