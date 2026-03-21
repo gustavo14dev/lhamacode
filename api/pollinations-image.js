@@ -11,24 +11,38 @@ function extractPrompt(body = {}) {
   return String(body?.prompt || '').trim();
 }
 
-function buildPollinationsUrl(prompt = '') {
-  const seed = Date.now();
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true&private=true&seed=${seed}`;
-}
-
 function bufferToDataUrl(arrayBuffer, mimeType = 'image/png') {
   const base64 = Buffer.from(arrayBuffer).toString('base64');
   return `data:${mimeType};base64,${base64}`;
 }
 
-async function fetchPollinationsImage(url) {
-  const response = await fetch(url, {
+function buildPollinationsCandidates(prompt = '') {
+  const encodedPrompt = encodeURIComponent(prompt);
+  const seed = Date.now();
+  return [
+    {
+      label: 'gen-flux',
+      url: `https://gen.pollinations.ai/image/${encodedPrompt}?model=flux&width=1024&height=1024&nologo=true&enhance=true&seed=${seed}`
+    },
+    {
+      label: 'gen-turbo',
+      url: `https://gen.pollinations.ai/image/${encodedPrompt}?model=turbo&width=1024&height=1024&nologo=true&enhance=true&seed=${seed + 1}`
+    },
+    {
+      label: 'legacy-flux',
+      url: `https://image.pollinations.ai/prompt/${encodedPrompt}?model=flux&width=1024&height=1024&nologo=true&seed=${seed + 2}`
+    }
+  ];
+}
+
+async function fetchPollinationsCandidate(candidate) {
+  const response = await fetch(candidate.url, {
     redirect: 'follow',
     headers: {
       Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      Referer: 'https://image.pollinations.ai/',
-      Origin: 'https://image.pollinations.ai'
+      Referer: 'https://pollinations.ai/',
+      Origin: 'https://pollinations.ai'
     }
   });
 
@@ -36,6 +50,8 @@ async function fetchPollinationsImage(url) {
     const details = await response.text().catch(() => '');
     return {
       ok: false,
+      label: candidate.label,
+      url: candidate.url,
       status: response.status,
       details: details || 'Falha ao buscar imagem no Pollinations'
     };
@@ -46,6 +62,8 @@ async function fetchPollinationsImage(url) {
     const details = await response.text().catch(() => '');
     return {
       ok: false,
+      label: candidate.label,
+      url: candidate.url,
       status: 502,
       details: details || `Resposta não é imagem (${contentType})`
     };
@@ -54,6 +72,8 @@ async function fetchPollinationsImage(url) {
   const arrayBuffer = await response.arrayBuffer();
   return {
     ok: true,
+    label: candidate.label,
+    url: candidate.url,
     imageUrl: bufferToDataUrl(arrayBuffer, contentType),
     contentType
   };
@@ -69,50 +89,42 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Prompt parameter is required' });
   }
 
-  const pollinationsUrl = buildPollinationsUrl(prompt);
-  const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(pollinationsUrl)}`;
+  const candidates = buildPollinationsCandidates(prompt);
+  const errors = [];
 
-  try {
-    const result = await fetchPollinationsImage(pollinationsUrl);
+  for (const candidate of candidates) {
+    try {
+      const result = await fetchPollinationsCandidate(candidate);
+      if (result.ok && result.imageUrl) {
+        return res.status(200).json({
+          success: true,
+          imageUrl: result.imageUrl,
+          prompt,
+          model: `pollinations:${result.label}`,
+          usedFallback: false,
+          openUrl: result.url
+        });
+      }
 
-    if (result.ok && result.imageUrl) {
-      return res.status(200).json({
-        success: true,
-        imageUrl: result.imageUrl,
-        prompt,
-        model: 'pollinations',
-        usedFallback: false,
-        openUrl: pollinationsUrl
+      errors.push({
+        label: candidate.label,
+        status: result.status,
+        details: result.details
       });
+      console.error('[POLLINATIONS-IMAGE] Candidate failed:', result);
+    } catch (error) {
+      errors.push({
+        label: candidate.label,
+        status: 500,
+        details: error.message
+      });
+      console.error('[POLLINATIONS-IMAGE] Candidate threw:', candidate.label, error);
     }
-
-    console.error('[POLLINATIONS-IMAGE] Falha ao gerar imagem diretamente:', {
-      prompt,
-      status: result.status,
-      details: result.details
-    });
-
-    return res.status(200).json({
-      success: true,
-      imageUrl: proxyUrl,
-      prompt,
-      model: 'pollinations',
-      usedFallback: true,
-      fallbackCandidates: [pollinationsUrl],
-      fallbackReason: result.details || 'Falha ao gerar imagem diretamente',
-      openUrl: pollinationsUrl
-    });
-  } catch (error) {
-    console.error('[POLLINATIONS-IMAGE] Erro interno:', error);
-    return res.status(200).json({
-      success: true,
-      imageUrl: proxyUrl,
-      prompt,
-      model: 'pollinations',
-      usedFallback: true,
-      fallbackCandidates: [pollinationsUrl],
-      fallbackReason: error.message || 'Erro interno ao gerar imagem',
-      openUrl: pollinationsUrl
-    });
   }
+
+  return res.status(500).json({
+    error: 'Failed to generate image',
+    friendly_message: 'Nao foi possivel gerar a imagem com Pollinations no momento.',
+    details: errors
+  });
 }
