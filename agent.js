@@ -11,6 +11,7 @@ export class Agent {
         this.maxHistoryMessages = 50;
         this.abortController = null;
         this.isGenerating = false;
+        this.activeChatIdForGeneration = null;
 
         // Sistema de memória
         this.memory = new MemorySystem();
@@ -26,6 +27,44 @@ export class Agent {
             this.groqApiKey = localStorage.getItem('groq_api_key');
         }
         return this.groqApiKey;
+    }
+
+    getActiveChatId() {
+        return this.activeChatIdForGeneration || this.ui.currentChatId || null;
+    }
+
+    persistAssistantMessage(content, options = {}) {
+        const targetChatId = options.chatId || this.getActiveChatId();
+        if (!targetChatId) {
+            return null;
+        }
+
+        const message = {
+            role: 'assistant',
+            content: content == null ? '' : String(content)
+        };
+
+        if (options.thinking) {
+            message.thinking = options.thinking;
+        }
+
+        if (Array.isArray(options.sources) && options.sources.length > 0) {
+            message.sources = options.sources;
+        }
+
+        if (Array.isArray(options.attachments) && options.attachments.length > 0) {
+            message.attachments = options.attachments;
+        }
+
+        if (options.mode) {
+            message.mode = options.mode;
+        }
+
+        if (options.agentContext) {
+            message.agentContext = options.agentContext;
+        }
+
+        return this.ui.persistMessageToChat(targetChatId, message);
     }
 
     // Verificação rápida de API antes de processar
@@ -63,6 +102,7 @@ export class Agent {
     }
 
     async processMessage(userMessage, attachedFilesFromUI = null) {
+        this.activeChatIdForGeneration = this.ui.currentChatId;
         console.log('📨 Mensagem para processar:', userMessage.substring(0, 100) + '...');
         console.log('📨 Tamanho total:', userMessage.length, 'caracteres');
 
@@ -70,7 +110,11 @@ export class Agent {
         if (window.isInvestigateMode) {
             // Obter contexto relevante da memória primeiro
             const relevantContext = this.memory.getRelevantContext(userMessage);
-            await this.processInvestigateModel(userMessage, attachedFilesFromUI, relevantContext);
+            try {
+                await this.processInvestigateModel(userMessage, attachedFilesFromUI, relevantContext);
+            } finally {
+                this.activeChatIdForGeneration = null;
+            }
             return;
         }
 
@@ -82,7 +126,11 @@ export class Agent {
             console.log('🎨 MOTIVO: Solicitação de geração de imagem detectada.');
             console.log('--------------------------------------------------');
             console.log('🎨 [DETECÇÃO] Usuário quer gerar imagem:', imagePrompt);
-            await this.processImageGeneration(imagePrompt);
+            try {
+                await this.processImageGeneration(imagePrompt);
+            } finally {
+                this.activeChatIdForGeneration = null;
+            }
             return;
         }
 
@@ -161,7 +209,9 @@ export class Agent {
                 }
             }
         }
-        
+
+        this.activeChatIdForGeneration = null;
+
         this.isGenerating = false;
         this.ui.updateSendButtonToSend();
     }
@@ -200,6 +250,7 @@ export class Agent {
             const aiResponse = data.text || data.response;
 
             this.addToHistory('assistant', aiResponse);
+            this.persistAssistantMessage(aiResponse);
             this.ui.setResponseText(aiResponse, messageContainer.responseId);
             this.ui.setThinkingHeader('', messageContainer.headerId);
             
@@ -239,6 +290,7 @@ export class Agent {
             const aiResponse = data.text || data.response;
 
             this.addToHistory('assistant', aiResponse);
+            this.persistAssistantMessage(aiResponse);
             this.ui.setResponseText(aiResponse, messageContainer.responseId);
             this.ui.setThinkingHeader('', messageContainer.headerId);
             
@@ -288,6 +340,7 @@ export class Agent {
                 
                 // Adicionar ao histórico
                 this.addToHistory('assistant', response);
+                this.persistAssistantMessage(response);
                 
                 // Exibir resposta
                 this.ui.setResponseText(response, messageContainer.responseId, async () => {
@@ -399,15 +452,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             }
             
             // Armazenar e salvar a mensagem do assistente
-            const chat = this.ui.chats.find(c => c.id === this.ui.currentChatId);
-            if (chat) {
-                if (chat.messages.length === 1) {
-                    const firstUserMessage = chat.messages[0].content;
-                    chat.title = firstUserMessage.substring(0, 50) + (firstUserMessage.length > 50 ? '...' : '');
-                }
-                chat.messages.push({ role: 'assistant', content: response, thinking: null });
-                this.ui.saveCurrentChat();
-            }
+            this.persistAssistantMessage(response);
             
             this.addToHistory('assistant', response);
             
@@ -491,15 +536,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             }
             
             // Armazenar e salvar a mensagem do assistente
-            const chat = this.ui.chats.find(c => c.id === this.ui.currentChatId);
-            if (chat) {
-                if (chat.messages.length === 1) {
-                    const firstUserMessage = chat.messages[0].content;
-                    chat.title = firstUserMessage.substring(0, 50) + (firstUserMessage.length > 50 ? '...' : '');
-                }
-                chat.messages.push({ role: 'assistant', content: response, thinking: null });
-                this.ui.saveCurrentChat();
-            }
+            this.persistAssistantMessage(response);
             
             this.addToHistory('assistant', response);
             
@@ -598,18 +635,10 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             }
 
             // Armazenar e salvar a mensagem do assistente (incluindo attachments, se houver) ANTES de renderizar para que o UI possa detectá-los
-            const chat = this.ui.chats.find(c => c.id === this.ui.currentChatId);
-            if (chat) {
-                if (chat.messages.length === 1) {
-                    const firstUserMessage = chat.messages[0].content;
-                    chat.title = firstUserMessage.substring(0, 50) + (firstUserMessage.length > 50 ? '...' : '');
-                }
-                const toPush = { role: 'assistant', content: response, thinking: null };
-                const parsedFiles = this.parseFilesFromText(response);
-                if (parsedFiles && parsedFiles.length > 0) toPush.attachments = parsedFiles;
-                chat.messages.push(toPush);
-                this.ui.saveCurrentChat();
-            }
+            const parsedFiles = this.parseFilesFromText(response);
+            this.persistAssistantMessage(response, {
+                attachments: parsedFiles && parsedFiles.length > 0 ? parsedFiles : []
+            });
 
             this.addToHistory('assistant', response);
             
@@ -771,7 +800,8 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
     // Anexa arquivos parseados ao objeto de chat para reutilização em chamadas futuras
     attachGeneratedFilesToChat(files) {
         try {
-            const chat = this.ui.chats.find(c => c.id === this.ui.currentChatId);
+            const targetChatId = this.getActiveChatId();
+            const chat = this.ui.chats.find(c => c.id === targetChatId);
             if (!chat) return;
             chat.generatedFiles = chat.generatedFiles || [];
             // substituir arquivos com mesmo nome
@@ -779,7 +809,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 const idx = chat.generatedFiles.findIndex(x => x.name === f.name);
                 if (idx >= 0) chat.generatedFiles[idx] = f; else chat.generatedFiles.push(f);
             });
-            this.ui.saveCurrentChat();
+            this.ui.saveCurrentChat(targetChatId);
         } catch (e) {
             console.warn('⚠️ Falha ao anexar arquivos ao chat:', e);
         }
@@ -860,15 +890,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 }
             }, 100);
             
-            const chat = this.ui.chats.find(c => c.id === this.ui.currentChatId);
-            if (chat) {
-                if (chat.messages.length === 1) {
-                    const firstUserMessage = chat.messages[0].content;
-                    chat.title = firstUserMessage.substring(0, 50) + (firstUserMessage.length > 50 ? '...' : '');
-                }
-                chat.messages.push({ role: 'assistant', content: response, thinking: null });
-                this.ui.saveCurrentChat();
-            }
+            this.persistAssistantMessage(response);
 
         } catch (error) {
             if (error.message === 'ABORTED') {
@@ -966,6 +988,10 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             }
 
             this.addToHistory('assistant', finalResponse);
+            const responseAttachments = this.parseFilesFromText(finalResponse);
+            this.persistAssistantMessage(finalResponse, {
+                attachments: responseAttachments && responseAttachments.length > 0 ? responseAttachments : []
+            });
             
             // Mostrar "Pensando..." enquanto processa
             this.ui.setThinkingHeader('Pensando...', messageContainer.headerId);
@@ -1205,18 +1231,10 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
             // Gerar sugestões de acompanhamento
             await this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);
 
-            const chat = this.ui.chats.find(c => c.id === this.ui.currentChatId);
-            if (chat) {
-                if (chat.messages.length === 1) {
-                    const firstUserMessage = chat.messages[0].content;
-                    chat.title = firstUserMessage.substring(0, 50) + (firstUserMessage.length > 50 ? '...' : '');
-                }
-                const toPush = { role: 'assistant', content: finalResponse, thinking: null };
-                const parsedFiles = this.parseFilesFromText(finalResponse);
-                if (parsedFiles && parsedFiles.length > 0) toPush.attachments = parsedFiles;
-                chat.messages.push(toPush);
-                this.ui.saveCurrentChat();
-            }
+            const parsedFiles = this.parseFilesFromText(finalResponse);
+            this.persistAssistantMessage(finalResponse, {
+                attachments: parsedFiles && parsedFiles.length > 0 ? parsedFiles : []
+            });
 
         } catch (error) {
             if (error.message === 'ABORTED') {
@@ -1285,15 +1303,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             }
             
             // Armazenar e salvar a mensagem do assistente
-            const chat = this.ui.chats.find(c => c.id === this.ui.currentChatId);
-            if (chat) {
-                if (chat.messages.length === 1) {
-                    const firstUserMessage = chat.messages[0].content;
-                    chat.title = firstUserMessage.substring(0, 50) + (firstUserMessage.length > 50 ? '...' : '');
-                }
-                chat.messages.push({ role: 'assistant', content: response, thinking: null });
-                this.ui.saveCurrentChat();
-            }
+            this.persistAssistantMessage(response);
             
             this.addToHistory('assistant', response);
             

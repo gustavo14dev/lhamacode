@@ -1458,16 +1458,18 @@ Responda em formato JSON:
 
         try {
             const currentChat = this.getCurrentChatObject();
+            const agentChatId = currentChat?.id || this.currentChatId;
             const previousAgentContext = this.getLatestAgentContext(currentChat);
             this.addUserMessage(cleanMessage, null, { preserveCreateMode: true });
             this.appendMessageToCurrentChat({
                 role: 'user',
                 content: cleanMessage,
                 mode: 'agent'
-            });
+            }, agentChatId);
 
             const followUpStrategy = await this.decideAgentFollowUpStrategy(cleanMessage, previousAgentContext);
             this.startAgentResponse();
+            this.agentRunContext.chatId = agentChatId;
             this.agentRunContext.request = cleanMessage;
             this.agentRunContext.followUpMode = followUpStrategy.mode;
             this.agentRunContext.previousContext = previousAgentContext || null;
@@ -2753,22 +2755,22 @@ Entregue uma resposta final em português que:
         return data;
     }
 
-    getCurrentChatObject() {
-        if (!this.currentChatId) {
+    getCurrentChatObject(chatId = this.currentChatId) {
+        if (!chatId) {
             return null;
         }
 
-        return this.chats.find((chat) => chat.id === this.currentChatId) || null;
+        return this.chats.find((chat) => chat.id === chatId) || null;
     }
 
-    appendMessageToCurrentChat(message) {
-        const chat = this.getCurrentChatObject();
+    appendMessageToCurrentChat(message, chatId = this.currentChatId) {
+        const chat = this.getCurrentChatObject(chatId);
         if (!chat) {
             return;
         }
 
         chat.messages.push(message);
-        this.saveCurrentChat();
+        this.saveCurrentChat(chatId);
     }
 
     getLatestAgentContext(chat = this.getCurrentChatObject()) {
@@ -2839,7 +2841,7 @@ Entregue uma resposta final em português que:
             content: finalText,
             mode: 'agent',
             agentContext: sanitizedContext
-        });
+        }, agentContext?.chatId || this.agentRunContext?.chatId || this.currentChatId);
     }
 
     mergeAgentConversationContext(previousContext = null, nextContext = {}) {
@@ -5692,10 +5694,19 @@ Regras:
 
 
     openChat(chatId) {
-        this.currentChatId = chatId;
-        
-        // Verificar se o chat tem mensagens
         const chat = this.chats.find(c => c.id === chatId);
+        if (!chat) return;
+
+        this.currentChatId = chatId;
+
+        this.removeFollowUpSuggestions();
+        this.removeLastThinkingMessage();
+        this.responseCodeBlocks.clear();
+
+        if (this.elements.messagesContainer) {
+            this.elements.messagesContainer.innerHTML = '';
+        }
+
         const hasMessages = chat && chat.messages && chat.messages.length > 0;
         
         // Mover input para baixo se tiver mensagens, senão para cima
@@ -5707,10 +5718,6 @@ Regras:
             this.showWelcomeScreen(); // Mostrar tela inicial se não tiver mensagens
         }
 
-        if (!chat) return;
-
-        this.elements.messagesContainer.innerHTML = '';
-
         if (DEBUG) {
             console.log('📂 Abrindo chat:', chatId);
             console.log('📝 Mensagens do chat:', chat.messages.length);
@@ -5720,12 +5727,7 @@ Regras:
         if (hasMessages) {
             chat.messages.forEach((msg, index) => {
                 if (DEBUG) console.log(`  ${index + 1}. ${msg.role}: ${msg.content.substring(0, 50)}...`);
-
-                if (msg.role === 'user') {
-                    this.addUserMessage(msg.content);
-                } else {
-                    this.addAssistantMessage(msg.content, msg.thinking);
-                }
+                this.renderStoredChatMessage(msg);
             });
         }
 
@@ -5831,6 +5833,68 @@ Regras:
 
         // Botão de limpar histórico agora está no userHeader no HTML
 
+    }
+
+    renderStoredChatMessage(message = {}) {
+        if (!message || typeof message !== 'object') {
+            return;
+        }
+
+        if (message.role === 'user') {
+            const attachments = Array.isArray(message.attachments) ? message.attachments : null;
+            this.addUserMessage(message.content || '', attachments, {
+                preserveCreateMode: true,
+                fromHistory: true
+            });
+            return;
+        }
+
+        if (message.role === 'assistant') {
+            this.addAssistantMessage(
+                message.content || '',
+                Array.isArray(message.sources) ? message.sources : null,
+                typeof message.thinking === 'string' ? message.thinking : null,
+                {
+                    persist: false,
+                    fromHistory: true
+                }
+            );
+        }
+    }
+
+    updateChatTitleFromMessages(chat) {
+        if (!chat || !Array.isArray(chat.messages)) {
+            return;
+        }
+
+        const firstUserMessage = chat.messages.find((message) => message?.role === 'user' && typeof message.content === 'string' && message.content.trim());
+        if (!firstUserMessage) {
+            return;
+        }
+
+        const nextTitle = firstUserMessage.content.trim();
+        chat.title = nextTitle.substring(0, 50) + (nextTitle.length > 50 ? '...' : '');
+    }
+
+    persistMessageToChat(chatId, message) {
+        if (!chatId || !message || typeof message !== 'object') {
+            return null;
+        }
+
+        const chat = this.chats.find((item) => item.id === chatId);
+        if (!chat) {
+            return null;
+        }
+
+        if (!Array.isArray(chat.messages)) {
+            chat.messages = [];
+        }
+
+        chat.messages.push(message);
+        this.updateChatTitleFromMessages(chat);
+        this.saveCurrentChat(chatId);
+        this.renderChatHistory();
+        return chat;
     }
 
 
@@ -10086,17 +10150,13 @@ ${chunk}${bibliographyBlock}
 
                 `;
 
-                // Tornar clicável para visualizar o arquivo
-
-                fileCard.style.cursor = 'pointer';
-
-                fileCard.addEventListener('click', (e) => {
-
-                    e.stopPropagation();
-
-                    try { this.viewFileModal(f); } catch (err) { console.warn('Erro abrindo arquivo:', err); }
-
-                });
+                if (f && typeof f.content === 'string' && f.content.length > 0) {
+                    fileCard.style.cursor = 'pointer';
+                    fileCard.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        try { this.viewFileModal(f); } catch (err) { console.warn('Erro abrindo arquivo:', err); }
+                    });
+                }
 
                 inner.appendChild(fileCard);
 
@@ -10173,23 +10233,27 @@ ${chunk}${bibliographyBlock}
         }
     }
 
-    addAssistantMessage(text, sources = null, thinking = null) {
+    addAssistantMessage(text, sources = null, thinking = null, options = {}) {
 
         const messageDiv = document.createElement('div');
 
         messageDiv.className = 'mb-6 flex justify-start animate-slideIn';
 
         const uniqueId = 'msg_' + Date.now();
+        const safeText = text == null ? '' : String(text);
+        const sourceList = Array.isArray(sources) ? sources : [];
+        const shouldPersist = options?.persist === true;
+        const targetChatId = options?.chatId || this.currentChatId;
 
         let sourcesHtml = '';
         
         // Adicionar fontes se existirem
-        if (sources && sources.length > 0) {
+        if (sourceList.length > 0) {
             sourcesHtml = `
                 <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <div class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fontes</div>
                     <div class="space-y-2">
-                        ${sources.map((source, index) => `
+                        ${sourceList.map((source, index) => `
                             <a href="https://www.google.com/search?q=${encodeURIComponent(source.title || source)}" target="_blank" class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group">
                                 <div class="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
                                     <span class="material-icons-outlined text-blue-600 dark:text-blue-400 text-sm">link</span>
@@ -10241,10 +10305,10 @@ ${chunk}${bibliographyBlock}
 
             // Se o texto começa com <div (HTML), renderiza direto. Senão, formata como markdown
 
-            if (text.trim().startsWith('<')) {
+            if (safeText.trim().startsWith('<')) {
 
                 // Texto HTML vindo de fontes internas ou widgets. Sanitizar antes de inserir.
-                let processedText = this.sanitizeHtml(text);
+                let processedText = this.sanitizeHtml(safeText);
                 
                 // Verificar se é uma resposta RE e precisa de destaque amarelo
                 if (processedText.includes('Raciocínio Lógico:') || 
@@ -10288,7 +10352,7 @@ ${chunk}${bibliographyBlock}
 
                 // Texto normal - formatar
 
-                responseDiv.innerHTML = this.formatResponse(text, responseDiv.id);
+                responseDiv.innerHTML = this.formatResponse(safeText, responseDiv.id);
                 this.queueMathTypeset(responseDiv);
 
             }
@@ -10311,21 +10375,15 @@ ${chunk}${bibliographyBlock}
 
 
 
-        // Salvar mensagem no storage
+        if (shouldPersist) {
+            const msgObj = { role: 'assistant', content: safeText };
+            if (thinking) msgObj.thinking = thinking;
+            if (sourceList.length > 0) msgObj.sources = sourceList;
+            this.persistMessageToChat(targetChatId, msgObj);
+        }
 
-        const chat = this.chats.find(c => c.id === this.currentChatId);
-
-                if (chat) {
-
-                    const msgObj = { role: 'assistant', content: text };
-
-                    if (thinking) msgObj.thinking = thinking;
-
-                    chat.messages.push(msgObj);
-
-                }
-
-            }
+        return uniqueId;
+    }
 
 
 
@@ -12855,6 +12913,7 @@ ${chunk}${bibliographyBlock}
             console.log('🔍 [TAVILY DEBUG] Iniciando chamada API Tavily Search...');
             console.log('🔍 [TAVILY DEBUG] Mensagem:', message);
             console.log('🔍 [TAVILY DEBUG] isWebSearchMode:', typeof isWebSearchMode !== 'undefined' ? isWebSearchMode : 'UNDEFINED');
+            const targetChatId = this.currentChatId;
 
             // Criar container com texto "Pesquisando..."
             const messageContainer = this.createRapidMessageContainer();
@@ -12864,7 +12923,7 @@ ${chunk}${bibliographyBlock}
             const imagesPromise = this.agent.searchUnsplashImages(message);
                 
             // Obter histórico da conversa atual
-            const currentChat = this.chats.find(c => c.id === this.currentChatId);
+            const currentChat = this.chats.find(c => c.id === targetChatId);
             const conversationHistory = currentChat ? currentChat.messages.map(msg => ({
                 role: msg.role,
                 content: msg.content
@@ -12895,6 +12954,12 @@ ${chunk}${bibliographyBlock}
             const data = await response.json();
             console.log('✅ [TAVILY DEBUG] Dados da resposta:', data);
             console.log('✅ [TAVILY DEBUG] Fontes encontradas:', (data && data.sources && data.sources.length) ? data.sources.length : 0);
+
+            this.persistMessageToChat(targetChatId, {
+                role: 'assistant',
+                content: data.response || '',
+                sources: Array.isArray(data.sources) ? data.sources : []
+            });
             
             // Limpar texto "Pesquisando..."
             this.setThinkingHeader('', messageContainer.headerId);
@@ -13357,14 +13422,16 @@ ${chunk}${bibliographyBlock}
     }
 
     // Sobrescrever saveCurrentChat para usar apenas Supabase
-    saveCurrentChat() {
+    saveCurrentChat(chatId = this.currentChatId) {
         // Não salvar mais localmente - apenas no Supabase
-        if (!this.currentChatId) return;
+        if (!chatId) return;
         
-        const chat = this.chats.find(c => c.id === this.currentChatId);
+        const chat = this.chats.find(c => c.id === chatId);
         if (!chat) {
-            console.warn('⚠️ Chat atual não existe mais. Limpando currentChatId:', this.currentChatId);
-            this.currentChatId = null;
+            console.warn('⚠️ Chat para salvar não existe mais:', chatId);
+            if (this.currentChatId === chatId) {
+                this.currentChatId = null;
+            }
             return;
         }
 
@@ -13373,8 +13440,8 @@ ${chunk}${bibliographyBlock}
         // Salvar APENAS no Supabase se estiver logado (não for visitante)
         const isGuest = localStorage.getItem('isGuest') === 'true';
         if (!isGuest && window.supabase && localStorage.getItem('userSession')) {
-            console.log('💾 Salvando chat atual no Supabase:', this.currentChatId);
-            this.saveChatToSupabase(this.currentChatId);
+            console.log('💾 Salvando chat atual no Supabase:', chatId);
+            this.saveChatToSupabase(chatId);
         } else {
             console.log('📝 Chat não salvo (visitante ou sem sessão)');
         }
