@@ -12,7 +12,8 @@ export default async function handler(req, res) {
   }
 
   const query = typeof req.body?.query === 'string' ? req.body.query.trim() : '';
-  const maxResults = Math.min(Math.max(Number(req.body?.maxResults) || 2, 1), 2);
+  const requestedMaxResults = Number(req.body?.maxResults);
+  const maxResults = Math.min(Math.max(Number.isFinite(requestedMaxResults) ? requestedMaxResults : 2, 1), 50);
 
   if (!query) {
     return res.status(400).json({ error: 'Query is required' });
@@ -44,18 +45,24 @@ export default async function handler(req, res) {
 
 async function searchYoutubeVideos(query, maxResults) {
   const apiKey = process.env.YOUTUBE_API_KEY;
+  const recommendedMode = maxResults <= 2;
+  const searchPoolSize = Math.min(
+    Math.max(recommendedMode ? maxResults * 4 : maxResults, recommendedMode ? 8 : 12),
+    50
+  );
   const searchParams = new URLSearchParams({
     key: apiKey,
     part: 'snippet',
     type: 'video',
-    maxResults: String(Math.max(maxResults * 3, 4)),
+    maxResults: String(searchPoolSize),
     q: query,
     order: 'relevance',
     safeSearch: 'strict',
     videoEmbeddable: 'true',
     videoSyndicated: 'true',
     regionCode: 'BR',
-    relevanceLanguage: 'pt'
+    relevanceLanguage: 'pt',
+    videoDuration: recommendedMode ? 'medium' : 'any'
   });
 
   const searchResponse = await fetch(`https://www.googleapis.com/youtube/v3/search?${searchParams.toString()}`);
@@ -79,7 +86,7 @@ async function searchYoutubeVideos(query, maxResults) {
   const videoIds = filteredSearchItems
     .map((item) => item.id.videoId)
     .filter(Boolean)
-    .slice(0, Math.max(maxResults * 3, 4));
+    .slice(0, searchPoolSize);
 
   const detailsParams = new URLSearchParams({
     key: apiKey,
@@ -123,7 +130,17 @@ async function searchYoutubeVideos(query, maxResults) {
         viewCountLabel: formatViewCount(details?.statistics?.viewCount || 0)
       };
     })
-    .filter((video) => video.title && video.embedUrl && (!video.durationSeconds || video.durationSeconds >= 90))
+    .filter((video) => {
+      if (!video.title || !video.embedUrl) {
+        return false;
+      }
+
+      if (!recommendedMode) {
+        return true;
+      }
+
+      return !video.durationSeconds || video.durationSeconds >= 90;
+    })
     .slice(0, maxResults);
 }
 

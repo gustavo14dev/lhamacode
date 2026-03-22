@@ -100,6 +100,7 @@ class UI {
             imageFileInput: document.getElementById('imageFileInput'),
             attachedFilesContainer: document.getElementById('attachedFilesContainer'),
             dragDropOverlay: document.getElementById('dragDropOverlay'),
+            mediaSearchBtn: document.getElementById('mediaSearchBtn'),
             updatesBtn: document.getElementById('updatesBtn'),
             updatesBadge: document.getElementById('updatesBadge'),
             newChatBtn: document.getElementById('newChatBtn'),
@@ -5594,6 +5595,68 @@ Regras:
         // Mantido apenas para compatibilidade, mas não faz nada
     }
 
+    createSidebarNavButton({ id, icon, label, isActive = false }) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.id = id;
+        button.className = `sidebar-nav-btn${isActive ? ' active' : ''}`;
+        button.innerHTML = `
+            <span class="sidebar-nav-main">
+                <span class="material-icons-outlined text-blue-400" style="font-size:1.1rem">${icon}</span>
+                <span class="font-semibold text-sm">${label}</span>
+            </span>
+        `;
+        return button;
+    }
+
+    setupSidebarNavigation() {
+        const { newChatBtn, updatesBtn, chatHistoryList } = this.elements;
+        const scrollArea = chatHistoryList ? chatHistoryList.closest('.flex-1') : null;
+
+        if (!newChatBtn || !updatesBtn || !scrollArea) {
+            return;
+        }
+
+        let navGroup = scrollArea.querySelector('#sidebarNavGroup');
+        if (!navGroup) {
+            navGroup = document.createElement('div');
+            navGroup.id = 'sidebarNavGroup';
+            navGroup.className = 'flex flex-col gap-2';
+            scrollArea.insertBefore(navGroup, scrollArea.firstChild);
+        }
+
+        const newChatLabel = newChatBtn.querySelector('.font-semibold');
+        if (newChatLabel) {
+            newChatLabel.textContent = 'Nova conversa';
+        }
+        updatesBtn.classList.remove('mb-3');
+
+        if (!this.elements.mediaSearchBtn) {
+            this.elements.mediaSearchBtn = this.createSidebarNavButton({
+                id: 'mediaSearchBtn',
+                icon: 'perm_media',
+                label: 'Buscar mídia'
+            });
+        }
+
+        navGroup.appendChild(this.elements.mediaSearchBtn);
+        navGroup.appendChild(updatesBtn);
+    }
+
+    handleInitialRouteState() {
+        const params = new URLSearchParams(window.location.search);
+        if (!params.has('newChat')) {
+            return;
+        }
+
+        params.delete('newChat');
+        const nextQuery = params.toString();
+        const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+        window.history.replaceState({}, '', nextUrl);
+
+        this.createNewChat();
+    }
+
 
 
     createNewChat() {
@@ -5972,7 +6035,13 @@ Regras:
 
 
         this.elements.sendButton.addEventListener('click', this.boundHandleSend);
+        this.setupSidebarNavigation();
         this.elements.newChatBtn.addEventListener('click', () => this.createNewChat());
+        if (this.elements.mediaSearchBtn) {
+            this.elements.mediaSearchBtn.addEventListener('click', () => {
+                window.location.href = 'midia.html';
+            });
+        }
         if (this.elements.updatesBtn) {
             this.elements.updatesBtn.addEventListener('click', () => {
                 window.location.href = 'atualizacoes.html';
@@ -13310,6 +13379,7 @@ ${chunk}${bibliographyBlock}
             this.showGuestMode();
         }
 
+        this.handleInitialRouteState();
         await this.initializeUpdatesExperience();
 
         // Configurar event listeners

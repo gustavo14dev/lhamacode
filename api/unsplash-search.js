@@ -5,6 +5,8 @@ export default async function handler(req, res) {
   }
 
   const { query } = req.body;
+  const requestedMaxResults = Number(req.body?.maxResults);
+  const maxResults = Math.min(Math.max(Number.isFinite(requestedMaxResults) ? requestedMaxResults : 3, 1), 30);
 
   if (!query) {
     return res.status(400).json({ error: 'Query parameter is required' });
@@ -27,7 +29,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const searchUrl = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=3&orientation=landscape&order_by=relevant`;
+    const searchParams = new URLSearchParams({
+      query,
+      per_page: String(maxResults),
+      order_by: 'relevant'
+    });
+
+    if (maxResults <= 6) {
+      searchParams.set('orientation', 'landscape');
+    }
+
+    const searchUrl = `https://api.unsplash.com/search/photos?${searchParams.toString()}`;
     
     console.log('🖼️ Buscando imagens em:', searchUrl);
 

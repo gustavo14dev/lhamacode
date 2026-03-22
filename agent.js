@@ -1840,6 +1840,362 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         return videos;
     }
 
+    shouldRecommendYouTubeVideos(query = '', assistantResponse = '') {
+        const normalizedQuery = this.normalizeIntentText(query);
+        if (!normalizedQuery || this.isGreetingMessage(normalizedQuery) || normalizedQuery.length < 10) {
+            return false;
+        }
+
+        const explicitVideoSignals = [
+            'youtube',
+            'video',
+            'videos',
+            'aula',
+            'aulas',
+            'tutorial',
+            'canal',
+            'playlist',
+            'assistir'
+        ];
+        if (explicitVideoSignals.some((signal) => normalizedQuery.includes(signal))) {
+            return true;
+        }
+
+        const blockedSignals = [
+            'noticia',
+            'noticias',
+            'preco',
+            'precos',
+            'cotacao',
+            'cotacoes',
+            'clima',
+            'temperatura',
+            'fofoca',
+            'meme',
+            'piada',
+            'horoscopo',
+            'resultado do jogo',
+            'placar',
+            'tempo agora',
+            'ao vivo'
+        ];
+        if (blockedSignals.some((signal) => normalizedQuery.includes(signal))) {
+            return false;
+        }
+
+        const learningIntentSignals = [
+            'explica',
+            'explique',
+            'me explica',
+            'me ensina',
+            'ensina',
+            'aprender',
+            'estudar',
+            'estudo',
+            'passo a passo',
+            'como resolver',
+            'como fazer',
+            'resolva',
+            'resolver',
+            'duvida',
+            'duvidas',
+            'materia',
+            'prova',
+            'exercicio',
+            'exercicios',
+            'questao',
+            'questoes',
+            'revisao',
+            'entender',
+            'entendi',
+            'nao entendi',
+            'tenho dificuldade',
+            'to com dificuldade',
+            'do zero',
+            'iniciante',
+            'basico',
+            'introducao',
+            'conceito',
+            'conceitos',
+            'resumo',
+            'resumir',
+            'exemplo',
+            'exemplos',
+            'atividade',
+            'trabalho da escola',
+            'enem',
+            'vestibular'
+        ];
+
+        const subjectSignals = [
+            'matematica',
+            'regra de 3',
+            'raiz',
+            'fracao',
+            'porcentagem',
+            'equacao',
+            'bhaskara',
+            'geometria',
+            'geometria analitica',
+            'algebra',
+            'funcao',
+            'funcoes',
+            'trigonometria',
+            'logaritmo',
+            'calculo',
+            'derivada',
+            'integral',
+            'estatistica',
+            'fisica',
+            'quimica',
+            'biologia',
+            'historia',
+            'geografia',
+            'filosofia',
+            'sociologia',
+            'portugues',
+            'gramatica',
+            'redacao',
+            'interpretacao de texto',
+            'ingles',
+            'programacao',
+            'algoritmo',
+            'javascript',
+            'typescript',
+            'python',
+            'react',
+            'node',
+            'excel',
+            'power bi',
+            'html',
+            'css',
+            'sql'
+        ];
+
+        const questionSignals = ['como', 'o que e', 'qual', 'quais', 'por que', 'porque', 'me ajuda', 'me ajude', 'pode explicar'];
+        const difficultySignals = ['nao entendi', 'tenho dificuldade', 'to com dificuldade', 'travado', 'travada', 'confuso', 'confusa'];
+
+        const hasLearningIntent = learningIntentSignals.some((signal) => normalizedQuery.includes(signal));
+        const hasSubjectSignal = subjectSignals.some((signal) => normalizedQuery.includes(signal));
+        const hasQuestionIntent = questionSignals.some((signal) => normalizedQuery.includes(signal));
+        const hasDifficultySignal = difficultySignals.some((signal) => normalizedQuery.includes(signal));
+
+        if ((hasLearningIntent || hasDifficultySignal) && (hasSubjectSignal || hasQuestionIntent)) {
+            return true;
+        }
+
+        const normalizedResponse = this.normalizeIntentText(assistantResponse);
+        return Boolean(
+            normalizedResponse
+            && (hasSubjectSignal || hasLearningIntent)
+            && /\b(passo a passo|conceito|explicacao|formula|resolucao|exemplo|aula|tutorial)\b/.test(normalizedResponse)
+        );
+    }
+
+    buildYouTubeVideoSearchQuery(query = '', assistantResponse = '') {
+        const rawQuery = String(query || '').trim().replace(/\s+/g, ' ').slice(0, 180);
+        const normalizedQuery = this.normalizeIntentText(rawQuery);
+        const normalizedResponse = this.normalizeIntentText(assistantResponse);
+
+        let suffix = ' aula explicacao';
+
+        if (/\b(programacao|javascript|typescript|python|html|css|sql|algoritmo|react|node|excel|power bi)\b/.test(normalizedQuery)) {
+            suffix = ' tutorial explicacao';
+        } else if (/\b(exercicio|exercicios|questao|questoes|resolver|resolva|enem|vestibular)\b/.test(normalizedQuery)) {
+            suffix = ' aula resolucao passo a passo';
+        } else if (/\b(matematica|regra de 3|raiz|equacao|porcentagem|fracao|bhaskara|funcao|trigonometria|logaritmo|calculo|derivada|integral|estatistica)\b/.test(normalizedQuery)) {
+            suffix = ' aula explicacao passo a passo';
+        } else if (/\b(historia|geografia|biologia|fisica|quimica|filosofia|sociologia)\b/.test(normalizedQuery)) {
+            suffix = ' aula resumo explicacao';
+        } else if (/\b(gramatica|portugues|redacao|ingles|interpretacao de texto)\b/.test(normalizedQuery)) {
+            suffix = ' aula explicacao exemplos';
+        } else if (/\b(formula|conceito|explicacao)\b/.test(normalizedResponse)) {
+            suffix = ' aula explicacao';
+        }
+
+        return `${rawQuery}${suffix}`.trim();
+    }
+
+    async processMistralModel(userMessage, relevantContext = []) {
+        const messageContainer = this.ui.createAssistantMessageContainer();
+        const responseChatId = this.getActiveChatId();
+        const timestamp = Date.now();
+        this.ui.setThinkingHeader('Processando com Mistral (codestral-latest)...', messageContainer.headerId);
+        await this.ui.sleep(800);
+        this.addToHistory('user', userMessage);
+
+        const imagesPromise = this.searchUnsplashImages(userMessage);
+
+        try {
+            const thinkingChecks = await this.generateChecksSafely(userMessage);
+            for (let i = 0; i < thinkingChecks.length; i++) {
+                const stepId = `step_${timestamp}_${i}`;
+                const checkText = thinkingChecks[i].step;
+                this.ui.addThinkingStep('schedule', checkText, stepId, messageContainer.stepsId);
+                const delay = 800 + Math.random() * 1200;
+                await this.ui.sleep(delay);
+                this.ui.updateThinkingStep(stepId, 'check_circle', checkText);
+                await this.ui.sleep(200);
+            }
+
+            let memoryContext = '';
+            if (relevantContext.length > 0) {
+                memoryContext = '\n\nCONTEXTO RELEVANTE DA CONVERSA:\n';
+                relevantContext.forEach((memory, index) => {
+                    memoryContext += `${index + 1}. ${memory.role.toUpperCase()}: "${memory.content}" (Contexto: ${memory.context})\n`;
+                });
+                memoryContext += '\nUse este contexto para fornecer respostas mais personalizadas e relevantes.';
+            }
+
+            const systemPrompt = {
+                role: 'system',
+                content: `VocÃª Ã© o Drekee AI 1, um assistente de cÃ³digo inteligente com memÃ³ria contextual. ForneÃ§a respostas COMPLETAS e ESTRUTURADAS com: mÃºltiplos parÃ¡grafos bem organizados, **palavras em negrito** para destacar conceitos, listas com â€¢ ou nÃºmeros, tÃ³picos claros com headings, e quando apropriado use tabelas (em formato markdown), notaÃ§Ã£o matemÃ¡tica (com $sÃ­mbolos$ para inline ou $$blocos$$), e diagramas em ASCII. Evite blocos enormes de cÃ³digo - prefira explicaÃ§Ãµes visuais. Seja tÃ©cnico mas acessÃ­vel.${memoryContext}`
+            };
+            const messages = this.extraMessagesForNextCall
+                ? [systemPrompt, ...this.extraMessagesForNextCall, ...this.conversationHistory]
+                : [systemPrompt, ...this.conversationHistory];
+
+            let response = await this.callMistralAPI('codestral-latest', messages);
+            this.extraMessagesForNextCall = null;
+
+            if (!response || typeof response !== 'string') {
+                throw new Error('Resposta vazia ou invÃ¡lida do servidor Mistral');
+            }
+
+            try {
+                const parsedFiles = this.parseFilesFromText(response);
+                if (parsedFiles && parsedFiles.length > 0) {
+                    this.attachGeneratedFilesToChat(parsedFiles);
+                    response = response.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
+                }
+            } catch (error) {
+                console.warn('âš ï¸ Falha parsing arquivos de resposta Mistral:', error);
+            }
+
+            const parsedFiles = this.parseFilesFromText(response);
+            this.persistAssistantMessage(response, {
+                attachments: parsedFiles && parsedFiles.length > 0 ? parsedFiles : []
+            });
+
+            this.addToHistory('assistant', response);
+            this.memory.addConversationMemory('assistant', response);
+            this.memory.learnFromInteraction(userMessage, response);
+
+            await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
+
+            this.ui.setResponseText(response, messageContainer.responseId);
+            await this.ui.sleep(500);
+            this.ui.setResponseText(response, messageContainer.responseId, async () => {
+                await this.attachYouTubeVideosToResponse({
+                    userMessage,
+                    assistantResponse: response,
+                    responseId: messageContainer.responseId,
+                    chatId: responseChatId
+                });
+                this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
+            });
+            this.ui.setThinkingHeader('', messageContainer.headerId);
+        } catch (error) {
+            if (error.message === 'ABORTED') {
+                console.log('âš ï¸ GeraÃ§Ã£o interrompida pelo usuÃ¡rio');
+                return;
+            }
+
+            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem na API Mistral. ' + error.message, messageContainer.responseId);
+            console.error('Erro no Modelo Mistral:', error);
+        }
+    }
+
+    async processMistralModel(userMessage, relevantContext = []) {
+        const messageContainer = this.ui.createAssistantMessageContainer();
+        const responseChatId = this.getActiveChatId();
+        const timestamp = Date.now();
+        this.ui.setThinkingHeader('Processando com Mistral (codestral-latest)...', messageContainer.headerId);
+        await this.ui.sleep(800);
+        this.addToHistory('user', userMessage);
+
+        const imagesPromise = this.searchUnsplashImages(userMessage);
+
+        try {
+            const thinkingChecks = await this.generateChecksSafely(userMessage);
+            for (let i = 0; i < thinkingChecks.length; i++) {
+                const stepId = `step_${timestamp}_${i}`;
+                const checkText = thinkingChecks[i].step;
+                this.ui.addThinkingStep('schedule', checkText, stepId, messageContainer.stepsId);
+                const delay = 800 + Math.random() * 1200;
+                await this.ui.sleep(delay);
+                this.ui.updateThinkingStep(stepId, 'check_circle', checkText);
+                await this.ui.sleep(200);
+            }
+
+            let memoryContext = '';
+            if (relevantContext.length > 0) {
+                memoryContext = '\n\nCONTEXTO RELEVANTE DA CONVERSA:\n';
+                relevantContext.forEach((memory, index) => {
+                    memoryContext += `${index + 1}. ${memory.role.toUpperCase()}: "${memory.content}" (Contexto: ${memory.context})\n`;
+                });
+                memoryContext += '\nUse este contexto para fornecer respostas mais personalizadas e relevantes.';
+            }
+
+            const systemPrompt = {
+                role: 'system',
+                content: `Voce e o Drekee AI 1, um assistente de codigo inteligente com memoria contextual. Forneca respostas completas e estruturadas com varios paragrafos organizados, destaques em markdown, listas claras, headings quando fizer sentido, tabelas em markdown quando agregarem valor, notacao matematica quando apropriada e diagramas ASCII se ajudarem. Evite blocos enormes de codigo quando uma explicacao visual ou objetiva resolver melhor. Seja tecnico, claro e acessivel.${memoryContext}`
+            };
+            const messages = this.extraMessagesForNextCall
+                ? [systemPrompt, ...this.extraMessagesForNextCall, ...this.conversationHistory]
+                : [systemPrompt, ...this.conversationHistory];
+
+            let response = await this.callMistralAPI('codestral-latest', messages);
+            this.extraMessagesForNextCall = null;
+
+            if (!response || typeof response !== 'string') {
+                throw new Error('Resposta vazia ou invalida do servidor Mistral');
+            }
+
+            try {
+                const parsedFiles = this.parseFilesFromText(response);
+                if (parsedFiles && parsedFiles.length > 0) {
+                    this.attachGeneratedFilesToChat(parsedFiles);
+                    response = response.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
+                }
+            } catch (error) {
+                console.warn('Falha no parsing de arquivos da resposta Mistral:', error);
+            }
+
+            const parsedFiles = this.parseFilesFromText(response);
+            this.persistAssistantMessage(response, {
+                attachments: parsedFiles && parsedFiles.length > 0 ? parsedFiles : []
+            });
+
+            this.addToHistory('assistant', response);
+            this.memory.addConversationMemory('assistant', response);
+            this.memory.learnFromInteraction(userMessage, response);
+
+            await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
+
+            this.ui.setResponseText(response, messageContainer.responseId);
+            await this.ui.sleep(500);
+            this.ui.setResponseText(response, messageContainer.responseId, async () => {
+                await this.attachYouTubeVideosToResponse({
+                    userMessage,
+                    assistantResponse: response,
+                    responseId: messageContainer.responseId,
+                    chatId: responseChatId
+                });
+                this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
+            });
+            this.ui.setThinkingHeader('', messageContainer.headerId);
+        } catch (error) {
+            if (error.message === 'ABORTED') {
+                console.log('Geracao interrompida pelo usuario');
+                return;
+            }
+
+            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem na API Mistral. ' + error.message, messageContainer.responseId);
+            console.error('Erro no Modelo Mistral:', error);
+        }
+    }
+
     async searchWebForResponse(query) {
         console.log(`🔍 [WEB-SEARCH] Buscando informações na web para: "${query}"`);
 
