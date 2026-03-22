@@ -1778,7 +1778,22 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             'fonte',
             'fontes',
             'link',
-            'links'
+            'links',
+            'verifique',
+            'verificar',
+            'confirme',
+            'confirmar',
+            'cheque',
+            'checar',
+            'valide',
+            'validar',
+            'cite fonte',
+            'com fontes',
+            'fonte oficial',
+            'fontes oficiais',
+            'oficial',
+            'confiavel',
+            'confiabilidade'
         ];
 
         if (explicitWebSignals.some(signal => normalized.includes(signal))) {
@@ -1810,10 +1825,72 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             'clima',
             'temperatura',
             'resultado',
-            'placar'
+            'placar',
+            'disponivel',
+            'disponibilidade'
         ];
 
         if (timelySignals.some(signal => normalized.includes(signal))) {
+            return true;
+        }
+
+        const factualExternalSignals = [
+            'empresa',
+            'empresas',
+            'governo',
+            'presidente',
+            'ceo',
+            'produto',
+            'produtos',
+            'servico',
+            'servicos',
+            'plano',
+            'planos',
+            'api',
+            'sdk',
+            'modelo',
+            'modelos',
+            'documentacao',
+            'docs',
+            'release',
+            'changelog',
+            'roadmap',
+            'framework',
+            'biblioteca',
+            'package',
+            'pacote',
+            'pacotes',
+            'licenca',
+            'lei',
+            'norma',
+            'regulacao',
+            'regra oficial'
+        ];
+
+        const researchIntentSignals = [
+            'qual',
+            'quais',
+            'como',
+            'quando',
+            'onde',
+            'quem',
+            'compare',
+            'comparar',
+            'diferenca',
+            'diferencas',
+            'lista',
+            'listar',
+            'mostrar',
+            'explica',
+            'explique',
+            'resuma',
+            'resumir',
+            'guia',
+            'passo a passo'
+        ];
+
+        if (factualExternalSignals.some(signal => normalized.includes(signal))
+            && researchIntentSignals.some(signal => normalized.includes(signal))) {
             return true;
         }
 
@@ -1821,8 +1898,8 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             return false;
         }
 
-        return /\b(empresa|governo|presidente|ceo|api|modelo|modelos|produto|produtos|documentacao|docs|release|changelog)\b/.test(normalized)
-            && /\b(qual|quais|como|quando|onde|compare|comparar|lista|listar|mostrar)\b/.test(normalized);
+        return /\b(empresa|governo|presidente|ceo|api|sdk|modelo|modelos|produto|produtos|documentacao|docs|release|changelog|framework|biblioteca|lei|regulacao|servico|servicos|plano|planos)\b/.test(normalized)
+            && /\b(qual|quais|como|quando|onde|quem|compare|comparar|lista|listar|mostrar|explica|explique|resuma|resumir)\b/.test(normalized);
     }
 
     buildWebContextBlock(webData) {
@@ -1845,6 +1922,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 
         return `\n\nContexto opcional da web:
 - Use este material apenas como apoio para melhorar a resposta.
+- Use a busca principalmente para verificar fatos externos, mutáveis ou que peçam fonte.
 - Se os resultados estiverem tangenciais, ignore-os.
 - Nunca deixe resultados da busca distorcerem saudações simples, conversa casual ou conhecimento estável.
 - Se houver conflito entre a pergunta do usuário e a busca, responda primeiro ao que foi perguntado e trate a web como evidência complementar.

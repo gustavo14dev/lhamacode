@@ -10748,7 +10748,7 @@ ${chunk}${bibliographyBlock}
 
     parseResponseSegments(text = '') {
         const source = String(text || '');
-        const regex = /```([\w-]*)\n([\s\S]*?)```/g;
+        const regex = /```([^\n`]*)\n([\s\S]*?)```/g;
         const segments = [];
         let lastIndex = 0;
         let match;
@@ -10763,7 +10763,7 @@ ${chunk}${bibliographyBlock}
 
             segments.push({
                 type: 'code',
-                lang: match[1] || 'plaintext',
+                ...this.parseCodeFenceInfo(match[1] || ''),
                 code: (match[2] || '').trim()
             });
 
@@ -10810,6 +10810,7 @@ ${chunk}${bibliographyBlock}
                 const codeIndex = activeCodeBlocks.length;
                 activeCodeBlocks.push({
                     lang: segment.lang,
+                    fileName: segment.fileName || '',
                     code: segment.code
                 });
                 assembledText += `\n\n%%CODEBLOCK${codeIndex}%%\n\n`;
@@ -10937,9 +10938,12 @@ ${chunk}${bibliographyBlock}
         let cleanText = String(textWithMathPlaceholders);
 
         if (!providedCodeBlocks) {
-            cleanText = cleanText.replace(/```([\w-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+            cleanText = cleanText.replace(/```([^\n`]*)\n([\s\S]*?)```/g, (match, info, code) => {
                 const blockIndex = codeBlocks.length;
-                codeBlocks.push({ lang: lang || 'plaintext', code: code.trim() });
+                codeBlocks.push({
+                    ...this.parseCodeFenceInfo(info || ''),
+                    code: code.trim()
+                });
                 return `\n\n${codePlaceholder(blockIndex)}\n\n`;
             });
         }
@@ -11160,10 +11164,11 @@ ${chunk}${bibliographyBlock}
         
 
         this.storeResponseCodeBlocks(normalizedResponseKey, codeBlocks);
+        const storedCodeBlocks = this.getResponseCodeBlocks(normalizedResponseKey);
 
         const deferredCodeBlocks = [];
         const renderCodeBlockPlaceholder = (index) => {
-            const block = codeBlocks[index];
+            const block = storedCodeBlocks[index];
             if (!block) return '';
 
             if (this.shouldRenderInlineCodeBlock(block)) {
@@ -11184,13 +11189,13 @@ ${chunk}${bibliographyBlock}
 
         if (deferredCodeBlocks.length > 0) {
             formatted += '<div class="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-2">';
-
             deferredCodeBlocks.forEach(({ block, index }, deferredIndex) => {
-                formatted += `<button onclick="window.ui && window.ui.openCodeModalForResponse('${this.escapeInlineJsString(normalizedResponseKey)}', ${index}, '${this.escapeInlineJsString(block.lang || 'plaintext')}')" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white text-sm font-semibold rounded-lg transition-all transform hover:scale-105 active:scale-95">
+                const displayName = this.getCodeBlockDisplayName(block, deferredIndex);
+                formatted += `<button onclick="window.ui && window.ui.openCodeModalForResponse('${this.escapeInlineJsString(normalizedResponseKey)}', ${index}, '${this.escapeInlineJsString(block.lang || 'plaintext')}')" class="inline-flex items-center gap-2 rounded-xl border border-blue-400/25 bg-blue-600/90 px-4 py-2 text-sm font-semibold text-white shadow-[0_18px_34px_-22px_rgba(37,99,235,0.95)] transition hover:bg-blue-500 hover:border-blue-300/35 active:scale-[0.98]">
 
                     <span class="material-icons-outlined" style="font-size:18px;">code</span>
 
-                    Mostrar código ${deferredCodeBlocks.length > 1 ? deferredIndex + 1 : ''}
+                    ${this.escapeHtml(displayName)}
 
                 </button>`;
 
@@ -11200,7 +11205,7 @@ ${chunk}${bibliographyBlock}
         }
 
         if (codeBlocks.length > 0) {
-            window._lastCodeBlocks = codeBlocks;
+            window._lastCodeBlocks = storedCodeBlocks;
         }
 
         return formatted;
@@ -11213,11 +11218,16 @@ ${chunk}${bibliographyBlock}
             this.responseCodeBlocks.delete(responseKey);
             return;
         }
-        this.responseCodeBlocks.set(responseKey, codeBlocks);
+        const usedDisplayNames = new Set();
+        const normalizedBlocks = codeBlocks.map((block, index) => ({
+            ...block,
+            displayName: this.getCodeBlockDisplayName(block, index, usedDisplayNames)
+        }));
+        this.responseCodeBlocks.set(responseKey, normalizedBlocks);
     }
 
     getResponseCodeBlocks(responseKey) {
-        if (responseKey && this.responseCodeBlocks.has(responseKey)) {
+        if (responseKey) {
             return this.responseCodeBlocks.get(responseKey) || [];
         }
         return Array.isArray(window._lastCodeBlocks) ? window._lastCodeBlocks : [];
@@ -11228,6 +11238,8 @@ ${chunk}${bibliographyBlock}
         const aliases = {
             js: 'javascript',
             ts: 'typescript',
+            yml: 'yaml',
+            md: 'markdown',
             py: 'python',
             sh: 'bash',
             shell: 'bash',
@@ -11236,6 +11248,192 @@ ${chunk}${bibliographyBlock}
             ps1: 'powershell'
         };
         return aliases[value] || value || 'plaintext';
+    }
+
+    inferCodeLanguageFromFileName(fileName = '') {
+        const normalizedFileName = String(fileName || '').trim().split(/[\\/]/).pop() || '';
+        const extension = normalizedFileName.includes('.')
+            ? normalizedFileName.split('.').pop().toLowerCase()
+            : '';
+        const extensionMap = {
+            html: 'html',
+            htm: 'html',
+            css: 'css',
+            js: 'javascript',
+            mjs: 'javascript',
+            cjs: 'javascript',
+            jsx: 'jsx',
+            ts: 'typescript',
+            tsx: 'tsx',
+            py: 'python',
+            php: 'php',
+            java: 'java',
+            rb: 'ruby',
+            go: 'go',
+            rs: 'rust',
+            c: 'c',
+            cc: 'cpp',
+            cpp: 'cpp',
+            cxx: 'cpp',
+            cs: 'csharp',
+            sh: 'bash',
+            bash: 'bash',
+            zsh: 'bash',
+            ps1: 'powershell',
+            json: 'json',
+            yml: 'yaml',
+            yaml: 'yaml',
+            toml: 'toml',
+            sql: 'sql',
+            xml: 'xml',
+            svg: 'xml',
+            md: 'markdown',
+            kt: 'kotlin',
+            swift: 'swift'
+        };
+        return this.normalizeCodeLanguage(extensionMap[extension] || '');
+    }
+
+    detectCodeLanguageFromContent(code = '') {
+        const sample = String(code || '').trim();
+        if (!sample) return 'plaintext';
+
+        if (/(<!DOCTYPE html>|<html[\s>]|<head[\s>]|<body[\s>]|<\/[a-z][\w:-]*>)/i.test(sample)) {
+            return 'html';
+        }
+
+        if (/^\s*[@.#]?[a-z0-9_-]+(?:\s+[a-z0-9_-]+)*\s*\{[\s\S]*\}\s*$/i.test(sample)) {
+            return 'css';
+        }
+
+        if (/^\s*(def |class |import |from [\w.]+ import |print\(|if __name__ == ['"]__main__['"])/m.test(sample)) {
+            return 'python';
+        }
+
+        if (/^\s*(const |let |var |function |export |import |document\.|console\.|async function)/m.test(sample)) {
+            return 'javascript';
+        }
+
+        if (/^\s*[\[{][\s\S]*[\]}]\s*$/.test(sample) && /"\s*:/.test(sample)) {
+            return 'json';
+        }
+
+        if (/^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b/i.test(sample)) {
+            return 'sql';
+        }
+
+        if (/^#!/.test(sample) || /^\s*(echo|npm|npx|node|python|pip|git|docker|curl|cd|ls|mkdir|rm|cp|mv)\b/m.test(sample)) {
+            return 'bash';
+        }
+
+        return 'plaintext';
+    }
+
+    parseCodeFenceInfo(info = '') {
+        const rawInfo = String(info || '').trim();
+        if (!rawInfo) {
+            return { lang: 'plaintext', fileName: '' };
+        }
+
+        const tokens = rawInfo
+            .split(/\s+/)
+            .map(token => token.trim())
+            .filter(Boolean);
+
+        let lang = '';
+        let fileName = '';
+
+        tokens.forEach((token) => {
+            const cleanedToken = token.replace(/^["']|["']$/g, '');
+            if (!cleanedToken) return;
+
+            if (!fileName && (/[\\/]/.test(cleanedToken) || /\.[a-z0-9]{1,8}$/i.test(cleanedToken))) {
+                fileName = cleanedToken.split(/[\\/]/).pop();
+                return;
+            }
+
+            if (!lang) {
+                lang = cleanedToken;
+            }
+        });
+
+        if (!lang && fileName) {
+            lang = this.inferCodeLanguageFromFileName(fileName);
+        }
+
+        return {
+            lang: this.normalizeCodeLanguage(lang || 'plaintext'),
+            fileName
+        };
+    }
+
+    guessDefaultCodeFileName(lang = 'plaintext', code = '', index = 0) {
+        const normalizedLang = this.normalizeCodeLanguage(lang || this.detectCodeLanguageFromContent(code));
+        const fileNameMap = {
+            html: 'index.html',
+            css: 'style.css',
+            javascript: 'script.js',
+            jsx: 'App.jsx',
+            typescript: 'script.ts',
+            tsx: 'App.tsx',
+            python: 'index.py',
+            php: 'index.php',
+            ruby: 'main.rb',
+            java: 'Main.java',
+            c: 'main.c',
+            cpp: 'main.cpp',
+            csharp: 'Program.cs',
+            go: 'main.go',
+            rust: 'main.rs',
+            kotlin: 'Main.kt',
+            swift: 'main.swift',
+            bash: 'script.sh',
+            powershell: 'script.ps1',
+            json: 'data.json',
+            yaml: 'config.yml',
+            toml: 'config.toml',
+            sql: 'query.sql',
+            xml: 'file.xml',
+            markdown: 'README.md'
+        };
+
+        return fileNameMap[normalizedLang] || `code-${index + 1}.txt`;
+    }
+
+    getCodeBlockDisplayName(block = {}, index = 0, usedNames = null) {
+        if (block && block.displayName) {
+            return block.displayName;
+        }
+
+        const blockFileName = String(block.fileName || '').trim();
+        const inferredLang = blockFileName
+            ? this.inferCodeLanguageFromFileName(blockFileName)
+            : this.detectCodeLanguageFromContent(block.code || '');
+        let displayName = blockFileName || this.guessDefaultCodeFileName(block.lang || inferredLang, block.code || '', index);
+
+        if (usedNames instanceof Set) {
+            const existingNames = usedNames;
+            const lowerName = displayName.toLowerCase();
+
+            if (existingNames.has(lowerName)) {
+                const dotIndex = displayName.lastIndexOf('.');
+                const baseName = dotIndex > 0 ? displayName.slice(0, dotIndex) : displayName;
+                const extension = dotIndex > 0 ? displayName.slice(dotIndex) : '';
+                let suffix = 2;
+                let candidate = `${baseName}-${suffix}${extension}`;
+
+                while (existingNames.has(candidate.toLowerCase())) {
+                    suffix += 1;
+                    candidate = `${baseName}-${suffix}${extension}`;
+                }
+
+                displayName = candidate;
+            }
+
+            existingNames.add(displayName.toLowerCase());
+        }
+
+        return displayName;
     }
 
     escapeInlineJsString(value = '') {
@@ -11273,12 +11471,15 @@ ${chunk}${bibliographyBlock}
 
     renderInlineCodeBlock(block = {}, index = 0, responseKey = '') {
         const normalizedLang = this.normalizeCodeLanguage(block.lang);
-        const languageLabel = normalizedLang === 'plaintext' ? 'Comando' : normalizedLang.charAt(0).toUpperCase() + normalizedLang.slice(1);
+        const displayName = this.getCodeBlockDisplayName(block, index);
         const highlightedCode = this.highlightCodeBlockContent(block.code || '', normalizedLang);
         return `
             <div class="my-4 overflow-hidden rounded-2xl border border-slate-700/70 bg-[#0b1220] shadow-[0_14px_34px_-20px_rgba(15,23,42,0.95)]">
                 <div class="flex items-center justify-between gap-3 border-b border-slate-700/70 bg-slate-900/90 px-4 py-3">
-                    <div class="text-sm font-semibold text-slate-100">${this.escapeHtml(languageLabel)}</div>
+                    <div>
+                        <div class="text-sm font-semibold text-slate-100">${this.escapeHtml(displayName)}</div>
+                        <div class="mt-0.5 text-[11px] uppercase tracking-[0.18em] text-slate-400">${this.escapeHtml(normalizedLang)}</div>
+                    </div>
                     <button onclick="window.ui && window.ui.copyCodeBlockFromResponse('${this.escapeInlineJsString(responseKey)}', ${index}, this)" class="inline-flex items-center gap-1.5 rounded-full border border-slate-600/80 bg-slate-800/90 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:border-slate-500 hover:bg-slate-700/90">
                         <span class="material-icons-outlined text-sm">content_copy</span>
                         Copiar
@@ -11300,6 +11501,7 @@ ${chunk}${bibliographyBlock}
         }
 
         const normalizedLang = this.normalizeCodeLanguage(block.lang || lang);
+        const displayName = this.getCodeBlockDisplayName(block, index);
         const highlighted = this.highlightCodeBlockContent(block.code || '', normalizedLang);
         const modal = document.createElement('div');
         modal.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm z-[900] flex items-center justify-center p-4';
@@ -11312,8 +11514,8 @@ ${chunk}${bibliographyBlock}
             <div class="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-slate-700 bg-slate-950 shadow-2xl">
                 <div class="flex items-center justify-between gap-4 border-b border-slate-800 px-5 py-4">
                     <div>
-                        <div class="text-sm font-semibold text-slate-100">Código gerado pela IA</div>
-                        <div class="text-xs text-slate-400">${this.escapeHtml(normalizedLang)}</div>
+                        <div class="text-sm font-semibold text-slate-100">${this.escapeHtml(displayName)}</div>
+                        <div class="text-xs uppercase tracking-[0.18em] text-slate-400">${this.escapeHtml(normalizedLang)}</div>
                     </div>
                     <div class="flex items-center gap-2">
                         <button id="codeModalCopyBtn" class="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500">
