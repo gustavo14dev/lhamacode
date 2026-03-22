@@ -13,6 +13,7 @@ export default async function handler(req, res) {
 
   const query = typeof req.body?.query === 'string' ? req.body.query.trim() : '';
   const requestedMaxResults = Number(req.body?.maxResults);
+  const pageToken = typeof req.body?.pageToken === 'string' ? req.body.pageToken.trim() : '';
   const maxResults = Math.min(Math.max(Number.isFinite(requestedMaxResults) ? requestedMaxResults : 2, 1), 50);
 
   if (!query) {
@@ -27,12 +28,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    const videos = await searchYoutubeVideos(query, maxResults);
+    const { videos, nextPageToken } = await searchYoutubeVideos(query, maxResults, pageToken);
 
     return res.status(200).json({
       query,
       total: videos.length,
-      videos
+      videos,
+      nextPageToken: nextPageToken || ''
     });
   } catch (error) {
     console.error('[youtube-search] request failed:', error);
@@ -43,7 +45,7 @@ export default async function handler(req, res) {
   }
 }
 
-async function searchYoutubeVideos(query, maxResults) {
+async function searchYoutubeVideos(query, maxResults, pageToken = '') {
   const apiKey = process.env.YOUTUBE_API_KEY;
   const recommendedMode = maxResults <= 2;
   const searchPoolSize = Math.min(
@@ -65,6 +67,10 @@ async function searchYoutubeVideos(query, maxResults) {
     videoDuration: recommendedMode ? 'medium' : 'any'
   });
 
+  if (pageToken) {
+    searchParams.set('pageToken', pageToken);
+  }
+
   const searchResponse = await fetch(`https://www.googleapis.com/youtube/v3/search?${searchParams.toString()}`);
   if (!searchResponse.ok) {
     const errorText = await searchResponse.text().catch(() => '');
@@ -72,6 +78,7 @@ async function searchYoutubeVideos(query, maxResults) {
   }
 
   const searchData = await searchResponse.json();
+  const nextPageToken = typeof searchData?.nextPageToken === 'string' ? searchData.nextPageToken : '';
   const rawItems = Array.isArray(searchData.items) ? searchData.items : [];
   const filteredSearchItems = rawItems.filter((item) => {
     const videoId = item?.id?.videoId;
@@ -80,7 +87,10 @@ async function searchYoutubeVideos(query, maxResults) {
   });
 
   if (filteredSearchItems.length === 0) {
-    return [];
+    return {
+      videos: [],
+      nextPageToken
+    };
   }
 
   const videoIds = filteredSearchItems
@@ -105,7 +115,7 @@ async function searchYoutubeVideos(query, maxResults) {
     (Array.isArray(detailsData.items) ? detailsData.items : []).map((item) => [item.id, item])
   );
 
-  return filteredSearchItems
+  const videos = filteredSearchItems
     .map((item) => {
       const videoId = item.id.videoId;
       const details = detailMap.get(videoId);
@@ -142,6 +152,11 @@ async function searchYoutubeVideos(query, maxResults) {
       return !video.durationSeconds || video.durationSeconds >= 90;
     })
     .slice(0, maxResults);
+
+  return {
+    videos,
+    nextPageToken
+  };
 }
 
 function parseIsoDurationToSeconds(value) {

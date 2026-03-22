@@ -6,7 +6,9 @@ export default async function handler(req, res) {
 
   const { query } = req.body;
   const requestedMaxResults = Number(req.body?.maxResults);
+  const requestedPage = Number(req.body?.page);
   const maxResults = Math.min(Math.max(Number.isFinite(requestedMaxResults) ? requestedMaxResults : 3, 1), 30);
+  const page = Math.max(Number.isFinite(requestedPage) ? requestedPage : 1, 1);
 
   if (!query) {
     return res.status(400).json({ error: 'Query parameter is required' });
@@ -31,6 +33,7 @@ export default async function handler(req, res) {
   try {
     const searchParams = new URLSearchParams({
       query,
+      page: String(page),
       per_page: String(maxResults),
       order_by: 'relevant'
     });
@@ -85,7 +88,10 @@ export default async function handler(req, res) {
     return res.status(200).json({ 
       success: true,
       photos: images, // Manter compatibilidade com código existente
-      total: data.total || 0
+      total: data.total || 0,
+      page,
+      totalPages: data.total_pages || 0,
+      hasMore: page < Number(data.total_pages || 0)
     });
 
   } catch (error) {
