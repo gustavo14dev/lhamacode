@@ -5856,7 +5856,8 @@ Regras:
                 typeof message.thinking === 'string' ? message.thinking : null,
                 {
                     persist: false,
-                    fromHistory: true
+                    fromHistory: true,
+                    videos: Array.isArray(message.videos) ? message.videos : []
                 }
             );
         }
@@ -5895,6 +5896,53 @@ Regras:
         this.saveCurrentChat(chatId);
         this.renderChatHistory();
         return chat;
+    }
+
+    updateAssistantMessageByContent(chatId, assistantContent, patch = {}) {
+        if (!chatId || !assistantContent || !patch || typeof patch !== 'object') {
+            return null;
+        }
+
+        const chat = this.chats.find((item) => item.id === chatId);
+        if (!chat || !Array.isArray(chat.messages)) {
+            return null;
+        }
+
+        const targetContent = String(assistantContent);
+
+        for (let index = chat.messages.length - 1; index >= 0; index -= 1) {
+            const message = chat.messages[index];
+            if (message?.role !== 'assistant' || String(message.content || '') !== targetContent) {
+                continue;
+            }
+
+            Object.entries(patch).forEach(([key, value]) => {
+                if (value == null) {
+                    return;
+                }
+
+                if (Array.isArray(value)) {
+                    message[key] = value;
+                    return;
+                }
+
+                if (typeof value === 'object') {
+                    message[key] = {
+                        ...(typeof message[key] === 'object' && message[key] !== null ? message[key] : {}),
+                        ...value
+                    };
+                    return;
+                }
+
+                message[key] = value;
+            });
+
+            this.saveCurrentChat(chatId);
+            this.renderChatHistory();
+            return message;
+        }
+
+        return null;
     }
 
 
@@ -10242,6 +10290,7 @@ ${chunk}${bibliographyBlock}
         const uniqueId = 'msg_' + Date.now();
         const safeText = text == null ? '' : String(text);
         const sourceList = Array.isArray(sources) ? sources : [];
+        const videoList = Array.isArray(options?.videos) ? options.videos : [];
         const shouldPersist = options?.persist === true;
         const targetChatId = options?.chatId || this.currentChatId;
 
@@ -10371,6 +10420,10 @@ ${chunk}${bibliographyBlock}
 
             }
 
+            if (videoList.length > 0) {
+                this.appendYouTubeVideosToMessage(responseDiv.id, videoList);
+            }
+
         }
 
 
@@ -10379,6 +10432,7 @@ ${chunk}${bibliographyBlock}
             const msgObj = { role: 'assistant', content: safeText };
             if (thinking) msgObj.thinking = thinking;
             if (sourceList.length > 0) msgObj.sources = sourceList;
+            if (videoList.length > 0) msgObj.videos = videoList;
             this.persistMessageToChat(targetChatId, msgObj);
         }
 
@@ -12149,6 +12203,152 @@ ${chunk}${bibliographyBlock}
         console.log('✅ [SOURCES] Botão de fontes adicionado com sucesso!');
     }
 
+    appendYouTubeVideosToMessage(responseId, videos = []) {
+        const responseDiv = document.getElementById(responseId);
+        if (!responseDiv) {
+            console.warn('⚠️ [YOUTUBE] responseId não encontrado:', responseId);
+            return;
+        }
+
+        const normalizedVideos = Array.isArray(videos)
+            ? videos
+                .filter((video) => video && video.videoId && video.embedUrl)
+                .filter((video, index, array) => array.findIndex((item) => item.videoId === video.videoId) === index)
+                .slice(0, 2)
+            : [];
+
+        if (normalizedVideos.length === 0) {
+            return;
+        }
+
+        const hostElement = responseDiv.parentElement || responseDiv;
+        const containerId = `youtubeRecommendations_${String(responseId).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+        const existingContainer = hostElement.querySelector(`#${containerId}`);
+        if (existingContainer) {
+            existingContainer.remove();
+        }
+
+        const videosHtml = normalizedVideos.map((video) => {
+            const title = this.escapeHtml(video.title || 'Vídeo recomendado');
+            const channel = this.escapeHtml(video.channelTitle || 'Canal');
+            const description = this.escapeHtml(String(video.description || '').slice(0, 140));
+            const duration = video.durationLabel ? `<span>${this.escapeHtml(video.durationLabel)}</span>` : '';
+            const views = video.viewCountLabel ? `<span>${this.escapeHtml(video.viewCountLabel)}</span>` : '';
+            const meta = [channel, duration, views].filter(Boolean).join(' <span style="opacity:0.45;">•</span> ');
+            const watchUrl = this.escapeHtml(video.watchUrl || `https://www.youtube.com/watch?v=${video.videoId}`);
+            const embedUrl = this.escapeHtml(video.embedUrl);
+
+            return `
+                <article style="
+                    display:flex;
+                    flex-direction:column;
+                    gap:12px;
+                    padding:14px;
+                    border-radius:22px;
+                    border:1px solid rgba(96, 165, 250, 0.16);
+                    background:linear-gradient(180deg, rgba(15,23,42,0.92), rgba(9,14,28,0.98));
+                    box-shadow:0 24px 40px -28px rgba(37,99,235,0.55);
+                ">
+                    <div style="
+                        position:relative;
+                        width:100%;
+                        padding-top:56.25%;
+                        overflow:hidden;
+                        border-radius:18px;
+                        border:1px solid rgba(148,163,184,0.12);
+                        background:#020617;
+                    ">
+                        <iframe
+                            src="${embedUrl}"
+                            title="${title}"
+                            loading="lazy"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowfullscreen
+                            referrerpolicy="strict-origin-when-cross-origin"
+                            style="
+                                position:absolute;
+                                inset:0;
+                                width:100%;
+                                height:100%;
+                                border:0;
+                                border-radius:18px;
+                            "
+                        ></iframe>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div style="font-size:0.98rem; font-weight:600; line-height:1.45; color:#f8fafc;">${title}</div>
+                        <div style="font-size:0.78rem; line-height:1.5; color:#94a3b8;">${meta}</div>
+                        ${description ? `<div style="font-size:0.82rem; line-height:1.55; color:#cbd5e1;">${description}</div>` : ''}
+                        <div>
+                            <a
+                                href="${watchUrl}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style="
+                                    display:inline-flex;
+                                    align-items:center;
+                                    gap:8px;
+                                    padding:8px 14px;
+                                    border-radius:999px;
+                                    border:1px solid rgba(96, 165, 250, 0.22);
+                                    background:rgba(37, 99, 235, 0.14);
+                                    color:#bfdbfe;
+                                    font-size:0.8rem;
+                                    font-weight:600;
+                                    text-decoration:none;
+                                "
+                            >
+                                <span class="material-icons-outlined" style="font-size:16px;">open_in_new</span>
+                                Assistir no YouTube
+                            </a>
+                        </div>
+                    </div>
+                </article>
+            `;
+        }).join('');
+
+        const section = document.createElement('section');
+        section.id = containerId;
+        section.style.marginTop = '20px';
+        section.innerHTML = `
+            <div style="
+                border-radius:28px;
+                border:1px solid rgba(96, 165, 250, 0.16);
+                background:linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.96));
+                padding:16px;
+                box-shadow:0 28px 50px -34px rgba(30, 64, 175, 0.75);
+            ">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+                    <div style="
+                        width:34px;
+                        height:34px;
+                        border-radius:12px;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                        background:rgba(37, 99, 235, 0.16);
+                        border:1px solid rgba(96, 165, 250, 0.2);
+                    ">
+                        <span class="material-icons-outlined" style="font-size:18px; color:#60a5fa;">smart_display</span>
+                    </div>
+                    <div>
+                        <div style="font-size:0.9rem; font-weight:700; color:#eff6ff;">Vídeos que podem ajudar</div>
+                        <div style="font-size:0.76rem; color:#94a3b8;">Sugestões pontuais do YouTube para aprofundar esse assunto.</div>
+                    </div>
+                </div>
+                <div style="
+                    display:grid;
+                    gap:14px;
+                    grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+                ">
+                    ${videosHtml}
+                </div>
+            </div>
+        `;
+
+        hostElement.insertAdjacentElement('beforeend', section);
+    }
+
 
     escapeHtml(text) {
 
@@ -13003,6 +13203,15 @@ ${chunk}${bibliographyBlock}
                 const images = await imagesPromise;
                 if (images && images.length > 0) {
                     this.appendImagesToMessage(messageContainer.responseId, images);
+                }
+
+                if (this.agent && typeof this.agent.attachYouTubeVideosToResponse === 'function') {
+                    await this.agent.attachYouTubeVideosToResponse({
+                        userMessage: message,
+                        assistantResponse: data.response,
+                        responseId: messageContainer.responseId,
+                        chatId: targetChatId
+                    });
                 }
             });
 

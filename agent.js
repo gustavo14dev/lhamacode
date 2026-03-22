@@ -56,6 +56,10 @@ export class Agent {
             message.attachments = options.attachments;
         }
 
+        if (Array.isArray(options.videos) && options.videos.length > 0) {
+            message.videos = options.videos;
+        }
+
         if (options.mode) {
             message.mode = options.mode;
         }
@@ -218,6 +222,7 @@ export class Agent {
 
     async processInvestigateModel(userMessage, attachments = null, relevantContext = []) {
         const messageContainer = this.ui.createAssistantMessageContainer();
+        const responseChatId = this.getActiveChatId();
         this.ui.setThinkingHeader('Deep Research em andamento...', messageContainer.headerId);
         
         // Texto de feedback inicial conforme solicitado
@@ -251,7 +256,14 @@ export class Agent {
 
             this.addToHistory('assistant', aiResponse);
             this.persistAssistantMessage(aiResponse);
-            this.ui.setResponseText(aiResponse, messageContainer.responseId);
+            this.ui.setResponseText(aiResponse, messageContainer.responseId, async () => {
+                await this.attachYouTubeVideosToResponse({
+                    userMessage,
+                    assistantResponse: aiResponse,
+                    responseId: messageContainer.responseId,
+                    chatId: responseChatId
+                });
+            });
             this.ui.setThinkingHeader('', messageContainer.headerId);
             
             // Desativar modo investigar após o uso
@@ -266,6 +278,7 @@ export class Agent {
 
     async processGeminiModel(userMessage, attachments = null, relevantContext = []) {
         const messageContainer = this.ui.createAssistantMessageContainer();
+        const responseChatId = this.getActiveChatId();
         this.ui.setThinkingHeader('Raciocinando...', messageContainer.headerId);
         
         try {
@@ -291,7 +304,14 @@ export class Agent {
 
             this.addToHistory('assistant', aiResponse);
             this.persistAssistantMessage(aiResponse);
-            this.ui.setResponseText(aiResponse, messageContainer.responseId);
+            this.ui.setResponseText(aiResponse, messageContainer.responseId, async () => {
+                await this.attachYouTubeVideosToResponse({
+                    userMessage,
+                    assistantResponse: aiResponse,
+                    responseId: messageContainer.responseId,
+                    chatId: responseChatId
+                });
+            });
             this.ui.setThinkingHeader('', messageContainer.headerId);
             
         } catch (error) {
@@ -396,6 +416,7 @@ export class Agent {
     // ==================== MODELO DE PESQUISA (openai/gpt-oss-20b com browser search) ====================
     async processPesquisaModel(userMessage, relevantContext = []) {
         const messageContainer = this.ui.createAssistantMessageContainer();
+        const responseChatId = this.getActiveChatId();
         const timestamp = Date.now();
         
         this.ui.setThinkingHeader('🔍 Pesquisando...', messageContainer.headerId);
@@ -473,6 +494,12 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                   console.log('❌ [DEBUG] Nenhuma imagem encontrada ou array vazio');
               }
               // Gerar sugestões de acompanhamento só quando resposta estiver completa
+                await this.attachYouTubeVideosToResponse({
+                    userMessage,
+                    assistantResponse: response,
+                    responseId: messageContainer.responseId,
+                    chatId: responseChatId
+                });
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
             });
             this.ui.setThinkingHeader('', messageContainer.headerId);
@@ -577,6 +604,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
     async processMistralModel(userMessage, relevantContext = []) {
         // Usamos proxy server-side; não é obrigatório ter chave no localStorage para o deploy no Vercel
         const messageContainer = this.ui.createAssistantMessageContainer();
+        const responseChatId = this.getActiveChatId();
         const timestamp = Date.now();
         this.ui.setThinkingHeader('Processando com Mistral (codestral-latest)...', messageContainer.headerId);
         await this.ui.sleep(800);
@@ -822,6 +850,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         // Não é necessário ter chave no localStorage para deploy em produção.
 
         const messageContainer = this.ui.createRapidMessageContainer();
+        const responseChatId = this.getActiveChatId();
         const timestamp = Date.now();
 
         // Adicionar texto simples de carregamento com pontinhos pulsando
@@ -876,6 +905,13 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 }
 
                 // Mostrar botões de ação quando resposta estiver completa
+                await this.attachYouTubeVideosToResponse({
+                    userMessage,
+                    assistantResponse: response,
+                    responseId: messageContainer.responseId,
+                    chatId: responseChatId
+                });
+
                 const actionsDiv = document.getElementById(messageContainer.actionsId);
                 if (actionsDiv) {
                     actionsDiv.classList.remove('opacity-0');
@@ -1011,6 +1047,12 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 }
                 
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
+                await this.attachYouTubeVideosToResponse({
+                    userMessage,
+                    assistantResponse: finalResponse,
+                    responseId: messageContainer.responseId,
+                    chatId: responseChatId
+                });
                 this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);
             });
             
@@ -1215,6 +1257,13 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
                 if (webData && webData.sources && webData.sources.length > 0) {
                     this.ui.addSourcesButton(messageContainer.responseId, webData.sources, webData.query);
                 }
+
+                await this.attachYouTubeVideosToResponse({
+                    userMessage,
+                    assistantResponse: finalResponse,
+                    responseId: messageContainer.responseId,
+                    chatId: responseChatId
+                });
             });
             
             // Mostrar botões de ação quando resposta estiver completa
@@ -1249,6 +1298,7 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
     // ==================== MÉTODO DE PESQUISA NA WEB ====================
     async processWebSearch(userMessage) {
         const messageContainer = this.ui.createAssistantMessageContainer();
+        const responseChatId = this.getActiveChatId();
         const timestamp = Date.now();
         
         this.ui.setThinkingHeader('🔍 Pesquisando...', messageContainer.headerId);
@@ -1311,8 +1361,14 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.memory.addConversationMemory('assistant', response);
             this.memory.learnFromInteraction(userMessage, response);
             
-            this.ui.setResponseText(response, messageContainer.responseId, () => {
+            this.ui.setResponseText(response, messageContainer.responseId, async () => {
                 // Gerar sugestões de acompanhamento só quando resposta estiver completa
+                await this.attachYouTubeVideosToResponse({
+                    userMessage,
+                    assistantResponse: response,
+                    responseId: messageContainer.responseId,
+                    chatId: responseChatId
+                });
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
                 
                 // Desativar modo pesquisa quando terminar
@@ -1617,6 +1673,171 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             console.error('Erro ao buscar imagens do Unsplash:', error);
             return [];
         }
+    }
+
+    shouldRecommendYouTubeVideos(query = '', assistantResponse = '') {
+        const normalizedQuery = this.normalizeIntentText(query);
+        if (!normalizedQuery || this.isGreetingMessage(normalizedQuery) || normalizedQuery.length < 10) {
+            return false;
+        }
+
+        const explicitVideoSignals = ['youtube', 'video', 'videos', 'vídeo', 'vídeos', 'aula', 'aulas', 'tutorial'];
+        if (explicitVideoSignals.some((signal) => normalizedQuery.includes(signal))) {
+            return true;
+        }
+
+        const blockedSignals = ['noticia', 'noticias', 'preco', 'precos', 'cotacao', 'cotacoes', 'clima', 'temperatura', 'fofoca', 'meme', 'piada'];
+        if (blockedSignals.some((signal) => normalizedQuery.includes(signal))) {
+            return false;
+        }
+
+        const learningIntentSignals = [
+            'explica',
+            'explique',
+            'me explica',
+            'me ensina',
+            'ensina',
+            'aprender',
+            'estudar',
+            'estudo',
+            'passo a passo',
+            'como resolver',
+            'como fazer',
+            'resolva',
+            'resolver',
+            'duvida',
+            'duvidas',
+            'materia',
+            'prova',
+            'exercicio',
+            'exercicios',
+            'questao',
+            'questoes',
+            'revisao'
+        ];
+
+        const subjectSignals = [
+            'matematica',
+            'regra de 3',
+            'raiz',
+            'fracao',
+            'porcentagem',
+            'equacao',
+            'bhaskara',
+            'geometria',
+            'algebra',
+            'fisica',
+            'quimica',
+            'biologia',
+            'historia',
+            'geografia',
+            'portugues',
+            'gramatica',
+            'redacao',
+            'ingles',
+            'programacao',
+            'algoritmo',
+            'javascript',
+            'typescript',
+            'python',
+            'html',
+            'css',
+            'sql'
+        ];
+
+        const questionSignals = ['como', 'o que e', 'qual', 'quais', 'por que', 'porque', 'me ajuda'];
+
+        const hasLearningIntent = learningIntentSignals.some((signal) => normalizedQuery.includes(signal));
+        const hasSubjectSignal = subjectSignals.some((signal) => normalizedQuery.includes(signal));
+        const hasQuestionIntent = questionSignals.some((signal) => normalizedQuery.includes(signal));
+
+        if (hasLearningIntent && (hasSubjectSignal || hasQuestionIntent)) {
+            return true;
+        }
+
+        const normalizedResponse = this.normalizeIntentText(assistantResponse);
+        return Boolean(
+            normalizedResponse
+            && hasSubjectSignal
+            && /\b(passo a passo|conceito|explicacao|formula|resolucao)\b/.test(normalizedResponse)
+        );
+    }
+
+    buildYouTubeVideoSearchQuery(query = '', assistantResponse = '') {
+        const rawQuery = String(query || '').trim().replace(/\s+/g, ' ').slice(0, 180);
+        const normalizedQuery = this.normalizeIntentText(rawQuery);
+        const normalizedResponse = this.normalizeIntentText(assistantResponse);
+
+        let suffix = ' aula explicacao';
+
+        if (/\b(programacao|javascript|typescript|python|html|css|sql|algoritmo)\b/.test(normalizedQuery)) {
+            suffix = ' tutorial explicacao';
+        } else if (/\b(exercicio|exercicios|questao|questoes|resolver|resolva)\b/.test(normalizedQuery)) {
+            suffix = ' aula resolucao passo a passo';
+        } else if (/\b(matematica|regra de 3|raiz|equacao|porcentagem|fracao|bhaskara)\b/.test(normalizedQuery)) {
+            suffix = ' aula explicacao passo a passo';
+        } else if (/\b(historia|geografia|biologia|fisica|quimica)\b/.test(normalizedQuery)) {
+            suffix = ' aula resumo explicacao';
+        } else if (/\b(gramatica|portugues|redacao|ingles)\b/.test(normalizedQuery)) {
+            suffix = ' aula explicacao exemplos';
+        } else if (/\b(formula|conceito|explicacao)\b/.test(normalizedResponse)) {
+            suffix = ' aula explicacao';
+        }
+
+        return `${rawQuery}${suffix}`.trim();
+    }
+
+    async searchYouTubeVideos(query, assistantResponse = '') {
+        if (!this.shouldRecommendYouTubeVideos(query, assistantResponse)) {
+            return [];
+        }
+
+        const searchQuery = this.buildYouTubeVideoSearchQuery(query, assistantResponse);
+        if (!searchQuery) {
+            return [];
+        }
+
+        try {
+            const response = await fetch('/api/youtube-search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    query: searchQuery,
+                    maxResults: 2
+                })
+            });
+
+            if (!response.ok) {
+                console.warn('⚠️ [YOUTUBE] Falha ao buscar vídeos:', response.status, response.statusText);
+                return [];
+            }
+
+            const data = await response.json();
+            return Array.isArray(data.videos) ? data.videos.slice(0, 2) : [];
+        } catch (error) {
+            console.warn('⚠️ [YOUTUBE] Erro ao buscar vídeos:', error);
+            return [];
+        }
+    }
+
+    async attachYouTubeVideosToResponse({ userMessage, assistantResponse, responseId, chatId = null }) {
+        const safeResponse = assistantResponse == null ? '' : String(assistantResponse);
+        const targetChatId = chatId || this.getActiveChatId();
+        const videos = await this.searchYouTubeVideos(userMessage, safeResponse);
+
+        if (!Array.isArray(videos) || videos.length === 0) {
+            return [];
+        }
+
+        this.ui.appendYouTubeVideosToMessage(responseId, videos);
+
+        if (targetChatId) {
+            this.ui.updateAssistantMessageByContent(targetChatId, safeResponse, { videos });
+        }
+
+        return videos;
     }
 
     async searchWebForResponse(query) {
