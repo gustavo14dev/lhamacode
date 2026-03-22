@@ -11186,7 +11186,7 @@ ${chunk}${bibliographyBlock}
             formatted += '<div class="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-2">';
 
             deferredCodeBlocks.forEach(({ block, index }, deferredIndex) => {
-                formatted += `<button onclick="window.ui && window.ui.openCodeModalForResponse(${JSON.stringify(normalizedResponseKey)}, ${index}, ${JSON.stringify(block.lang || 'plaintext')})" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white text-sm font-semibold rounded-lg transition-all transform hover:scale-105 active:scale-95">
+                formatted += `<button onclick="window.ui && window.ui.openCodeModalForResponse('${this.escapeInlineJsString(normalizedResponseKey)}', ${index}, '${this.escapeInlineJsString(block.lang || 'plaintext')}')" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white text-sm font-semibold rounded-lg transition-all transform hover:scale-105 active:scale-95">
 
                     <span class="material-icons-outlined" style="font-size:18px;">code</span>
 
@@ -11238,6 +11238,14 @@ ${chunk}${bibliographyBlock}
         return aliases[value] || value || 'plaintext';
     }
 
+    escapeInlineJsString(value = '') {
+        return String(value || '')
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, "\\'")
+            .replace(/\r/g, '\\r')
+            .replace(/\n/g, '\\n');
+    }
+
     highlightCodeBlockContent(code = '', lang = 'plaintext') {
         const normalizedLang = this.normalizeCodeLanguage(lang);
         const safeCode = this.escapeHtml(code);
@@ -11271,7 +11279,7 @@ ${chunk}${bibliographyBlock}
             <div class="my-4 overflow-hidden rounded-2xl border border-slate-700/70 bg-[#0b1220] shadow-[0_14px_34px_-20px_rgba(15,23,42,0.95)]">
                 <div class="flex items-center justify-between gap-3 border-b border-slate-700/70 bg-slate-900/90 px-4 py-3">
                     <div class="text-sm font-semibold text-slate-100">${this.escapeHtml(languageLabel)}</div>
-                    <button onclick="window.ui && window.ui.copyCodeBlockFromResponse(${JSON.stringify(responseKey)}, ${index}, this)" class="inline-flex items-center gap-1.5 rounded-full border border-slate-600/80 bg-slate-800/90 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:border-slate-500 hover:bg-slate-700/90">
+                    <button onclick="window.ui && window.ui.copyCodeBlockFromResponse('${this.escapeInlineJsString(responseKey)}', ${index}, this)" class="inline-flex items-center gap-1.5 rounded-full border border-slate-600/80 bg-slate-800/90 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:border-slate-500 hover:bg-slate-700/90">
                         <span class="material-icons-outlined text-sm">content_copy</span>
                         Copiar
                     </button>
