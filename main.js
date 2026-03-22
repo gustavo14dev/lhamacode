@@ -5612,17 +5612,17 @@ Regras:
     setupSidebarNavigation() {
         const { newChatBtn, updatesBtn, chatHistoryList } = this.elements;
         const scrollArea = chatHistoryList ? chatHistoryList.closest('.flex-1') : null;
+        const sidebar = newChatBtn ? newChatBtn.parentElement : null;
 
-        if (!newChatBtn || !updatesBtn || !scrollArea) {
+        if (!newChatBtn || !updatesBtn || !scrollArea || !sidebar) {
             return;
         }
 
-        let navGroup = scrollArea.querySelector('#sidebarNavGroup');
+        let navGroup = document.getElementById('sidebarNavGroup');
         if (!navGroup) {
             navGroup = document.createElement('div');
             navGroup.id = 'sidebarNavGroup';
-            navGroup.className = 'flex flex-col gap-2';
-            scrollArea.insertBefore(navGroup, scrollArea.firstChild);
+            navGroup.className = 'flex flex-col gap-2 mb-5';
         }
 
         const newChatLabel = newChatBtn.querySelector('.font-semibold');
@@ -5639,6 +5639,7 @@ Regras:
             });
         }
 
+        sidebar.insertBefore(navGroup, scrollArea);
         navGroup.appendChild(this.elements.mediaSearchBtn);
         navGroup.appendChild(updatesBtn);
     }
