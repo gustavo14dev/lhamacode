@@ -11,12 +11,12 @@ import {
 
 const stepMeta = [
     {
-        title: 'Quem e voce?',
+        title: 'Quem é você?',
         subtitle: 'Comece com seus dados essenciais para liberar a conta.'
     },
     {
         title: 'Seus gostos e interesses',
-        subtitle: 'Escolha alguns temas para a IA entender melhor onde voce gosta de aprofundar.'
+        subtitle: 'Escolha alguns temas para a IA entender melhor onde você gosta de aprofundar.'
     },
     {
         title: 'Seu contexto',
@@ -154,14 +154,14 @@ function renderReview() {
     }
 
     const rows = [
-        ['Nome', state.full_name || 'Nao informado'],
-        ['Como chamar', state.preferred_name || 'Nao informado'],
-        ['Nascimento', state.birth_date || 'Nao informado'],
+        ['Nome', state.full_name || 'Não informado'],
+        ['Como chamar', state.preferred_name || 'Não informado'],
+        ['Nascimento', state.birth_date || 'Não informado'],
         ['Temas favoritos', state.favorite_topics.length ? state.favorite_topics.join(', ') : 'Nenhum tema selecionado'],
-        ['Interesses', state.interests || 'Nao informado'],
-        ['Profissao', state.profession || 'Nao informada'],
-        ['Personalidade', state.personality_traits.length ? state.personality_traits.join(', ') : 'Nao informada'],
-        ['Estilo de resposta', state.response_style || 'Nao informado'],
+        ['Interesses', state.interests || 'Não informado'],
+        ['Profissão', state.profession || 'Não informada'],
+        ['Personalidade', state.personality_traits.length ? state.personality_traits.join(', ') : 'Não informada'],
+        ['Estilo de resposta', state.response_style || 'Não informado'],
         ['Detalhes extras', state.response_style_notes || 'Nenhum detalhe extra']
     ];
 
@@ -191,7 +191,7 @@ function showAgeWarning() {
     }
 
     elements.ageGateHint.classList.remove('hidden');
-    elements.ageGateHint.textContent = 'Quem nasceu depois de 2015 nao pode usar a IA. Se voce continuar, a conta sera bloqueada.';
+    elements.ageGateHint.textContent = 'Quem nasceu depois de 2015 não pode usar a IA. Se você continuar, a conta será bloqueada.';
     return true;
 }
 
@@ -206,7 +206,7 @@ function validateCurrentStep() {
         }
 
         if (!state.preferred_name) {
-            setAlert('Informe como a IA deve chamar voce.');
+            setAlert('Informe como a IA deve chamar você.');
             return false;
         }
 
@@ -221,7 +221,7 @@ function validateCurrentStep() {
     }
 
     if (currentStep === 1 && state.favorite_topics.length === 0) {
-        setAlert('Escolha pelo menos um tema que voce gosta.');
+        setAlert('Escolha pelo menos um tema que você gosta.');
         return false;
     }
 
@@ -251,7 +251,7 @@ async function blockUnderageAccount() {
         console.error('Erro ao encerrar sessao apos bloqueio:', error);
     }
 
-    setAlert('Esta conta foi bloqueada porque a data de nascimento informada e posterior a 2015. Voce sera redirecionado.', 'error');
+    setAlert('Esta conta foi bloqueada porque a data de nascimento informada é posterior a 2015. Você será redirecionado.', 'error');
     localStorage.removeItem('userSession');
 
     setTimeout(() => {
@@ -275,7 +275,7 @@ async function saveOnboarding() {
         });
 
         if (!isUserProfileComplete(savedProfile)) {
-            setAlert('Ainda faltam dados obrigatorios para liberar a conta.');
+        setAlert('Ainda faltam dados obrigatórios para liberar a conta.');
             return;
         }
 
@@ -285,7 +285,7 @@ async function saveOnboarding() {
         }, 900);
     } catch (error) {
         console.error('Erro ao salvar onboarding:', error);
-        setAlert('Nao foi possivel salvar seu perfil agora. Verifique se o SQL da tabela user_profiles foi executado no Supabase.');
+        setAlert('Não foi possível salvar seu perfil agora. Verifique se o SQL da tabela user_profiles foi executado no Supabase.');
     }
 }
 
@@ -437,7 +437,7 @@ async function init() {
     }
 
     currentUser = session.user;
-    elements.userEmailBadge.textContent = currentUser.email || 'Conta sem email';
+        elements.userEmailBadge.textContent = currentUser.email || 'Conta sem email';
     refreshChipGroups();
 
     bindInputState();
@@ -449,7 +449,7 @@ async function init() {
         await loadExistingProfile();
     } catch (error) {
         console.error('Erro ao carregar perfil do onboarding:', error);
-        setAlert('Nao foi possivel carregar seu perfil agora. Verifique se o SQL da tabela user_profiles foi executado no Supabase.');
+        setAlert('Não foi possível carregar seu perfil agora. Verifique se o SQL da tabela user_profiles foi executado no Supabase.');
     }
 }
 

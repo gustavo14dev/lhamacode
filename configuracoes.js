@@ -172,7 +172,7 @@ async function handleSaveProfile(event) {
         setAlert('Perfil salvo com sucesso.', 'success');
     } catch (error) {
         console.error('Erro ao salvar perfil:', error);
-        setAlert('Nao foi possivel salvar seu perfil. Verifique se o SQL da tabela user_profiles foi executado no Supabase.');
+        setAlert('Não foi possível salvar seu perfil. Verifique se o SQL da tabela user_profiles foi executado no Supabase.');
     }
 }
 
@@ -199,7 +199,7 @@ async function init() {
         }
     } catch (error) {
         console.error('Erro ao carregar perfil em configuracoes:', error);
-        setAlert('Nao foi possivel carregar seu perfil. Verifique se o SQL da tabela user_profiles foi executado no Supabase.');
+        setAlert('Não foi possível carregar seu perfil. Verifique se o SQL da tabela user_profiles foi executado no Supabase.');
     }
 
     elements.form?.addEventListener('submit', handleSaveProfile);

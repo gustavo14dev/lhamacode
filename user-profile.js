@@ -6,15 +6,15 @@ const BLOCKED_BIRTHDATE_CUTOFF = '2015-12-31';
 
 export const PROFILE_TOPIC_OPTIONS = [
     'Tecnologia',
-    'Programacao',
-    'Matematica',
-    'Ciencia',
+    'Programação',
+    'Matemática',
+    'Ciência',
     'Design',
     'Empreendedorismo',
     'Jogos',
-    'Musica',
+    'Música',
     'Cinema',
-    'Historia',
+    'História',
     'Esportes',
     'Idiomas'
 ];
@@ -22,8 +22,8 @@ export const PROFILE_TOPIC_OPTIONS = [
 export const PROFILE_PERSONALITY_OPTIONS = [
     'Curiosa',
     'Criativa',
-    'Pratica',
-    'Analitica',
+    'Prática',
+    'Analítica',
     'Comunicativa',
     'Calma',
     'Ambiciosa',
@@ -36,7 +36,7 @@ export const PROFILE_RESPONSE_STYLE_OPTIONS = [
     'Curta',
     'Explicativa',
     'Direta',
-    'Didatica'
+    'Didática'
 ];
 
 export function ensureSupabaseClient() {
@@ -153,7 +153,7 @@ export function validateUserProfile(profile) {
     }
 
     if (isBirthDateBlocked(profile.birth_date)) {
-        errors.push('Pessoas nascidas depois de 2015 nao podem usar a IA.');
+        errors.push('Pessoas nascidas depois de 2015 não podem usar a IA.');
     }
 
     if (!Array.isArray(profile.favorite_topics) || profile.favorite_topics.length === 0) {
@@ -213,7 +213,7 @@ export async function fetchUserProfile(userId) {
 export async function saveUserProfile(userId, input) {
     const supabase = ensureSupabaseClient();
     if (!supabase || !userId) {
-        throw new Error('Supabase nao disponivel para salvar perfil.');
+        throw new Error('Supabase não disponível para salvar perfil.');
     }
 
     const normalized = normalizeUserProfileInput(input);
@@ -248,7 +248,7 @@ export function buildUserProfilePromptContext(profile = getCachedUserProfile()) 
     }
 
     if (profile.profession) {
-        details.push(`Profissao ou ocupacao: ${profile.profession}.`);
+        details.push(`Profissão ou ocupação: ${profile.profession}.`);
     }
 
     if (Array.isArray(profile.favorite_topics) && profile.favorite_topics.length > 0) {
@@ -279,5 +279,5 @@ export function buildUserProfilePromptContext(profile = getCachedUserProfile()) 
         return '';
     }
 
-    return `\n\nContexto fixo do usuario:\n- Use estas preferencias apenas quando agregarem valor.\n- Nao mencione este contexto sem necessidade.\n- Respeite o estilo pedido, mas sem perder clareza, honestidade e utilidade.\n${details.map((item) => `- ${item}`).join('\n')}`;
+    return `\n\nContexto fixo do usuário:\n- Use estas preferências apenas quando agregarem valor.\n- Não mencione este contexto sem necessidade.\n- Respeite o estilo pedido, mas sem perder clareza, honestidade e utilidade.\n${details.map((item) => `- ${item}`).join('\n')}`;
 }
