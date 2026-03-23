@@ -6,6 +6,11 @@ import { ProactiveSuggestions } from './proactive-system.js';
 
 import { PreferenceLearning } from './preference-system.js';
 import {
+    clearCachedUserProfile,
+    fetchUserProfile,
+    isUserProfileComplete
+} from './user-profile.js';
+import {
     buildUpdateMediaHtml,
     countUnreadUpdates,
     fetchLatestStartupUpdate,
@@ -13350,6 +13355,51 @@ ${chunk}${bibliographyBlock}
     }
 
     // Sistema de Autenticação com Supabase
+    redirectToOnboarding(reason = 'required') {
+        const params = new URLSearchParams();
+        params.set('reason', reason);
+        window.location.href = `onboarding.html?${params.toString()}`;
+    }
+
+    async enforceUserProfileAccess(user) {
+        if (!user?.id) {
+            return false;
+        }
+
+        try {
+            const profile = await fetchUserProfile(user.id);
+
+            if (!profile) {
+                this.redirectToOnboarding('required');
+                return false;
+            }
+
+            if (profile.blocked_reason === 'underage' || profile.age_verified === false) {
+                clearCachedUserProfile();
+                localStorage.removeItem('userSession');
+                await window.supabase?.auth?.signOut();
+                alert('Esta conta nao pode usar a IA.');
+                window.location.href = 'login.html';
+                return false;
+            }
+
+            if (!isUserProfileComplete(profile)) {
+                this.redirectToOnboarding('required');
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Erro ao verificar perfil do usuario:', error);
+
+            if (error?.code === '42P01') {
+                alert('Falta executar o SQL de perfis no Supabase antes de usar este fluxo.');
+            }
+
+            return false;
+        }
+    }
+
     async initAuthSystem() {
         if (!window.supabase) {
             console.warn('Supabase não disponível');
@@ -13378,6 +13428,10 @@ ${chunk}${bibliographyBlock}
         
         if (session) {
             console.log('✅ Sessão encontrada:', session.user.email);
+            const canUseApp = await this.enforceUserProfileAccess(session.user);
+            if (!canUseApp) {
+                return;
+            }
             await this.showLoggedInUser(session.user);
             await this.loadUserChats();
             // Iniciar heartbeat para usuários logados
@@ -13406,6 +13460,11 @@ ${chunk}${bibliographyBlock}
                     this.chats = [];
                     this.currentChatId = null;
                     localStorage.removeItem('lhama_chats');
+
+                    const canUseApp = await this.enforceUserProfileAccess(session.user);
+                    if (!canUseApp) {
+                        return;
+                    }
                     
                     await this.showLoggedInUser(session.user);
                     await this.loadUserChats();
@@ -13580,6 +13639,7 @@ ${chunk}${bibliographyBlock}
     showGuestMode() {
         const isGuest = localStorage.getItem('isGuest') === 'true';
         localStorage.removeItem('userSession');
+        clearCachedUserProfile();
 
         if (isGuest) {
             this.updateHeaderAuthDisplay({

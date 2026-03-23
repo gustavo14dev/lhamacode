@@ -1,4 +1,5 @@
 import { MemorySystem } from './memory-system.js';
+import { buildUserProfilePromptContext } from './user-profile.js';
 
 export class Agent {
 
@@ -2518,6 +2519,7 @@ ${summary ? `Resumo de apoio: ${summary}\n` : ''}Fontes:\n${sources}`;
 
     // Retorna o system prompt apropriado por 'mode' para estabelecer tom/estilo
     getSystemPrompt(mode) {
+        const userProfileContext = buildUserProfilePromptContext();
         const basePersonality = `Você é a Drekee AI, uma assistente de IA útil, inteligente, honesta e equilibrada.
 
 Objetivo principal:
@@ -2540,9 +2542,11 @@ Regras essenciais:
 - Responda primeiro ao pedido principal do usuário; contexto extra vem depois, se realmente ajudar.
 - Em temas técnicos, explique antes de despejar código. Forneça código quando for útil ou quando o usuário pedir.`;
 
+        const systemBase = basePersonality + userProfileContext;
+
         switch (mode) {
             case 'rapido':
-                return `${basePersonality}
+                return `${systemBase}
 
 Modo Rápido:
 - responda com objetividade, mas não seja seco nem telegráfico;
@@ -2550,7 +2554,7 @@ Modo Rápido:
 - para cumprimentos, responda em 1 ou 2 frases e ofereça ajuda de modo natural;
 - vá direto ao ponto e mantenha boa densidade de informação.`;
             case 'raciocinio':
-                return `${basePersonality}
+                return `${systemBase}
 
 Modo Raciocínio:
 - pense com cuidado antes de responder;
@@ -2559,7 +2563,7 @@ Modo Raciocínio:
 - depois das tags, entregue apenas a resposta final ao usuário;
 - a resposta final deve ser bem estruturada, clara e útil, sem floreios desnecessários.`;
             case 'pro':
-                return `${basePersonality}
+                return `${systemBase}
 
 Modo Pro:
 - entregue respostas mais completas, estratégicas e bem organizadas;
@@ -2567,7 +2571,7 @@ Modo Pro:
 - mantenha profundidade sem enrolação;
 - priorize clareza, utilidade prática e bom julgamento.`;
             default:
-                return `${basePersonality}
+                return `${systemBase}
 
 Responda com clareza, utilidade e bom senso.`;
         }

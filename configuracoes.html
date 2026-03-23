@@ -191,6 +191,63 @@
                     </button>
                 </div>
             </div>
+            <div class="bg-surface-light/10 dark:bg-surface-dark/10 backdrop-blur-sm rounded-xl p-6 border border-white/10 dark:border-white/5">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <span class="material-icons-outlined">tune</span>
+                    Perfil e personalizacao
+                </h2>
+                <form id="profileEditForm" class="space-y-5">
+                    <div id="profileSaveAlert" class="hidden rounded-xl border px-4 py-3 text-sm"></div>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <label class="block">
+                            <span class="text-sm text-gray-300 block mb-1">Nome da pessoa</span>
+                            <input type="text" id="settingsFullNameInput" class="w-full px-3 py-2 bg-white/10 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-lg text-white placeholder-gray-400" placeholder="Nome completo">
+                        </label>
+                        <label class="block">
+                            <span class="text-sm text-gray-300 block mb-1">Como a IA pode te chamar</span>
+                            <input type="text" id="settingsPreferredNameInput" class="w-full px-3 py-2 bg-white/10 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-lg text-white placeholder-gray-400" placeholder="Apelido ou nome curto">
+                        </label>
+                    </div>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <label class="block">
+                            <span class="text-sm text-gray-300 block mb-1">Data de nascimento</span>
+                            <input type="date" id="settingsBirthDateInput" class="w-full px-3 py-2 bg-white/10 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-lg text-white">
+                        </label>
+                        <label class="block">
+                            <span class="text-sm text-gray-300 block mb-1">Profissao ou ocupacao</span>
+                            <input type="text" id="settingsProfessionInput" class="w-full px-3 py-2 bg-white/10 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-lg text-white placeholder-gray-400" placeholder="Ex.: estudante, designer, dev">
+                        </label>
+                    </div>
+                    <label class="block">
+                        <span class="text-sm text-gray-300 block mb-2">Temas e areas que voce gosta</span>
+                        <div id="settingsTopicsChipGroup" class="flex flex-wrap gap-2"></div>
+                    </label>
+                    <label class="block">
+                        <span class="text-sm text-gray-300 block mb-1">Interesses adicionais</span>
+                        <input type="text" id="settingsInterestsInput" class="w-full px-3 py-2 bg-white/10 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-lg text-white placeholder-gray-400" placeholder="Ex.: negocios, ingles, fotografia">
+                    </label>
+                    <label class="block">
+                        <span class="text-sm text-gray-300 block mb-2">Personalidade</span>
+                        <div id="settingsPersonalityChipGroup" class="flex flex-wrap gap-2"></div>
+                    </label>
+                    <label class="block">
+                        <span class="text-sm text-gray-300 block mb-1">Informacoes pessoais</span>
+                        <textarea id="settingsPersonalInfoInput" rows="4" class="w-full px-3 py-2 bg-white/10 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-lg text-white placeholder-gray-400" placeholder="Contexto, objetivos, preferencias de estudo ou trabalho."></textarea>
+                    </label>
+                    <label class="block">
+                        <span class="text-sm text-gray-300 block mb-2">Como a IA deve responder</span>
+                        <div id="settingsResponseStyleChipGroup" class="flex flex-wrap gap-2"></div>
+                    </label>
+                    <label class="block">
+                        <span class="text-sm text-gray-300 block mb-1">Detalhes extras do estilo</span>
+                        <textarea id="settingsResponseStyleNotesInput" rows="4" class="w-full px-3 py-2 bg-white/10 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-lg text-white placeholder-gray-400" placeholder="Ex.: curta, formal, explicativa, carinhosa, sem enrolacao."></textarea>
+                    </label>
+                    <button id="saveProfileBtn" type="submit" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 border border-blue-400/20 text-white font-medium transition-all">
+                        <span class="material-icons-outlined">save</span>
+                        Salvar perfil
+                    </button>
+                </form>
+            </div>
         </div>
     </main>
 
@@ -317,5 +374,6 @@
             window.location.href = 'code.html?newChat=1';
         }
     </script>
+    <script type="module" src="configuracoes.js"></script>
 </body>
 </html>
