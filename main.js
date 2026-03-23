@@ -104,6 +104,7 @@ class UI {
             updatesBtn: document.getElementById('updatesBtn'),
             updatesBadge: document.getElementById('updatesBadge'),
             newChatBtn: document.getElementById('newChatBtn'),
+            sidebarSettingsBtn: document.getElementById('sidebarSettingsBtn'),
             chatHistoryList: document.getElementById('chatHistoryList'),
             modelButton: document.getElementById('modelButton'),
             modelDropdown: document.getElementById('modelDropdown'),
@@ -111,6 +112,7 @@ class UI {
             scrollToBottomBtn: document.getElementById('scrollToBottomBtn'),
             userHeader: document.getElementById('userHeader'),
             userEmail: document.getElementById('userEmail'),
+            accountCardBtn: document.getElementById('accountCardBtn'),
             loginBtn: document.getElementById('loginBtn'),
             loginPrompt: document.getElementById('loginPrompt'),
             logoutBtn: document.getElementById('logoutBtn')
@@ -6046,6 +6048,11 @@ Regras:
         if (this.elements.updatesBtn) {
             this.elements.updatesBtn.addEventListener('click', () => {
                 window.location.href = 'atualizacoes.html';
+            });
+        }
+        if (this.elements.sidebarSettingsBtn) {
+            this.elements.sidebarSettingsBtn.addEventListener('click', () => {
+                window.location.href = 'configuracoes.html';
             });
         }
         
@@ -13490,6 +13497,12 @@ ${chunk}${bibliographyBlock}
             await this.logout();
         });
 
+        if (this.elements.accountCardBtn) {
+            this.elements.accountCardBtn.addEventListener('click', () => {
+                window.location.href = 'configuracoes.html';
+            });
+        }
+
         // Botão de configurações
         const settingsBtn = document.getElementById('settingsBtn');
         if (settingsBtn) {
@@ -13523,6 +13536,20 @@ ${chunk}${bibliographyBlock}
         }
     }
 
+    updateHeaderAuthDisplay({ showAccountCard = false, showLoginButton = false, label = '' } = {}) {
+        if (this.elements.userHeader) {
+            this.elements.userHeader.classList.toggle('hidden', !showAccountCard);
+        }
+
+        if (this.elements.loginPrompt) {
+            this.elements.loginPrompt.classList.toggle('hidden', !showLoginButton);
+        }
+
+        if (this.elements.userEmail) {
+            this.elements.userEmail.textContent = label || '';
+        }
+    }
+
     showLoggedInUser(user) {
         const email = user.email;
         
@@ -13531,20 +13558,16 @@ ${chunk}${bibliographyBlock}
             email: email,
             id: user.id
         }));
+        localStorage.removeItem('isGuest');
         
         // Limpar histórico local ao fazer login
         localStorage.removeItem('lhama_chats');
         
-        // Forçar atualização da UI
-        this.elements.userHeader.classList.remove('hidden');
-        this.elements.loginPrompt.classList.add('hidden');
-        
-        // Atualizar texto do email com delay
-        setTimeout(() => {
-            if (this.elements.userEmail) {
-                this.elements.userEmail.textContent = email;
-            }
-        }, 100);
+        this.updateHeaderAuthDisplay({
+            showAccountCard: true,
+            showLoginButton: false,
+            label: email
+        });
         
         console.log('✅ Usuário logado:', email);
         
@@ -13555,15 +13578,25 @@ ${chunk}${bibliographyBlock}
     }
 
     showGuestMode() {
-        this.elements.userHeader.classList.add('hidden');
-        this.elements.loginPrompt.classList.remove('hidden');
-        
-        // Verificar se é visitante
-        if (localStorage.getItem('isGuest') === 'true') {
+        const isGuest = localStorage.getItem('isGuest') === 'true';
+        localStorage.removeItem('userSession');
+
+        if (isGuest) {
+            this.updateHeaderAuthDisplay({
+                showAccountCard: true,
+                showLoginButton: false,
+                label: 'Visitante'
+            });
             console.log('👤 Modo visitante');
-        } else {
-            console.log('🔒 Usuário não logado');
+            return;
         }
+
+        this.updateHeaderAuthDisplay({
+            showAccountCard: false,
+            showLoginButton: true,
+            label: ''
+        });
+        console.log('🔒 Usuário não logado');
     }
 
     async logout() {
