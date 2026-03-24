@@ -36,7 +36,7 @@ export default async function handler(req, res) {
 
     if (action === 'metadata-fallback') {
         try {
-            const reason = typeof req.body?.reason === 'string' ? req.body.reason : 'O navegador do agente nao estava disponivel.';
+            const reason = typeof req.body?.reason === 'string' ? req.body.reason : 'O navegador do agente não estava disponível.';
             const fallback = await createMetadataFallback(normalizedUrl, reason);
             return res.status(200).json(fallback);
         } catch (error) {
@@ -219,7 +219,7 @@ async function launchAgentBrowser() {
     } catch (error) {
         if (looksLikeMissingBrowserError(error)) {
             const wrapped = new Error(
-                'Chrome do agente nao esta disponivel no runtime atual. Configure PUPPETEER_EXECUTABLE_PATH ou habilite o Chromium serverless no deploy.'
+                'Chrome do agente não está disponível no runtime atual. Configure PUPPETEER_EXECUTABLE_PATH ou habilite o Chromium serverless no deploy.'
             );
             wrapped.code = 'BROWSER_UNAVAILABLE';
             throw wrapped;
@@ -732,7 +732,7 @@ async function enrichSparsePageContext(page, pageContext = {}) {
     const visibleText = Array.isArray(pageContext.visibleText) ? pageContext.visibleText : [];
     const hasReadableTitle = Boolean(pageContext.title) && !looksLikeUrlText(pageContext.title);
     const hasUsefulText = visibleText.length >= 16 || visibleText.some((item) => String(item || '').length >= 60);
-    const hasDescription = Boolean(pageContext.description) && !/sem descricao detectada/i.test(pageContext.description);
+    const hasDescription = Boolean(pageContext.description) && !/sem descricao detectada|sem descrição detectada/i.test(pageContext.description);
 
     if (hasReadableTitle && hasUsefulText && hasDescription) {
         return pageContext;
@@ -1144,24 +1144,24 @@ async function decideNextBrowserAction(task, pageState = {}, taskProfile = {}, h
     }
 
     const systemPrompt = [
-        'Voce controla um navegador real para cumprir tarefas na web.',
-        'Responda SOMENTE com JSON valido.',
+        'Você controla um navegador real para cumprir tarefas na web.',
+        'Responda SOMENTE com JSON válido.',
         'Acoes permitidas:',
         '{ "action": "click|type|press|scroll|wait|finish", "selector": "css opcional", "text": "texto opcional", "key": "tecla opcional", "direction": "down|up opcional", "reason": "motivo curto" }',
         'Regras:',
-        '- use apenas seletores presentes na lista de elementos visiveis;',
-        '- se a tarefa pedir produto/preco e houver campo de busca, prefira digitar nele;',
+        '- use apenas seletores presentes na lista de elementos visíveis;',
+        '- se a tarefa pedir produto/preço e houver campo de busca, prefira digitar nele;',
         '- se houver resultados de produto com o item pedido, clique em um resultado relevante;',
-        '- se ja houver preco visivel e pagina de produto adequada, responda finish;',
+        '- se já houver preço visível e página de produto adequada, responda finish;',
         '- nunca invente seletor; se nada fizer sentido, use wait ou scroll.',
-        '- escolha somente UMA proxima acao.'
+        '- escolha somente UMA próxima ação.'
     ].join('\n');
 
     const userPrompt = [
         `Tarefa: ${task}`,
         '',
         `URL atual: ${pageState.url || ''}`,
-        `Titulo atual: ${pageState.title || ''}`,
+        `Título atual: ${pageState.title || ''}`,
         '',
         'Historico recente:',
         JSON.stringify(history.slice(-6), null, 2),
@@ -1195,7 +1195,7 @@ function decideHeuristicBrowserAction(task, pageState = {}, taskProfile = {}, hi
     const historyActions = history.map((item) => item.action);
 
     if ((taskProfile.asksPrice || taskProfile.asksProducts) && query && !historyActions.includes('type')) {
-        const searchField = elements.find((element) => /input|textarea/.test(element.tag) && /(busca|buscar|search|pesquisar|o que voce procura|pesquise)/i.test(element.text || element.selector));
+        const searchField = elements.find((element) => /input|textarea/.test(element.tag) && /(busca|buscar|search|pesquisar|o que voce procura|o que você procura|pesquise)/i.test(element.text || element.selector));
         if (searchField) {
             return {
                 action: 'type',
@@ -1239,7 +1239,7 @@ function decideHeuristicBrowserAction(task, pageState = {}, taskProfile = {}, hi
 
     return {
         action: 'finish',
-        reason: 'Nao identifiquei uma proxima acao confiavel.'
+        reason: 'Não identifiquei uma próxima ação confiável.'
     };
 }
 
@@ -1672,7 +1672,7 @@ async function findBestSearchField(page) {
                     selector,
                     label: text.replace(/\s+/g, ' ').trim(),
                     visible,
-                    score: /(search|buscar|busca|pesquisar|produto|o que voce procura|o que vocÃª procura)/i.test(text) ? 20 : 0
+                    score: /(search|buscar|busca|pesquisar|produto|o que voce procura|o que você procura)/i.test(text) ? 20 : 0
                         + (/search/i.test(element.getAttribute('type') || '') ? 12 : 0)
                         + (rect.width > 200 ? 4 : 0)
                 };
@@ -2147,10 +2147,10 @@ function expandNavigationTokens(hint) {
         modelo: ['models', 'model'],
         preco: ['pricing', 'price', 'plans'],
         precos: ['pricing', 'price', 'plans'],
-        'preÃ§os': ['pricing', 'price', 'plans'],
-        'preÃ§o': ['pricing', 'price', 'plans'],
+        preços: ['pricing', 'price', 'plans'],
+        preço: ['pricing', 'price', 'plans'],
         inicio: ['home'],
-        'documentaÃ§Ã£o': ['docs', 'documentation'],
+        documentação: ['docs', 'documentation'],
         documentacao: ['docs', 'documentation'],
         exemplos: ['examples'],
         blog: ['blog'],
@@ -2308,7 +2308,7 @@ async function fetchHostedScreenshot(normalizedUrl) {
 
 function extractPageMetadata(html, normalizedUrl) {
     const title = sanitizeExtractedTextItem(decodeHtml(findFirstMatch(html, /<title[^>]*>([\s\S]*?)<\/title>/i)), 140) || normalizedUrl;
-    const description = sanitizeExtractedTextItem(decodeHtml(findMetaContent(html, 'description')), 220) || 'Sem descricao detectada no HTML.';
+    const description = sanitizeExtractedTextItem(decodeHtml(findMetaContent(html, 'description')), 220) || 'Sem descrição detectada no HTML.';
     const headings = extractMatches(html, /<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi, 6);
     const links = extractMatches(html, /<a\b[^>]*>([\s\S]*?)<\/a>/gi, 10);
     const buttons = extractMatches(html, /<button\b[^>]*>([\s\S]*?)<\/button>/gi, 6);
@@ -2448,7 +2448,7 @@ function decodeHtml(text) {
 function createPreviewImage({ url, title, description, headings = [] }) {
     const safeTitle = escapeXml(title || url);
     const safeUrl = escapeXml(url);
-    const safeDescription = escapeXml(description || 'Sem descricao');
+    const safeDescription = escapeXml(description || 'Sem descrição');
     const headingLines = headings.slice(0, 3).map((heading, index) => `
         <text x="48" y="${230 + (index * 40)}" font-size="24" fill="#cbd5e1">${escapeXml(`- ${heading}`)}</text>
     `).join('');
@@ -2475,7 +2475,7 @@ function createPreviewImage({ url, title, description, headings = [] }) {
             </foreignObject>
             ${headingLines}
             <rect x="72" y="820" width="760" height="86" rx="24" fill="#1f2937" stroke="#334155" />
-            <text x="108" y="874" font-size="24" fill="#e2e8f0" font-family="Arial, sans-serif">Preview gerada porque o navegador visual nao estava disponivel.</text>
+            <text x="108" y="874" font-size="24" fill="#e2e8f0" font-family="Arial, sans-serif">Preview gerada porque o navegador visual não estava disponível.</text>
         </svg>
     `.trim();
 

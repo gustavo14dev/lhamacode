@@ -2305,7 +2305,7 @@ Regras:
                     const normalizedUrl = this.normalizeAgentUrl(resolvedTarget?.url);
 
                     if (!normalizedUrl) {
-                        throw new Error(`Nao consegui localizar uma URL utilizavel para ${target.label}.`);
+                        throw new Error(`Não consegui localizar uma URL utilizável para ${target.label}.`);
                     }
 
                     target.resolvedUrl = normalizedUrl;
@@ -2757,7 +2757,7 @@ Entregue uma resposta final em português que:
         }
 
         if (!data?.url) {
-            throw new Error('A pesquisa nao retornou uma URL utilizavel para o agente.');
+            throw new Error('A pesquisa não retornou uma URL utilizável para o agente.');
         }
 
         return data;
@@ -3194,7 +3194,7 @@ Regras:
             if (this.isRecoverableAgentBrowserFailure(errorMessage)) {
                 const fallbackSession = await this.requestAgentBrowserMetadataFallback(url, errorMessage);
                 if (fallbackSession) {
-                    this.addAgentThoughtLog('📡 O navegador real do agente ficou indisponivel; continuei com uma visualizacao resumida para nao interromper a tarefa.');
+                    this.addAgentThoughtLog('📡 O navegador real do agente ficou indisponível; continuei com uma visualização resumida para não interromper a tarefa.');
                     return fallbackSession;
                 }
             }
@@ -3311,22 +3311,22 @@ Regras:
         const headings = this.coerceAgentList(pageContext.headings).slice(0, 6).join(' | ');
         const interactive = this.coerceAgentList(pageContext.interactiveElements).slice(0, 10).join(' | ');
 
-        return `Voce e o Drekee Agent 1.0, um agente visual que precisa responder SOMENTE com JSON valido.
+        return `Você é o Drekee Agent 1.0, um agente visual que precisa responder SOMENTE com JSON válido.
 
-Pedido original do usuario: "${userMessage}"
+Pedido original do usuário: "${userMessage}"
 URL atual: ${pageContext.currentUrl || 'desconhecida'}
-Titulo da pagina: ${pageContext.title || 'desconhecido'}
-Descricao da pagina: ${pageContext.description || 'sem descricao'}
-Captura atual: ${screenshot.label || 'captura sem titulo'}
+Título da página: ${pageContext.title || 'desconhecido'}
+Descrição da página: ${pageContext.description || 'sem descrição'}
+Captura atual: ${screenshot.label || 'captura sem título'}
 Headings detectados no DOM: ${headings || 'nenhum'}
 Elementos interativos detectados no DOM: ${interactive || 'nenhum'}
 
 Analise a imagem e responda com este formato:
 {
-  "pagina_atual": "resumo claro do que esta visivel",
+  "pagina_atual": "resumo claro do que está visível",
   "elementos_interativos": ["item 1", "item 2"],
-  "acoes_possiveis": ["acao 1", "acao 2"],
-  "proximo_passo": "acao recomendada"
+  "acoes_possiveis": ["ação 1", "ação 2"],
+  "proximo_passo": "ação recomendada"
 }`;
     }
 
@@ -3489,7 +3489,7 @@ Analise a imagem e responda com este formato:
         }
 
         if (!parsed || typeof parsed !== 'object') {
-            throw new Error('Resposta vazia ou invalida da analise visual');
+            throw new Error('Resposta vazia ou inválida da análise visual');
         }
 
         return {
@@ -3530,42 +3530,42 @@ Analise a imagem e responda com este formato:
     }
 
     buildAgentFallbackAnalysis(userMessage, pageContext = {}, screenshot = {}) {
-        const title = pageContext.title || 'Pagina web';
-        const description = pageContext.description || 'Sem descricao detalhada disponivel.';
+        const title = pageContext.title || 'Página web';
+        const description = pageContext.description || 'Sem descrição detalhada disponível.';
         const headings = this.coerceAgentList(pageContext.headings).slice(0, 4);
         const interactiveElements = this.coerceAgentList(pageContext.interactiveElements).slice(0, 8);
         const combinedText = `${title} ${description} ${headings.join(' ')}`;
         const blockedAccess = /access denied|forbidden|blocked|captcha|unauthorized/i.test(combinedText);
 
         const resumoPartes = [
-            blockedAccess ? 'O site bloqueou a navegacao automatizada nesta tentativa' : title,
-            blockedAccess ? 'Vou continuar com uma visualizacao alternativa sempre que possivel.' : description,
-            headings.length ? `Secoes visiveis: ${headings.join(', ')}` : '',
+            blockedAccess ? 'O site bloqueou a navegação automatizada nesta tentativa' : title,
+            blockedAccess ? 'Vou continuar com uma visualização alternativa sempre que possível.' : description,
+            headings.length ? `Seções visíveis: ${headings.join(', ')}` : '',
             screenshot.label ? `Captura: ${screenshot.label}` : ''
         ].filter(Boolean);
 
         const acoes = [];
         if (blockedAccess) {
-            acoes.push('Tentar uma rota alternativa de visualizacao para entender o site');
-            acoes.push('Abrir outra pagina menos protegida do dominio para coletar contexto');
+            acoes.push('Tentar uma rota alternativa de visualização para entender o site');
+            acoes.push('Abrir outra página menos protegida do domínio para coletar contexto');
         }
         if (interactiveElements.length) {
             acoes.push(`Explorar estes elementos: ${interactiveElements.slice(0, 3).join(', ')}`);
         }
         if (/comprar|produto|tenis|oferta|colecao/i.test(`${title} ${description} ${userMessage}`)) {
-            acoes.push('Buscar produtos ou colecoes relacionadas ao pedido do usuario');
+            acoes.push('Buscar produtos ou coleções relacionadas ao pedido do usuário');
         }
-        acoes.push('Continuar navegando para obter mais contexto da pagina');
+        acoes.push('Continuar navegando para obter mais contexto da página');
 
         return {
             pagina_atual: resumoPartes.join(' | '),
             elementos_interativos: interactiveElements,
             acoes_possiveis: acoes,
             proximo_passo: blockedAccess
-                ? 'Tentar uma nova rota de acesso ao site ou uma pagina interna menos protegida'
+                ? 'Tentar uma nova rota de acesso ao site ou uma página interna menos protegida'
                 : interactiveElements[0]
-                ? `Inspecionar "${interactiveElements[0]}" para avancar na tarefa`
-                : 'Continuar a navegacao guiada pelo agente'
+                ? `Inspecionar "${interactiveElements[0]}" para avançar na tarefa`
+                : 'Continuar a navegação guiada pelo agente'
         };
     }
 
@@ -3625,11 +3625,11 @@ Pedido do usuário:
 ${context?.request || ''}
 
 Dados reais coletados:
-- URL final: ${context?.targetUrl || 'nao informada'}
+- URL final: ${context?.targetUrl || 'não informada'}
 - Título final: ${context?.pageTitle || 'desconhecido'}
-- Navegação: ${navigationText || 'sem navegacao adicional'}
-- Cor predominante detectada: ${context?.dominantColor || 'nao detectada'}
-- Resumo estrutural: ${context?.analysis?.pagina_atual || 'nao informado'}
+- Navegação: ${navigationText || 'sem navegação adicional'}
+- Cor predominante detectada: ${context?.dominantColor || 'não detectada'}
+- Resumo estrutural: ${context?.analysis?.pagina_atual || 'não informado'}
 - Itens heurísticos: ${relevantItems.length ? relevantItems.join(' | ') : 'nenhum'}
 - Texto visível da página:
 ${pageText.length ? pageText.join('\n') : 'sem texto extraido'}
@@ -4594,7 +4594,7 @@ Regras:
 
             return this.mapRgbToColorName(average);
         } catch (error) {
-            console.error('❌ [AGENT] Nao consegui detectar a cor predominante:', error);
+            console.error('❌ [AGENT] Não consegui detectar a cor predominante:', error);
             return null;
         }
     }
@@ -8386,13 +8386,13 @@ ${latexCode}
 
 'REGRAS OBRIGATORIAS:' +
 '- Use Typst puro (sem LaTeX).' +
-'- Comece com um titulo: "= Titulo do Documento".' +
-'- Inclua obrigatoriamente as seções: "== Introducao", "== Desenvolvimento", "== Conclusao", "== Referencias".' +
-'- Dentro de Desenvolvimento, crie pelo menos 3 subsecoes: "=== ..." com texto corrido.' +
+'- Comece com um título: "= Título do Documento".' +
+'- Inclua obrigatoriamente as seções: "== Introdução", "== Desenvolvimento", "== Conclusão", "== Referências".' +
+'- Dentro de Desenvolvimento, crie pelo menos 3 subseções: "=== ..." com texto corrido.' +
 '- Use listas quando fizer sentido: "- item".' +
-'- Se houver matematica, use $E = mc^2$.' +
-'- Referencias: lista de links no final.' +
-'- Escreva paragrafos completos (nao apenas topicos).' +
+'- Se houver matemática, use $E = mc^2$.' +
+'- Referências: lista de links no final.' +
+'- Escreva parágrafos completos (não apenas tópicos).' +
 
 '\n\nCONTEXTO DE PESQUISA WEB:\n' + webContext +
 '\n\nREFERENCIAS DISPONIVEIS (use na seção final):\n' + referencesTypst
@@ -8486,13 +8486,13 @@ ${latexCode}
 
 'REGRAS OBRIGATORIAS:' +
 '- Use Markdown puro (sem LaTeX/Typst).' +
-'- Comece com um titulo: "# Titulo do Documento".' +
-'- Inclua obrigatoriamente as seções: "## Introducao", "## Desenvolvimento", "## Conclusao", "## Referencias".' +
-'- Dentro de Desenvolvimento, crie pelo menos 3 subsecoes: "### ..." com texto corrido.' +
+'- Comece com um título: "# Título do Documento".' +
+'- Inclua obrigatoriamente as seções: "## Introdução", "## Desenvolvimento", "## Conclusão", "## Referências".' +
+'- Dentro de Desenvolvimento, crie pelo menos 3 subseções: "### ..." com texto corrido.' +
 '- Use listas quando fizer sentido: "- item".' +
-'- Se houver matematica, use $$E = mc^2$$.' +
-'- Referencias: lista de links no final.' +
-'- Escreva paragrafos completos (nao apenas topicos).' +
+'- Se houver matemática, use $$E = mc^2$$.' +
+'- Referências: lista de links no final.' +
+'- Escreva parágrafos completos (não apenas tópicos).' +
 '- Destaque termos importantes com **negrito** e *italico*.' +
 '- Use pelo menos 1 bloco de cita ("> ...") e 1 tabela simples.' +
 '- Use sublinhado em pelo menos 1 termo com <u>texto</u>.' +
@@ -8853,10 +8853,10 @@ ${latexCode}
         if (!referencesMarkdown || !referencesMarkdown.trim()) {
             return markdownSource;
         }
-        if (/^##\s*Referencias/m.test(markdownSource)) {
-            return markdownSource.replace(/##\s*Referencias[\s\S]*$/m, `## Referencias\n${referencesMarkdown}`);
+        if (/^##\s*Referencias/m.test(markdownSource) || /^##\s*Referências/m.test(markdownSource)) {
+            return markdownSource.replace(/##\s*Referencias[\s\S]*$/m, `## Referências\n${referencesMarkdown}`);
         }
-        return `${markdownSource}\n\n## Referencias\n${referencesMarkdown}`;
+        return `${markdownSource}\n\n## Referências\n${referencesMarkdown}`;
     }
 
     normalizeMarkdownDocument(markdownSource, title) {
@@ -8891,7 +8891,7 @@ ${latexCode}
         }
         const hasTitle = /^# /m.test(markdownSource);
         const sections = (markdownSource.match(/^## /gm) || []).length;
-        const hasReferencesOnly = /^##\s*Referencias\b/m.test(markdownSource) && sections <= 1;
+        const hasReferencesOnly = (/^##\s*Referencias\b/m.test(markdownSource) || /^##\s*Referências\b/m.test(markdownSource)) && sections <= 1;
         return hasTitle && sections >= 2 && !hasReferencesOnly && markdownSource.length >= 500;
     }
 
@@ -8908,26 +8908,26 @@ ${latexCode}
         return `
 # ${message}
 
-## Introducao
-${summary || 'Este documento apresenta uma visao geral do tema solicitado, com base nas fontes consultadas.'}
+## Introdução
+${summary || 'Este documento apresenta uma visão geral do tema solicitado, com base nas fontes consultadas.'}
 
 ## Desenvolvimento
-${summary || 'As secoes seguintes detalham conceitos, contexto historico e aplicacoes praticas.'}
+${summary || 'As seções seguintes detalham conceitos, contexto histórico e aplicações práticas.'}
 
 ### Contexto
-${summary || 'Contextualizacao do tema com base nas fontes mais relevantes.'}
+${summary || 'Contextualização do tema com base nas fontes mais relevantes.'}
 
 ### Conceitos principais
-${summary || 'Resumo dos conceitos-chave e definicoes mais aceitas.'}
+${summary || 'Resumo dos conceitos-chave e definições mais aceitas.'}
 
-### Impactos e aplicacoes
-${summary || 'Aplicacoes praticas e impactos observados no tema.'}
+### Impactos e aplicações
+${summary || 'Aplicações práticas e impactos observados no tema.'}
 
-## Conclusao
+## Conclusão
 Este texto sintetiza os pontos principais discutidos ao longo do documento.
 
-## Referencias
-${sources || '- Nenhuma fonte disponivel.'}
+## Referências
+${sources || '- Nenhuma fonte disponível.'}
         `.trim();
     }
 
@@ -8947,11 +8947,11 @@ ${sources || '- Nenhuma fonte disponivel.'}
         if (!Array.isArray(sources) || sources.length === 0) {
             return typstSource;
         }
-        if (/^==\s*Referencias/m.test(typstSource)) {
+        if (/^==\s*Referencias/m.test(typstSource) || /^==\s*Referências/m.test(typstSource)) {
             return typstSource;
         }
         const references = this.buildTypstReferences(sources);
-        return `${typstSource}\n\n== Referencias\n${references}`;
+        return `${typstSource}\n\n== Referências\n${references}`;
     }
 
     normalizeTypstDocument(typstSource, title) {
@@ -8971,7 +8971,7 @@ ${sources || '- Nenhuma fonte disponivel.'}
         }
         const hasTitle = /^= /m.test(typstSource);
         const sections = (typstSource.match(/^== /gm) || []).length;
-        const hasReferencesOnly = /^==\s*Referencias\b/m.test(typstSource) && sections <= 1;
+        const hasReferencesOnly = (/^==\s*Referencias\b/m.test(typstSource) || /^==\s*Referências\b/m.test(typstSource)) && sections <= 1;
         return hasTitle && sections >= 2 && !hasReferencesOnly && typstSource.length >= 500;
     }
 
@@ -8988,17 +8988,17 @@ ${sources || '- Nenhuma fonte disponivel.'}
         return `
 = ${message}
 
-== Introducao
-${summary || 'Este documento apresenta uma visao geral do tema solicitado, com base nas fontes consultadas.'}
+== Introdução
+${summary || 'Este documento apresenta uma visão geral do tema solicitado, com base nas fontes consultadas.'}
 
 == Desenvolvimento
-${summary || 'As secoes seguintes detalham conceitos, contexto historico e aplicacoes praticas.'}
+${summary || 'As seções seguintes detalham conceitos, contexto histórico e aplicações práticas.'}
 
-== Conclusao
+== Conclusão
 Este texto sintetiza os pontos principais discutidos ao longo do documento.
 
-== Referencias
-${sources || '- Nenhuma fonte disponivel.'}
+== Referências
+${sources || '- Nenhuma fonte disponível.'}
         `.trim();
     }
 
@@ -9799,7 +9799,7 @@ ${chunk}${bibliographyBlock}
         document.body.removeChild(textarea);
 
         if (!copied) {
-            throw new Error('Nao foi possivel copiar o texto');
+            throw new Error('Não foi possível copiar o texto');
         }
     }
 
@@ -9836,7 +9836,7 @@ ${chunk}${bibliographyBlock}
             }
 
             if (!imageBlob) {
-                throw new Error('Nao foi possivel baixar a imagem');
+                throw new Error('Não foi possível baixar a imagem');
             }
 
             const objectUrl = URL.createObjectURL(imageBlob);
@@ -13378,7 +13378,7 @@ ${chunk}${bibliographyBlock}
                 clearCachedUserProfile();
                 localStorage.removeItem('userSession');
                 await window.supabase?.auth?.signOut();
-                alert('Esta conta nao pode usar a IA.');
+                alert('Esta conta não pode usar a IA.');
                 window.location.href = 'login.html';
                 return false;
             }

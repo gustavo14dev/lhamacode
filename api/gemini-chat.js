@@ -66,7 +66,7 @@ export default async function handler(req, res) {
       }
 
       // Adicionar contexto se houver
-      let systemInstruction = customSystemPrompt || "Voce e o Drekee AI, um assistente de IA focado em codificacao e produtividade.";
+      let systemInstruction = customSystemPrompt || "Você é o Drekee AI, um assistente de IA focado em codificação e produtividade.";
       if (context && context.length > 0) {
           systemInstruction += "\n\nContexto da conversa:\n" + context.map(m => `${m.role}: ${m.content}`).join('\n');
       }

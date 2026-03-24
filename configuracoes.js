@@ -128,11 +128,11 @@ async function blockAccountForAge(payload) {
     try {
         await window.supabase?.auth?.signOut();
     } catch (error) {
-        console.error('Erro ao encerrar sessao apos bloqueio:', error);
+        console.error('Erro ao encerrar sessão após bloqueio:', error);
     }
 
     localStorage.removeItem('userSession');
-    setAlert('Esta conta foi bloqueada porque a data de nascimento informada e posterior a 2015. Voce sera redirecionado.', 'error');
+    setAlert('Esta conta foi bloqueada porque a data de nascimento informada é posterior a 2015. Você será redirecionado.', 'error');
 
     setTimeout(() => {
         window.location.href = 'login.html';
@@ -198,7 +198,7 @@ async function init() {
             fillForm(profile);
         }
     } catch (error) {
-        console.error('Erro ao carregar perfil em configuracoes:', error);
+        console.error('Erro ao carregar perfil em configurações:', error);
         setAlert('Não foi possível carregar seu perfil. Verifique se o SQL da tabela user_profiles foi executado no Supabase.');
     }
 

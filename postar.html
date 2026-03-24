@@ -148,9 +148,9 @@
                         <label class="field-label mt-4" for="updateBody">Texto da atualização</label>
                         <textarea id="updateBody" class="field-textarea" placeholder="Descreva a atualização. Pode ser só texto, só imagem ou os dois."></textarea>
 
-                        <label class="field-label mt-4" for="updateImage">Midia</label>
+                        <label class="field-label mt-4" for="updateImage">Mídia</label>
                         <input id="updateImage" class="field-input" type="file" accept="image/*,video/*" />
-                        <div class="helper mt-2">Aceita imagem ou video. O video e reproduzido em loop, sem controles. Limite atual de video: 12 MB.</div>
+                        <div class="helper mt-2">Aceita imagem ou vídeo. O vídeo é reproduzido em loop, sem controles. Limite atual de vídeo: 12 MB.</div>
                         <img id="imagePreview" class="preview-image hidden" alt="Prévia da atualização" />
                         <video id="videoPreview" class="preview-video hidden" autoplay muted loop playsinline preload="metadata"></video>
 
@@ -255,7 +255,7 @@
                     imagePreview.classList.remove('hidden');
                 }
             } catch (error) {
-                showStatus(error.message || 'Falha ao processar a midia.', 'error');
+                showStatus(error.message || 'Falha ao processar a mídia.', 'error');
             }
         });
 

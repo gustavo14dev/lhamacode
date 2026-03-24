@@ -75,11 +75,11 @@ class DrekeeMediaSearch {
     }
 
     getModeLabel(mode = this.mode) {
-        return mode === 'image' ? 'Imagens' : 'Videos';
+        return mode === 'image' ? 'Imagens' : 'Vídeos';
     }
 
     getSingularModeLabel(mode = this.mode) {
-        return mode === 'image' ? 'imagem' : 'video';
+        return mode === 'image' ? 'imagem' : 'vídeo';
     }
 
     getBatchSize(mode = this.mode) {
@@ -106,14 +106,14 @@ class DrekeeMediaSearch {
         this.updatePageCopy({
             title: modeLabel,
             description: this.mode === 'image'
-                ? 'Descreva o que voce quer encontrar e o mural de imagens aparece logo abaixo.'
-                : 'Digite o assunto que voce quer ver e os videos aparecem logo abaixo.'
+                ? 'Descreva o que você quer encontrar e o mural de imagens aparece logo abaixo.'
+                : 'Digite o assunto que você quer ver e os vídeos aparecem logo abaixo.'
         });
 
         if (this.elements.input) {
             this.elements.input.placeholder = this.mode === 'image'
                 ? 'Descreva uma imagem, estilo ou tema'
-                : 'Busque um video, aula, tutorial ou assunto';
+                : 'Busque um vídeo, aula, tutorial ou assunto';
         }
 
         this.updateResultPills({
@@ -123,8 +123,8 @@ class DrekeeMediaSearch {
         });
 
         this.elements.resultsSubtitle.textContent = this.mode === 'image'
-            ? 'As imagens vao aparecer aqui embaixo assim que voce buscar.'
-            : 'Os videos vao aparecer aqui embaixo assim que voce buscar.';
+            ? 'As imagens vão aparecer aqui embaixo assim que você buscar.'
+            : 'Os vídeos vão aparecer aqui embaixo assim que você buscar.';
 
         this.toggleLoadMore(false);
         this.elements.mediaResults.innerHTML = `
@@ -133,7 +133,7 @@ class DrekeeMediaSearch {
                     <span class="material-icons-outlined">search</span>
                 </div>
                 <h3>Nenhum ${singularLabel} carregado ainda</h3>
-                <p>Use a caixa acima, escolha ${this.mode === 'image' ? 'Imagem' : 'Video'} e o catalogo vai preencher a area abaixo.</p>
+                <p>Use a caixa acima, escolha ${this.mode === 'image' ? 'Imagem' : 'Vídeo'} e o catálogo vai preencher a área abaixo.</p>
             </div>
         `;
     }
@@ -204,8 +204,8 @@ class DrekeeMediaSearch {
                 this.renderFeedbackState(
                     'Nada encontrado',
                     this.mode === 'image'
-                        ? `Nao encontrei imagens relevantes para "${query}". Tente outra descricao ou um tema mais especifico.`
-                        : `Nao encontrei videos relevantes para "${query}". Tente simplificar o assunto ou trocar as palavras.`
+                        ? `Não encontrei imagens relevantes para "${query}". Tente outra descrição ou um tema mais específico.`
+                        : `Não encontrei vídeos relevantes para "${query}". Tente simplificar o assunto ou trocar as palavras.`
                 );
                 return;
             }
@@ -215,7 +215,7 @@ class DrekeeMediaSearch {
             console.error('[midia] search failed:', error);
             this.renderFeedbackState(
                 'Busca indisponivel',
-                error?.message || 'Nao foi possivel concluir a busca agora. Tente novamente em alguns instantes.'
+                error?.message || 'Não foi possível concluir a busca agora. Tente novamente em alguns instantes.'
             );
         } finally {
             this.isLoading = false;
@@ -324,7 +324,7 @@ class DrekeeMediaSearch {
 
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-            throw new Error(data.message || data.error || 'Falha ao buscar videos no YouTube.');
+            throw new Error(data.message || data.error || 'Falha ao buscar vídeos no YouTube.');
         }
 
         const items = Array.isArray(data.videos) ? data.videos : [];
@@ -379,7 +379,7 @@ class DrekeeMediaSearch {
         if (this.elements.loadMoreHint) {
             this.elements.loadMoreHint.textContent = this.hasMore
                 ? `Clique para puxar mais ${this.getModeLabel().toLowerCase()} sem repetir o lote anterior.`
-                : 'Nao ha mais resultados disponiveis para este tema.';
+                : 'Não há mais resultados disponíveis para este tema.';
         }
     }
 
@@ -449,11 +449,11 @@ class DrekeeMediaSearch {
             return `
                 <button class="video-card${isActive ? ' active' : ''}" type="button" data-video-id="${this.escapeAttribute(video.videoId)}">
                     <div class="video-card__media">
-                        <img src="${this.escapeHtml(video.thumbnail || '')}" alt="${this.escapeHtml(video.title || 'Video do YouTube')}" loading="lazy">
+                        <img src="${this.escapeHtml(video.thumbnail || '')}" alt="${this.escapeHtml(video.title || 'Vídeo do YouTube')}" loading="lazy">
                         ${video.durationLabel ? `<span class="video-card__duration">${this.escapeHtml(video.durationLabel)}</span>` : ''}
                     </div>
                     <div class="video-card__body">
-                        <div class="video-card__title">${this.escapeHtml(this.truncate(video.title || 'Video do YouTube', 92))}</div>
+                        <div class="video-card__title">${this.escapeHtml(this.truncate(video.title || 'Vídeo do YouTube', 92))}</div>
                         <div class="video-card__meta">${this.escapeHtml(meta)}</div>
                     </div>
                 </button>
@@ -489,7 +489,7 @@ class DrekeeMediaSearch {
             <div class="video-spotlight__frame">
                 <iframe
                     src="${this.escapeHtml(activeVideo.embedUrl)}"
-                    title="${this.escapeHtml(activeVideo.title || 'Video do YouTube')}"
+                    title="${this.escapeHtml(activeVideo.title || 'Vídeo do YouTube')}"
                     loading="lazy"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowfullscreen
@@ -498,9 +498,9 @@ class DrekeeMediaSearch {
             </div>
             <div class="video-spotlight__content">
                 <span class="video-spotlight__eyebrow">Assistir dentro da IA</span>
-                <h3>${this.escapeHtml(activeVideo.title || 'Video do YouTube')}</h3>
+                <h3>${this.escapeHtml(activeVideo.title || 'Vídeo do YouTube')}</h3>
                 <div class="video-spotlight__meta">${this.escapeHtml(meta)}</div>
-                <p>${this.escapeHtml(this.truncate(activeVideo.description || 'Sem descricao disponivel.', 240))}</p>
+                <p>${this.escapeHtml(this.truncate(activeVideo.description || 'Sem descrição disponível.', 240))}</p>
                 <div class="video-spotlight__actions">
                     <a class="primary-link" href="${this.escapeHtml(activeVideo.watchUrl || `https://www.youtube.com/watch?v=${activeVideo.videoId}`)}" target="_blank" rel="noopener noreferrer">
                         Abrir no YouTube
@@ -556,7 +556,7 @@ class DrekeeMediaSearch {
             ? `Buscando outro lote de ${this.getModeLabel().toLowerCase()} sem repetir itens.`
             : this.hasMore
                 ? `Clique para carregar mais ${this.getModeLabel().toLowerCase()}.`
-                : 'Nao ha mais resultados disponiveis para este tema.';
+                : 'Não há mais resultados disponíveis para este tema.';
     }
 
     async downloadImageFromUrl(url, filename = 'drekee-midia.jpg', button = null) {
@@ -596,7 +596,7 @@ class DrekeeMediaSearch {
             }
 
             if (!fileBlob) {
-                throw new Error('Nao foi possivel baixar a imagem selecionada.');
+                throw new Error('Não foi possível baixar a imagem selecionada.');
             }
 
             const objectUrl = URL.createObjectURL(fileBlob);

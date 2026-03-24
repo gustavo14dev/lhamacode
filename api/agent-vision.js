@@ -130,8 +130,8 @@ function tryParseJson(text) {
 
 function buildVisionSystemPrompt(prompt) {
     return [
-        'Voce e o Drekee Agent 1.0.',
-        'Analise a imagem e responda SOMENTE com JSON valido.',
+        'Você é o Drekee Agent 1.0.',
+        'Analise a imagem e responda SOMENTE com JSON válido.',
         'Use exatamente estas chaves:',
         '{',
         '  "pagina_atual": "string",',

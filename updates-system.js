@@ -186,12 +186,12 @@ async function ensureUpdateAdminAccess() {
     const user = await getCurrentAuthenticatedUser();
 
     if (!supabase || !user?.id) {
-        throw new Error('E necessario estar logado para gerenciar atualizacoes.');
+        throw new Error('É necessário estar logado para gerenciar atualizações.');
     }
 
     const canPost = await canCurrentUserPostUpdates();
     if (!canPost) {
-        throw new Error('Sua conta nao tem permissao para gerenciar atualizacoes.');
+        throw new Error('Sua conta não tem permissão para gerenciar atualizações.');
     }
 
     return { supabase, user };
@@ -212,7 +212,7 @@ export async function createSiteUpdate({
     const cleanVideo = String(videoDataUrl || '').trim();
 
     if (!cleanTitle && !cleanBody && !cleanImage && !cleanVideo) {
-        throw new Error('Preencha pelo menos um titulo, um texto, uma imagem ou um video.');
+        throw new Error('Preencha pelo menos um título, um texto, uma imagem ou um vídeo.');
     }
 
     if (showOnStartup) {
@@ -250,7 +250,7 @@ export async function deleteSiteUpdate(updateId) {
     const id = Number(updateId);
 
     if (!Number.isFinite(id)) {
-        throw new Error('Atualizacao invalida para exclusao.');
+        throw new Error('Atualização inválida para exclusão.');
     }
 
     const { error } = await supabase
@@ -268,7 +268,7 @@ export async function setSiteUpdateStartupVisibility(updateId, visible) {
     const id = Number(updateId);
 
     if (!Number.isFinite(id)) {
-        throw new Error('Atualizacao invalida para alterar exibicao inicial.');
+        throw new Error('Atualização inválida para alterar exibição inicial.');
     }
 
     if (visible) {
@@ -323,7 +323,7 @@ export async function encodeUpdateMediaFile(file) {
     if (file.type.startsWith('video/')) {
         const maxVideoSize = 12 * 1024 * 1024;
         if (file.size > maxVideoSize) {
-            throw new Error('O video excede o limite de 12 MB.');
+            throw new Error('O vídeo excede o limite de 12 MB.');
         }
 
         return {
@@ -332,14 +332,14 @@ export async function encodeUpdateMediaFile(file) {
         };
     }
 
-    throw new Error('Formato de midia nao suportado. Use imagem ou video.');
+    throw new Error('Formato de mídia não suportado. Use imagem ou vídeo.');
 }
 
 function fileToDataUrl(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = () => reject(reader.error || new Error('Falha ao ler a midia.'));
+        reader.onerror = () => reject(reader.error || new Error('Falha ao ler a mídia.'));
         reader.readAsDataURL(file);
     });
 }
@@ -372,7 +372,7 @@ export function buildUpdateMediaHtml(update = {}, className = '') {
     }
 
     if (update.image_data_url) {
-        return `<img src="${update.image_data_url}" alt="Atualizacao" class="${safeClassName}">`;
+        return `<img src="${update.image_data_url}" alt="Atualização" class="${safeClassName}">`;
     }
 
     return '';
