@@ -10743,6 +10743,75 @@ ${chunk}${bibliographyBlock}
 
 
 
+    async searchUnsplashImages(query) {
+        if (!query || typeof query !== 'string') {
+            return [];
+        }
+
+        try {
+            const response = await fetch('/api/unsplash-search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: query.trim(), page: 1, maxResults: 3 })
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                console.warn('⚠️ [UNSPLASH] Falha na busca:', response.status, error);
+                return [];
+            }
+
+            const data = await response.json();
+            const photos = Array.isArray(data.photos) ? data.photos : [];
+            return photos.slice(0, 3).map(photo => ({
+                id: photo.id || photo.url || `${Date.now()}-${Math.random()}`,
+                src: photo.url || photo.src?.large || photo.src?.regular || '',
+                alt: photo.alt || photo.description || photo.unsplash_url || ''
+            })).filter(item => item.src);
+        } catch (err) {
+            console.warn('⚠️ [UNSPLASH] Erro ao buscar imagens:', err);
+            return [];
+        }
+    }
+
+    async searchWebForResponse(query) {
+        if (!query || typeof query !== 'string') {
+            return { query: '', sources: [], results: [] };
+        }
+
+        try {
+            const response = await fetch('/api/tavily-search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: query.trim() })
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                console.warn('⚠️ [WEB] Falha na busca TODO:', response.status, error);
+                return { query, sources: [], results: [] };
+            }
+
+            const data = await response.json();
+            const sources = Array.isArray(data.sources) ? data.sources.map(src => ({
+                title: src.title || src.label || 'Fonte sem título',
+                url: src.url || src.link || src.domain || '',
+                snippet: src.content || src.snippet || src.summary || ''
+            })) : [];
+
+            const results = sources.map(src => ({
+                title: src.title,
+                url: src.url,
+                snippet: src.snippet
+            }));
+
+            return { query: data.query || query, sources, results };
+        } catch (err) {
+            console.warn('⚠️ [WEB] Erro ao buscar web:', err);
+            return { query, sources: [], results: [] };
+        }
+    }
+
     setThinkingHeader(text, headerId) {
 
         const headerDiv = document.getElementById(headerId);
