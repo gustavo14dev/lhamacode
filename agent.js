@@ -1179,7 +1179,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         const messageContainer = this.ui.createAssistantMessageContainer();
         const timestamp = Date.now();
 
-        this.ui.setThinkingHeader('Processando raciocÃ­nio...', messageContainer.headerId);
+        this.ui.setThinkingHeader('Processando Raciocínio...', messageContainer.headerId);
         await this.ui.sleep(300);
 
         this.addToHistory('user', userMessage);
@@ -1247,39 +1247,65 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             
             if (reasoningMatch) {
                 reasoningText = reasoningMatch[1].trim();
-                // Remover as tags de raciocÃ­nio da resposta final
+                // Remover as tags de raciocínio da resposta final
                 finalResponse = fullResponse.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-                finalResponse = finalResponse.replace(/<raciocÃ­nio>[\s\S]*?<\/raciocÃ­nio>/gi, '').trim();
+                finalResponse = fullResponse.replace(/<racioc[ií]nio>[\s\S]*?<\/racioc[ií]nio>/gi, '').trim();
                 finalResponse = finalResponse.replace(/<raciocinio>[\s\S]*?<\/raciocinio>/gi, '').trim();
                 finalResponse = finalResponse.replace(/<\s*think[^>]*>[\s\S]*?<\s*\/\s*think\s*>/gi, '').trim();
                 finalResponse = finalResponse.replace(/<\s*racioc[ií]nio[^>]*>[\s\S]*?<\s*\/\s*racioc[ií]nio\s*>/gi, '').trim();
                 // Limpeza AGRESSIVA: remover qualquer texto que pareça raciocínio
-                finalResponse = finalResponse.replace(/^RaciocÃ­nio:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/gim, '').trim();
+                finalResponse = finalResponse.replace(/^Racioc[ií]nio:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/gim, '').trim();
                 finalResponse = finalResponse.replace(/^Pensando:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/gim, '').trim();
-                finalResponse = finalResponse.replace(/^AnÃ¡lise:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/gim, '').trim();
-                
+                finalResponse = finalResponse.replace(/^Análise:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/gim, '').trim();
+
                 // Remover linhas em branco extras
                 finalResponse = finalResponse.replace(/^\n+/gm, '').trim();
-                console.log('ðŸ§  RaciocÃ­nio extraÃ­do:', reasoningText.substring(0, 100) + '...');
-                console.log('ðŸ“ Resposta final limpa:', finalResponse.substring(0, 100) + '...');
+                console.log('🧠 Raciocínio extraído:', reasoningText.substring(0, 100) + '...');
+                console.log('✅ Resposta final limpa:', finalResponse.substring(0, 100) + '...');
             } else {
-                console.log('âš ï¸ Nenhuma tag <raciocÃ­nio> encontrada na resposta');
-                console.log('ðŸ“ ConteÃºdo da resposta (primeiros 200 chars):', fullResponse.substring(0, 200));
+                console.log('⚠️ Nenhuma tag <raciocínio> encontrada na resposta');
+                console.log('🧠 Conteúdo da resposta (primeiros 200 chars):', fullResponse.substring(0, 200));
             }
-            
+
             if (reasoningText && messageContainer.thinkCardId) {
                 const thinkCard = document.getElementById(messageContainer.thinkCardId);
                 if (thinkCard) {
                     thinkCard.classList.remove('hidden');
                     thinkCard.innerHTML = `
-                        <div class="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
-                            ${this.ui.escapeHtml(reasoningText)}
+                        <div class="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                            <div class="flex items-center justify-between gap-3 px-4 py-3 bg-gray-100 dark:bg-slate-800">
+                                <div class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                    <span>🧠</span>
+                                    <span>Raciocínio</span>
+                                </div>
+                                <button type="button" id="thinkCardToggle_${messageContainer.uniqueId}" class="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors">
+                                    Abrir
+                                </button>
+                            </div>
+                            <div id="thinkCardContent_${messageContainer.uniqueId}" style="max-height:0; overflow:hidden; transition:max-height 0.25s ease;" class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
+                                ${this.ui.escapeHtml(reasoningText)}
+                            </div>
                         </div>
                     `;
+
+                    const toggleBtn = document.getElementById(`thinkCardToggle_${messageContainer.uniqueId}`);
+                    const contentDiv = document.getElementById(`thinkCardContent_${messageContainer.uniqueId}`);
+                    if (toggleBtn && contentDiv) {
+                        toggleBtn.addEventListener('click', () => {
+                            const isOpen = contentDiv.style.maxHeight && contentDiv.style.maxHeight !== '0px';
+                            if (isOpen) {
+                                contentDiv.style.maxHeight = '0px';
+                                toggleBtn.textContent = 'Abrir';
+                            } else {
+                                contentDiv.style.maxHeight = `${contentDiv.scrollHeight}px`;
+                                toggleBtn.textContent = 'Fechar';
+                            }
+                        });
+                        contentDiv.style.maxHeight = '0px';
+                    }
                 }
             }
-            
-            // Tentar extrair arquivos gerados na resposta e anexÃ¡-los ao chat
+
             try {
                 const parsedFiles = this.parseFilesFromText(finalResponse);
                 if (parsedFiles && parsedFiles.length > 0) {
@@ -1287,7 +1313,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                     finalResponse = finalResponse.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
                 }
             } catch (e) {
-                console.warn('âš ï¸ Falha parsing arquivos de resposta (RaciocÃ­nio):', e);
+                console.warn('⚠️ Falha parsing arquivos de resposta (Raciocínio):', e);
             }
 
             this.addToHistory('assistant', finalResponse);
