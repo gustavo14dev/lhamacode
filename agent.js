@@ -119,11 +119,67 @@ export class Agent {
         return this.ui.persistMessageToChat(targetChatId, message);
     }
 
-    // VerificaÃ§Ã£o rÃ¡pida de API antes de processar
+    estimateTokens(text) {
+        if (!text || typeof text !== "string") return 0;
+        return Math.max(1, Math.round(text.length / 4));
+    }
+
+    getModelTokenCapacity(model) {
+        const normalized = String(model || "").toLowerCase();
+        if (normalized.includes("3.1-8b")) return 6000;
+        if (normalized.includes("3.3-70b")) return 12000;
+        if (normalized.includes("qwen")) return 6000;
+        if (normalized.includes("4-maverick")) return 10000;
+        return 6000;
+    }
+
+    calculateEffortPercentage({ model, userMessage = "", conversationHistory = [], webData = null, expectedResponseLength = 0 }) {
+        const modelCapacity = this.getModelTokenCapacity(model);
+        const userTokens = this.estimateTokens(userMessage);
+        const historyTokens = conversationHistory.reduce((acc, m) => acc + this.estimateTokens(String(m.content || "")), 0);
+        const webTokens = this.estimateTokens(JSON.stringify(webData || ""));
+        const responseTokens = this.estimateTokens(String(expectedResponseLength || Math.max(1, userTokens) * 1.2));
+
+        const total = userTokens + historyTokens + webTokens + responseTokens;
+        const percentage = Math.min(100, Math.round((total / modelCapacity) * 100));
+
+        return { percentage, total, modelCapacity, userTokens, historyTokens, webTokens, responseTokens };
+    }
+
+    updateEffortIndicator(percentage, warning) {
+        if (this.ui && typeof this.ui.updateEffortIndicator === "function") {
+            this.ui.updateEffortIndicator(percentage, warning);
+        }
+    }
+
+    async ensureCapacityAndTrack({ model, userMessage, conversationHistory, webData }) {
+        const effort = this.calculateEffortPercentage({ model, userMessage, conversationHistory, webData });
+        if (effort.percentage >= 100) {
+            this.updateEffortIndicator(100, "Desculpe, sou incapaz de realizar essa tarefa. A solicitação foi muito grande.");
+            throw new Error("Capacidade excedida");
+        }
+
+        this.updateEffortIndicator(effort.percentage);
+        return effort;
+    }
+
+    formatErrorMessage(error) {
+        if (!error) return 'Erro desconhecido';
+        if (typeof error === 'string') return error;
+        if (error instanceof Error) return error.message || error.toString();
+
+        try {
+            return JSON.stringify(error, Object.getOwnPropertyNames(error), 2);
+        } catch (e) {
+            return String(error);
+        }
+    }
+
+    // Verificação rápida de API antes de processar
     async quickApiCheck() {
         const provider = this.getApiProvider();
 
-        // Fazer uma requisiÃ§Ã£o rápida para testar a API via proxy
+        // Fazer uma requisição rápida para testar a API via proxy
         try {
             const response = await fetch('/api/groq-proxy', {
                 method: 'POST',
@@ -139,14 +195,84 @@ export class Agent {
             });
 
             if (!response.ok) {
-                throw new Error(`API retornou status ${response.status}`);
+                const data = await response.json().catch(() => null);
+                throw new Error(`API retornou status ${response.status}: ${this.formatErrorMessage(data)}`);
             }
 
             return true;
         } catch (error) {
-            console.error('âŒ VerificaÃ§Ã£o rÃ¡pida da API falhou:', error);
+            console.error('❌ Verificação rápida da API falhou:', this.formatErrorMessage(error));
             throw error;
         }
+    }
+
+    async callGroqAPI(model, customMessages = [], options = {}) {
+        const provider = this.getApiProvider();
+        const finalModel = this.normalizeModelForProvider(model, provider);
+        const requestBody = {
+            provider,
+            model: finalModel,
+            messages: Array.isArray(customMessages) ? customMessages : [],
+            max_tokens: options.max_tokens || 1024,
+            temperature: options.temperature || 0.7,
+            top_p: options.top_p || 1,
+            stream: false,
+            ...options.extra
+        };
+
+        try {
+            const response = await fetch('/api/groq-proxy', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            let data = null;
+            try {
+                data = await response.json();
+            } catch (err) {
+                throw new Error(`Erro ao decodificar resposta JSON da API: ${err.message}`);
+            }
+
+            if (!response.ok) {
+                const detail = data?.error?.message || data?.error || data?.message || JSON.stringify(data);
+                throw new Error(`API retornou status ${response.status}: ${detail}`);
+            }
+
+            if (!data || typeof data !== 'object') {
+                throw new Error('Resposta inválida da API (sem dados)');
+            }
+
+            let text = '';
+            if (Array.isArray(data.choices) && data.choices.length > 0) {
+                text = (data.choices[0].message?.content || data.choices[0].text || '').trim();
+            }
+
+            if (!text && data?.output && Array.isArray(data.output) && data.output.length > 0) {
+                text = String(data.output[0].content || data.output[0] || '').trim();
+            }
+
+            if (!text && typeof data?.result === 'string') {
+                text = data.result.trim();
+            }
+
+            if (!text) {
+                const fallbackError = data?.error || data?.choices?.[0]?.message?.content || JSON.stringify(data);
+                throw new Error(`Resposta vazia ou inválida da API: ${this.formatErrorMessage(fallbackError)}`);
+            }
+
+            return text;
+        } catch (error) {
+            const message = this.formatErrorMessage(error);
+            console.error(`❌ Erro em callGroqAPI (provider=${provider}, model=${finalModel}):`, message);
+            throw new Error(message);
+        }
+    }
+
+    async callGroqAPIWithBrowserSearch(model, messages) {
+        return this.callGroqAPI(model, messages, { max_tokens: 1024 });
     }
 
     async processMessage(userMessage, attachedFilesFromUI = null) {
@@ -930,11 +1056,19 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 ...this.conversationHistory
             ];
 
+            const model = 'llama-3.1-8b-instant';
+            await this.ensureCapacityAndTrack({
+                model,
+                userMessage,
+                conversationHistory: this.conversationHistory,
+                webData
+            });
+
             // Forçar SambaNova para modo rápido como solicitado
             this.setApiProvider('samba');
             console.log('ðŸ“‹ [DEBUG-RAPIDO] API provider definido para SambaNova via SAMBA_API_KEY');
 
-            let response = await this.callGroqAPI('llama-3.1-8b-instant', finalMessages);
+            let response = await this.callGroqAPI(model, finalMessages);
             console.log('ðŸ” [DEBUG-RAPIDO] Resposta da API recebida:', response ? response.substring(0, 100) + '...' : 'NULO');
             console.log('ðŸ” [DEBUG-RAPIDO] Tipo da resposta:', typeof response);
             console.log('ðŸ” [DEBUG-RAPIDO] Tamanho da resposta:', response ? response.length : 0);
@@ -1006,18 +1140,34 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const [images, webData] = await Promise.all([imagesPromise, webSearchPromise]);
             console.log('ðŸ“¦ [RACIOCINIO] Imagens recebidas:', images);
             console.log('ðŸŒ [RACIOCINIO] Dados web recebidos:', webData);
-            
             const finalMessages = [
                 { role: 'system', content: this.getSystemPrompt('raciocinio') + this.buildWebContextBlock(webData) },
                 ...(this.extraMessagesForNextCall || []),
                 ...this.conversationHistory
             ];
             
-            console.log('ðŸ§­ Usando modelo de raciocÃ­nio: qwen/qwen3-32b');
-            let fullResponse = await this.callGroqAPI('qwen/qwen3-32b', finalMessages);
-            
+            const primaryModel = 'qwen/qwen3-32b';
+            const fallbackModel = 'llama-3.1-8b-instant';
+
+            await this.ensureCapacityAndTrack({
+                model: primaryModel,
+                userMessage,
+                conversationHistory: this.conversationHistory,
+                webData
+            });
+
+            this.setApiProvider('groq');
+            let fullResponse;
+            try {
+                console.log('ðŸ§ Usando modelo de raciocínio: qwen/qwen3-32b');
+                fullResponse = await this.callGroqAPI(primaryModel, finalMessages);
+            } catch (e) {
+                console.warn('ðŸ– fallback raciocínio para SambaNova 3.1-8B-Instruct:', e);
+                this.setApiProvider('samba');
+                fullResponse = await this.callGroqAPI(fallbackModel, finalMessages);
+            }
+
             console.log('ðŸ“„ Resposta bruta da API:', fullResponse);
-            
             // Extrair raciocÃ­nio das tags <raciocÃ­nio>
             let reasoningText = '';
             let finalResponse = fullResponse;
@@ -1169,101 +1319,97 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         const messageContainer = this.ui.createAssistantMessageContainer();
         const timestamp = Date.now();
 
-        this.ui.setThinkingHeader('ðŸš€ AnÃ¡lise multi-perspectivas...', messageContainer.headerId);
+        this.ui.setThinkingHeader('🔎 Análise multi-perspectivas...', messageContainer.headerId);
         await this.ui.sleep(800);
 
         this.addToHistory('user', userMessage);
-        
-        // Iniciar busca de imagens e informaÃ§Ãµes web em paralelo
+
         const imagesPromise = this.searchUnsplashImages(userMessage);
         const webSearchPromise = this.searchWebForResponse(userMessage);
 
         try {
-            // Buscar dados web antes de comeÃ§ar as anÃ¡lises
             const [images, webData] = await Promise.all([imagesPromise, webSearchPromise]);
-            console.log('ðŸ“¦ [PRO] Imagens recebidas:', images);
-            console.log('ðŸŒ [PRO] Dados web recebidos:', webData);
-            
+            console.log('🧩 [PRO] Imagens recebidas:', images);
+            console.log('🌐 [PRO] Dados web recebidos:', webData);
+
             const webContext = this.buildWebContextBlock(webData);
-            
-            // ========== ETAPA 1: Primeira anÃ¡lise ==========
-            const step1Text = 'Analisando perspectiva 1...';
-            this.ui.setThinkingHeader(step1Text, messageContainer.headerId);
-            await this.ui.sleep(2000);
-            this.ui.setThinkingHeader('', messageContainer.headerId);
-            await this.ui.sleep(500);
-            
+            const primaryModel = 'llama-3.3-70b-versatile';
+            const fallbackModel = 'llama-3.1-8b-instant';
+
+            const baseSystem1 = this.getSystemPrompt('pro') + webContext + "\n\nNesta análise, responda diretamente ao pedido do usuário, priorize a solução mais útil e evite floreios.";
+            const baseSystem2 = this.getSystemPrompt('pro') + webContext + "\n\nNesta análise, atue como um revisor crítico. Questione suposições, identifique ambiguidades, aponte riscos e proponha alternativas melhores quando existirem.";
+            const baseSystemSynth = this.getSystemPrompt('pro') + webContext + "\n\nVocê é responsável pela síntese final. Combine as duas análises, preserve o que houver de melhor, elimine redundâncias, corrija erros e entregue uma resposta superior, clara, inteligente e prática. Use a web apenas como apoio.";
+
             const messages1 = this.extraMessagesForNextCall ? [
-                {
-                    role: 'system',
-                    content: this.getSystemPrompt('pro') + webContext + '\n\nNesta anÃ¡lise, responda diretamente ao pedido do usuÃ¡rio, priorize a soluÃ§Ã£o mais Ãºtil e evite floreios.'
-                },
+                { role: 'system', content: baseSystem1 },
                 ...this.extraMessagesForNextCall,
                 ...this.conversationHistory
             ] : [
-                {
-                    role: 'system',
-                    content: this.getSystemPrompt('pro') + webContext + '\n\nNesta anÃ¡lise, responda diretamente ao pedido do usuÃ¡rio, priorize a soluÃ§Ã£o mais Ãºtil e evite floreios.'
-                },
+                { role: 'system', content: baseSystem1 },
                 ...this.conversationHistory
             ];
-            
-            let response1 = await this.callGroqAPI('llama-3.1-8b-instant', messages1);
-            
-            // Extrair arquivos se existirem
+
+            await this.ensureCapacityAndTrack({ model: primaryModel, userMessage, conversationHistory: this.conversationHistory, webData });
+            this.setApiProvider('samba');
+            let response1;
+            try {
+                response1 = await this.callGroqAPI(primaryModel, messages1);
+            } catch (error) {
+                console.warn('⚠️ [PRO] Fallback etapa 1 para modelo 3.1-8B:', error);
+                response1 = await this.callGroqAPI(fallbackModel, messages1);
+            }
+
             try {
                 const parsed1 = this.parseFilesFromText(response1);
                 if (parsed1 && parsed1.length > 0) {
                     this.attachGeneratedFilesToChat(parsed1);
                     response1 = response1.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
                 }
-            } catch (e) { console.warn('âš ï¸ Falha parsing arquivos de response1:', e); }
+            } catch (e) {
+                console.warn('⚠️ Falha parsing arquivos de response1:', e);
+            }
 
-            // ========== ETAPA 2: Segunda anÃ¡lise ==========
             const step2Text = 'Analisando perspectiva 2...';
             this.ui.setThinkingHeader(step2Text, messageContainer.headerId);
             await this.ui.sleep(2000);
             this.ui.setThinkingHeader('', messageContainer.headerId);
             await this.ui.sleep(500);
-            
+
             const messages2 = this.extraMessagesForNextCall ? [
-                {
-                    role: 'system',
-                    content: this.getSystemPrompt('pro') + webContext + '\n\nNesta anÃ¡lise, atue como um revisor crÃ­tico. Questione suposiÃ§Ãµes, identifique ambiguidades, aponte riscos e proponha alternativas melhores quando existirem.'
-                },
+                { role: 'system', content: baseSystem2 },
                 ...this.extraMessagesForNextCall,
                 ...this.conversationHistory
             ] : [
-                {
-                    role: 'system',
-                    content: this.getSystemPrompt('pro') + webContext + '\n\nNesta anÃ¡lise, atue como um revisor crÃ­tico. Questione suposiÃ§Ãµes, identifique ambiguidades, aponte riscos e proponha alternativas melhores quando existirem.'
-                },
+                { role: 'system', content: baseSystem2 },
                 ...this.conversationHistory
             ];
-            
-            let response2 = await this.callGroqAPI('llama-3.1-8b-instant', messages2);
-            
-            // Extrair arquivos se existirem
+
+            let response2;
+            try {
+                response2 = await this.callGroqAPI(primaryModel, messages2);
+            } catch (error) {
+                console.warn('⚠️ [PRO] Fallback etapa 2 para modelo 3.1-8B:', error);
+                response2 = await this.callGroqAPI(fallbackModel, messages2);
+            }
+
             try {
                 const parsed2 = this.parseFilesFromText(response2);
                 if (parsed2 && parsed2.length > 0) {
                     this.attachGeneratedFilesToChat(parsed2);
                     response2 = response2.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
                 }
-            } catch (e) { console.warn('âš ï¸ Falha parsing arquivos de response2:', e); }
+            } catch (e) {
+                console.warn('⚠️ Falha parsing arquivos de response2:', e);
+            }
 
-            // ========== ETAPA 3: SÃ­ntese final ==========
-            const step3Text = 'Sintetizando anÃ¡lises...';
+            const step3Text = 'Sintetizando análises...';
             this.ui.setThinkingHeader(step3Text, messageContainer.headerId);
             await this.ui.sleep(2000);
             this.ui.setThinkingHeader('', messageContainer.headerId);
             await this.ui.sleep(500);
-            
+
             const synthMessages = [
-                {
-                    role: 'system',
-                    content: this.getSystemPrompt('pro') + webContext + '\n\nVocÃª Ã© responsÃ¡vel pela sÃ­ntese final. Combine as duas anÃ¡lises, preserve o que houver de melhor, elimine redundÃ¢ncias, corrija erros e entregue uma resposta superior, clara, inteligente e prÃ¡tica. Use a web apenas como apoio.'
-                },
+                { role: 'system', content: baseSystemSynth },
                 {
                     role: 'user',
                     content: `Pergunta original: "${userMessage}"
@@ -1274,19 +1420,25 @@ ${response1}
 === RESPOSTA 2 (Perspectiva 2) ===
 ${response2}
 
-Combine e melhore as duas respostas em uma Ãºnica resposta coesa e superior. Corrija possÃ­veis erros, melhore a clareza, e crie uma resposta final otimizada.`
+Combine e melhore as duas respostas em uma única resposta coesa e superior. Corrija possíveis erros, melhore a clareza, e crie uma resposta final otimizada.`
                 }
             ];
-            
-            // Se houver arquivos anexados, incluÃ­-los temporariamente nas mensagens de sÃ­ntese
+
             if (this.extraMessagesForNextCall) {
                 synthMessages.splice(1, 0, ...this.extraMessagesForNextCall);
             }
-            
-            let finalResponse = await this.callGroqAPI('qwen/qwen3-32b', synthMessages);
+
+            await this.ensureCapacityAndTrack({ model: primaryModel, userMessage, conversationHistory: this.conversationHistory, webData });
+            let finalResponse;
+            try {
+                finalResponse = await this.callGroqAPI(primaryModel, synthMessages);
+            } catch (error) {
+                console.warn('⚠️ [PRO] Fallback síntese para modelo 3.1-8B:', error);
+                finalResponse = await this.callGroqAPI(fallbackModel, synthMessages);
+            }
+
             this.extraMessagesForNextCall = null;
 
-            // Tentar extrair arquivos gerados na resposta final e anexÃ¡-los ao chat
             try {
                 const parsedFiles = this.parseFilesFromText(finalResponse);
                 if (parsedFiles && parsedFiles.length > 0) {
@@ -1294,1312 +1446,32 @@ Combine e melhore as duas respostas em uma Ãºnica resposta coesa e superior. C
                     finalResponse = finalResponse.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
                 }
             } catch (e) {
-                console.warn('âš ï¸ Falha parsing arquivos de resposta (Pro):', e);
+                console.warn('⚠️ Falha parsing arquivos de resposta (Pro):', e);
             }
 
             this.addToHistory('assistant', finalResponse);
-            
-            // PRIMEIRO: Exibir imagens ANTES da resposta
             await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
-            
-            // SEGUNDO: Exibir resposta
             this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
-                // TERCEIRO: Adicionar botÃ£o de fontes se houver dados web
                 if (webData && webData.sources && webData.sources.length > 0) {
                     this.ui.addSourcesButton(messageContainer.responseId, webData.sources, webData.query);
                 }
-
-                await this.attachYouTubeVideosToResponse({
-                    userMessage,
-                    assistantResponse: finalResponse,
-                    responseId: messageContainer.responseId,
-                    chatId: responseChatId
-                });
+                await this.attachYouTubeVideosToResponse({ userMessage, assistantResponse: finalResponse, responseId: messageContainer.responseId, chatId: responseChatId });
             });
-            
-            // Mostrar botÃµes de aÃ§Ã£o quando resposta estiver completa
-            const actionsDiv = document.getElementById(messageContainer.actionsId);
-            if (actionsDiv) {
-                actionsDiv.classList.remove('opacity-0');
-                actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
-            }
-            
-            // Fechar raciocÃ­nio quando terminar
-            await this.ui.sleep(500);
+
             this.ui.setThinkingHeader('', messageContainer.headerId);
-            
-            // Gerar sugestÃµes de acompanhamento
-            await this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);
-
-            const parsedFiles = this.parseFilesFromText(finalResponse);
-            this.persistAssistantMessage(finalResponse, {
-                attachments: parsedFiles && parsedFiles.length > 0 ? parsedFiles : []
-            });
+            setTimeout(() => { if (thinkingHeader) thinkingHeader.textContent = ''; }, 100);
+            this.persistAssistantMessage(finalResponse);
 
         } catch (error) {
-            if (error.message === 'ABORTED') {
-                console.log('âš ï¸ GeraÃ§Ã£o interrompida pelo usuÃ¡rio');
+            const errorMessage = error && typeof error.message === 'string' ? error.message : String(error);
+            if (errorMessage === 'ABORTED') {
+                console.log('✋ Geração interrompida pelo usuário');
                 return;
             }
-            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem. Verifique sua API Key e tente novamente.', messageContainer.responseId);
+            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem. ' + errorMessage, messageContainer.responseId);
             console.error('Erro no Modelo Pro:', error);
         }
     }
-
-    // ==================== MÃ‰TODO DE PESQUISA NA WEB ====================
-    async processWebSearch(userMessage) {
-        const messageContainer = this.ui.createAssistantMessageContainer();
-        const responseChatId = this.getActiveChatId();
-        const timestamp = Date.now();
-        
-        this.ui.setThinkingHeader('ðŸ” Pesquisando...', messageContainer.headerId);
-        await this.ui.sleep(800);
-        
-        this.addToHistory('user', userMessage);
-        
-        try {
-            // Construir prompt com contexto da memÃ³ria
-            let memoryContext = '';
-            const relevantContext = this.memory.searchRelevantContext(userMessage, 5);
-            if (relevantContext.length > 0) {
-                memoryContext = '\n\nCONTEXTO RELEVANTE DA CONVERSA:\n';
-                relevantContext.forEach((memory, index) => {
-                    memoryContext += `${index + 1}. ${memory.role.toUpperCase()}: "${memory.content}" (Contexto: ${memory.context})\n`;
-                });
-                memoryContext += '\nUse este contexto para fornecer respostas mais personalizadas e relevantes.';
-            }
-            
-            const systemPrompt = {
-                role: 'system',
-                content: `Você é o Drekee AI 1, uma IA incrivelmente inteligente, versátil e criativa com acesso à web em tempo real! Você é como um amigo brilhante que sabe de tudo, desde física quântica até como fazer a melhor pizza do mundo. Sua personalidade é cativante: você é perspicaz, surpreendente e sempre traz uma perspectiva interessante. Adora usar analogias inteligentes, fazer conexões inesperadas entre assuntos diferentes e compartilhar conhecimento de forma fascinante.
-
-INSTRUÇÕES ESPECÍFICAS PARA PESQUISA WEB:
-1. Forneça respostas completas, detalhadas e extensas.
-2. Use as fontes disponíveis sem depender cegamente de uma única fonte.
-3. Extraia o máximo de informações realmente úteis de cada fonte.
-4. Organize a resposta em seções claras com títulos quando fizer sentido.
-5. Inclua dados específicos, estatísticas, datas e exemplos concretos quando forem relevantes.
-6. Faça conexões entre diferentes fontes.
-7. Adicione contexto e análises profundas quando agregarem valor.
-8. Use formatação rica: **negrito**, *itálico*, listas numeradas e bullet points.
-9. Cite as fontes de forma natural no texto.
-10. Termine com uma conclusão ou perspectiva futura quando isso ajudar.
-
-Pesquise informações atuais e forneça respostas baseadas em fontes confiáveis, mas sempre com seu toque genial único. Seja claro, direto e completo, sem exagerar nem fugir do pedido principal.${memoryContext}`
-            };
-            
-            const messages = [
-                systemPrompt,
-                {
-                    role: 'user',
-                    content: userMessage
-                }
-            ];
-            
-            console.log('ðŸ” Usando modelo de pesquisa: openai/gpt-oss-20b');
-            let response = await this.callGroqAPIWithBrowserSearch('openai/gpt-oss-20b', messages);
-            
-            if (!response || typeof response !== 'string') {
-                throw new Error('Resposta vazia ou inválida do servidor de pesquisa');
-            }
-            
-            // Armazenar e salvar a mensagem do assistente
-            this.persistAssistantMessage(response);
-            
-            this.addToHistory('assistant', response);
-            
-            // Adicionar resposta da IA Ã  memÃ³ria e aprender com a interaÃ§Ã£o
-            this.memory.addConversationMemory('assistant', response);
-            this.memory.learnFromInteraction(userMessage, response);
-            
-            this.ui.setResponseText(response, messageContainer.responseId, async () => {
-                // Gerar sugestÃµes de acompanhamento sÃ³ quando resposta estiver completa
-                await this.attachYouTubeVideosToResponse({
-                    userMessage,
-                    assistantResponse: response,
-                    responseId: messageContainer.responseId,
-                    chatId: responseChatId
-                });
-                this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
-                
-                // Desativar modo pesquisa quando terminar
-                try {
-                    if (this.ui && typeof this.ui.setWebSearchMode === 'function') {
-                        this.ui.setWebSearchMode(false);
-                    }
-                } catch (error) {
-                    console.warn('âš ï¸ Erro ao desativar modo pesquisa:', error);
-                }
-            });
-            this.ui.setThinkingHeader('', messageContainer.headerId);
-            
-        } catch (error) {
-            if (error.message === 'ABORTED') {
-                console.log('âš ï¸ GeraÃ§Ã£o interrompida pelo usuÃ¡rio');
-                return;
-            }
-            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua pesquisa. ' + error.message, messageContainer.responseId);
-            console.error('Erro na Pesquisa na Web:', error);
-        }
-    }
-
-    // ==================== MÃ‰TODO DE API COM BROWSER SEARCH ====================
-    async callGroqAPIWithBrowserSearch(model, messages) {
-        console.log('ðŸ” callGroqAPIWithBrowserSearch iniciado');
-        console.log('ðŸ“‹ Modelo:', model);
-        console.log('ðŸ“‹ Mensagens:', messages.length, 'mensagens');
-        console.log('ðŸ“¤ Primeira mensagem:', (messages[0] && messages[0].content) ? (typeof messages[0].content === 'string' ? messages[0].content.substring(0, 100) + '...' : 'CONTEÃšDO MULTIMÃDIA') : 'SEM CONTEÃšDO');
-        if (messages.length > 1) {
-            const lastMessage = messages[messages.length - 1];
-            let contentPreview = 'SEM CONTEÃšDO';
-            if (lastMessage && lastMessage.content) {
-                if (typeof lastMessage.content === 'string') {
-                    contentPreview = lastMessage.content.substring(0, 100) + '...';
-                } else if (Array.isArray(lastMessage.content)) {
-                    const foundTextPart = lastMessage.content.find(item => item && item.type === 'text');
-                    const textPart = foundTextPart ? foundTextPart.text : null;
-                    if (textPart) {
-                        contentPreview = textPart.substring(0, 100) + '...';
-                    } else {
-                        contentPreview = 'CONTEÃšDO MULTIMÃDIA (IMAGENS)';
-                    }
-                } else {
-                    contentPreview = 'CONTEÃšDO MULTIMÃDIA';
-                }
-            }
-            console.log('ðŸ“¤ Ãšltima mensagem:', contentPreview);
-        }
-
-        // Criar novo AbortController para cada requisiÃ§Ã£o
-        this.abortController = new AbortController();
-
-        try {
-            console.log('ðŸ“¡ Enviando requisiÃ§Ã£o para /api/groq-proxy com browser search...');
-            
-            const requestBody = {
-                model, 
-                messages, 
-                temperature: 0.7, 
-                max_tokens: 8192, 
-                top_p: 1, 
-                stream: false,
-                tool_choice: "required",
-                tools: [
-                    {
-                        type: "browser_search"
-                    }
-                ]
-            };
-            
-            console.log('ðŸ“¦ Corpo da requisiÃ§Ã£o com browser search:', requestBody);
-
-            // Chamar proxy server-side no Vercel
-            const response = await fetch('/api/groq-proxy', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestBody),
-                signal: this.abortController.signal
-            });
-
-            console.log('ðŸ“¡ Resposta recebida:', response.status, response.statusText);
-            console.log('ðŸ“¡ Headers:', Object.fromEntries(response.headers.entries()));
-
-            if (!response.ok) {
-                const status = response.status;
-                const text = await response.text().catch(() => null);
-                console.error('âŒ Erro na resposta:', status, text);
-                
-                // Mensagens amigÃ¡veis para erros comuns
-                if (status === 500 && text && text.includes('GROQ_API_KEY is not configured')) {
-                    throw new Error('GROQ API Key nÃ£o estÃ¡ configurada no servidor. Adicione GROQ_API_KEY nas Environment Variables do Vercel.');
-                }
-                if (status === 401) {
-                    throw new Error('Invalid API Key: Verifique sua chave no Vercel para GROQ_API_KEY.');
-                }
-                throw new Error(text || `Erro HTTP ${status}`);
-            }
-
-            const data = await response.json().catch(() => ({}));
-            console.log('ðŸ“¦ Dados recebidos:', data);
-
-            // Normalizar formatos comuns de resposta de proxies/LLMs
-            let content = null;
-            if (typeof data.content === 'string') {
-                content = data.content;
-            } else if (data.choices && Array.isArray(data.choices) && data.choices[0]) {
-                const choice = data.choices[0];
-                if (choice.message && typeof choice.message.content === 'string') {
-                    content = choice.message.content;
-                } else if (typeof choice.text === 'string') {
-                    content = choice.text;
-                }
-            } else if (typeof data === 'string') {
-                content = data;
-            }
-
-            console.log('ðŸ“ ConteÃºdo extraÃ­do:', content ? content.substring(0, 200) + '...' : 'NULO');
-
-            if (!content || typeof content !== 'string' || content.trim().length === 0) {
-                console.error('[callGroqAPIWithBrowserSearch] resposta inesperada do proxy Groq:', data);
-                throw new Error('Resposta vazia ou formato inesperado do proxy Groq');
-            }
-
-            console.log('âœ… callGroqAPIWithBrowserSearch concluÃ­do com sucesso');
-            return content;
-        } catch (error) {
-            console.error('âŒ Erro em callGroqAPIWithBrowserSearch:', error);
-            if (error.name === 'AbortError') {
-                console.log('âš ï¸ RequisiÃ§Ã£o foi abortada pelo usuÃ¡rio');
-                throw new Error('ABORTED');
-            }
-            throw error;
-        }
-    }
-
-    // ==================== APIS ====================
-
-
-    async callGroqAPI(model, customMessages = null) {
-        const provider = this.getApiProvider();
-        const effectiveModel = this.normalizeModelForProvider(model, provider);
-
-        console.log('ðŸš€ callGroqAPI iniciado');
-        console.log('ðŸ“‹ API provider:', provider);
-        console.log('ðŸ“‹ Modelo original:', model);
-        console.log('ðŸ“‹ Modelo efetivo:', effectiveModel);
-        console.log('ðŸ“‹ Mensagens customizadas:', customMessages ? 'SIM' : 'NÃO');
-        console.log('ðŸ“‹ Histórico atual:', this.conversationHistory.length, 'mensagens');
-
-        // Not required to have a client-side Groq API key when using server-side proxy
-        // The proxy will use GROQ_API_KEY ou SAMBA_API_KEY das environment variables no Vercel
-
-        const systemPrompt = this.getSystemPrompt(this.getModeForModel(model));
-
-        const messages = customMessages || [{ role: 'system', content: systemPrompt }, ...this.conversationHistory];
-
-        console.log('ðŸ“¤ Mensagens finais para API:', messages.length, 'mensagens');
-        console.log('ðŸ“¤ Primeira mensagem:', (messages[0] && messages[0].content) ? (typeof messages[0].content === 'string' ? messages[0].content.substring(0, 100) + '...' : 'CONTEÃšDO MULTIMÃDIA') : 'SEM CONTEÃšDO');
-        if (messages.length > 1) {
-            const lastMessage = messages[messages.length - 1];
-            let contentPreview = 'SEM CONTEÃšDO';
-            if (lastMessage && lastMessage.content) {
-                if (typeof lastMessage.content === 'string') {
-                    contentPreview = lastMessage.content.substring(0, 100) + '...';
-                } else if (Array.isArray(lastMessage.content)) {
-                    const foundTextPart = lastMessage.content.find(item => item && item.type === 'text');
-                    if (foundTextPart && foundTextPart.text) {
-                        contentPreview = foundTextPart.text.substring(0, 100) + '...';
-                    } else {
-                        contentPreview = 'CONTEÃšDO MULTIMÃDIA (IMAGENS)';
-                    }
-                } else {
-                    contentPreview = 'CONTEÃšDO MULTIMÃDIA';
-                }
-            }
-            console.log('ðŸ“¤ Ãšltima mensagem:', contentPreview);
-        }
-
-        // Criar novo AbortController para cada requisiÃ§Ã£o
-        this.abortController = new AbortController();
-
-        try {
-            console.log('ðŸ“¡ Enviando requisiÃ§Ã£o para /api/groq-proxy...');
-            
-            const requestBody = {
-                provider,
-                model: effectiveModel,
-                messages,
-                temperature: 0.7,
-                max_tokens: 8192,
-                top_p: 1,
-                stream: false
-            };
-            
-            console.log('ðŸ“¦ Corpo da requisiÃ§Ã£o:', requestBody);
-
-            // Chamar proxy server-side no Vercel
-            const response = await fetch('/api/groq-proxy', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestBody),
-                signal: this.abortController.signal
-            });
-
-            console.log('ðŸ“¡ Resposta recebida:', response.status, response.statusText);
-            console.log('ðŸ“¡ Headers:', Object.fromEntries(response.headers.entries()));
-
-            if (!response.ok) {
-                const status = response.status;
-                const errorData = await response.json().catch(() => null);
-                console.error('âŒ Erro na resposta:', status, errorData);
-
-                const formatErrorMessage = (msg) => {
-                    if (msg === null || msg === undefined) return null;
-                    if (typeof msg === 'string') return msg;
-                    if (msg instanceof Error) return msg.message;
-                    try {
-                        return JSON.stringify(msg);
-                    } catch (jsonErr) {
-                        return String(msg);
-                    }
-                };
-
-                const fallbackFriendlyError = formatErrorMessage(errorData && (errorData.friendly_message || errorData.error || errorData.message || errorData));
-
-                // Verificar se Ã© mensagem amigável do fallback
-                if (errorData && errorData.friendly_message) {
-                    throw new Error(formatErrorMessage(errorData.friendly_message));
-                }
-
-                // Mensagens amigáveis para erros comuns
-                if (status === 500 && errorData && errorData.error && typeof errorData.error === 'string' && errorData.error.includes('GROQ_API_KEY')) {
-                    throw new Error('GROQ API Key nÃ£o estÃ¡ configurada no servidor. Adicione GROQ_API_KEY nas Environment Variables do Vercel.');
-                }
-                if (status === 401) {
-                    throw new Error('Invalid API Key: Verifique sua chave no Vercel para GROQ_API_KEY.');
-                }
-
-                throw new Error(fallbackFriendlyError || `Erro HTTP ${status}`);
-            }
-
-            const data = await response.json().catch(() => ({}));
-            console.log('ðŸ“¦ Dados recebidos:', data);
-
-            // Normalizar formatos comuns de resposta de proxies/LLMs
-            let content = null;
-            if (typeof data.content === 'string') {
-                content = data.content;
-            } else if (data.choices && Array.isArray(data.choices) && data.choices[0]) {
-                const choice = data.choices[0];
-                if (choice.message && typeof choice.message.content === 'string') {
-                    content = choice.message.content;
-                } else if (typeof choice.text === 'string') {
-                    content = choice.text;
-                }
-            } else if (typeof data === 'string') {
-                content = data;
-            }
-
-            console.log('ðŸ“ ConteÃºdo extraÃ­do:', content ? content.substring(0, 200) + '...' : 'NULO');
-
-            if (!content || typeof content !== 'string' || content.trim().length === 0) {
-                console.error('[callGroqAPI] resposta inesperada do proxy:', data);
-                throw new Error('Resposta vazia ou formato inesperado do proxy Groq');
-            }
-
-        console.log('âœ… callGroqAPI concluÃ­do com sucesso');
-        return content;
-        } catch (error) {
-            console.error('âŒ Erro em callGroqAPI:', error);
-            if (error && error.name === 'AbortError') {
-                console.log('âš ï¸ RequisiÃ§Ã£o foi abortada pelo usuÃ¡rio');
-                throw new Error('ABORTED');
-            }
-
-            // Garantir que sempre lancemos uma Error com mensagem legÃ­vel
-            if (error instanceof Error) {
-                throw error;
-            }
-            const normalizedError = (() => {
-                try {
-                    return new Error(JSON.stringify(error));
-                } catch {
-                    return new Error(String(error));
-                }
-            })();
-            throw normalizedError;
-        }
-    }
-
-    async searchUnsplashImages(query) {
-        console.log(`ðŸ” [UNSPLASH] Buscando imagens para: "${query}"`);
-        
-        // Chamar o proxy server-side para a API do Unsplash
-        const proxyUrl = '/api/unsplash-search';
-
-        try {
-            const response = await fetch(proxyUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ query: query })
-            });
-
-            console.log(`ðŸ“¡ [UNSPLASH] Resposta status: ${response.status}`);
-
-            // Verificar se a resposta Ã© vÃ¡lida antes de tentar ler JSON
-            if (!response.ok) {
-                console.error('Erro ao buscar imagens do Unsplash via proxy:', response.status, response.statusText);
-                return [];
-            }
-            
-            const data = await response.json();
-            console.log(`ðŸ“¦ [UNSPLASH] Dados recebidos:`, data);
-            
-            if (data.photos && Array.isArray(data.photos)) {
-                const images = data.photos.map(photo => ({
-                    src: photo.src.medium,
-                    // Limitar o texto alt para evitar descriÃ§Ãµes muito longas na UI
-                    alt: photo.alt ? photo.alt.substring(0, 100) : 'Imagem do Unsplash'
-                }));
-                console.log(`âœ… [UNSPLASH] ${images.length} imagens processadas`);
-                return images;
-            }
-            console.log(`âš ï¸ [UNSPLASH] Nenhuma imagem encontrada`);
-            return [];
-        } catch (error) {
-            console.error('Erro ao buscar imagens do Unsplash:', error);
-            return [];
-        }
-    }
-
-    shouldRecommendYouTubeVideos(query = '', assistantResponse = '') {
-        const normalizedQuery = this.normalizeIntentText(query);
-        if (!normalizedQuery || this.isGreetingMessage(normalizedQuery) || normalizedQuery.length < 10) {
-            return false;
-        }
-
-        const explicitVideoSignals = ['youtube', 'video', 'videos', 'vídeo', 'vídeos', 'aula', 'aulas', 'tutorial'];
-        if (explicitVideoSignals.some((signal) => normalizedQuery.includes(signal))) {
-            return true;
-        }
-
-        const blockedSignals = ['noticia', 'noticias', 'preco', 'precos', 'cotacao', 'cotacoes', 'clima', 'temperatura', 'fofoca', 'meme', 'piada'];
-        if (blockedSignals.some((signal) => normalizedQuery.includes(signal))) {
-            return false;
-        }
-
-        const learningIntentSignals = [
-            'explica',
-            'explique',
-            'me explica',
-            'me ensina',
-            'ensina',
-            'aprender',
-            'estudar',
-            'estudo',
-            'passo a passo',
-            'como resolver',
-            'como fazer',
-            'resolva',
-            'resolver',
-            'duvida',
-            'duvidas',
-            'materia',
-            'prova',
-            'exercicio',
-            'exercicios',
-            'questao',
-            'questoes',
-            'revisao'
-        ];
-
-        const subjectSignals = [
-            'matematica',
-            'regra de 3',
-            'raiz',
-            'fracao',
-            'porcentagem',
-            'equacao',
-            'bhaskara',
-            'geometria',
-            'algebra',
-            'fisica',
-            'quimica',
-            'biologia',
-            'historia',
-            'geografia',
-            'portugues',
-            'gramatica',
-            'redacao',
-            'ingles',
-            'programacao',
-            'algoritmo',
-            'javascript',
-            'typescript',
-            'python',
-            'html',
-            'css',
-            'sql'
-        ];
-
-        const questionSignals = ['como', 'o que e', 'qual', 'quais', 'por que', 'porque', 'me ajuda'];
-
-        const hasLearningIntent = learningIntentSignals.some((signal) => normalizedQuery.includes(signal));
-        const hasSubjectSignal = subjectSignals.some((signal) => normalizedQuery.includes(signal));
-        const hasQuestionIntent = questionSignals.some((signal) => normalizedQuery.includes(signal));
-
-        if (hasLearningIntent && (hasSubjectSignal || hasQuestionIntent)) {
-            return true;
-        }
-
-        const normalizedResponse = this.normalizeIntentText(assistantResponse);
-        return Boolean(
-            normalizedResponse
-            && hasSubjectSignal
-            && /\b(passo a passo|conceito|explicacao|formula|resolucao)\b/.test(normalizedResponse)
-        );
-    }
-
-    buildYouTubeVideoSearchQuery(query = '', assistantResponse = '') {
-        const rawQuery = String(query || '').trim().replace(/\s+/g, ' ').slice(0, 180);
-        const normalizedQuery = this.normalizeIntentText(rawQuery);
-        const normalizedResponse = this.normalizeIntentText(assistantResponse);
-
-        let suffix = ' aula explicacao';
-
-        if (/\b(programacao|javascript|typescript|python|html|css|sql|algoritmo)\b/.test(normalizedQuery)) {
-            suffix = ' tutorial explicacao';
-        } else if (/\b(exercicio|exercicios|questao|questoes|resolver|resolva)\b/.test(normalizedQuery)) {
-            suffix = ' aula resolucao passo a passo';
-        } else if (/\b(matematica|regra de 3|raiz|equacao|porcentagem|fracao|bhaskara)\b/.test(normalizedQuery)) {
-            suffix = ' aula explicacao passo a passo';
-        } else if (/\b(historia|geografia|biologia|fisica|quimica)\b/.test(normalizedQuery)) {
-            suffix = ' aula resumo explicacao';
-        } else if (/\b(gramatica|portugues|redacao|ingles)\b/.test(normalizedQuery)) {
-            suffix = ' aula explicacao exemplos';
-        } else if (/\b(formula|conceito|explicacao)\b/.test(normalizedResponse)) {
-            suffix = ' aula explicacao';
-        }
-
-        return `${rawQuery}${suffix}`.trim();
-    }
-
-    async searchYouTubeVideos(query, assistantResponse = '') {
-        if (!this.shouldRecommendYouTubeVideos(query, assistantResponse)) {
-            return [];
-        }
-
-        const searchQuery = this.buildYouTubeVideoSearchQuery(query, assistantResponse);
-        if (!searchQuery) {
-            return [];
-        }
-
-        try {
-            const response = await fetch('/api/youtube-search', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    query: searchQuery,
-                    maxResults: 2
-                })
-            });
-
-            if (!response.ok) {
-                console.warn('⚠️ [YOUTUBE] Falha ao buscar vídeos:', response.status, response.statusText);
-                return [];
-            }
-
-            const data = await response.json();
-            return Array.isArray(data.videos) ? data.videos.slice(0, 2) : [];
-        } catch (error) {
-            console.warn('⚠️ [YOUTUBE] Erro ao buscar vídeos:', error);
-            return [];
-        }
-    }
-
-    async attachYouTubeVideosToResponse({ userMessage, assistantResponse, responseId, chatId = null }) {
-        const safeResponse = assistantResponse == null ? '' : String(assistantResponse);
-        const targetChatId = chatId || this.getActiveChatId();
-        const videos = await this.searchYouTubeVideos(userMessage, safeResponse);
-
-        if (!Array.isArray(videos) || videos.length === 0) {
-            return [];
-        }
-
-        this.ui.appendYouTubeVideosToMessage(responseId, videos);
-
-        if (targetChatId) {
-            this.ui.updateAssistantMessageByContent(targetChatId, safeResponse, { videos });
-        }
-
-        return videos;
-    }
-
-    shouldRecommendYouTubeVideos(query = '', assistantResponse = '') {
-        const normalizedQuery = this.normalizeIntentText(query);
-        if (!normalizedQuery || this.isGreetingMessage(normalizedQuery) || normalizedQuery.length < 10) {
-            return false;
-        }
-
-        const explicitVideoSignals = [
-            'youtube',
-            'video',
-            'videos',
-            'aula',
-            'aulas',
-            'tutorial',
-            'canal',
-            'playlist',
-            'assistir'
-        ];
-        if (explicitVideoSignals.some((signal) => normalizedQuery.includes(signal))) {
-            return true;
-        }
-
-        const blockedSignals = [
-            'noticia',
-            'noticias',
-            'preco',
-            'precos',
-            'cotacao',
-            'cotacoes',
-            'clima',
-            'temperatura',
-            'fofoca',
-            'meme',
-            'piada',
-            'horoscopo',
-            'resultado do jogo',
-            'placar',
-            'tempo agora',
-            'ao vivo'
-        ];
-        if (blockedSignals.some((signal) => normalizedQuery.includes(signal))) {
-            return false;
-        }
-
-        const learningIntentSignals = [
-            'explica',
-            'explique',
-            'me explica',
-            'me ensina',
-            'ensina',
-            'aprender',
-            'estudar',
-            'estudo',
-            'passo a passo',
-            'como resolver',
-            'como fazer',
-            'resolva',
-            'resolver',
-            'duvida',
-            'duvidas',
-            'materia',
-            'prova',
-            'exercicio',
-            'exercicios',
-            'questao',
-            'questoes',
-            'revisao',
-            'entender',
-            'entendi',
-            'nao entendi',
-            'tenho dificuldade',
-            'to com dificuldade',
-            'do zero',
-            'iniciante',
-            'basico',
-            'introducao',
-            'conceito',
-            'conceitos',
-            'resumo',
-            'resumir',
-            'exemplo',
-            'exemplos',
-            'atividade',
-            'trabalho da escola',
-            'enem',
-            'vestibular'
-        ];
-
-        const subjectSignals = [
-            'matematica',
-            'regra de 3',
-            'raiz',
-            'fracao',
-            'porcentagem',
-            'equacao',
-            'bhaskara',
-            'geometria',
-            'geometria analitica',
-            'algebra',
-            'funcao',
-            'funcoes',
-            'trigonometria',
-            'logaritmo',
-            'calculo',
-            'derivada',
-            'integral',
-            'estatistica',
-            'fisica',
-            'quimica',
-            'biologia',
-            'historia',
-            'geografia',
-            'filosofia',
-            'sociologia',
-            'portugues',
-            'gramatica',
-            'redacao',
-            'interpretacao de texto',
-            'ingles',
-            'programacao',
-            'algoritmo',
-            'javascript',
-            'typescript',
-            'python',
-            'react',
-            'node',
-            'excel',
-            'power bi',
-            'html',
-            'css',
-            'sql'
-        ];
-
-        const questionSignals = ['como', 'o que e', 'qual', 'quais', 'por que', 'porque', 'me ajuda', 'me ajude', 'pode explicar'];
-        const difficultySignals = ['nao entendi', 'tenho dificuldade', 'to com dificuldade', 'travado', 'travada', 'confuso', 'confusa'];
-
-        const hasLearningIntent = learningIntentSignals.some((signal) => normalizedQuery.includes(signal));
-        const hasSubjectSignal = subjectSignals.some((signal) => normalizedQuery.includes(signal));
-        const hasQuestionIntent = questionSignals.some((signal) => normalizedQuery.includes(signal));
-        const hasDifficultySignal = difficultySignals.some((signal) => normalizedQuery.includes(signal));
-
-        if ((hasLearningIntent || hasDifficultySignal) && (hasSubjectSignal || hasQuestionIntent)) {
-            return true;
-        }
-
-        const normalizedResponse = this.normalizeIntentText(assistantResponse);
-        return Boolean(
-            normalizedResponse
-            && (hasSubjectSignal || hasLearningIntent)
-            && /\b(passo a passo|conceito|explicacao|formula|resolucao|exemplo|aula|tutorial)\b/.test(normalizedResponse)
-        );
-    }
-
-    buildYouTubeVideoSearchQuery(query = '', assistantResponse = '') {
-        const rawQuery = String(query || '').trim().replace(/\s+/g, ' ').slice(0, 180);
-        const normalizedQuery = this.normalizeIntentText(rawQuery);
-        const normalizedResponse = this.normalizeIntentText(assistantResponse);
-
-        let suffix = ' aula explicacao';
-
-        if (/\b(programacao|javascript|typescript|python|html|css|sql|algoritmo|react|node|excel|power bi)\b/.test(normalizedQuery)) {
-            suffix = ' tutorial explicacao';
-        } else if (/\b(exercicio|exercicios|questao|questoes|resolver|resolva|enem|vestibular)\b/.test(normalizedQuery)) {
-            suffix = ' aula resolucao passo a passo';
-        } else if (/\b(matematica|regra de 3|raiz|equacao|porcentagem|fracao|bhaskara|funcao|trigonometria|logaritmo|calculo|derivada|integral|estatistica)\b/.test(normalizedQuery)) {
-            suffix = ' aula explicacao passo a passo';
-        } else if (/\b(historia|geografia|biologia|fisica|quimica|filosofia|sociologia)\b/.test(normalizedQuery)) {
-            suffix = ' aula resumo explicacao';
-        } else if (/\b(gramatica|portugues|redacao|ingles|interpretacao de texto)\b/.test(normalizedQuery)) {
-            suffix = ' aula explicacao exemplos';
-        } else if (/\b(formula|conceito|explicacao)\b/.test(normalizedResponse)) {
-            suffix = ' aula explicacao';
-        }
-
-        return `${rawQuery}${suffix}`.trim();
-    }
-
-    async processMistralModel(userMessage, relevantContext = []) {
-        const messageContainer = this.ui.createAssistantMessageContainer();
-        const responseChatId = this.getActiveChatId();
-        const timestamp = Date.now();
-        this.ui.setThinkingHeader('Processando com Mistral (codestral-latest)...', messageContainer.headerId);
-        await this.ui.sleep(800);
-        this.addToHistory('user', userMessage);
-
-        const imagesPromise = this.searchUnsplashImages(userMessage);
-
-        try {
-            const thinkingChecks = await this.generateChecksSafely(userMessage);
-            for (let i = 0; i < thinkingChecks.length; i++) {
-                const stepId = `step_${timestamp}_${i}`;
-                const checkText = thinkingChecks[i].step;
-                this.ui.addThinkingStep('schedule', checkText, stepId, messageContainer.stepsId);
-                const delay = 800 + Math.random() * 1200;
-                await this.ui.sleep(delay);
-                this.ui.updateThinkingStep(stepId, 'check_circle', checkText);
-                await this.ui.sleep(200);
-            }
-
-            let memoryContext = '';
-            if (relevantContext.length > 0) {
-                memoryContext = '\n\nCONTEXTO RELEVANTE DA CONVERSA:\n';
-                relevantContext.forEach((memory, index) => {
-                    memoryContext += `${index + 1}. ${memory.role.toUpperCase()}: "${memory.content}" (Contexto: ${memory.context})\n`;
-                });
-                memoryContext += '\nUse este contexto para fornecer respostas mais personalizadas e relevantes.';
-            }
-
-            const systemPrompt = {
-                role: 'system',
-                content: `Você é o Drekee AI 1, um assistente de código inteligente com memória contextual. Forneça respostas completas e estruturadas com vários parágrafos organizados, destaques em markdown, listas claras, headings quando fizer sentido, tabelas em markdown quando agregarem valor, notação matemática quando apropriada e diagramas ASCII se ajudarem. Evite blocos enormes de código quando uma explicação visual ou objetiva resolver melhor. Seja técnico, claro e acessível.${memoryContext}`
-            };
-            const messages = this.extraMessagesForNextCall
-                ? [systemPrompt, ...this.extraMessagesForNextCall, ...this.conversationHistory]
-                : [systemPrompt, ...this.conversationHistory];
-
-            let response = await this.callMistralAPI('codestral-latest', messages);
-            this.extraMessagesForNextCall = null;
-
-            if (!response || typeof response !== 'string') {
-                throw new Error('Resposta vazia ou inválida do servidor Mistral');
-            }
-
-            try {
-                const parsedFiles = this.parseFilesFromText(response);
-                if (parsedFiles && parsedFiles.length > 0) {
-                    this.attachGeneratedFilesToChat(parsedFiles);
-                    response = response.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
-                }
-            } catch (error) {
-                console.warn('⚠️ Falha parsing arquivos de resposta Mistral:', error);
-            }
-
-            const parsedFiles = this.parseFilesFromText(response);
-            this.persistAssistantMessage(response, {
-                attachments: parsedFiles && parsedFiles.length > 0 ? parsedFiles : []
-            });
-
-            this.addToHistory('assistant', response);
-            this.memory.addConversationMemory('assistant', response);
-            this.memory.learnFromInteraction(userMessage, response);
-
-            await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
-
-            this.ui.setResponseText(response, messageContainer.responseId);
-            await this.ui.sleep(500);
-            this.ui.setResponseText(response, messageContainer.responseId, async () => {
-                await this.attachYouTubeVideosToResponse({
-                    userMessage,
-                    assistantResponse: response,
-                    responseId: messageContainer.responseId,
-                    chatId: responseChatId
-                });
-                this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
-            });
-            this.ui.setThinkingHeader('', messageContainer.headerId);
-        } catch (error) {
-            if (error.message === 'ABORTED') {
-                console.log('⚠️ Geração interrompida pelo usuário');
-                return;
-            }
-
-            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem na API Mistral. ' + error.message, messageContainer.responseId);
-            console.error('Erro no Modelo Mistral:', error);
-        }
-    }
-
-    async processMistralModel(userMessage, relevantContext = []) {
-        const messageContainer = this.ui.createAssistantMessageContainer();
-        const responseChatId = this.getActiveChatId();
-        const timestamp = Date.now();
-        this.ui.setThinkingHeader('Processando com Mistral (codestral-latest)...', messageContainer.headerId);
-        await this.ui.sleep(800);
-        this.addToHistory('user', userMessage);
-
-        const imagesPromise = this.searchUnsplashImages(userMessage);
-
-        try {
-            const thinkingChecks = await this.generateChecksSafely(userMessage);
-            for (let i = 0; i < thinkingChecks.length; i++) {
-                const stepId = `step_${timestamp}_${i}`;
-                const checkText = thinkingChecks[i].step;
-                this.ui.addThinkingStep('schedule', checkText, stepId, messageContainer.stepsId);
-                const delay = 800 + Math.random() * 1200;
-                await this.ui.sleep(delay);
-                this.ui.updateThinkingStep(stepId, 'check_circle', checkText);
-                await this.ui.sleep(200);
-            }
-
-            let memoryContext = '';
-            if (relevantContext.length > 0) {
-                memoryContext = '\n\nCONTEXTO RELEVANTE DA CONVERSA:\n';
-                relevantContext.forEach((memory, index) => {
-                    memoryContext += `${index + 1}. ${memory.role.toUpperCase()}: "${memory.content}" (Contexto: ${memory.context})\n`;
-                });
-                memoryContext += '\nUse este contexto para fornecer respostas mais personalizadas e relevantes.';
-            }
-
-            const systemPrompt = {
-                role: 'system',
-                content: `Você é o Drekee AI 1, um assistente de código inteligente com memória contextual. Forneça respostas completas e estruturadas com vários parágrafos organizados, destaques em markdown, listas claras, headings quando fizer sentido, tabelas em markdown quando agregarem valor, notação matemática quando apropriada e diagramas ASCII se ajudarem. Evite blocos enormes de código quando uma explicação visual ou objetiva resolver melhor. Seja técnico, claro e acessível.${memoryContext}`
-            };
-            const messages = this.extraMessagesForNextCall
-                ? [systemPrompt, ...this.extraMessagesForNextCall, ...this.conversationHistory]
-                : [systemPrompt, ...this.conversationHistory];
-
-            let response = await this.callMistralAPI('codestral-latest', messages);
-            this.extraMessagesForNextCall = null;
-
-            if (!response || typeof response !== 'string') {
-                throw new Error('Resposta vazia ou inválida do servidor Mistral');
-            }
-
-            try {
-                const parsedFiles = this.parseFilesFromText(response);
-                if (parsedFiles && parsedFiles.length > 0) {
-                    this.attachGeneratedFilesToChat(parsedFiles);
-                    response = response.replace(/---FILES-JSON---[\s\S]*?---END-FILES-JSON---/i, '').trim();
-                }
-            } catch (error) {
-                console.warn('Falha no parsing de arquivos da resposta Mistral:', error);
-            }
-
-            const parsedFiles = this.parseFilesFromText(response);
-            this.persistAssistantMessage(response, {
-                attachments: parsedFiles && parsedFiles.length > 0 ? parsedFiles : []
-            });
-
-            this.addToHistory('assistant', response);
-            this.memory.addConversationMemory('assistant', response);
-            this.memory.learnFromInteraction(userMessage, response);
-
-            await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
-
-            this.ui.setResponseText(response, messageContainer.responseId);
-            await this.ui.sleep(500);
-            this.ui.setResponseText(response, messageContainer.responseId, async () => {
-                await this.attachYouTubeVideosToResponse({
-                    userMessage,
-                    assistantResponse: response,
-                    responseId: messageContainer.responseId,
-                    chatId: responseChatId
-                });
-                this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
-            });
-            this.ui.setThinkingHeader('', messageContainer.headerId);
-        } catch (error) {
-            if (error.message === 'ABORTED') {
-                console.log('Geração interrompida pelo usuário');
-                return;
-            }
-
-            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem na API Mistral. ' + error.message, messageContainer.responseId);
-            console.error('Erro no Modelo Mistral:', error);
-        }
-    }
-
-    async searchWebForResponse(query) {
-        console.log(`ðŸ” [WEB-SEARCH] Buscando informaÃ§Ãµes na web para: "${query}"`);
-
-        if (!this.shouldUseWebSearch(query)) {
-            console.log('â­ï¸ [WEB-SEARCH] Busca web ignorada: consulta casual, estÃ¡vel ou sem necessidade.');
-            return null;
-        }
-        
-        // Chamar o proxy server-side para a API Tavily com fallback
-        const proxyUrl = '/api/tavily-search';
-
-        try {
-            const response = await fetch(proxyUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ message: query })
-            });
-
-            console.log(`ðŸ“¡ [WEB-SEARCH] Resposta status: ${response.status}`);
-
-            // Verificar se a resposta Ã© vÃ¡lida antes de tentar ler JSON
-            if (!response.ok) {
-                console.error('Erro ao buscar informaÃ§Ãµes na web:', response.status, response.statusText);
-                return null;
-            }
-            
-            const data = await response.json();
-            console.log(`ðŸ“¦ [WEB-SEARCH] Dados recebidos:`, data);
-            
-            if (data.sources && Array.isArray(data.sources)) {
-                console.log(`âœ… [WEB-SEARCH] ${data.sources.length} fontes encontradas`);
-                return {
-                    answer: data.answer || data.response || '',
-                    response: data.response || data.answer || '',
-                    sources: data.sources,
-                    query: query
-                };
-            }
-            console.log(`âš ï¸ [WEB-SEARCH] Nenhuma fonte encontrada`);
-            return null;
-        } catch (error) {
-            console.error('Erro ao buscar informaÃ§Ãµes na web:', error);
-            return null;
-        }
-    }
-
-    async generateImageWithPollinations(prompt) {
-        console.log(`ðŸŽ¨ [POLLINATIONS-IMAGE] Gerando imagem para: "${prompt}"`);
-        
-        try {
-            const response = await fetch('/api/pollinations-image', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    prompt: prompt
-                })
-            });
-            
-            if (!response.ok) {
-                if (response.status === 429) {
-                    console.error('â³ Rate limit da Pollinations Image - aguarde alguns segundos');
-                    throw new Error('Muitas solicitações! Tente novamente em alguns segundos.');
-                }
-                const errorText = await response.text();
-                let errorData = null;
-                try {
-                    errorData = errorText ? JSON.parse(errorText) : null;
-                } catch (parseError) {
-                    errorData = null;
-                }
-                console.error('Erro ao gerar imagem com Pollinations:', response.status, errorData || errorText);
-                throw new Error(
-                    errorData?.friendly_message ||
-                    errorData?.details ||
-                    errorText ||
-                    errorData?.error ||
-                    'NÃ£o foi possÃ­vel gerar a imagem'
-                );
-            }
-            
-            const data = await response.json();
-            
-            if (data.imageUrl) {
-                console.log(`âœ… [POLLINATIONS-IMAGE] Imagem gerada: ${data.imageUrl}`);
-                return {
-                    imageUrl: data.imageUrl,
-                    prompt: prompt,
-                    model: data.model || 'pollinations',
-                    usedFallback: false,
-                    fallbackCandidates: Array.isArray(data.fallbackCandidates) ? data.fallbackCandidates : [],
-                    openUrl: data.openUrl || data.imageUrl
-                };
-            }
-
-            console.log('âš ï¸ [POLLINATIONS-IMAGE] Nenhuma imagem gerada');
-            return null;
-        } catch (error) {
-            console.error('Erro ao gerar imagem com Pollinations:', error);
-            throw error;
-        }
-    }
-    // ==================== UTILITIES ====================
-    addToHistory(role, content) {
-        this.conversationHistory.push({
-            role: role,
-            content: content
-        });
-
-        if (this.conversationHistory.length > this.maxHistoryMessages) {
-            this.conversationHistory.shift();
-            console.log('ðŸ—‘ï¸ Mensagem mais antiga removida (limite de 10 mensagens)');
-        }
-    }
-
-    getModeForModel(model) {
-        const normalized = String(model || '').toLowerCase();
-
-        if (normalized.includes('qwen') || normalized.includes('reason')) {
-            return 'raciocinio';
-        }
-
-        if (normalized.includes('70b') || normalized.includes('gpt-oss') || normalized.includes('pro')) {
-            return 'pro';
-        }
-
-        return 'rapido';
-    }
-
-    normalizeIntentText(text = '') {
-        return String(text || '')
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toLowerCase()
-            .replace(/[^\p{L}\p{N}\s?!.,-]/gu, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-    }
-
-    isGreetingMessage(text = '') {
-        const normalized = this.normalizeIntentText(text);
-        if (!normalized) {
-            return false;
-        }
-
-        return /^(oi|ola|opa|e ai|eae|iae|hello|hi|hey|bom dia|boa tarde|boa noite|tudo bem|oi tudo bem|ola tudo bem)[!?. ]*$/.test(normalized);
-    }
-
-    shouldUseWebSearch(query = '') {
-        const normalized = this.normalizeIntentText(query);
-        if (!normalized || this.isGreetingMessage(normalized)) {
-            return false;
-        }
-
-        const explicitWebSignals = [
-            'pesquise',
-            'procure',
-            'busque',
-            'na web',
-            'na internet',
-            'no google',
-            'pesquisa web',
-            'tavily',
-            'fonte',
-            'fontes',
-            'link',
-            'links',
-            'verifique',
-            'verificar',
-            'confirme',
-            'confirmar',
-            'cheque',
-            'checar',
-            'valide',
-            'validar',
-            'cite fonte',
-            'com fontes',
-            'fonte oficial',
-            'fontes oficiais',
-            'oficial',
-            'confiavel',
-            'confiabilidade'
-        ];
-
-        if (explicitWebSignals.some(signal => normalized.includes(signal))) {
-            return true;
-        }
-
-        const timelySignals = [
-            'hoje',
-            'agora',
-            'atual',
-            'atualmente',
-            'recente',
-            'recentes',
-            'ultimas',
-            'ultimos',
-            'noticias',
-            'cotacao',
-            'cotacoes',
-            'preco',
-            'precos',
-            'valor',
-            'valores',
-            'lancamento',
-            'versao',
-            'versoes',
-            'mudou',
-            'mudanca',
-            'mudancas',
-            'clima',
-            'temperatura',
-            'resultado',
-            'placar',
-            'disponivel',
-            'disponibilidade'
-        ];
-
-        if (timelySignals.some(signal => normalized.includes(signal))) {
-            return true;
-        }
-
-        const factualExternalSignals = [
-            'empresa',
-            'empresas',
-            'governo',
-            'presidente',
-            'ceo',
-            'produto',
-            'produtos',
-            'servico',
-            'servicos',
-            'plano',
-            'planos',
-            'api',
-            'sdk',
-            'modelo',
-            'modelos',
-            'documentacao',
-            'docs',
-            'release',
-            'changelog',
-            'roadmap',
-            'framework',
-            'biblioteca',
-            'package',
-            'pacote',
-            'pacotes',
-            'licenca',
-            'lei',
-            'norma',
-            'regulacao',
-            'regra oficial'
-        ];
-
-        const researchIntentSignals = [
-            'qual',
-            'quais',
-            'como',
-            'quando',
-            'onde',
-            'quem',
-            'compare',
-            'comparar',
-            'diferenca',
-            'diferencas',
-            'lista',
-            'listar',
-            'mostrar',
-            'explica',
-            'explique',
-            'resuma',
-            'resumir',
-            'guia',
-            'passo a passo'
-        ];
-
-        if (factualExternalSignals.some(signal => normalized.includes(signal))
-            && researchIntentSignals.some(signal => normalized.includes(signal))) {
-            return true;
-        }
-
-        if (normalized.length <= 12) {
-            return false;
-        }
-
-        return /\b(empresa|governo|presidente|ceo|api|sdk|modelo|modelos|produto|produtos|documentacao|docs|release|changelog|framework|biblioteca|lei|regulacao|servico|servicos|plano|planos)\b/.test(normalized)
-            && /\b(qual|quais|como|quando|onde|quem|compare|comparar|lista|listar|mostrar|explica|explique|resuma|resumir)\b/.test(normalized);
-    }
-
-    buildWebContextBlock(webData) {
-        if (!webData || !Array.isArray(webData.sources) || webData.sources.length === 0) {
-            return '';
-        }
-
-        const sources = webData.sources.slice(0, 4).map((source, index) => {
-            const title = (source.title || `Fonte ${index + 1}`).replace(/\s+/g, ' ').trim();
-            const url = source.url || 'URL nÃ£o informada';
-            const snippet = (source.content || source.snippet || '')
-                .replace(/\s+/g, ' ')
-                .trim()
-                .slice(0, 220);
-
-            return `[${index + 1}] ${title}\nURL: ${url}${snippet ? `\nTrecho: ${snippet}` : ''}`;
-        }).join('\n\n');
-
-        const summary = webData.answer || webData.response || '';
-
-        return `\n\nContexto opcional da web:
-- Use este material apenas como apoio para melhorar a resposta.
-- Use a busca principalmente para verificar fatos externos, mutÃ¡veis ou que peÃ§am fonte.
-- Se os resultados estiverem tangenciais, ignore-os.
-- Nunca deixe resultados da busca distorcerem saudaÃ§Ãµes simples, conversa casual ou conhecimento estÃ¡vel.
-- Se houver conflito entre a pergunta do usuÃ¡rio e a busca, responda primeiro ao que foi perguntado e trate a web como evidÃªncia complementar.
-${summary ? `Resumo de apoio: ${summary}\n` : ''}Fontes:\n${sources}`;
-    }
-
-    // Retorna o system prompt apropriado por 'mode' para estabelecer tom/estilo
     getSystemPrompt(mode) {
         const userProfileContext = buildUserProfilePromptContext();
         const basePersonality = `Você é a Drekee AI, uma assistente de IA útil, inteligente, honesta e equilibrada.

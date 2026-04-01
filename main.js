@@ -88,6 +88,7 @@ class UI {
             messagesContainer: document.getElementById('messagesContainer'),
             userInput: document.getElementById('userInput'),
             sendButton: document.getElementById('sendButton'),
+            effortIndicator: document.getElementById('effortIndicator'),
             agentThinkingIndicator: document.getElementById('agentThinkingIndicator'),
             agentThinkingVideo: document.getElementById('agentThinkingVideo'),
             attachFileBtn: document.getElementById('attachFileBtn'),
@@ -7792,6 +7793,9 @@ ${latexCode}
             pendingMessage: ''
         });
 
+        // Resetar indicador de esforço antes de iniciar a geração
+        this.updateEffortIndicator(0);
+
         // Se modo agente está ativo, processar mensagem com o agente
         if (window.isAgentMode) {
             this.elements.userInput.value = '';
@@ -12759,6 +12763,21 @@ ${chunk}${bibliographyBlock}
 
     }
 
+    updateEffortIndicator(percent = 0, warning) {
+        const indicator = this.elements.effortIndicator;
+        if (!indicator) return;
+
+        const clamped = Math.min(100, Math.max(0, Math.round(percent)));
+        indicator.textContent = `${clamped}%`;
+
+        if (warning) {
+            indicator.style.backgroundColor = '#d94630';
+            indicator.title = warning;
+        } else {
+            indicator.style.backgroundColor = 'rgba(0,0,0,0.6)';
+            indicator.title = 'Esforço estimado da IA: carga de tokens, memória e tamanho de resposta.';
+        }
+    }
 
 
     handlePause() {
