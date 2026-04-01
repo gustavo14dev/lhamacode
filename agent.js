@@ -1223,22 +1223,20 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             }
 
             console.log('ðŸ“„ Resposta bruta da API:', fullResponse);
-            // Extrair raciocÃ­nio das tags <raciocÃ­nio>
+            // Extrair raciocínio das tags <think>
             let reasoningText = '';
             let finalResponse = fullResponse;
             
-            // Tentar extrair raciocÃ­nio das tags (mÃºltiplos padrÃµes)
-            let reasoningMatch = fullResponse.match(/<raciocÃ­nio>([\s\S]*?)<\/raciocÃ­nio>/i);
+            // Tentar extrair raciocínio das tags (múltiplos padrões)
+            let reasoningMatch = fullResponse.match(/<think>([\s\S]*?)<\/think>/i);
             if (!reasoningMatch) {
-                // Tentar outros padrÃµes possÃ­veis
+                reasoningMatch = fullResponse.match(/<raciocÃ­nio>([\s\S]*?)<\/raciocÃ­nio>/i);
+            }
+            if (!reasoningMatch) {
                 reasoningMatch = fullResponse.match(/<raciocinio>([\s\S]*?)<\/raciocinio>/i);
             }
             if (!reasoningMatch) {
-                // Tentar sem acento
-                reasoningMatch = fullResponse.match(/<raciocinio>([\s\S]*?)<\/raciocinio>/i);
-            }
-            if (!reasoningMatch) {
-                // Tentar detectar raciocÃ­nio manualmente (comeÃ§a com "RaciocÃ­nio:")
+                // Tentar detectar raciocínio manualmente (começa com "Raciocínio:")
                 const manualMatch = fullResponse.match(/^RaciocÃ­nio:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/im);
                 if (manualMatch) {
                     reasoningText = manualMatch[0].replace(/^RaciocÃ­nio:\s*/i, '').trim();
@@ -1250,7 +1248,9 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             if (reasoningMatch) {
                 reasoningText = reasoningMatch[1].trim();
                 // Remover as tags de raciocÃ­nio da resposta final
+                finalResponse = fullResponse.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
                 finalResponse = fullResponse.replace(/<raciocÃ­nio>[\s\S]*?<\/raciocÃ­nio>/gi, '').trim();
+                finalResponse = fullResponse.replace(/<raciocinio>[\s\S]*?<\/raciocinio>/gi, '').trim();
                 finalResponse = finalResponse.replace(/<raciocinio>[\s\S]*?<\/raciocinio>/gi, '').trim();
                 
                 // Limpeza AGRESSIVA: remover qualquer texto que pareÃ§a raciocÃ­nio
@@ -1567,7 +1567,8 @@ Modo Rápido:
 
 Modo Raciocínio:
 - pense com cuidado antes de responder;
-- coloque seu raciocínio completo dentro das tags <raciocínio>...</raciocínio>;
+- coloque seu raciocínio completo dentro das tags <think>...</think>;
+- se precisar compatibilidade, <raciocínio>...</raciocínio> ou <raciocinio>...</raciocinio> também são aceitos;
 - não coloque nenhuma parte do raciocínio fora dessas tags;
 - depois das tags, entregue apenas a resposta final ao usuário;
 - a resposta final deve ser bem estruturada, clara e útil, sem floreios desnecessários.`;
