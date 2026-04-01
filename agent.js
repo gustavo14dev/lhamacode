@@ -34,6 +34,53 @@ export class Agent {
         return this.activeChatIdForGeneration || this.ui.currentChatId || null;
     }
 
+    getApiProvider() {
+        if (this.apiProvider) return this.apiProvider;
+
+        let provider = (localStorage.getItem('api_provider') || '').toString().toLowerCase();
+        if (!provider) {
+            provider = process.env?.DEFAULT_API_PROVIDER?.toString().toLowerCase() || 'groq';
+        }
+
+        if (!['groq', 'samba'].includes(provider)) {
+            provider = 'groq';
+        }
+
+        this.apiProvider = provider;
+        return provider;
+    }
+
+    setApiProvider(provider) {
+        provider = (provider || '').toString().toLowerCase();
+        if (['groq', 'samba'].includes(provider)) {
+            this.apiProvider = provider;
+            localStorage.setItem('api_provider', provider);
+        }
+    }
+
+    normalizeModelForProvider(model, provider) {
+        if (!model || typeof model !== 'string') return model;
+        if (provider === 'samba') {
+            const normalized = model.toLowerCase();
+            if (normalized.includes('llama-3.1-8b') || normalized.includes('llama-3.1-8b-instant')) {
+                return 'Meta-Llama-3.1-8B-Instruct';
+            }
+            if (normalized.includes('llama-3.3-70b') || normalized.includes('llama-3.3-70b-versatile')) {
+                return 'Meta-Llama-3.3-70B-Instruct';
+            }
+            if (normalized.includes('llama-4-maverick-17b-128e') || normalized.includes('llama-4-maverick-17b-128e-instruct')) {
+                return 'Llama-4-Maverick-17B-128E-Instruct';
+            }
+            // Preserve qwen / outros modelos conforme fornecido
+            if (normalized.includes('meta-llama') || normalized.includes('qwen') || normalized.includes('gemma') || normalized.includes('openai')) {
+                return model;
+            }
+            // Mapeamento genérico.
+            return model;
+        }
+        return model;
+    }
+
     persistAssistantMessage(content, options = {}) {
         const targetChatId = options.chatId || this.getActiveChatId();
         if (!targetChatId) {
@@ -74,22 +121,18 @@ export class Agent {
 
     // VerificaÃ§Ã£o rÃ¡pida de API antes de processar
     async quickApiCheck() {
-        const apiKey = this.getGroqApiKey();
+        const provider = this.getApiProvider();
 
-        if (!apiKey) {
-            throw new Error('Nenhuma API key configurada');
-        }
-
-        // Fazer uma requisiÃ§Ã£o rÃ¡pida para testar a API
+        // Fazer uma requisiÃ§Ã£o rápida para testar a API via proxy
         try {
-            const response = await fetch(this.groqUrl, {
+            const response = await fetch('/api/groq-proxy', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${ apiKey }`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    model: 'llama-3.1-8b-instant',
+                    provider,
+                    model: this.normalizeModelForProvider('llama-3.1-8b-instant', provider),
                     messages: [{ role: 'user', content: 'test' }],
                     max_tokens: 1
                 })
@@ -887,6 +930,10 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 ...this.conversationHistory
             ];
 
+            // Forçar SambaNova para modo rápido como solicitado
+            this.setApiProvider('samba');
+            console.log('ðŸ“‹ [DEBUG-RAPIDO] API provider definido para SambaNova via SAMBA_API_KEY');
+
             let response = await this.callGroqAPI('llama-3.1-8b-instant', finalMessages);
             console.log('ðŸ” [DEBUG-RAPIDO] Resposta da API recebida:', response ? response.substring(0, 100) + '...' : 'NULO');
             console.log('ðŸ” [DEBUG-RAPIDO] Tipo da resposta:', typeof response);
@@ -1515,18 +1562,23 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 
 
     async callGroqAPI(model, customMessages = null) {
+        const provider = this.getApiProvider();
+        const effectiveModel = this.normalizeModelForProvider(model, provider);
+
         console.log('ðŸš€ callGroqAPI iniciado');
-        console.log('ðŸ“‹ Modelo:', model);
-        console.log('ðŸ“‹ Mensagens customizadas:', customMessages ? 'SIM' : 'NÃƒO');
-        console.log('ðŸ“‹ HistÃ³rico atual:', this.conversationHistory.length, 'mensagens');
-        
+        console.log('ðŸ“‹ API provider:', provider);
+        console.log('ðŸ“‹ Modelo original:', model);
+        console.log('ðŸ“‹ Modelo efetivo:', effectiveModel);
+        console.log('ðŸ“‹ Mensagens customizadas:', customMessages ? 'SIM' : 'NÃO');
+        console.log('ðŸ“‹ Histórico atual:', this.conversationHistory.length, 'mensagens');
+
         // Not required to have a client-side Groq API key when using server-side proxy
-        // The proxy will use GROQ_API_KEY from environment variables on Vercel
-        
+        // The proxy will use GROQ_API_KEY ou SAMBA_API_KEY das environment variables no Vercel
+
         const systemPrompt = this.getSystemPrompt(this.getModeForModel(model));
-        
+
         const messages = customMessages || [{ role: 'system', content: systemPrompt }, ...this.conversationHistory];
-        
+
         console.log('ðŸ“¤ Mensagens finais para API:', messages.length, 'mensagens');
         console.log('ðŸ“¤ Primeira mensagem:', (messages[0] && messages[0].content) ? (typeof messages[0].content === 'string' ? messages[0].content.substring(0, 100) + '...' : 'CONTEÃšDO MULTIMÃDIA') : 'SEM CONTEÃšDO');
         if (messages.length > 1) {
@@ -1556,11 +1608,12 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             console.log('ðŸ“¡ Enviando requisiÃ§Ã£o para /api/groq-proxy...');
             
             const requestBody = {
-                model, 
-                messages, 
-                temperature: 0.7, 
-                max_tokens: 8192, 
-                top_p: 1, 
+                provider,
+                model: effectiveModel,
+                messages,
+                temperature: 0.7,
+                max_tokens: 8192,
+                top_p: 1,
                 stream: false
             };
             
