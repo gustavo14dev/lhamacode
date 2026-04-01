@@ -1586,6 +1586,46 @@ Responda com clareza, utilidade e bom senso.`;
         }
     }
 
+    buildWebContextBlock(webData) {
+        if (!webData || typeof webData !== 'object') {
+            return '';
+        }
+
+        const contextLines = [];
+
+        if (webData.query) {
+            contextLines.push(`Consulta web: ${webData.query}`);
+        }
+
+        if (Array.isArray(webData.sources) && webData.sources.length > 0) {
+            const topSources = webData.sources.slice(0, 5);
+            contextLines.push('Fontes encontradas:');
+            topSources.forEach((source, i) => {
+                const title = source.title || source.name || 'Fonte sem título';
+                const url = source.url || source.link || 'URL não disponível';
+                const snippet = source.snippet ? ` - ${source.snippet}` : '';
+                contextLines.push(`${i + 1}. ${title} (${url})${snippet}`);
+            });
+        }
+
+        if (Array.isArray(webData.results) && webData.results.length > 0) {
+            const topResults = webData.results.slice(0, 5);
+            contextLines.push('Resultados de pesquisa adicionais:');
+            topResults.forEach((result, i) => {
+                const title = result.title || result.name || 'Resultado sem título';
+                const url = result.url || result.link || 'URL não disponível';
+                const snippet = result.snippet ? ` - ${result.snippet}` : '';
+                contextLines.push(`${i + 1}. ${title} (${url})${snippet}`);
+            });
+        }
+
+        if (contextLines.length === 0) {
+            return '';
+        }
+
+        return `\n\nContexto da web:\n${contextLines.join('\n')}`;
+    }
+
     showError(message) {
         const messageContainer = this.ui.createAssistantMessageContainer();
         const timestamp = Date.now();
