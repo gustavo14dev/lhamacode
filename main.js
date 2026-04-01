@@ -10544,6 +10544,7 @@ ${chunk}${bibliographyBlock}
                 
                 <div class="flex-1 max-w-[85%] px-5 py-4">
                     <div class="text-base leading-relaxed text-gray-600 dark:text-gray-300 mb-4" id="thinkingHeader_${uniqueId}"></div>
+                    <div id="thinkCard_${uniqueId}" class="hidden mb-4"></div>
                     <div class="text-base leading-relaxed text-gray-700 dark:text-gray-200 min-h-4" id="responseText_${uniqueId}"></div>
                 </div>
             </div>
@@ -10600,7 +10601,8 @@ ${chunk}${bibliographyBlock}
             headerId: `thinkingHeader_${uniqueId}`,
             responseId: `responseText_${uniqueId}`,
             actionsId: `actions_${uniqueId}`,
-            stepsId: null // Para compatibilidade com modelos que usam steps
+            stepsId: null, // Para compatibilidade com modelos que usam steps
+            thinkCardId: `thinkCard_${uniqueId}`
         };
     }
 
@@ -10633,6 +10635,8 @@ ${chunk}${bibliographyBlock}
                 <div class="flex-1 max-w-[85%] px-5 py-4">
 
                     <div class="text-base leading-relaxed text-gray-600 dark:text-gray-300 mb-4" id="thinkingHeader_${uniqueId}"></div>
+
+                    <div id="thinkCard_${uniqueId}" class="hidden mb-4"></div>
 
                     <div class="text-base leading-relaxed text-gray-700 dark:text-gray-200 min-h-4" id="responseText_${uniqueId}"></div>
 
@@ -10736,7 +10740,8 @@ ${chunk}${bibliographyBlock}
             headerId: `thinkingHeader_${uniqueId}`,
             responseId: `responseText_${uniqueId}`,
             actionsId: `actions_${uniqueId}`,
-            stepsId: null // Para compatibilidade com modelos que usam steps
+            stepsId: null, // Para compatibilidade com modelos que usam steps
+            thinkCardId: `thinkCard_${uniqueId}`
         };
 
     }

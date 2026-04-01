@@ -1249,23 +1249,34 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 reasoningText = reasoningMatch[1].trim();
                 // Remover as tags de raciocÃ­nio da resposta final
                 finalResponse = fullResponse.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-                finalResponse = fullResponse.replace(/<raciocÃ­nio>[\s\S]*?<\/raciocÃ­nio>/gi, '').trim();
-                finalResponse = fullResponse.replace(/<raciocinio>[\s\S]*?<\/raciocinio>/gi, '').trim();
+                finalResponse = finalResponse.replace(/<raciocÃ­nio>[\s\S]*?<\/raciocÃ­nio>/gi, '').trim();
                 finalResponse = finalResponse.replace(/<raciocinio>[\s\S]*?<\/raciocinio>/gi, '').trim();
-                
-                // Limpeza AGRESSIVA: remover qualquer texto que pareÃ§a raciocÃ­nio
+                finalResponse = finalResponse.replace(/<\s*think[^>]*>[\s\S]*?<\s*\/\s*think\s*>/gi, '').trim();
+                finalResponse = finalResponse.replace(/<\s*racioc[ií]nio[^>]*>[\s\S]*?<\s*\/\s*racioc[ií]nio\s*>/gi, '').trim();
+                // Limpeza AGRESSIVA: remover qualquer texto que pareça raciocínio
                 finalResponse = finalResponse.replace(/^RaciocÃ­nio:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/gim, '').trim();
                 finalResponse = finalResponse.replace(/^Pensando:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/gim, '').trim();
                 finalResponse = finalResponse.replace(/^AnÃ¡lise:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/gim, '').trim();
                 
                 // Remover linhas em branco extras
                 finalResponse = finalResponse.replace(/^\n+/gm, '').trim();
-                
                 console.log('ðŸ§  RaciocÃ­nio extraÃ­do:', reasoningText.substring(0, 100) + '...');
                 console.log('ðŸ“ Resposta final limpa:', finalResponse.substring(0, 100) + '...');
             } else {
                 console.log('âš ï¸ Nenhuma tag <raciocÃ­nio> encontrada na resposta');
                 console.log('ðŸ“ ConteÃºdo da resposta (primeiros 200 chars):', fullResponse.substring(0, 200));
+            }
+            
+            if (reasoningText && messageContainer.thinkCardId) {
+                const thinkCard = document.getElementById(messageContainer.thinkCardId);
+                if (thinkCard) {
+                    thinkCard.classList.remove('hidden');
+                    thinkCard.innerHTML = `
+                        <div class="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
+                            ${this.ui.escapeHtml(reasoningText)}
+                        </div>
+                    `;
+                }
             }
             
             // Tentar extrair arquivos gerados na resposta e anexÃ¡-los ao chat
