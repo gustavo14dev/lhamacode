@@ -1084,8 +1084,12 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         try {
             // BUSCAR IMAGENS E INFORMAÃ‡Ã•ES WEB EM PARALELO - antes de chamar a API
             console.log('ðŸ”„ [DEBUG-RAPIDO] Buscando imagens e informaÃ§Ãµes web ANTES da resposta...');
-            const imagesPromise = this.searchUnsplashImages(userMessage);
-            const webSearchPromise = this.searchWebForResponse(userMessage);
+            const imagesPromise = (typeof this.searchUnsplashImages === 'function')
+                ? this.searchUnsplashImages(userMessage)
+                : Promise.resolve([]);
+            const webSearchPromise = (typeof this.searchWebForResponse === 'function')
+                ? this.searchWebForResponse(userMessage)
+                : Promise.resolve({ query: userMessage, sources: [], results: [] });
             
             const [images, webData] = await Promise.all([imagesPromise, webSearchPromise]);
             console.log('ðŸ“¦ [DEBUG-RAPIDO] Imagens recebidas:', images);
@@ -1182,8 +1186,12 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         
         try {
             // Buscar dados web antes de chamar a API
-            const imagesPromise = this.searchUnsplashImages(userMessage);
-            const webSearchPromise = this.searchWebForResponse(userMessage);
+            const imagesPromise = (typeof this.searchUnsplashImages === 'function')
+                ? this.searchUnsplashImages(userMessage)
+                : Promise.resolve([]);
+            const webSearchPromise = (typeof this.searchWebForResponse === 'function')
+                ? this.searchWebForResponse(userMessage)
+                : Promise.resolve({ query: userMessage, sources: [], results: [] });
             const [images, webData] = await Promise.all([imagesPromise, webSearchPromise]);
             console.log('ðŸ“¦ [RACIOCINIO] Imagens recebidas:', images);
             console.log('ðŸŒ [RACIOCINIO] Dados web recebidos:', webData);
