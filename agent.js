@@ -932,12 +932,13 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.persistAssistantMessage(response);
 
         } catch (error) {
-            if (error.message === 'ABORTED') {
+            const errorMessage = error && typeof error.message === 'string' ? error.message : String(error);
+            if (errorMessage === 'ABORTED') {
                 console.log('âš ï¸ GeraÃ§Ã£o interrompida pelo usuÃ¡rio');
                 return;
             }
-            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem. ' + error.message, messageContainer.responseId);
-            console.error('Erro no Modelo RÃ¡pido:', error);
+            this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem. ' + errorMessage, messageContainer.responseId);
+            console.error('Erro no Modelo Rápido:', error);
         }
     }
 
@@ -1582,20 +1583,34 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 const status = response.status;
                 const errorData = await response.json().catch(() => null);
                 console.error('âŒ Erro na resposta:', status, errorData);
-                
-                // Verificar se Ã© mensagem amigÃ¡vel do fallback
+
+                const formatErrorMessage = (msg) => {
+                    if (msg === null || msg === undefined) return null;
+                    if (typeof msg === 'string') return msg;
+                    if (msg instanceof Error) return msg.message;
+                    try {
+                        return JSON.stringify(msg);
+                    } catch (jsonErr) {
+                        return String(msg);
+                    }
+                };
+
+                const fallbackFriendlyError = formatErrorMessage(errorData && (errorData.friendly_message || errorData.error || errorData.message || errorData));
+
+                // Verificar se Ã© mensagem amigável do fallback
                 if (errorData && errorData.friendly_message) {
-                    throw new Error(errorData.friendly_message);
+                    throw new Error(formatErrorMessage(errorData.friendly_message));
                 }
-                
-                // Mensagens amigÃ¡veis para erros comuns
-                if (status === 500 && errorData && errorData.error && errorData.error.includes('GROQ_API_KEY')) {
+
+                // Mensagens amigáveis para erros comuns
+                if (status === 500 && errorData && errorData.error && typeof errorData.error === 'string' && errorData.error.includes('GROQ_API_KEY')) {
                     throw new Error('GROQ API Key nÃ£o estÃ¡ configurada no servidor. Adicione GROQ_API_KEY nas Environment Variables do Vercel.');
                 }
                 if (status === 401) {
                     throw new Error('Invalid API Key: Verifique sua chave no Vercel para GROQ_API_KEY.');
                 }
-                throw new Error((errorData && errorData.error) ? errorData.error : `Erro HTTP ${status}`);
+
+                throw new Error(fallbackFriendlyError || `Erro HTTP ${status}`);
             }
 
             const data = await response.json().catch(() => ({}));
@@ -1627,11 +1642,23 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         return content;
         } catch (error) {
             console.error('âŒ Erro em callGroqAPI:', error);
-            if (error.name === 'AbortError') {
+            if (error && error.name === 'AbortError') {
                 console.log('âš ï¸ RequisiÃ§Ã£o foi abortada pelo usuÃ¡rio');
                 throw new Error('ABORTED');
             }
-            throw error;
+
+            // Garantir que sempre lancemos uma Error com mensagem legÃ­vel
+            if (error instanceof Error) {
+                throw error;
+            }
+            const normalizedError = (() => {
+                try {
+                    return new Error(JSON.stringify(error));
+                } catch {
+                    return new Error(String(error));
+                }
+            })();
+            throw normalizedError;
         }
     }
 
