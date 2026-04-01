@@ -23,6 +23,25 @@ export class Agent {
         this.currentModel = model;
     }
 
+    addToHistory(role, content) {
+        if (!role || content == null) return;
+
+        if (!Array.isArray(this.conversationHistory)) {
+            this.conversationHistory = [];
+        }
+
+        const message = {
+            role: String(role),
+            content: typeof content === 'string' ? content : JSON.stringify(content)
+        };
+
+        this.conversationHistory.push(message);
+
+        if (this.conversationHistory.length > this.maxHistoryMessages) {
+            this.conversationHistory = this.conversationHistory.slice(-this.maxHistoryMessages);
+        }
+    }
+
     getGroqApiKey() {
         if (!this.groqApiKey) {
             this.groqApiKey = localStorage.getItem('groq_api_key');
