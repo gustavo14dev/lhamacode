@@ -42,6 +42,34 @@ export class Agent {
         }
     }
 
+    async searchUnsplashImages(query) {
+        if (this.ui && typeof this.ui.searchUnsplashImages === 'function') {
+            try {
+                return await this.ui.searchUnsplashImages(query);
+            } catch (e) {
+                console.warn('⚠️ searchUnsplashImages falhou na UI:', e);
+            }
+        }
+        return [];
+    }
+
+    async searchWebForResponse(query) {
+        if (this.ui && typeof this.ui.searchWebForResponse === 'function') {
+            try {
+                return await this.ui.searchWebForResponse(query);
+            } catch (e) {
+                console.warn('⚠️ searchWebForResponse falhou na UI:', e);
+            }
+        }
+
+        // Fallback neutro
+        return {
+            query,
+            sources: [],
+            results: []
+        };
+    }
+
     getGroqApiKey() {
         if (!this.groqApiKey) {
             this.groqApiKey = localStorage.getItem('groq_api_key');
