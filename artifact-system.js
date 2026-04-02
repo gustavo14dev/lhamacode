@@ -41,7 +41,7 @@ REGRAS:
                 { role: 'user', content: context }
             ], { max_tokens: 5, temperature: 0.1 });
 
-            const decision = response.trim().toUpperCase();
+            const decision = (response || '').trim().toUpperCase();
             console.log(`🎯 [ARTIFACT-DECISION] Resultado: ${decision}`);
             
             return decision.includes('SIM');

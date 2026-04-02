@@ -1746,15 +1746,34 @@ Responda com clareza, utilidade e bom senso.`;
         this.apiProvider = provider;
     }
 
-    async callGroqAPI(model, messages, options = {}) {
-        // Proxy para a API
-        const response = await fetch('/api/groq-proxy', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model, messages, ...options })
-        });
-        const data = await response.json();
-        return data.choices[0].message.content;
+        async callGroqAPI(model, messages, options = {}) {
+        try {
+            // Proxy para a API
+            const response = await fetch('/api/groq-proxy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model, messages, ...options })
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`❌ Erro na API (${response.status}):`, errorText);
+                throw new Error(`Erro na API: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            // Validação robusta da resposta
+            if (data && data.choices && data.choices[0] && data.choices[0].message) {
+                return data.choices[0].message.content || '';
+            } else {
+                console.error('❌ Resposta da API em formato inválido:', data);
+                throw new Error('Resposta da API em formato inválido');
+            }
+        } catch (error) {
+            console.error('❌ Falha crítica em callGroqAPI:', error);
+            throw error;
+        }
     }
 
     async displayImagesIfAvailable(imagesPromise, msgId) {
