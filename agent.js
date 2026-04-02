@@ -1102,6 +1102,9 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             console.log('ðŸ“¦ [DEBUG-RAPIDO] Imagens recebidas:', images);
             console.log('ðŸŒ [DEBUG-RAPIDO] Dados web recebidos:', webData);
 
+            const relevantContext = (this.memory && typeof this.memory.getRelevantContext === 'function')
+                ? this.memory.getRelevantContext(userMessage)
+                : [];
             const deepSeekDecision = await this.processDeepSeekBarrier(userMessage, webData, relevantContext);
             console.log('ðŸ¥ [DEBUG-RAPIDO] DeepSeek decisão:', deepSeekDecision.useVisualStructure ? 'SIM' : 'NAO');
             const deepSeekDirective = this.buildDeepSeekHint(deepSeekDecision);
