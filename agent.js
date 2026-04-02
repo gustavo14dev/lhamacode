@@ -109,6 +109,9 @@ export class Agent {
         if (!model || typeof model !== 'string') return model;
         if (provider === 'samba') {
             const normalized = model.toLowerCase();
+            if (normalized.includes('deepseek')) {
+                return 'Meta-Llama-3.1-8B-Instruct';
+            }
             if (normalized.includes('llama-3.1-8b') || normalized.includes('llama-3.1-8b-instant')) {
                 return 'Meta-Llama-3.1-8B-Instruct';
             }
@@ -1128,7 +1131,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 ...this.conversationHistory
             ];
 
-            const model = 'llama-3.1-8b-instant';
+            const model = 'Meta-Llama-3.1-8B-Instruct';
             await this.ensureCapacityAndTrack({
                 model,
                 userMessage,
@@ -1235,7 +1238,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             ];
             
             const primaryModel = 'qwen/qwen3-32b';
-            const fallbackModel = 'llama-3.1-8b-instant';
+            const fallbackModel = 'Meta-Llama-3.1-8B-Instruct';
 
             await this.ensureCapacityAndTrack({
                 model: primaryModel,
@@ -1429,7 +1432,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             console.log('🧠 [PRO] DeepSeek decisão:', deepSeekDecision.useVisualStructure ? 'SIM' : 'NAO');
             const deepSeekDirective = this.buildDeepSeekHint(deepSeekDecision);
             const primaryModel = 'llama-3.3-70b-versatile';
-            const fallbackModel = 'llama-3.1-8b-instant';
+            const fallbackModel = 'Meta-Llama-3.1-8B-Instruct';
 
             const baseSystem1 = this.getSystemPrompt('pro') + webContext + deepSeekDirective + "\n\nNesta análise, responda diretamente ao pedido do usuário, priorize a solução mais útil e evite floreios.";
             const baseSystem2 = this.getSystemPrompt('pro') + webContext + deepSeekDirective + "\n\nNesta análise, atue como um revisor crítico. Questione suposições, identifique ambiguidades, aponte riscos e proponha alternativas melhores quando existirem.";
@@ -1675,7 +1678,7 @@ Responda com clareza, utilidade e bom senso.`;
     }
 
     async processDeepSeekBarrier(userMessage, webData = {}, relevantContext = []) {
-        const barrierSystem = `Você é DeepSeek-V3.1, um estágio de decisão visual. Sua tarefa é analisar a pergunta do usuário e as fontes da web disponíveis e decidir se a resposta precisa de um elemento visual estruturado. Se for necessário, gere apenas o HTML desse elemento visual. Se não for necessário, responda apenas NÃO.
+        const barrierSystem = `Você é Llama-Visual-3.1, um estágio de decisão visual. Sua tarefa é analisar a pergunta do usuário e as fontes da web disponíveis e decidir se a resposta precisa de um elemento visual estruturado. Se for necessário, gere apenas o HTML desse elemento visual. Se não for necessário, responda apenas NÃO.
 
 Responda estritamente com APENAS UM DOS SEGUINTES:
 - exatamente a palavra NÃO (sem acentos adicionais, sem pontuação extra, sem explicações);
@@ -1721,7 +1724,7 @@ Regras extras:
 
         try {
             this.setApiProvider('samba');
-            const deepSeekModel = 'deepseek/deepseek-v3.1';
+            const deepSeekModel = 'Meta-Llama-3.1-8B-Instruct';
             const deepSeekOutput = await this.callGroqAPI(deepSeekModel, barrierMessages, { max_tokens: 260 });
             let decision = this.parseDeepSeekBarrierOutput(deepSeekOutput);
 
@@ -1927,7 +1930,7 @@ Regras extras:
         }
 
         if (decision.useVisualStructure) {
-            return `\n\nDeepSeek-V3.1 já forneceu um elemento visual (HTML) e este elemento foi inserido no chat. \
+            return `\n\nLlama-Visual já forneceu um elemento visual (HTML) e este elemento foi inserido no chat. \
 - NÃO gere nenhum HTML adicional nem tente replicar o bloco visual.\n- Responda apenas com texto curto em português (1-3 parágrafos) que contextualize/explica o conteúdo do visual, sem introduções em inglês, sem meta-raciocínio e sem etapas de plano.\n- Use uma linguagem clara, didática e voltada para estudo.`;
         }
 

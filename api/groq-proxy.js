@@ -50,6 +50,7 @@ export default async function handler(req, res) {
   const mapSambaModel = (model) => {
     if (!model) return model;
     const normalized = model.toLowerCase();
+    if (normalized.includes('deepseek')) return 'Meta-Llama-3.1-8B-Instruct';
     if (normalized.includes('llama-3.1-8b')) return 'Meta-Llama-3.1-8B-Instruct';
     if (normalized.includes('llama-3.3-70b')) return 'Meta-Llama-3.3-70B-Instruct';
     if (normalized.includes('llama-4-maverick')) return 'Llama-4-Maverick-17B-128E-Instruct';
