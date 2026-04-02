@@ -1117,6 +1117,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 
             if (deepSeekDecision.useVisualStructure && deepSeekDecision.visualHtml) {
                 console.log('âœ… [DEBUG-RAPIDO] Adicionando elemento visual HTML do DeepSeek');
+                deepSeekDecision.visualHtml = this.enhanceDeepSeekVisualHtml(deepSeekDecision.visualHtml);
                 this.ui.appendVisualHtmlToMessage(messageContainer.responseId, deepSeekDecision.visualHtml);
             }
             
@@ -1678,7 +1679,11 @@ Responda estritamente com APENAS UM DOS SEGUINTES:
 - ou somente o código HTML completo que deve ser inserido na resposta. Nada mais.
 
 Regras extras:
-- para resumo, estudo, prova, revisão, comparação, lista ou explicação didática, prefira criar um elemento visual HTML simples como card, tabela, checklist ou quadro;
+- para resumo, estudo, prova, revisão, comparação, lista ou explicação didática, gere uma estrutura visual rica (não apenas tabela). Use:
+  * cards coloridos e seções distintas;
+  * blocos temáticos com bordas, etiquetas e ícones; 
+  * (se relevante) uma mini linha do tempo horizontal;
+  * tabelas, se usar, como parte de um layout maior, não a única saída.
 - o HTML deve ser completo e renderizável, sem explicações, sem comentários e sem tags de raciocínio;
 - não escreva texto antes ou depois do HTML; não explique o HTML; não coloque títulos fora do HTML;
 - a resposta deve ser unicamente HTML ou unicamente NÃO.`;
@@ -1761,6 +1766,54 @@ Regras extras:
         }
 
         return result;
+    }
+
+    enhanceDeepSeekVisualHtml(html) {
+        if (!html || typeof html !== 'string') {
+            return html;
+        }
+
+        const cleaned = html.trim();
+        const hasTable = /<table\b/i.test(cleaned);
+        const hasCards = /class\s*=\s*['\"][^'\"]*(card|card-grid|deepseek-visual)[^'\"]*['\"]/.test(cleaned);
+
+        // Se já tem cards / estrutura visual, só limpar e manter
+        if (hasCards) {
+            return cleaned;
+        }
+
+        // Se tem tabela, envolver em layout de cards coloridos e seção adicional
+        if (hasTable) {
+            return `
+<div style="display:flex;flex-direction:column;gap:12px;font-family:Arial,Helvetica,sans-serif;">
+  <div style="padding:14px;background:#0f172a;color:#f8fafc;border-radius:12px;box-shadow:0 6px 20px rgba(15,23,42,.35);">
+    <strong style="font-size:16px;">Quadro visual com tabela + cards</strong>
+    <p style="margin:6px 0 0;font-size:13px;color:#cbd5e1;">Use estes cartões para revisão rápida.</p>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+    <div style="background:#1e293b;border:1px solid #475569;border-radius:12px;padding:12px;color:#f8fafc;box-shadow:0 4px 16px rgba(15,23,42,.35);">
+      <strong>Resumo rápido</strong>
+      <div style="margin-top:8px;font-size:13px;line-height:1.3;color:#e2e8f0;">
+        Extraído da tabela abaixo para visualização estruturada.
+      </div>
+    </div>
+    <div style="background:#0f172a;border:1px solid #334155;border-radius:12px;padding:12px;color:#f8fafc;box-shadow:0 4px 16px rgba(15,23,42,.35);">
+      <strong>Dicas</strong>
+      <ul style="margin:8px 0 0;padding-left:16px;font-size:13px;color:#e2e8f0;">
+        <li>Foque nos conceitos chave.</li>
+        <li>Use o índice para memorização.</li>
+      </ul>
+    </div>
+  </div>
+  <div style="padding:0;border-radius:12px;overflow:hidden;border:1px solid #374151;background:#0b1120;">
+    ${cleaned}
+  </div>
+</div>
+`;
+        }
+
+        // Sem tabela mas ainda com HTML; dar wrapper card para aparência mais rica
+        return `<div style="border:1px solid #334155;background:#0f172a;border-radius:12px;padding:14px;box-shadow:0 8px 24px rgba(0,0,0,.30);">${cleaned}</div>`;
     }
 
     buildDeepSeekHint(decision) {
