@@ -1675,7 +1675,7 @@ Responda com clareza, utilidade e bom senso.`;
     }
 
     async processDeepSeekBarrier(userMessage, webData = {}, relevantContext = []) {
-        const barrierSystem = `Você é DeepSeek-V3.1, um estágio de decisão visual. Sua tarefa é analisar a pergunta do usuário e as fontes da web disponíveis e decidir se a resposta precisa de um elemento visual estruturado. Se for necessário, gere apenas o HTML desse elemento visual. Se não for necessário, responda apenas NÃO.
+        const barrierSystem = `Você é DeepSeek-V3-0324, um estágio de decisão visual. Sua tarefa é analisar a pergunta do usuário e as fontes da web disponíveis e decidir se a resposta precisa de um elemento visual estruturado. Se for necessário, gere apenas o HTML desse elemento visual. Se não for necessário, responda apenas NÃO.
 
 Responda estritamente com APENAS UM DOS SEGUINTES:
 - exatamente a palavra NÃO (sem acentos adicionais, sem pontuação extra, sem explicações);
@@ -1720,8 +1720,8 @@ Regras extras:
         ];
 
         try {
-            this.setApiProvider('groq');
-            const deepSeekModel = 'deepseek/deepseek-v3.1';
+            this.setApiProvider('samba');
+            const deepSeekModel = 'deepseek/deepseek-v3-0324';
             const deepSeekOutput = await this.callGroqAPI(deepSeekModel, barrierMessages, { max_tokens: 260 });
             let decision = this.parseDeepSeekBarrierOutput(deepSeekOutput);
 
@@ -1737,14 +1737,22 @@ Regras extras:
 
             return decision;
         } catch (error) {
-            console.warn('⚠️ Falha no estágio DeepSeek-V3.1, aplicando fallback de decisão.', error);
+            console.warn('⚠️ Falha no estágio DeepSeek-V3-0324 (SambaNova), aplicando fallback de decisão.', error);
             try {
                 this.setApiProvider('groq');
                 const fallbackOutput = await this.callGroqAPI('qwen/qwen3-32b', barrierMessages, { max_tokens: 260 });
-                return this.parseDeepSeekBarrierOutput(fallbackOutput);
+                let decision = this.parseDeepSeekBarrierOutput(fallbackOutput);
+
+                if (!decision.useVisualStructure && this.shouldForceVisualFromMessage(userMessage)) {
+                    decision.useVisualStructure = true;
+                    decision.visualHtml = this.buildFallbackVisualHtml(userMessage);
+                    decision.decisionText = 'FALLBACK';
+                }
+
+                return decision;
             } catch (fallbackError) {
                 console.error('❌ Falha no fallback do estágio DeepSeek:', fallbackError);
-                return { useVisualStructure: false, decisionText: 'NÃO', visualHtml: '' };
+                return { useVisualStructure: true, decisionText: 'FALLBACK', visualHtml: this.buildFallbackVisualHtml(userMessage) };
             }
         }
     }
@@ -1838,34 +1846,50 @@ Regras extras:
 
     buildFallbackVisualHtml(userMessage) {
         const query = String(userMessage || '').trim();
-        const title = query.length > 0 ? `Visual de estudo: ${query}` : 'Visual de estudo';
+        const escapedQuery = query.substring(0, 80)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
         return `
-<div style="font-family: Arial,Helvetica,sans-serif; color:#f8fafc;">
-  <div style="background:#0b1220;border:1px solid #4b5563;border-radius:12px;padding:12px 14px; margin-bottom:10px; font-weight:700;">${this.escapeHtml(title)}</div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px; margin-bottom:10px;">
-    <div style="background:#1f2a3a;border:1px solid #334155;border-radius:10px;padding:10px;">
-      <strong>Conceito 1</strong>
-      <p style="margin-top:5px;">Ponto chave para revisão rápida.</p>
+<div style="width:100%;max-width:800px;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;color:#f8fafc;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);border-radius:14px;overflow:hidden;box-shadow:0 20px 50px rgba(15,23,42,.5);">
+  <div style="background:linear-gradient(90deg,#3b82f6 0%,#8b5cf6 100%);padding:20px;text-align:center;">
+    <div style="font-size:18px;font-weight:700;letter-spacing:1px;">📊 ESTRUTURA VISUAL</div>
+    <div style="font-size:12px;color:#e0e7ff;margin-top:6px;">${escapedQuery}</div>
+  </div>
+  <div style="padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">
+    <div style="background:rgba(59,130,246,.15);border:2px solid #3b82f6;border-radius:12px;padding:16px;text-align:center;transition:all 0.3s ease;">
+      <div style="font-size:28px;">🔹</div>
+      <div style="font-weight:700;margin-top:8px;color:#60a5fa;">Card 1</div>
+      <div style="font-size:12px;color:#cbd5e1;margin-top:6px;">Conceito principal</div>
     </div>
-    <div style="background:#1f2a3a;border:1px solid #334155;border-radius:10px;padding:10px;">
-      <strong>Conceito 2</strong>
-      <p style="margin-top:5px;">Ponto chave para revisão rápida.</p>
+    <div style="background:rgba(139,92,246,.15);border:2px solid #8b5cf6;border-radius:12px;padding:16px;text-align:center;transition:all 0.3s ease;">
+      <div style="font-size:28px;">🔷</div>
+      <div style="font-weight:700;margin-top:8px;color:#c4b5fd;">Card 2</div>
+      <div style="font-size:12px;color:#cbd5e1;margin-top:6px;">Ponto chave</div>
     </div>
-    <div style="background:#1f2a3a;border:1px solid #334155;border-radius:10px;padding:10px;">
-      <strong>Conceito 3</strong>
-      <p style="margin-top:5px;">Ponto chave para revisão rápida.</p>
+    <div style="background:rgba(236,72,153,.15);border:2px solid #ec4899;border-radius:12px;padding:16px;text-align:center;transition:all 0.3s ease;">
+      <div style="font-size:28px;">🔶</div>
+      <div style="font-weight:700;margin-top:8px;color:#f472b6;">Card 3</div>
+      <div style="font-size:12px;color:#cbd5e1;margin-top:6px;">Detalhe importante</div>
     </div>
   </div>
-  <div style="background:#111c2f;border:1px solid #374151;border-radius:10px;padding:10px;">
-    <div style="font-size:13px;color:#94a3b8;margin-bottom:8px;font-weight:600;">Linha do tempo</div>
-    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;">
-      <span style="background:#0f172a;border:1px solid #334155;border-radius:999px;padding:6px 10px;">Início</span>
-      <span style="background:#0f172a;border:1px solid #334155;border-radius:999px;padding:6px 10px;">Período A</span>
-      <span style="background:#0f172a;border:1px solid #334155;border-radius:999px;padding:6px 10px;">Período B</span>
-      <span style="background:#0f172a;border:1px solid #334155;border-radius:999px;padding:6px 10px;">Final</span>
+  <div style="padding:16px 24px;background:rgba(0,0,0,.2);border-top:1px solid rgba(148,163,184,.2);">
+    <div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:12px;">📌 LINHA DO TEMPO</div>
+    <div style="display:flex;align-items:center;gap:8px;overflow-x:auto;padding:8px 0;">
+      <div style="min-width:70px;height:40px;background:rgba(59,130,246,.3);border:1px solid #3b82f6;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#93c5fd;">Início</div>
+      <div style="width:30px;height:1px;background:linear-gradient(90deg,#3b82f6,#8b5cf6);"></div>
+      <div style="min-width:70px;height:40px;background:rgba(139,92,246,.3);border:1px solid #8b5cf6;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#d8b4fe;">Etapa A</div>
+      <div style="width:30px;height:1px;background:linear-gradient(90deg,#8b5cf6,#ec4899);"></div>
+      <div style="min-width:70px;height:40px;background:rgba(236,72,153,.3);border:1px solid #ec4899;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#f472b6;">Etapa B</div>
+      <div style="width:30px;height:1px;background:linear-gradient(90deg,#ec4899,#06b6d4);"></div>
+      <div style="min-width:70px;height:40px;background:rgba(6,182,212,.3);border:1px solid #06b6d4;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#67e8f9;">Fim</div>
     </div>
   </div>
-</div>`;
+  <div style="padding:12px 24px;background:rgba(59,130,246,.1);border-top:1px solid rgba(59,130,246,.2);text-align:center;font-size:11px;color:#93c5fd;">✨ Visualização interativa gerada para estudo</div>
+</div>
+`;
     }
 
     cleanMetaRaciocinio(finalText) {
@@ -1903,7 +1927,7 @@ Regras extras:
         }
 
         if (decision.useVisualStructure) {
-            return `\n\nDeepSeek-V3.1 já forneceu um elemento visual (HTML) e este elemento foi inserido no chat. \
+            return `\n\nDeepSeek-V3-0324 já forneceu um elemento visual (HTML) e este elemento foi inserido no chat. \
 - NÃO gere nenhum HTML adicional nem tente replicar o bloco visual.\n- Responda apenas com texto curto em português (1-3 parágrafos) que contextualize/explica o conteúdo do visual, sem introduções em inglês, sem meta-raciocínio e sem etapas de plano.\n- Use uma linguagem clara, didática e voltada para estudo.`;
         }
 
