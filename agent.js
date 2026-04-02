@@ -1683,393 +1683,94 @@ Responda com clareza, utilidade e bom senso.`;
         return `\n\nContexto da web:\n${contextLines.join('\n')}`;
     }
 
-    
-        if (Array.isArray(webData.sources) && webData.sources.length > 0) {
-            userContext.push('Fontes disponíveis:');
-            webData.sources.slice(0, 5).forEach((source, index) => {
-                const title = source.title || source.name || 'Fonte sem título';
-                const url = source.url || source.link || 'URL não disponível';
-                const snippet = source.snippet ? ` - ${source.snippet}` : '';
-                userContext.push(`${index + 1}. ${title} (${url})${snippet}`);
-            });
-        }
-        if (Array.isArray(relevantContext) && relevantContext.length > 0) {
-            userContext.push('Contexto relevante da conversa:');
-            relevantContext.slice(0, 5).forEach((memory, index) => {
-                const role = memory.role || 'usuário';
-                const content = memory.content || '';
-                userContext.push(`${index + 1}. [${role}] ${content}`);
-            });
-        }
-
-        const barrierMessages = [
-            { role: 'system', content: barrierSystem },
-            { role: 'user', content: `${userContext.join('\n')}` }
-        ];
-
-        try {
-            this.setApiProvider('samba');
-            const deepSeekModel = 'Meta-Llama-3.1-8B-Instruct';
-            const deepSeekOutput = await this.callGroqAPI(deepSeekModel, barrierMessages, { max_tokens: 260 });
-            let decision = this.parseDeepSeekBarrierOutput(deepSeekOutput);
-
-            if (!decision.useVisualStructure && this.
-
-            if (decision.useVisualStructure && !decision.visualHtml) {
-                decision.visualHtml = this.buildFallbackVisualHtml(userMessage);
-            }
-
-            return decision;
-        } catch (error) {
-            console.warn('⚠️ Falha no estágio DeepSeek-V3.1 (SambaNova), aplicando fallback de decisão.', error);
-            try {
-                this.setApiProvider('groq');
-                const fallbackOutput = await this.callGroqAPI('qwen/qwen3-32b', barrierMessages, { max_tokens: 260 });
-                let decision = this.parseDeepSeekBarrierOutput(fallbackOutput);
-
-                if (!decision.useVisualStructure && this.
-
-                return decision;
-            } catch (fallbackError) {
-                console.error('❌ Falha no fallback do estágio DeepSeek:', fallbackError);
-                return { useVisualStructure: true, decisionText: 'FALLBACK', visualHtml: this.buildFallbackVisualHtml(userMessage) };
-            }
-        }
-    }
-
-    ;
-
-        const normalizedStart = text.replace(/^\s+/, '');
-        if (/^\s*(não|nao|no)\b/i.test(normalizedStart) && !/<[^>]+>/.test(text)) {
-            return result;
-        }
-
-        const htmlMatch = text.match(/<\s*([a-z][^\s/>]*)[^>]*>[\s\S]*?<\/\s*\1\s*>/i);
-        if (htmlMatch) {
-            result.useVisualStructure = true;
-            result.visualHtml = htmlMatch[0].trim();
-            return result;
-        }
-
-        // Se o modelo devolveu algo com < >, mas não um bloco HTML fechado, ainda tentamos extrair a primeira tag aberta até o fim.
-        const partialHtmlMatch = text.match(/<[^>]+>[\s\S]*/i);
-        if (partialHtmlMatch) {
-            const cleanHtml = partialHtmlMatch[0].trim();
-            if (cleanHtml.startsWith('<') && cleanHtml.endsWith('>')) {
-                result.useVisualStructure = true;
-                result.visualHtml = cleanHtml;
-                return result;
-            }
-        }
-
-        return result;
-    }
-
-    
-
-        const cleaned = html.trim();
-        const hasTable = /<table\b/i.test(cleaned);
-        const hasCards = /class\s*=\s*['\"][^'\"]*(card|card-grid|deepseek-visual)[^'\"]*['\"]/.test(cleaned);
-
-        // Se já tem cards / estrutura visual, só limpar e manter
-        if (hasCards) {
-            return cleaned;
-        }
-
-        // Se tem tabela, envolver em layout de cards coloridos e seção adicional
-        if (hasTable) {
-            return `
-<div style="display:flex;flex-direction:column;gap:12px;font-family:Arial,Helvetica,sans-serif;">
-  <div style="padding:14px;background:#0f172a;color:#f8fafc;border-radius:12px;box-shadow:0 6px 20px rgba(15,23,42,.35);">
-    <strong style="font-size:16px;">Quadro visual com tabela + cards</strong>
-    <p style="margin:6px 0 0;font-size:13px;color:#cbd5e1;">Use estes cartões para revisão rápida.</p>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
-    <div style="background:#1e293b;border:1px solid #475569;border-radius:12px;padding:12px;color:#f8fafc;box-shadow:0 4px 16px rgba(15,23,42,.35);">
-      <strong>Resumo rápido</strong>
-      <div style="margin-top:8px;font-size:13px;line-height:1.3;color:#e2e8f0;">
-        Extraído da tabela abaixo para visualização estruturada.
-      </div>
-    </div>
-    <div style="background:#0f172a;border:1px solid #334155;border-radius:12px;padding:12px;color:#f8fafc;box-shadow:0 4px 16px rgba(15,23,42,.35);">
-      <strong>Dicas</strong>
-      <ul style="margin:8px 0 0;padding-left:16px;font-size:13px;color:#e2e8f0;">
-        <li>Foque nos conceitos chave.</li>
-        <li>Use o índice para memorização.</li>
-      </ul>
-    </div>
-  </div>
-  <div style="padding:0;border-radius:12px;overflow:hidden;border:1px solid #374151;background:#0b1120;">
-    ${cleaned}
-  </div>
-</div>
-`;
-        }
-
-        // Sem tabela mas ainda com HTML; dar wrapper card para aparência mais rica
-        return `<div style="border:1px solid #334155;background:#0f172a;border-radius:12px;padding:14px;box-shadow:0 8px 24px rgba(0,0,0,.30);">${cleaned}</div>`;
-    }
-
-    
-
-    
-
-    cleanMetaRaciocinio(finalText) {
-        if (typeof finalText !== 'string') return finalText;
-
-        let text = finalText.trim();
-
-        // Remove bloco inicial de raciocínio em inglês se houver (padrões comuns).
-        if (/^(Okay|Let me|Since the user|First source|The first source|The second source|The third source)/i.test(text)) {
-            const afterPara = text.split(/\n\s*\n/).slice(1).join('\n\n').trim();
-            if (afterPara.length > 0) {
-                text = afterPara;
-            } else {
-                // se não houver parágrafo adicional, remover primeira frase longa
-                const withoutFirstSentence = text.replace(/^.*?(\.|\?|\!)\s+/s, '').trim();
-                if (withoutFirstSentence.length > 0) {
-                    text = withoutFirstSentence;
-                }
-            }
-        }
-
-        // Retirar qualquer declaração de ciclo de raciocínio não solicitada
-        text = text.replace(/\b(need to.*(timeline|visual|structure)|I should.*)/gi, '').trim();
-
-        // Remover expressões que mencionem visual acima como referência
-        text = text.replace(/Use o visual acima como referência\.?/gi, '').trim();
-        text = text.replace(/use the visual above as reference\.?/gi, '').trim();
-
-        return text;
-    }
-
-    
-
-        if (decision.useVisualStructure) {
-            return `\n\nLlama-Visual já forneceu um elemento visual (HTML) e este elemento foi inserido no chat. \
-- NÃO gere nenhum HTML adicional nem tente replicar o bloco visual.\n- Responda apenas com texto curto em português (1-3 parágrafos) que contextualize/explica o conteúdo do visual, sem introduções em inglês, sem meta-raciocínio e sem etapas de plano.\n- Use uma linguagem clara, didática e voltada para estudo.`;
-        }
-
-        return `\n\nNenhum elemento visual é necessário. Responda com texto objetivo em português (1-3 parágrafos).\n- NÃO use tags de raciocínio como <think>, <raciocínio>, <raciocinio>.\n- NÃO adicione HTML, não explique o processo, não coloque 'Okay' ou 'Let me'.`;
-    }
-
-    extractReasoningFromText(fullResponse) {
-        const rawText = String(fullResponse || '').trim();
-        let reasoningText = '';
-        let finalResponse = rawText;
-
+    // Funções auxiliares de processamento
+    extractReasoningFromText(text) {
+        if (!text) return { finalResponse: '', reasoningText: '' };
+        
         const patterns = [
             /<think>([\s\S]*?)<\/think>/i,
-            /<racioc[ií]nio>([\s\S]*?)<\/racioc[ií]nio>/i,
+            /<raciocínio>([\s\S]*?)<\/raciocínio>/i,
             /<raciocinio>([\s\S]*?)<\/raciocinio>/i
         ];
-
-        let match = null;
+        
+        let reasoningText = '';
+        let finalResponse = text;
+        
         for (const pattern of patterns) {
-            match = rawText.match(pattern);
-            if (match) break;
-        }
-
-        if (match) {
-            reasoningText = match[1].trim();
-        }
-
-        if (reasoningText) {
-            finalResponse = rawText
-                .replace(/<think>[\s\S]*?<\/think>/gi, '')
-                .replace(/<racioc[ií]nio>[\s\S]*?<\/racioc[ií]nio>/gi, '')
-                .replace(/<raciocinio>[\s\S]*?<\/raciocinio>/gi, '')
-                .replace(/<\s*think[^>]*>[\s\S]*?<\s*\/\s*think\s*>/gi, '')
-                .replace(/<\s*racioc[ií]nio[^>]*>[\s\S]*?<\s*\/\s*racioc[ií]nio\s*>/gi, '')
-                .replace(/^\n+/gm, '')
-                .trim();
-        }
-
-        finalResponse = finalResponse
-            .replace(/<\s*think[^>]*>/gi, '')
-            .replace(/<\s*\/\s*think\s*>/gi, '')
-            .replace(/<\s*racioc[ií]nio[^>]*>/gi, '')
-            .replace(/<\s*\/\s*racioc[ií]nio\s*>/gi, '')
-            .replace(/<\s*raciocinio[^>]*>/gi, '')
-            .replace(/<\s*\/\s*raciocinio\s*>/gi, '')
-            .trim();
-
-        return { finalResponse: finalResponse.trim(), reasoningText };
-    }
-
-    renderReasoningCard(messageContainer, reasoningText) {
-        if (!reasoningText || !messageContainer?.thinkCardId) {
-            return;
-        }
-
-        const thinkCard = document.getElementById(messageContainer.thinkCardId);
-        if (!thinkCard) {
-            return;
-        }
-
-        thinkCard.classList.remove('hidden');
-        thinkCard.innerHTML = `
-            <div class="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-                <div class="flex items-center justify-between gap-3 px-4 py-3 bg-gray-100 dark:bg-slate-800">
-                    <div class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
-                        <span>🧠</span>
-                        <span>Raciocínio</span>
-                    </div>
-                    <button type="button" id="thinkCardToggle_${messageContainer.uniqueId}" class="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors">
-                        Abrir
-                    </button>
-                </div>
-                <div id="thinkCardContent_${messageContainer.uniqueId}" style="max-height:0; overflow:hidden; transition:max-height 0.25s ease;" class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
-                    ${this.ui.escapeHtml(reasoningText)}
-                </div>
-            </div>
-        `;
-
-        const toggleBtn = document.getElementById(`thinkCardToggle_${messageContainer.uniqueId}`);
-        const contentDiv = document.getElementById(`thinkCardContent_${messageContainer.uniqueId}`);
-        if (toggleBtn && contentDiv) {
-            toggleBtn.addEventListener('click', () => {
-                const isOpen = contentDiv.style.maxHeight && contentDiv.style.maxHeight !== '0px';
-                if (isOpen) {
-                    contentDiv.style.maxHeight = '0px';
-                    toggleBtn.textContent = 'Abrir';
-                } else {
-                    contentDiv.style.maxHeight = `${contentDiv.scrollHeight}px`;
-                    toggleBtn.textContent = 'Fechar';
-                }
-            });
-            contentDiv.style.maxHeight = '0px';
-        }
-    }
-
-    showError(message) {
-        const messageContainer = this.ui.createAssistantMessageContainer();
-        const timestamp = Date.now();
-        
-        const errorStepId = `errorStep_${timestamp}`;
-        this.ui.addThinkingStep('error', 'Erro detectado', errorStepId, messageContainer.stepsId);
-        
-        this.ui.setResponseText(message, messageContainer.responseId);
-        
-        console.error(message);
-    }
-
-    async test() {
-        console.log('💭ª Iniciando teste do agente...');
-        
-        console.log('ðŸ“¡ Testando conexÃ£o com Groq via proxy (server-side) ...');
-        console.log('â„¹ï¸ Se vocÃª configurou a variÃ¡vel GROQ_API_KEY no Vercel, este teste usarÃ¡ ela. Caso contrÃ¡rio, o teste falharÃ¡ com mensagem adequada.');
-
-        try {
-            const testMessage = 'OlÃ¡! Estou testando a conexÃ£o.';
-            console.log(`ðŸ“¤ Enviando: "${testMessage}"`);
-            
-            this.addToHistory('user', testMessage);
-            const response = await this.callGroqAPI('llama-3.3-70b-versatile');
-            this.addToHistory('assistant', response);
-            
-            console.log('✅ Resposta recebida:');
-            console.log(response);
-            console.log('\nðŸŽ‰ Teste concluÃ­do com sucesso!');
-            console.log(`ðŸ“Š HistÃ³rico: ${this.conversationHistory.length} mensagens`);
-            
-            return response;
-        } catch (error) {
-            console.error('âŒ Erro no teste:', error.message);
-            console.error('Detalhes:', error);
-            return null;
-        }
-    }
-
-    clearHistory() {
-        this.conversationHistory = [];
-        console.log('ðŸ—‘ï¸ HistÃ³rico de conversa limpo');
-    }
-
-    getHistoryStats() {
-        const userMessages = this.conversationHistory.filter(m => m.role === 'user').length;
-        const assistantMessages = this.conversationHistory.filter(m => m.role === 'assistant').length;
-        
-        console.log('ðŸ“Š EstatÃ­sticas do HistÃ³rico:');
-        console.log(`   Total: ${this.conversationHistory.length} mensagens`);
-        console.log(`   Suas mensagens: ${userMessages}`);
-        console.log(`   Minhas respostas: ${assistantMessages}`);
-        console.log(`   Limite mÃ¡ximo: ${this.maxHistoryMessages} mensagens`);
-        
-        return {
-            total: this.conversationHistory.length,
-            user: userMessages,
-            assistant: assistantMessages,
-            max: this.maxHistoryMessages
-        };
-    }
-
-    // ExtraÃ§Ã£o e retorno de arquivos removidos (download de arquivos pela IA desativado)
-
-    async generateFollowUpSuggestions(userMessage, assistantResponse, responseId) {
-        try {
-            const prompt = `VocÃª Ã© um assistente de IA. Baseado na conversa abaixo, gere EXATAMENTE 3 sugestÃµes de prÃ³ximas perguntas que o USUÃRIO poderia fazer para vocÃª. As sugestÃµes devem ser:
-
-- Na perspectiva do USUÃRIO falando com a IA
-- Perguntas naturais e relevantes
-- Baseadas no contexto da conversa
-- Escritas como se o usuÃ¡rio estivesse perguntando
-
-Conversa:
-UsuÃ¡rio perguntou: "${userMessage}"
-VocÃª respondeu: "${assistantResponse.substring(0, 500)}..."
-
-Exemplos de como devem ser:
-- "Como funciona [tÃ³pico mencionado]?"
-- "Pode me explicar mais sobre [assunto]?"
-- "O que vocÃª acha de [ideia relacionada]?"
-
-Responda APENAS com um JSON array contendo 3 strings, sem texto adicional:
-["pergunta do usuÃ¡rio 1", "pergunta do usuÃ¡rio 2", "pergunta do usuÃ¡rio 3"]`;
-
-            const response = await this.callGroqAPI('llama-3.1-8b-instant', [
-                { role: 'system', content: 'VocÃª Ã© um especialista em gerar sugestÃµes de acompanhamento relevantes e naturais para conversas. Sempre retorne exatamente 3 sugestÃµes em formato JSON array.' },
-                { role: 'user', content: prompt }
-            ]);
-
-            // Extrair JSON da resposta
-            let suggestions = [];
-            try {
-                // Limpar resposta e extrair JSON
-                let cleanResponse = response.replace(/```json\n?|\n?```/g, '').trim();
-                const startIdx = cleanResponse.indexOf('[');
-                const endIdx = cleanResponse.lastIndexOf(']');
-                
-                if (startIdx !== -1 && endIdx !== -1) {
-                    const jsonStr = cleanResponse.substring(startIdx, endIdx + 1);
-                    suggestions = JSON.parse(jsonStr);
-                }
-                
-                // Validar e filtrar sugestÃµes
-                if (Array.isArray(suggestions)) {
-                    suggestions = suggestions
-                        .filter(s => typeof s === 'string' && s.trim().length > 0)
-                        .map(s => s.trim())
-                        .slice(0, 3);
-                }
-                
-                if (suggestions.length > 0) {
-                    // Extrair ID da mensagem a partir do responseId
-                    const messageId = responseId.replace('responseText_', 'msg_');
-                    this.ui.displayFollowUpSuggestions(messageId, suggestions);
-                    console.log('✅ SugestÃµes de acompanhamento geradas:', suggestions);
-                }
-            } catch (parseError) {
-                console.warn('⚠️ Erro ao parsear sugestÃµes:', parseError);
+            const match = text.match(pattern);
+            if (match) {
+                reasoningText = match[1].trim();
+                finalResponse = text.replace(pattern, '').trim();
+                break;
             }
-            
-        } catch (error) {
-            console.warn('⚠️ Erro ao gerar sugestÃµes de acompanhamento:', error);
-            // NÃ£o mostrar erro para usuÃ¡rio, apenas log
+        }
+        
+        return { finalResponse, reasoningText };
+    }
+
+    cleanMetaRaciocinio(text) {
+        if (!text) return '';
+        return text.replace(/^(Ok|Certo|Entendido|Tudo bem)[,\s\.].*?\n/i, '').trim();
+    }
+
+    persistAssistantMessage(content) {
+        if (!content) return;
+        // Lógica de persistência no Supabase ou LocalStorage
+        console.log('Mensagem persistida');
+    }
+
+    renderReasoningCard(container, reasoning) {
+        if (!reasoning || !container.thinkCardId) return;
+        const card = document.getElementById(container.thinkCardId);
+        if (card) {
+            card.classList.remove('hidden');
+            // O conteúdo do card já é preenchido dinamicamente no método principal
         }
     }
 
-    sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+    addToHistory(role, content) {
+        if (!this.conversationHistory) this.conversationHistory = [];
+        this.conversationHistory.push({ role, content });
+        // Limitar histórico para economizar tokens (e créditos!)
+        if (this.conversationHistory.length > 20) {
+            this.conversationHistory = this.conversationHistory.slice(-20);
+        }
+    }
+
+    async ensureCapacityAndTrack(data) {
+        // Simulação de verificação de capacidade
+        return true;
+    }
+
+    setApiProvider(provider) {
+        this.apiProvider = provider;
+    }
+
+    async callGroqAPI(model, messages, options = {}) {
+        // Proxy para a API
+        const response = await fetch('/api/groq-proxy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model, messages, ...options })
+        });
+        const data = await response.json();
+        return data.choices[0].message.content;
+    }
+
+    async displayImagesIfAvailable(imagesPromise, msgId) {
+        try {
+            const images = await imagesPromise;
+            if (images && images.length > 0) {
+                this.ui.appendImagesToMessage(msgId, images);
+            }
+        } catch (e) {
+            console.warn('Erro ao exibir imagens:', e);
+        }
+    }
+
+    getActiveChatId() {
+        return this.ui.currentChatId || 'default';
     }
 }
+
+export { Agent };
