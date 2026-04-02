@@ -1151,17 +1151,36 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             let { finalResponse, reasoningText } = this.extractReasoningFromText(response);
             finalResponse = this.cleanMetaRaciocinio(finalResponse);
 
+            // Decidir se um artifact é necessário
+            const artifactDecision = await this.ui.artifacts.decideArtifact(userMessage, finalResponse, 'raciocinio');
+            if (artifactDecision.shouldRender) {
+                console.log('✨ [ARTIFACT-RACIOCINIO] Renderizando artifact:', artifactDecision.type);
+                finalResponse = this.ui.artifacts.stripArtifactTags(finalResponse);
+            }
+
             // limpar extras para próxima chamada
             this.extraMessagesForNextCall = null;
+
+            // Decidir se um artifact é necessário
+            const artifactDecision = await this.ui.artifacts.decideArtifact(userMessage, finalResponse, 'rapido');
+            if (artifactDecision.shouldRender) {
+                console.log('✨ [ARTIFACT-RAPIDO] Renderizando artifact:', artifactDecision.type);
+                finalResponse = this.ui.artifacts.stripArtifactTags(finalResponse);
+            }
 
             // Adicionar apenas o texto ao histórico para manter consistência
             this.addToHistory('assistant', finalResponse);
             this.persistAssistantMessage(finalResponse);
             this.renderReasoningCard(messageContainer, reasoningText);
             
-            // Exibir na UI usando o mÃ©todo padrÃ£o que suporta HTML
+            // Exibir na UI usando o método padrão que suporta HTML
             this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
                 console.log('ðŸ”„ [DEBUG-RAPIDO] Resposta exibida apÃ³s imagens');
+
+                // Renderizar artifact se necessário
+                if (artifactDecision && artifactDecision.shouldRender) {
+                    await this.ui.artifacts.renderArtifact(messageContainer.responseId, artifactDecision);
+                }
 
                 // Adicionar botÃ£o de fontes se houver dados web
                 if (webData && webData.sources && webData.sources.length > 0) {
@@ -1261,6 +1280,13 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             console.log('ðŸ“„ Resposta bruta da API:', fullResponse);
             let { finalResponse, reasoningText } = this.extractReasoningFromText(fullResponse);
             finalResponse = this.cleanMetaRaciocinio(finalResponse);
+
+            // Decidir se um artifact é necessário
+            const artifactDecision = await this.ui.artifacts.decideArtifact(userMessage, finalResponse, 'pro');
+            if (artifactDecision.shouldRender) {
+                console.log('✨ [ARTIFACT-PRO] Renderizando artifact:', artifactDecision.type);
+                finalResponse = this.ui.artifacts.stripArtifactTags(finalResponse);
+            }
 
             if (reasoningText) {
                 console.log('🧠 Raciocínio extraído:', reasoningText.substring(0, 100) + '...');

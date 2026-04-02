@@ -1,5 +1,5 @@
 ﻿import { Agent } from './agent.js';
-
+import ArtifactSystem from './artifact-system.js';
 import { TimelineSystem } from './timeline-system.js';
 
 import { ProactiveSuggestions } from './proactive-system.js';
@@ -78,6 +78,10 @@ class UI {
         this.suggestions = new ProactiveSuggestions(this.agent, this);
 
         this.preferences = new PreferenceLearning();
+        
+        // Inicializar sistema de artifacts (elementos interativos automáticos)
+        this.artifacts = new ArtifactSystem(this.agent, this);
+        window.artifactSystem = this.artifacts; // Expor globalmente para callbacks
 
         
 
