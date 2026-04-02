@@ -523,7 +523,8 @@ export class Agent {
             const data = await response.json();
             const aiResponse = data.text || data.response;
 
-            const { finalResponse, reasoningText } = this.extractReasoningFromText(aiResponse);
+            let { finalResponse, reasoningText } = this.extractReasoningFromText(aiResponse);
+            finalResponse = this.cleanMetaRaciocinio(finalResponse);
 
             this.addToHistory('assistant', finalResponse);
             this.persistAssistantMessage(finalResponse);
@@ -1255,7 +1256,8 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             }
 
             console.log('ðŸ“„ Resposta bruta da API:', fullResponse);
-            const { finalResponse, reasoningText } = this.extractReasoningFromText(fullResponse);
+            let { finalResponse, reasoningText } = this.extractReasoningFromText(fullResponse);
+            finalResponse = this.cleanMetaRaciocinio(finalResponse);
 
             if (reasoningText) {
                 console.log('🧠 Raciocínio extraído:', reasoningText.substring(0, 100) + '...');
@@ -1542,8 +1544,8 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
                 console.warn('⚠️ Falha parsing arquivos de resposta (Pro):', e);
             }
 
-            const { finalResponse: cleanedResponse, reasoningText } = this.extractReasoningFromText(finalResponse);
-            finalResponse = cleanedResponse;
+            let { finalResponse: cleanedResponse, reasoningText } = this.extractReasoningFromText(finalResponse);
+            finalResponse = this.cleanMetaRaciocinio(cleanedResponse);
             this.renderReasoningCard(messageContainer, reasoningText);
 
             this.addToHistory('assistant', finalResponse);
@@ -1887,6 +1889,10 @@ Regras extras:
 
         // Retirar qualquer declaração de ciclo de raciocínio não solicitada
         text = text.replace(/\b(need to.*(timeline|visual|structure)|I should.*)/gi, '').trim();
+
+        // Remover expressões que mencionem visual acima como referência
+        text = text.replace(/Use o visual acima como referência\.?/gi, '').trim();
+        text = text.replace(/use the visual above as reference\.?/gi, '').trim();
 
         return text;
     }
