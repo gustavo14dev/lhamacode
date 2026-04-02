@@ -1772,5 +1772,3 @@ Responda com clareza, utilidade e bom senso.`;
         return this.ui.currentChatId || 'default';
     }
 }
-
-export { Agent };
