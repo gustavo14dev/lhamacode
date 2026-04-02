@@ -1114,6 +1114,11 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 console.log('âœ… [DEBUG-RAPIDO] Adicionando imagens ANTES da resposta');
                 this.ui.appendImagesToMessage(messageContainer.responseId, images);
             }
+
+            if (deepSeekDecision.useVisualStructure && deepSeekDecision.visualHtml) {
+                console.log('âœ… [DEBUG-RAPIDO] Adicionando elemento visual HTML do DeepSeek');
+                this.ui.appendVisualHtmlToMessage(messageContainer.responseId, deepSeekDecision.visualHtml);
+            }
             
             const finalMessages = [
                 { role: 'system', content: this.getSystemPrompt('rapido') + this.buildWebContextBlock(webData) + deepSeekDirective },
@@ -1596,7 +1601,10 @@ Modo Rápido:
 - responda com objetividade, mas não seja seco nem telegráfico;
 - em geral use 1 a 3 parágrafos curtos;
 - para cumprimentos, responda em 1 ou 2 frases e ofereça ajuda de modo natural;
-- vá direto ao ponto e mantenha boa densidade de informação.`;
+- vá direto ao ponto e mantenha boa densidade de informação;
+- NÃO use tags de raciocínio como <think>, <raciocínio> ou <raciocinio> neste modo;
+- em resumos, estudos, provas, revisões, comparações ou explicações didáticas, prefira um pequeno elemento visual HTML simples no início, como card, lista, tabela ou quadro;
+- não use entidades HTML codificadas como &#x20; em texto comum; escreva com texto limpo e formato válido quando necessário.`;
             case 'raciocinio':
                 return `${systemBase}
 
@@ -1663,7 +1671,12 @@ Responda com clareza, utilidade e bom senso.`;
     }
 
     async processDeepSeekBarrier(userMessage, webData = {}, relevantContext = []) {
-        const barrierSystem = `Você é DeepSeek-V3.1, um estágio de decisão visual. Sua tarefa é analisar a pergunta do usuário e as fontes da web disponíveis e decidir se a resposta precisa de um elemento visual estruturado. Se for necessário, gere apenas o HTML desse elemento visual. Se não for necessário, responda apenas NÃO.`;
+        const barrierSystem = `Você é DeepSeek-V3.1, um estágio de decisão visual. Sua tarefa é analisar a pergunta do usuário e as fontes da web disponíveis e decidir se a resposta precisa de um elemento visual estruturado. Se for necessário, gere apenas o HTML desse elemento visual. Se não for necessário, responda apenas NÃO.
+
+Regras extras:
+- se o pedido envolver resumo, estudo, prova, revisão, comparação, lista ou explicação didática, prefira criar um elemento visual HTML simples como card, tabela, checklist ou quadro;
+- o HTML deve ser completo e renderizável, sem explicações ou tags de raciocínio;
+- NÃO devolva nenhuma tag de raciocínio; responda apenas HTML ou NÃO.`;
         const userContext = [];
 
         userContext.push(`Usuário: ${userMessage}`);
@@ -1783,6 +1796,15 @@ Responda com clareza, utilidade e bom senso.`;
                 .replace(/^\n+/gm, '')
                 .trim();
         }
+
+        finalResponse = finalResponse
+            .replace(/<\s*think[^>]*>/gi, '')
+            .replace(/<\s*\/\s*think\s*>/gi, '')
+            .replace(/<\s*racioc[ií]nio[^>]*>/gi, '')
+            .replace(/<\s*\/\s*racioc[ií]nio\s*>/gi, '')
+            .replace(/<\s*raciocinio[^>]*>/gi, '')
+            .replace(/<\s*\/\s*raciocinio\s*>/gi, '')
+            .trim();
 
         return { finalResponse: finalResponse.trim(), reasoningText };
     }

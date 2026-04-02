@@ -10967,18 +10967,21 @@ ${chunk}${bibliographyBlock}
             const hasImages = responseDiv.querySelectorAll('div[style*="flex: 1"], div[id*="shadow-"], div[id*="carousel_"]').length > 0;
             console.log('🔍 [SET] Já existem imagens no elemento:', hasImages);
 
-            if (hasImages) {
-                // APENAS ADICIONAR TEXTO APÓS AS IMAGENS - NÃO SOBRESCREVER!
+            const hasExistingContent = responseDiv.childElementCount > 0;
+            console.log('🔍 [SET] Existem filhos no elemento:', hasExistingContent);
+
+            if (hasExistingContent) {
+                // APENAS ADICIONAR TEXTO APÓS O CONTEÚDO EXISTENTE - NÃO SOBRESCREVER!
                 const responseTextDiv = document.createElement('div');
                 responseTextDiv.id = `response-text-${responseId}`;
                 responseTextDiv.style.marginTop = '15px';
                 responseDiv.appendChild(responseTextDiv);
 
-                console.log('🔍 [SET] Adicionando texto após imagens existentes');
+                console.log('🔍 [SET] Adicionando texto após conteúdo existente');
                 this.typewriterEffect(safeText, responseTextDiv, callback, '');
             } else {
-                // Sem imagens, usar o método normal
-                console.log('🔍 [SET] Sem imagens, usando método normal');
+                // Sem conteúdo anterior, usar o método normal
+                console.log('🔍 [SET] Sem conteúdo anterior, usando método normal');
                 this.typewriterEffect(safeText, responseDiv, callback, '');
             }
         }
@@ -12165,6 +12168,20 @@ ${chunk}${bibliographyBlock}
         }
         
         console.log('✅ [CARROSSEL] Carrossel adicionado com isolamento máximo!');
+    }
+
+    appendVisualHtmlToMessage(responseId, html) {
+        console.log('🎨 [APPEND-HTML] responseId:', responseId);
+        const responseDiv = document.getElementById(responseId);
+        if (!responseDiv || !html) {
+            console.warn('❌ [APPEND-HTML] Elemento inválido ou HTML vazio');
+            return;
+        }
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'drekee-visual-html my-4';
+        wrapper.innerHTML = html;
+        responseDiv.appendChild(wrapper);
     }
 
     // Método para adicionar botão de fontes personalizado
