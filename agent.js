@@ -499,8 +499,12 @@ export class Agent {
         this.ui.setThinkingHeader('Raciocinando...', messageContainer.headerId);
         
         try {
+            const deepSeekDecision = await this.processDeepSeekBarrier(userMessage, {}, relevantContext);
+            const deepSeekDirective = this.buildDeepSeekHint(deepSeekDecision);
+            const messageToSend = deepSeekDirective ? `${deepSeekDirective}\n\n${userMessage}` : userMessage;
+
             const formData = new FormData();
-            formData.append('message', userMessage);
+            formData.append('message', messageToSend);
             formData.append('context', JSON.stringify(relevantContext));
             
             if (attachments) {
@@ -519,9 +523,12 @@ export class Agent {
             const data = await response.json();
             const aiResponse = data.text || data.response;
 
-            this.addToHistory('assistant', aiResponse);
-            this.persistAssistantMessage(aiResponse);
-            this.ui.setResponseText(aiResponse, messageContainer.responseId, async () => {
+            const { finalResponse, reasoningText } = this.extractReasoningFromText(aiResponse);
+
+            this.addToHistory('assistant', finalResponse);
+            this.persistAssistantMessage(finalResponse);
+            this.renderReasoningCard(messageContainer, reasoningText);
+            this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
                 await this.attachYouTubeVideosToResponse({
                     userMessage,
                     assistantResponse: aiResponse,
@@ -1094,6 +1101,10 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const [images, webData] = await Promise.all([imagesPromise, webSearchPromise]);
             console.log('ðŸ“¦ [DEBUG-RAPIDO] Imagens recebidas:', images);
             console.log('ðŸŒ [DEBUG-RAPIDO] Dados web recebidos:', webData);
+
+            const deepSeekDecision = await this.processDeepSeekBarrier(userMessage, webData, relevantContext);
+            console.log('ðŸ¥ [DEBUG-RAPIDO] DeepSeek decisão:', deepSeekDecision.useVisualStructure ? 'SIM' : 'NAO');
+            const deepSeekDirective = this.buildDeepSeekHint(deepSeekDecision);
             
             // Adicionar imagens ANTES da resposta
             if (images && images.length > 0) {
@@ -1102,7 +1113,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             }
             
             const finalMessages = [
-                { role: 'system', content: this.getSystemPrompt('rapido') + this.buildWebContextBlock(webData) },
+                { role: 'system', content: this.getSystemPrompt('rapido') + this.buildWebContextBlock(webData) + deepSeekDirective },
                 ...(this.extraMessagesForNextCall || []),
                 ...this.conversationHistory
             ];
@@ -1123,15 +1134,19 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             console.log('ðŸ” [DEBUG-RAPIDO] Resposta da API recebida:', response ? response.substring(0, 100) + '...' : 'NULO');
             console.log('ðŸ” [DEBUG-RAPIDO] Tipo da resposta:', typeof response);
             console.log('ðŸ” [DEBUG-RAPIDO] Tamanho da resposta:', response ? response.length : 0);
-            
+
+            const { finalResponse, reasoningText } = this.extractReasoningFromText(response);
+
             // limpar extras para prÃ³xima chamada
             this.extraMessagesForNextCall = null;
 
             // Adicionar apenas o texto ao histÃ³rico para manter consistÃªncia
-            this.addToHistory('assistant', response);
+            this.addToHistory('assistant', finalResponse);
+            this.persistAssistantMessage(finalResponse);
+            this.renderReasoningCard(messageContainer, reasoningText);
             
             // Exibir na UI usando o mÃ©todo padrÃ£o que suporta HTML
-            this.ui.setResponseText(response, messageContainer.responseId, async () => {
+            this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
                 console.log('ðŸ”„ [DEBUG-RAPIDO] Resposta exibida apÃ³s imagens');
 
                 // Adicionar botÃ£o de fontes se houver dados web
@@ -1142,7 +1157,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 // Mostrar botÃµes de aÃ§Ã£o quando resposta estiver completa
                 await this.attachYouTubeVideosToResponse({
                     userMessage,
-                    assistantResponse: response,
+                    assistantResponse: finalResponse,
                     responseId: messageContainer.responseId,
                     chatId: responseChatId
                 });
@@ -1175,7 +1190,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
     }
 
     // ==================== MODELO RACIOCÃNIO ====================
-    async processRaciocioModel(userMessage) {
+    async processRaciocioModel(userMessage, relevantContext = []) {
         const messageContainer = this.ui.createAssistantMessageContainer();
         const timestamp = Date.now();
 
@@ -1195,8 +1210,15 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const [images, webData] = await Promise.all([imagesPromise, webSearchPromise]);
             console.log('ðŸ“¦ [RACIOCINIO] Imagens recebidas:', images);
             console.log('ðŸŒ [RACIOCINIO] Dados web recebidos:', webData);
+
+            this.ui.setThinkingHeader('Validando estratégia DeepSeek...', messageContainer.headerId);
+            const deepSeekDecision = await this.processDeepSeekBarrier(userMessage, webData, relevantContext);
+            console.log('ðŸ¥ [RACIOCINIO] DeepSeek decisão:', deepSeekDecision.useVisualStructure ? 'SIM' : 'NAO');
+            const deepSeekDirective = this.buildDeepSeekHint(deepSeekDecision);
+            this.ui.setThinkingHeader('Processando Raciocínio...', messageContainer.headerId);
+
             const finalMessages = [
-                { role: 'system', content: this.getSystemPrompt('raciocinio') + this.buildWebContextBlock(webData) },
+                { role: 'system', content: this.getSystemPrompt('raciocinio') + this.buildWebContextBlock(webData) + deepSeekDirective },
                 ...(this.extraMessagesForNextCall || []),
                 ...this.conversationHistory
             ];
@@ -1223,49 +1245,14 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             }
 
             console.log('ðŸ“„ Resposta bruta da API:', fullResponse);
-            // Extrair raciocínio das tags <think>
-            let reasoningText = '';
-            let finalResponse = fullResponse;
-            
-            // Tentar extrair raciocínio das tags (múltiplos padrões)
-            let reasoningMatch = fullResponse.match(/<think>([\s\S]*?)<\/think>/i);
-            if (!reasoningMatch) {
-                reasoningMatch = fullResponse.match(/<raciocÃ­nio>([\s\S]*?)<\/raciocÃ­nio>/i);
-            }
-            if (!reasoningMatch) {
-                reasoningMatch = fullResponse.match(/<raciocinio>([\s\S]*?)<\/raciocinio>/i);
-            }
-            if (!reasoningMatch) {
-                // Tentar detectar raciocínio manualmente (começa com "Raciocínio:")
-                const manualMatch = fullResponse.match(/^RaciocÃ­nio:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/im);
-                if (manualMatch) {
-                    reasoningText = manualMatch[0].replace(/^RaciocÃ­nio:\s*/i, '').trim();
-                    finalResponse = fullResponse.replace(/^RaciocÃ­nio:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/im, '').trim();
-                    console.log('ðŸ§  RaciocÃ­nio extraÃ­do manualmente:', reasoningText.substring(0, 100) + '...');
-                }
-            }
-            
-            if (reasoningMatch) {
-                reasoningText = reasoningMatch[1].trim();
-                // Remover as tags de raciocínio da resposta final
-                finalResponse = fullResponse.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-                finalResponse = fullResponse.replace(/<racioc[ií]nio>[\s\S]*?<\/racioc[ií]nio>/gi, '').trim();
-                finalResponse = finalResponse.replace(/<raciocinio>[\s\S]*?<\/raciocinio>/gi, '').trim();
-                finalResponse = finalResponse.replace(/<\s*think[^>]*>[\s\S]*?<\s*\/\s*think\s*>/gi, '').trim();
-                finalResponse = finalResponse.replace(/<\s*racioc[ií]nio[^>]*>[\s\S]*?<\s*\/\s*racioc[ií]nio\s*>/gi, '').trim();
-                // Limpeza AGRESSIVA: remover qualquer texto que pareça raciocínio
-                finalResponse = finalResponse.replace(/^Racioc[ií]nio:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/gim, '').trim();
-                finalResponse = finalResponse.replace(/^Pensando:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/gim, '').trim();
-                finalResponse = finalResponse.replace(/^Análise:[\s\S]*?(?=\n\n|\n[A-Z]|\n#|\n\*|Resposta|Final|$)/gim, '').trim();
+            const { finalResponse, reasoningText } = this.extractReasoningFromText(fullResponse);
 
-                // Remover linhas em branco extras
-                finalResponse = finalResponse.replace(/^\n+/gm, '').trim();
+            if (reasoningText) {
                 console.log('🧠 Raciocínio extraído:', reasoningText.substring(0, 100) + '...');
                 console.log('✅ Resposta final limpa:', finalResponse.substring(0, 100) + '...');
-            } else {
-                console.log('⚠️ Nenhuma tag <raciocínio> encontrada na resposta');
-                console.log('🧠 Conteúdo da resposta (primeiros 200 chars):', fullResponse.substring(0, 200));
             }
+
+            this.renderReasoningCard(messageContainer, reasoningText);
 
             if (reasoningText && messageContainer.thinkCardId) {
                 const thinkCard = document.getElementById(messageContainer.thinkCardId);
@@ -1424,13 +1411,17 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             console.log('🧩 [PRO] Imagens recebidas:', images);
             console.log('🌐 [PRO] Dados web recebidos:', webData);
 
+            const relevantContext = this.memory.getRelevantContext(userMessage);
             const webContext = this.buildWebContextBlock(webData);
+            const deepSeekDecision = await this.processDeepSeekBarrier(userMessage, webData, relevantContext);
+            console.log('🧠 [PRO] DeepSeek decisão:', deepSeekDecision.useVisualStructure ? 'SIM' : 'NAO');
+            const deepSeekDirective = this.buildDeepSeekHint(deepSeekDecision);
             const primaryModel = 'llama-3.3-70b-versatile';
             const fallbackModel = 'llama-3.1-8b-instant';
 
-            const baseSystem1 = this.getSystemPrompt('pro') + webContext + "\n\nNesta análise, responda diretamente ao pedido do usuário, priorize a solução mais útil e evite floreios.";
-            const baseSystem2 = this.getSystemPrompt('pro') + webContext + "\n\nNesta análise, atue como um revisor crítico. Questione suposições, identifique ambiguidades, aponte riscos e proponha alternativas melhores quando existirem.";
-            const baseSystemSynth = this.getSystemPrompt('pro') + webContext + "\n\nVocê é responsável pela síntese final. Combine as duas análises, preserve o que houver de melhor, elimine redundâncias, corrija erros e entregue uma resposta superior, clara, inteligente e prática. Use a web apenas como apoio.";
+            const baseSystem1 = this.getSystemPrompt('pro') + webContext + deepSeekDirective + "\n\nNesta análise, responda diretamente ao pedido do usuário, priorize a solução mais útil e evite floreios.";
+            const baseSystem2 = this.getSystemPrompt('pro') + webContext + deepSeekDirective + "\n\nNesta análise, atue como um revisor crítico. Questione suposições, identifique ambiguidades, aponte riscos e proponha alternativas melhores quando existirem.";
+            const baseSystemSynth = this.getSystemPrompt('pro') + webContext + deepSeekDirective + "\n\nVocê é responsável pela síntese final. Combine as duas análises, preserve o que houver de melhor, elimine redundâncias, corrija erros e entregue uma resposta superior, clara, inteligente e prática. Use a web apenas como apoio.";
 
             const messages1 = this.extraMessagesForNextCall ? [
                 { role: 'system', content: baseSystem1 },
@@ -1540,6 +1531,10 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
             } catch (e) {
                 console.warn('⚠️ Falha parsing arquivos de resposta (Pro):', e);
             }
+
+            const { finalResponse: cleanedResponse, reasoningText } = this.extractReasoningFromText(finalResponse);
+            finalResponse = cleanedResponse;
+            this.renderReasoningCard(messageContainer, reasoningText);
 
             this.addToHistory('assistant', finalResponse);
             await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
@@ -1662,6 +1657,176 @@ Responda com clareza, utilidade e bom senso.`;
         }
 
         return `\n\nContexto da web:\n${contextLines.join('\n')}`;
+    }
+
+    async processDeepSeekBarrier(userMessage, webData = {}, relevantContext = []) {
+        const barrierSystem = `Você é DeepSeek-V3.1, um estágio de decisão visual. Sua tarefa é analisar a pergunta do usuário e as fontes da web disponíveis e decidir se a resposta precisa de um elemento visual estruturado. Se for necessário, gere apenas o HTML desse elemento visual. Se não for necessário, responda apenas NÃO.`;
+        const userContext = [];
+
+        userContext.push(`Usuário: ${userMessage}`);
+        if (webData && webData.query) {
+            userContext.push(`Consulta web: ${webData.query}`);
+        }
+        if (Array.isArray(webData.sources) && webData.sources.length > 0) {
+            userContext.push('Fontes disponíveis:');
+            webData.sources.slice(0, 5).forEach((source, index) => {
+                const title = source.title || source.name || 'Fonte sem título';
+                const url = source.url || source.link || 'URL não disponível';
+                const snippet = source.snippet ? ` - ${source.snippet}` : '';
+                userContext.push(`${index + 1}. ${title} (${url})${snippet}`);
+            });
+        }
+        if (Array.isArray(relevantContext) && relevantContext.length > 0) {
+            userContext.push('Contexto relevante da conversa:');
+            relevantContext.slice(0, 5).forEach((memory, index) => {
+                const role = memory.role || 'usuário';
+                const content = memory.content || '';
+                userContext.push(`${index + 1}. [${role}] ${content}`);
+            });
+        }
+
+        const barrierMessages = [
+            { role: 'system', content: barrierSystem },
+            { role: 'user', content: `${userContext.join('\n')}` }
+        ];
+
+        try {
+            this.setApiProvider('groq');
+            const deepSeekModel = 'deepseek/deepseek-v3.1';
+            const deepSeekOutput = await this.callGroqAPI(deepSeekModel, barrierMessages, { max_tokens: 260 });
+            return this.parseDeepSeekBarrierOutput(deepSeekOutput);
+        } catch (error) {
+            console.warn('⚠️ Falha no estágio DeepSeek-V3.1, aplicando fallback de decisão.', error);
+            try {
+                this.setApiProvider('groq');
+                const fallbackOutput = await this.callGroqAPI('qwen/qwen3-32b', barrierMessages, { max_tokens: 260 });
+                return this.parseDeepSeekBarrierOutput(fallbackOutput);
+            } catch (fallbackError) {
+                console.error('❌ Falha no fallback do estágio DeepSeek:', fallbackError);
+                return { useVisualStructure: false, decisionText: 'NÃO', visualHtml: '' };
+            }
+        }
+    }
+
+    parseDeepSeekBarrierOutput(rawOutput) {
+        const text = String(rawOutput || '').trim();
+        const result = {
+            useVisualStructure: false,
+            decisionText: text,
+            visualHtml: ''
+        };
+
+        const firstLine = text.split(/\r?\n/)[0].trim().toLowerCase();
+        if (/^(não|nao|no)$/i.test(firstLine)) {
+            return result;
+        }
+
+        const htmlMatch = text.match(/<\s*([a-z][^\s/>]*)[^>]*>[\s\S]*<\/\s*\1\s*>/i);
+        if (htmlMatch) {
+            result.useVisualStructure = true;
+            result.visualHtml = text;
+            return result;
+        }
+
+        if (/</.test(text) && />/.test(text)) {
+            result.useVisualStructure = true;
+            result.visualHtml = text;
+            return result;
+        }
+
+        return result;
+    }
+
+    buildDeepSeekHint(decision) {
+        if (!decision || typeof decision.useVisualStructure !== 'boolean') {
+            return '';
+        }
+
+        if (decision.useVisualStructure) {
+            return `\n\nDeepSeek-V3.1 decidiu que este pedido precisa de um elemento visual. Inclua exatamente o bloco HTML abaixo no início da resposta sem alterá-lo ou reformatá-lo, depois escreva a resposta normal abaixo dele. HTML:\n${decision.visualHtml}`;
+        }
+
+        return `\n\nDeepSeek-V3.1 decidiu NÃO usar elemento visual. Responda apenas com texto, sem adicionar nenhum card ou estrutura visual adicional.`;
+    }
+
+    extractReasoningFromText(fullResponse) {
+        const rawText = String(fullResponse || '').trim();
+        let reasoningText = '';
+        let finalResponse = rawText;
+
+        const patterns = [
+            /<think>([\s\S]*?)<\/think>/i,
+            /<racioc[ií]nio>([\s\S]*?)<\/racioc[ií]nio>/i,
+            /<raciocinio>([\s\S]*?)<\/raciocinio>/i
+        ];
+
+        let match = null;
+        for (const pattern of patterns) {
+            match = rawText.match(pattern);
+            if (match) break;
+        }
+
+        if (match) {
+            reasoningText = match[1].trim();
+        }
+
+        if (reasoningText) {
+            finalResponse = rawText
+                .replace(/<think>[\s\S]*?<\/think>/gi, '')
+                .replace(/<racioc[ií]nio>[\s\S]*?<\/racioc[ií]nio>/gi, '')
+                .replace(/<raciocinio>[\s\S]*?<\/raciocinio>/gi, '')
+                .replace(/<\s*think[^>]*>[\s\S]*?<\s*\/\s*think\s*>/gi, '')
+                .replace(/<\s*racioc[ií]nio[^>]*>[\s\S]*?<\s*\/\s*racioc[ií]nio\s*>/gi, '')
+                .replace(/^\n+/gm, '')
+                .trim();
+        }
+
+        return { finalResponse: finalResponse.trim(), reasoningText };
+    }
+
+    renderReasoningCard(messageContainer, reasoningText) {
+        if (!reasoningText || !messageContainer?.thinkCardId) {
+            return;
+        }
+
+        const thinkCard = document.getElementById(messageContainer.thinkCardId);
+        if (!thinkCard) {
+            return;
+        }
+
+        thinkCard.classList.remove('hidden');
+        thinkCard.innerHTML = `
+            <div class="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                <div class="flex items-center justify-between gap-3 px-4 py-3 bg-gray-100 dark:bg-slate-800">
+                    <div class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                        <span>🧠</span>
+                        <span>Raciocínio</span>
+                    </div>
+                    <button type="button" id="thinkCardToggle_${messageContainer.uniqueId}" class="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors">
+                        Abrir
+                    </button>
+                </div>
+                <div id="thinkCardContent_${messageContainer.uniqueId}" style="max-height:0; overflow:hidden; transition:max-height 0.25s ease;" class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
+                    ${this.ui.escapeHtml(reasoningText)}
+                </div>
+            </div>
+        `;
+
+        const toggleBtn = document.getElementById(`thinkCardToggle_${messageContainer.uniqueId}`);
+        const contentDiv = document.getElementById(`thinkCardContent_${messageContainer.uniqueId}`);
+        if (toggleBtn && contentDiv) {
+            toggleBtn.addEventListener('click', () => {
+                const isOpen = contentDiv.style.maxHeight && contentDiv.style.maxHeight !== '0px';
+                if (isOpen) {
+                    contentDiv.style.maxHeight = '0px';
+                    toggleBtn.textContent = 'Abrir';
+                } else {
+                    contentDiv.style.maxHeight = `${contentDiv.scrollHeight}px`;
+                    toggleBtn.textContent = 'Fechar';
+                }
+            });
+            contentDiv.style.maxHeight = '0px';
+        }
     }
 
     showError(message) {
