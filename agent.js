@@ -503,8 +503,8 @@ export class Agent {
         
         try {
             const deepSeekDecision = await this.processDeepSeekBarrier(userMessage, {}, relevantContext);
-            const deepSeekDirective = this.buildDeepSeekHint(deepSeekDecision);
-            const messageToSend = deepSeekDirective ? `${deepSeekDirective}\n\n${userMessage}` : userMessage;
+            const artifactDirective = this.buildDeepSeekHint(deepSeekDecision);
+            const messageToSend = artifactDirective ? `${artifactDirective}\n\n${userMessage}` : userMessage;
 
             const formData = new FormData();
             formData.append('message', messageToSend);
@@ -1109,22 +1109,11 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const relevantContext = (this.memory && typeof this.memory.getRelevantContext === 'function')
                 ? this.memory.getRelevantContext(userMessage)
                 : [];
-            const deepSeekDecision = await this.processDeepSeekBarrier(userMessage, webData, relevantContext);
-            console.log('ðŸ¥ [DEBUG-RAPIDO] DeepSeek decisão:', deepSeekDecision.useVisualStructure ? 'SIM' : 'NAO');
+            // Decisão Binária de Artifact (Estilo Lhama)
+            const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
+            console.log('🎯 [ARTIFACT] Decisão:', needsArtifact ? 'SIM' : 'NÃO');
             
-            // Adicionar imagens ANTES da resposta
-            if (images && images.length > 0) {
-                console.log('âœ… [DEBUG-RAPIDO] Adicionando imagens ANTES da resposta');
-                this.ui.appendImagesToMessage(messageContainer.responseId, images);
-            }
-
-            if (deepSeekDecision.useVisualStructure && deepSeekDecision.visualHtml) {
-                console.log('âœ… [DEBUG-RAPIDO] Adicionando elemento visual HTML do DeepSeek');
-                deepSeekDecision.visualHtml = this.enhanceDeepSeekVisualHtml(deepSeekDecision.visualHtml);
-                this.ui.appendVisualHtmlToMessage(messageContainer.responseId, deepSeekDecision.visualHtml);
-            }
-            
-            const rapidSystemInstruction = `\n\nNota ao modelo: não faça meta-raciocínio. Não comece com "Okay, the user...". Responda pequeno em português, diretamente, como um resumo de prova. Se já houver elemento visual exibido acima, diga "Use o visual acima como referência" e tenha 1-2 parágrafos.`;
+            const rapidSystemInstruction = (needsArtifact ? '\n\n[INSTRUÇÃO: Gere um <artifact type="...">...</artifact> para representar visualmente os dados ou o código solicitado.]' : '') + `\n\nNota ao modelo: não faça meta-raciocínio. Não comece com "Okay, the user...". Responda pequeno em português, diretamente, como um resumo de prova. Se já houver elemento visual exibido acima, diga "Use o visual acima como referência" e tenha 1-2 parágrafos.`;
             const finalMessages = [
                 { role: 'system', content: this.getSystemPrompt('rapido') + this.buildWebContextBlock(webData) + rapidSystemInstruction },
                 ...(this.extraMessagesForNextCall || []),
@@ -1151,22 +1140,12 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             let { finalResponse, reasoningText } = this.extractReasoningFromText(response);
             finalResponse = this.cleanMetaRaciocinio(finalResponse);
 
-            // Decidir se um artifact é necessário
-            const artifactDecision = await this.ui.artifacts.decideArtifact(userMessage, finalResponse, 'raciocinio');
-            if (artifactDecision.shouldRender) {
-                console.log('✨ [ARTIFACT-RACIOCINIO] Renderizando artifact:', artifactDecision.type);
-                finalResponse = this.ui.artifacts.stripArtifactTags(finalResponse);
-            }
+            
 
             // limpar extras para próxima chamada
             this.extraMessagesForNextCall = null;
 
-            // Decidir se um artifact é necessário
-            const artifactDecision = await this.ui.artifacts.decideArtifact(userMessage, finalResponse, 'rapido');
-            if (artifactDecision.shouldRender) {
-                console.log('✨ [ARTIFACT-RAPIDO] Renderizando artifact:', artifactDecision.type);
-                finalResponse = this.ui.artifacts.stripArtifactTags(finalResponse);
-            }
+            
 
             // Adicionar apenas o texto ao histórico para manter consistência
             this.addToHistory('assistant', finalResponse);
@@ -1177,9 +1156,11 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
                 console.log('ðŸ”„ [DEBUG-RAPIDO] Resposta exibida apÃ³s imagens');
 
-                // Renderizar artifact se necessário
-                if (artifactDecision && artifactDecision.shouldRender) {
-                    await this.ui.artifacts.renderArtifact(messageContainer.responseId, artifactDecision);
+                // Renderizar Artifact extraído da resposta (Design Claude)
+                const extractedArtifact = this.ui.artifacts.extractArtifact(finalResponse);
+                if (extractedArtifact) {
+                    await this.ui.artifacts.renderArtifact(messageContainer.responseId, extractedArtifact);
+                    finalResponse = this.ui.artifacts.stripArtifactTags(finalResponse);
                 }
 
                 // Adicionar botÃ£o de fontes se houver dados web
@@ -1245,13 +1226,15 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             console.log('ðŸŒ [RACIOCINIO] Dados web recebidos:', webData);
 
             this.ui.setThinkingHeader('Validando estratégia DeepSeek...', messageContainer.headerId);
-            const deepSeekDecision = await this.processDeepSeekBarrier(userMessage, webData, relevantContext);
-            console.log('ðŸ¥ [RACIOCINIO] DeepSeek decisão:', deepSeekDecision.useVisualStructure ? 'SIM' : 'NAO');
-            const deepSeekDirective = this.buildDeepSeekHint(deepSeekDecision);
+            // Decisão Binária de Artifact (Estilo Lhama)
+            const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
+            const artifactDirective = needsArtifact ? "
+
+[INSTRUÇÃO: Gere um <artifact type='...'>...</artifact> para representar visualmente os dados ou o código solicitado.]" : "";
             this.ui.setThinkingHeader('Processando Raciocínio...', messageContainer.headerId);
 
             const finalMessages = [
-                { role: 'system', content: this.getSystemPrompt('raciocinio') + this.buildWebContextBlock(webData) + deepSeekDirective },
+                { role: 'system', content: this.getSystemPrompt('raciocinio') + this.buildWebContextBlock(webData) + artifactDirective },
                 ...(this.extraMessagesForNextCall || []),
                 ...this.conversationHistory
             ];
@@ -1281,12 +1264,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             let { finalResponse, reasoningText } = this.extractReasoningFromText(fullResponse);
             finalResponse = this.cleanMetaRaciocinio(finalResponse);
 
-            // Decidir se um artifact é necessário
-            const artifactDecision = await this.ui.artifacts.decideArtifact(userMessage, finalResponse, 'pro');
-            if (artifactDecision.shouldRender) {
-                console.log('✨ [ARTIFACT-PRO] Renderizando artifact:', artifactDecision.type);
-                finalResponse = this.ui.artifacts.stripArtifactTags(finalResponse);
-            }
+            
 
             if (reasoningText) {
                 console.log('🧠 Raciocínio extraído:', reasoningText.substring(0, 100) + '...');
@@ -1454,15 +1432,17 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 
             const relevantContext = this.memory.getRelevantContext(userMessage);
             const webContext = this.buildWebContextBlock(webData);
-            const deepSeekDecision = await this.processDeepSeekBarrier(userMessage, webData, relevantContext);
-            console.log('🧠 [PRO] DeepSeek decisão:', deepSeekDecision.useVisualStructure ? 'SIM' : 'NAO');
-            const deepSeekDirective = this.buildDeepSeekHint(deepSeekDecision);
+            // Decisão Binária de Artifact (Estilo Lhama)
+            const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
+            const artifactDirective = needsArtifact ? "
+
+[INSTRUÇÃO: Gere um <artifact type='...'>...</artifact> para representar visualmente os dados ou o código solicitado.]" : "";
             const primaryModel = 'llama-3.3-70b-versatile';
             const fallbackModel = 'Meta-Llama-3.1-8B-Instruct';
 
-            const baseSystem1 = this.getSystemPrompt('pro') + webContext + deepSeekDirective + "\n\nNesta análise, responda diretamente ao pedido do usuário, priorize a solução mais útil e evite floreios.";
-            const baseSystem2 = this.getSystemPrompt('pro') + webContext + deepSeekDirective + "\n\nNesta análise, atue como um revisor crítico. Questione suposições, identifique ambiguidades, aponte riscos e proponha alternativas melhores quando existirem.";
-            const baseSystemSynth = this.getSystemPrompt('pro') + webContext + deepSeekDirective + "\n\nVocê é responsável pela síntese final. Combine as duas análises, preserve o que houver de melhor, elimine redundâncias, corrija erros e entregue uma resposta superior, clara, inteligente e prática. Use a web apenas como apoio.";
+            const baseSystem1 = this.getSystemPrompt('pro') + webContext + artifactDirective + "\n\nNesta análise, responda diretamente ao pedido do usuário, priorize a solução mais útil e evite floreios.";
+            const baseSystem2 = this.getSystemPrompt('pro') + webContext + artifactDirective + "\n\nNesta análise, atue como um revisor crítico. Questione suposições, identifique ambiguidades, aponte riscos e proponha alternativas melhores quando existirem.";
+            const baseSystemSynth = this.getSystemPrompt('pro') + webContext + artifactDirective + "\n\nVocê é responsável pela síntese final. Combine as duas análises, preserve o que houver de melhor, elimine redundâncias, corrija erros e entregue uma resposta superior, clara, inteligente e prática. Use a web apenas como apoio.";
 
             const messages1 = this.extraMessagesForNextCall ? [
                 { role: 'system', content: baseSystem1 },
@@ -1580,6 +1560,12 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
             this.addToHistory('assistant', finalResponse);
             await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
             this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
+                // Renderizar Artifact extraído da resposta (Design Claude)
+                const extractedArtifact = this.ui.artifacts.extractArtifact(finalResponse);
+                if (extractedArtifact) {
+                    await this.ui.artifacts.renderArtifact(messageContainer.responseId, extractedArtifact);
+                    finalResponse = this.ui.artifacts.stripArtifactTags(finalResponse);
+                }
                 if (webData && webData.sources && webData.sources.length > 0) {
                     this.ui.addSourcesButton(messageContainer.responseId, webData.sources, webData.query);
                 }
@@ -1703,28 +1689,7 @@ Responda com clareza, utilidade e bom senso.`;
         return `\n\nContexto da web:\n${contextLines.join('\n')}`;
     }
 
-    async processDeepSeekBarrier(userMessage, webData = {}, relevantContext = []) {
-        const barrierSystem = `Você é Llama-Visual-3.1, um estágio de decisão visual. Sua tarefa é analisar a pergunta do usuário e as fontes da web disponíveis e decidir se a resposta precisa de um elemento visual estruturado. Se for necessário, gere apenas o HTML desse elemento visual. Se não for necessário, responda apenas NÃO.
-
-Responda estritamente com APENAS UM DOS SEGUINTES:
-- exatamente a palavra NÃO (sem acentos adicionais, sem pontuação extra, sem explicações);
-- ou somente o código HTML completo que deve ser inserido na resposta. Nada mais.
-
-Regras extras:
-- para resumo, estudo, prova, revisão, comparação, lista ou explicação didática, gere uma estrutura visual rica (não apenas tabela). Use:
-  * cards coloridos e seções distintas;
-  * blocos temáticos com bordas, etiquetas e ícones; 
-  * (se relevante) uma mini linha do tempo horizontal;
-  * tabelas, se usar, como parte de um layout maior, não a única saída.
-- o HTML deve ser completo e renderizável, sem explicações, sem comentários e sem tags de raciocínio;
-- não escreva texto antes ou depois do HTML; não explique o HTML; não coloque títulos fora do HTML;
-- a resposta deve ser unicamente HTML ou unicamente NÃO.`;
-        const userContext = [];
-
-        userContext.push(`Usuário: ${userMessage}`);
-        if (webData && webData.query) {
-            userContext.push(`Consulta web: ${webData.query}`);
-        }
+    
         if (Array.isArray(webData.sources) && webData.sources.length > 0) {
             userContext.push('Fontes disponíveis:');
             webData.sources.slice(0, 5).forEach((source, index) => {
@@ -1754,11 +1719,7 @@ Regras extras:
             const deepSeekOutput = await this.callGroqAPI(deepSeekModel, barrierMessages, { max_tokens: 260 });
             let decision = this.parseDeepSeekBarrierOutput(deepSeekOutput);
 
-            if (!decision.useVisualStructure && this.shouldForceVisualFromMessage(userMessage)) {
-                decision.useVisualStructure = true;
-                decision.visualHtml = this.buildFallbackVisualHtml(userMessage);
-                decision.decisionText = 'FALLBACK';
-            }
+            if (!decision.useVisualStructure && this.
 
             if (decision.useVisualStructure && !decision.visualHtml) {
                 decision.visualHtml = this.buildFallbackVisualHtml(userMessage);
@@ -1772,11 +1733,7 @@ Regras extras:
                 const fallbackOutput = await this.callGroqAPI('qwen/qwen3-32b', barrierMessages, { max_tokens: 260 });
                 let decision = this.parseDeepSeekBarrierOutput(fallbackOutput);
 
-                if (!decision.useVisualStructure && this.shouldForceVisualFromMessage(userMessage)) {
-                    decision.useVisualStructure = true;
-                    decision.visualHtml = this.buildFallbackVisualHtml(userMessage);
-                    decision.decisionText = 'FALLBACK';
-                }
+                if (!decision.useVisualStructure && this.
 
                 return decision;
             } catch (fallbackError) {
@@ -1786,13 +1743,7 @@ Regras extras:
         }
     }
 
-    parseDeepSeekBarrierOutput(rawOutput) {
-        const text = String(rawOutput || '').trim();
-        const result = {
-            useVisualStructure: false,
-            decisionText: text,
-            visualHtml: ''
-        };
+    ;
 
         const normalizedStart = text.replace(/^\s+/, '');
         if (/^\s*(não|nao|no)\b/i.test(normalizedStart) && !/<[^>]+>/.test(text)) {
@@ -1820,10 +1771,7 @@ Regras extras:
         return result;
     }
 
-    enhanceDeepSeekVisualHtml(html) {
-        if (!html || typeof html !== 'string') {
-            return html;
-        }
+    
 
         const cleaned = html.trim();
         const hasTable = /<table\b/i.test(cleaned);
@@ -1868,58 +1816,9 @@ Regras extras:
         return `<div style="border:1px solid #334155;background:#0f172a;border-radius:12px;padding:14px;box-shadow:0 8px 24px rgba(0,0,0,.30);">${cleaned}</div>`;
     }
 
-    shouldForceVisualFromMessage(userMessage) {
-        if (typeof userMessage !== 'string') return false;
-        return /\b(visual|linha do tempo|timeline|card|quadro|cronograma|diagrama|mapa mental)\b/i.test(userMessage);
-    }
+    
 
-    buildFallbackVisualHtml(userMessage) {
-        const query = String(userMessage || '').trim();
-        const escapedQuery = query.substring(0, 80)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-        return `
-<div style="width:100%;max-width:800px;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;color:#f8fafc;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);border-radius:14px;overflow:hidden;box-shadow:0 20px 50px rgba(15,23,42,.5);">
-  <div style="background:linear-gradient(90deg,#3b82f6 0%,#8b5cf6 100%);padding:20px;text-align:center;">
-    <div style="font-size:18px;font-weight:700;letter-spacing:1px;">📊 ESTRUTURA VISUAL</div>
-    <div style="font-size:12px;color:#e0e7ff;margin-top:6px;">${escapedQuery}</div>
-  </div>
-  <div style="padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">
-    <div style="background:rgba(59,130,246,.15);border:2px solid #3b82f6;border-radius:12px;padding:16px;text-align:center;transition:all 0.3s ease;">
-      <div style="font-size:28px;">🔹</div>
-      <div style="font-weight:700;margin-top:8px;color:#60a5fa;">Card 1</div>
-      <div style="font-size:12px;color:#cbd5e1;margin-top:6px;">Conceito principal</div>
-    </div>
-    <div style="background:rgba(139,92,246,.15);border:2px solid #8b5cf6;border-radius:12px;padding:16px;text-align:center;transition:all 0.3s ease;">
-      <div style="font-size:28px;">🔷</div>
-      <div style="font-weight:700;margin-top:8px;color:#c4b5fd;">Card 2</div>
-      <div style="font-size:12px;color:#cbd5e1;margin-top:6px;">Ponto chave</div>
-    </div>
-    <div style="background:rgba(236,72,153,.15);border:2px solid #ec4899;border-radius:12px;padding:16px;text-align:center;transition:all 0.3s ease;">
-      <div style="font-size:28px;">🔶</div>
-      <div style="font-weight:700;margin-top:8px;color:#f472b6;">Card 3</div>
-      <div style="font-size:12px;color:#cbd5e1;margin-top:6px;">Detalhe importante</div>
-    </div>
-  </div>
-  <div style="padding:16px 24px;background:rgba(0,0,0,.2);border-top:1px solid rgba(148,163,184,.2);">
-    <div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:12px;">📌 LINHA DO TEMPO</div>
-    <div style="display:flex;align-items:center;gap:8px;overflow-x:auto;padding:8px 0;">
-      <div style="min-width:70px;height:40px;background:rgba(59,130,246,.3);border:1px solid #3b82f6;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#93c5fd;">Início</div>
-      <div style="width:30px;height:1px;background:linear-gradient(90deg,#3b82f6,#8b5cf6);"></div>
-      <div style="min-width:70px;height:40px;background:rgba(139,92,246,.3);border:1px solid #8b5cf6;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#d8b4fe;">Etapa A</div>
-      <div style="width:30px;height:1px;background:linear-gradient(90deg,#8b5cf6,#ec4899);"></div>
-      <div style="min-width:70px;height:40px;background:rgba(236,72,153,.3);border:1px solid #ec4899;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#f472b6;">Etapa B</div>
-      <div style="width:30px;height:1px;background:linear-gradient(90deg,#ec4899,#06b6d4);"></div>
-      <div style="min-width:70px;height:40px;background:rgba(6,182,212,.3);border:1px solid #06b6d4;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#67e8f9;">Fim</div>
-    </div>
-  </div>
-  <div style="padding:12px 24px;background:rgba(59,130,246,.1);border-top:1px solid rgba(59,130,246,.2);text-align:center;font-size:11px;color:#93c5fd;">✨ Visualização interativa gerada para estudo</div>
-</div>
-`;
-    }
+    
 
     cleanMetaRaciocinio(finalText) {
         if (typeof finalText !== 'string') return finalText;
@@ -1950,10 +1849,7 @@ Regras extras:
         return text;
     }
 
-    buildDeepSeekHint(decision) {
-        if (!decision || typeof decision.useVisualStructure !== 'boolean') {
-            return '';
-        }
+    
 
         if (decision.useVisualStructure) {
             return `\n\nLlama-Visual já forneceu um elemento visual (HTML) e este elemento foi inserido no chat. \

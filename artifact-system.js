@@ -1,7 +1,6 @@
 /**
  * Sistema de Artifacts Inteligente para Drekee AI
- * Responsável por decidir e renderizar elementos visuais/interativos automáticos
- * Similar ao sistema de Artifacts do Claude (Anthropic)
+ * Design 100% inspirado no Claude (Anthropic)
  */
 
 class ArtifactSystem {
@@ -10,397 +9,205 @@ class ArtifactSystem {
         this.ui = ui;
         this.artifactCounter = 0;
         this.activeArtifacts = new Map();
+        this.decisionModel = 'Meta-Llama-3.1-8B-Instruct'; // O modelo "Lhama" para decisão
     }
 
     /**
-     * Analisa a resposta da IA e decide se um artifact é necessário
-     * @param {string} userMessage - Mensagem do usuário
-     * @param {string} aiResponse - Resposta da IA
-     * @param {string} mode - Modo de resposta (rapido, raciocinio, pro)
-     * @returns {Promise<Object>} Decisão sobre o artifact
+     * Lógica de decisão binária (SIM/NÃO) inspirada no modelo antigo do Gustavo
+     * Decide se a pergunta do usuário merece um artefato visual
      */
-    async decideArtifact(userMessage, aiResponse, mode = 'rapido') {
+    async decideIfNeedsArtifact(userMessage, webData = {}, relevantContext = []) {
+        console.log('🧠 [ARTIFACT-DECISION] Iniciando decisão binária...');
+        
+        const systemPrompt = `Você é o Llama-Decision-Engine. Sua única tarefa é analisar a pergunta do usuário e decidir se a resposta deve incluir um "Artefato" (um elemento visual, código, gráfico ou documento rico).
+
+Responda APENAS:
+- "SIM" se a pergunta envolver: criação de código, análise de dados, gráficos, diagramas, resumos estruturados, tabelas complexas ou documentos formais.
+- "NÃO" se for apenas uma conversa casual, pergunta simples de texto ou se não houver necessidade de suporte visual.
+
+REGRAS:
+1. Responda estritamente com UMA PALAVRA: SIM ou NÃO.
+2. Não explique sua decisão.
+3. Não use pontuação.`;
+
+        const context = `Usuário: ${userMessage}\n` + 
+                       (webData.query ? `Busca Web: ${webData.query}\n` : '') +
+                       (relevantContext.length > 0 ? `Contexto: ${relevantContext.map(m => m.content).join(' | ')}` : '');
+
         try {
-            const decision = {
-                shouldRender: false,
-                type: null,
-                content: null,
-                title: null,
-                description: null
-            };
+            this.agent.setApiProvider('samba');
+            const response = await this.agent.callGroqAPI(this.decisionModel, [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: context }
+            ], { max_tokens: 5, temperature: 0.1 });
 
-            // Extrair artifact tags se existirem
-            const artifactMatch = aiResponse.match(/<artifact\s+type=["']([^"']+)["'](?:\s+title=["']([^"']+)["'])?(?:\s+description=["']([^"']+)["'])?>([\s\S]*?)<\/artifact>/i);
+            const decision = response.trim().toUpperCase();
+            console.log(`🎯 [ARTIFACT-DECISION] Resultado: ${decision}`);
             
-            if (artifactMatch) {
-                decision.shouldRender = true;
-                decision.type = artifactMatch[1];
-                decision.title = artifactMatch[2] || this.generateDefaultTitle(artifactMatch[1]);
-                decision.description = artifactMatch[3] || '';
-                decision.content = artifactMatch[4].trim();
-                return decision;
-            }
-
-            // Análise heurística se não houver tags explícitas
-            if (mode === 'pro' || mode === 'raciocinio') {
-                const heuristic = await this.analyzeForArtifactHeuristic(userMessage, aiResponse);
-                if (heuristic.shouldRender) {
-                    return heuristic;
-                }
-            }
-
-            return decision;
+            return decision.includes('SIM');
         } catch (error) {
-            console.error('❌ Erro ao decidir artifact:', error);
-            return { shouldRender: false, type: null, content: null, title: null, description: null };
+            console.error('❌ [ARTIFACT-DECISION] Erro na decisão:', error);
+            // Fallback heurístico
+            return this.heuristicDecision(userMessage);
         }
     }
 
     /**
-     * Análise heurística para detectar quando um artifact seria útil
-     * @private
+     * Decisão baseada em palavras-chave (Fallback)
      */
-    async analyzeForArtifactHeuristic(userMessage, aiResponse) {
-        const patterns = {
-            code: {
-                regex: /```[\w]*\n([\s\S]*?)```/g,
-                threshold: 1,
-                type: 'code'
-            },
-            chart: {
-                regex: /(?:gráfico|gráficos|chart|charts|dados|estatísticas|números|percentual|taxa|crescimento|evolução|comparação|análise de dados)/i,
-                threshold: 2,
-                type: 'chart'
-            },
-            diagram: {
-                regex: /(?:diagrama|fluxograma|arquitetura|estrutura|processo|etapas|passo a passo|timeline|linha do tempo)/i,
-                threshold: 2,
-                type: 'diagram'
-            },
-            ui: {
-                regex: /(?:calculadora|simulador|interativo|ferramenta|app|aplicativo|widget|componente)/i,
-                threshold: 2,
-                type: 'ui'
-            },
-            document: {
-                regex: /(?:documento|relatório|proposta|plano|guia|manual|especificação|resumo executivo)/i,
-                threshold: 2,
-                type: 'document'
-            }
-        };
+    heuristicDecision(message) {
+        const keywords = ['código', 'code', 'gráfico', 'chart', 'tabela', 'diagrama', 'fluxograma', 'resumo', 'analise', 'comparação', 'javascript', 'python', 'html', 'css', 'react'];
+        return keywords.some(k => message.toLowerCase().includes(k));
+    }
 
-        const combined = `${userMessage} ${aiResponse}`;
-        let bestMatch = null;
-        let bestScore = 0;
+    /**
+     * Extrai o conteúdo do artifact da resposta da IA
+     */
+    extractArtifact(aiResponse) {
+        // Padrão Claude: detecta blocos de código ou tags especiais
+        const codeBlockMatch = aiResponse.match(/```([\w]*)\n([\s\S]*?)```/);
+        const artifactTagMatch = aiResponse.match(/<artifact\s+type=["']([^"']+)["'](?:\s+title=["']([^"']+)["'])?>([\s\S]*?)<\/artifact>/i);
 
-        for (const [key, pattern] of Object.entries(patterns)) {
-            const matches = combined.match(pattern.regex);
-            const count = matches ? matches.length : 0;
-            
-            if (count >= pattern.threshold) {
-                const score = count * 10 + (pattern.regex.test(userMessage) ? 5 : 0);
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestMatch = pattern.type;
-                }
-            }
-        }
-
-        if (bestMatch) {
+        if (artifactTagMatch) {
             return {
-                shouldRender: true,
-                type: bestMatch,
-                title: this.generateDefaultTitle(bestMatch),
-                description: `Elemento ${bestMatch} gerado automaticamente`,
-                content: aiResponse
+                type: artifactTagMatch[1],
+                title: artifactTagMatch[2] || 'Artefato',
+                content: artifactTagMatch[3].trim()
             };
         }
 
-        return { shouldRender: false, type: null, content: null, title: null, description: null };
+        if (codeBlockMatch) {
+            return {
+                type: 'code',
+                title: 'Código Fonte',
+                language: codeBlockMatch[1],
+                content: codeBlockMatch[2].trim()
+            };
+        }
+
+        return null;
     }
 
     /**
-     * Gera um título padrão baseado no tipo de artifact
-     * @private
-     */
-    generateDefaultTitle(type) {
-        const titles = {
-            code: '💻 Código',
-            chart: '📊 Gráfico',
-            diagram: '🔄 Diagrama',
-            ui: '🎨 Componente Interativo',
-            document: '📄 Documento'
-        };
-        return titles[type] || '✨ Elemento Visual';
-    }
-
-    /**
-     * Renderiza um artifact na UI
-     * @param {string} messageId - ID da mensagem
-     * @param {Object} artifact - Objeto com informações do artifact
+     * Renderiza o Artifact com design Premium Claude-style
      */
     async renderArtifact(messageId, artifact) {
-        if (!artifact.shouldRender || !artifact.type) {
-            return;
-        }
+        if (!artifact) return;
 
-        const artifactId = `artifact_${this.artifactCounter++}`;
-        this.activeArtifacts.set(artifactId, artifact);
-
-        try {
-            switch (artifact.type) {
-                case 'code':
-                    await this.renderCodeArtifact(messageId, artifactId, artifact);
-                    break;
-                case 'chart':
-                    await this.renderChartArtifact(messageId, artifactId, artifact);
-                    break;
-                case 'diagram':
-                    await this.renderDiagramArtifact(messageId, artifactId, artifact);
-                    break;
-                case 'ui':
-                    await this.renderUIArtifact(messageId, artifactId, artifact);
-                    break;
-                case 'document':
-                    await this.renderDocumentArtifact(messageId, artifactId, artifact);
-                    break;
-                default:
-                    console.warn('⚠️ Tipo de artifact desconhecido:', artifact.type);
-            }
-        } catch (error) {
-            console.error('❌ Erro ao renderizar artifact:', error);
-            this.renderArtifactError(messageId, artifactId, error);
-        }
-    }
-
-    /**
-     * Renderiza um artifact de código
-     * @private
-     */
-    async renderCodeArtifact(messageId, artifactId, artifact) {
-        const codeMatch = artifact.content.match(/```[\w]*\n([\s\S]*?)```/);
-        const code = codeMatch ? codeMatch[1] : artifact.content;
-        const language = artifact.content.match(/```([\w]*)/)?.[1] || 'javascript';
-
-        const html = `
-            <div id="${artifactId}" class="artifact artifact-code rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden shadow-lg my-4" style="background: #f5f5f5; dark:background: #1e1e1e;">
-                <div class="artifact-header flex items-center justify-between px-4 py-3" style="background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%); color: white;">
-                    <div class="flex items-center gap-2">
-                        <span class="material-icons-outlined text-lg">code</span>
-                        <span class="font-semibold">${this.escapeHtml(artifact.title || 'Código')}</span>
-                        <span class="text-xs opacity-75">${language}</span>
-                    </div>
-                    <button class="artifact-copy-btn px-3 py-1 rounded text-xs bg-white/20 hover:bg-white/30 transition-all" onclick="window.artifactSystem && window.artifactSystem.copyArtifactCode('${artifactId}')">
-                        📋 Copiar
-                    </button>
-                </div>
-                <div class="artifact-content p-4 overflow-x-auto" style="background: #f5f5f5; dark:background: #1e1e1e;">
-                    <pre style="margin: 0; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.5; color: #333; dark:color: #e0e0e0;"><code>${this.escapeHtml(code)}</code></pre>
-                </div>
-            </div>
-        `;
-
-        this.injectArtifactToMessage(messageId, html);
-    }
-
-    /**
-     * Renderiza um artifact de gráfico
-     * @private
-     */
-    async renderChartArtifact(messageId, artifactId, artifact) {
-        const html = `
-            <div id="${artifactId}" class="artifact artifact-chart rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden shadow-lg my-4" style="background: white; dark:background: #1e1e1e;">
-                <div class="artifact-header flex items-center justify-between px-4 py-3" style="background: linear-gradient(90deg, #10b981 0%, #059669 100%); color: white;">
-                    <div class="flex items-center gap-2">
-                        <span class="material-icons-outlined text-lg">bar_chart</span>
-                        <span class="font-semibold">${this.escapeHtml(artifact.title || 'Gráfico')}</span>
-                    </div>
-                </div>
-                <div class="artifact-content p-6" style="background: white; dark:background: #1e1e1e; min-height: 300px;">
-                    <canvas id="${artifactId}_canvas" style="width: 100%; height: 300px;"></canvas>
-                </div>
-            </div>
-        `;
-
-        this.injectArtifactToMessage(messageId, html);
+        const artifactId = `artifact_${Date.now()}`;
         
-        // Tentar renderizar gráfico com Chart.js se disponível
-        setTimeout(() => {
-            this.renderChartFromArtifact(artifactId, artifact.content);
-        }, 100);
-    }
-
-    /**
-     * Renderiza um artifact de diagrama
-     * @private
-     */
-    async renderDiagramArtifact(messageId, artifactId, artifact) {
+        // Design inspirado no Claude (painel lateral ou flutuante)
         const html = `
-            <div id="${artifactId}" class="artifact artifact-diagram rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden shadow-lg my-4" style="background: white; dark:background: #1e1e1e;">
-                <div class="artifact-header flex items-center justify-between px-4 py-3" style="background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%); color: white;">
-                    <div class="flex items-center gap-2">
-                        <span class="material-icons-outlined text-lg">architecture</span>
-                        <span class="font-semibold">${this.escapeHtml(artifact.title || 'Diagrama')}</span>
+            <div id="${artifactId}" class="claude-artifact-container group mt-6 mb-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div class="artifact-card overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0d1117] shadow-2xl">
+                    <!-- Header -->
+                    <div class="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800">
+                        <div class="flex items-center gap-3">
+                            <div class="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                                <span class="material-icons-outlined text-sm">${this.getIconForType(artifact.type)}</span>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-semibold text-gray-900 dark:text-gray-100">${artifact.title}</h4>
+                                <p class="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider">${artifact.type}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="window.artifactSystem.copyContent('${artifactId}')" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors" title="Copiar">
+                                <span class="material-icons-outlined text-sm">content_copy</span>
+                            </button>
+                            <button onclick="window.artifactSystem.toggleExpand('${artifactId}')" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors">
+                                <span class="material-icons-outlined text-sm">fullscreen</span>
+                            </button>
+                        </div>
                     </div>
-                </div>
-                <div class="artifact-content p-6" style="background: white; dark:background: #1e1e1e; min-height: 300px; display: flex; align-items: center; justify-content: center;">
-                    <div style="text-align: center; color: #999;">
-                        <p>📊 Diagrama renderizado</p>
-                        <p style="font-size: 12px; margin-top: 8px;">Conteúdo do diagrama será exibido aqui</p>
+                    
+                    <!-- Content Area -->
+                    <div class="artifact-content-area relative max-h-[500px] overflow-auto p-0">
+                        ${this.formatContent(artifact)}
+                    </div>
+                    
+                    <!-- Footer/Status -->
+                    <div class="px-4 py-2 bg-gray-50 dark:bg-[#161b22] border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                        <span class="text-[10px] text-gray-400 dark:text-gray-500">Drekee Artifact Engine v2.0</span>
+                        <div class="flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                            <span class="text-[10px] text-gray-400 dark:text-gray-500">Interativo</span>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
 
-        this.injectArtifactToMessage(messageId, html);
-    }
-
-    /**
-     * Renderiza um artifact de UI interativa
-     * @private
-     */
-    async renderUIArtifact(messageId, artifactId, artifact) {
-        const html = `
-            <div id="${artifactId}" class="artifact artifact-ui rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden shadow-lg my-4" style="background: white; dark:background: #1e1e1e;">
-                <div class="artifact-header flex items-center justify-between px-4 py-3" style="background: linear-gradient(90deg, #ec4899 0%, #db2777 100%); color: white;">
-                    <div class="flex items-center gap-2">
-                        <span class="material-icons-outlined text-lg">widgets</span>
-                        <span class="font-semibold">${this.escapeHtml(artifact.title || 'Componente Interativo')}</span>
-                    </div>
-                </div>
-                <div class="artifact-content p-6" style="background: white; dark:background: #1e1e1e;">
-                    ${artifact.content}
-                </div>
-            </div>
-        `;
-
-        this.injectArtifactToMessage(messageId, html);
-    }
-
-    /**
-     * Renderiza um artifact de documento
-     * @private
-     */
-    async renderDocumentArtifact(messageId, artifactId, artifact) {
-        const html = `
-            <div id="${artifactId}" class="artifact artifact-document rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden shadow-lg my-4" style="background: white; dark:background: #1e1e1e;">
-                <div class="artifact-header flex items-center justify-between px-4 py-3" style="background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%); color: white;">
-                    <div class="flex items-center gap-2">
-                        <span class="material-icons-outlined text-lg">description</span>
-                        <span class="font-semibold">${this.escapeHtml(artifact.title || 'Documento')}</span>
-                    </div>
-                </div>
-                <div class="artifact-content p-6 prose prose-sm dark:prose-invert max-w-none" style="background: white; dark:background: #1e1e1e;">
-                    ${artifact.content}
-                </div>
-            </div>
-        `;
-
-        this.injectArtifactToMessage(messageId, html);
-    }
-
-    /**
-     * Injeta um artifact na mensagem do assistente
-     * @private
-     */
-    injectArtifactToMessage(messageId, html) {
         const responseDiv = document.getElementById(messageId);
         if (responseDiv) {
             responseDiv.insertAdjacentHTML('beforeend', html);
-        }
-    }
-
-    /**
-     * Renderiza um gráfico usando Chart.js
-     * @private
-     */
-    renderChartFromArtifact(artifactId, content) {
-        try {
-            // Tentar extrair dados JSON do conteúdo
-            const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/\{[\s\S]*\}/);
-            if (!jsonMatch) return;
-
-            const data = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+            this.activeArtifacts.set(artifactId, artifact);
             
-            // Se Chart.js estiver disponível, renderizar
-            if (window.Chart) {
-                const canvas = document.getElementById(`${artifactId}_canvas`);
-                if (canvas) {
-                    new window.Chart(canvas, data);
-                }
-            }
-        } catch (error) {
-            console.warn('⚠️ Não foi possível renderizar gráfico:', error);
+            // Scroll suave
+            responseDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }
     }
 
-    /**
-     * Copia o conteúdo de um artifact de código
-     */
-    copyArtifactCode(artifactId) {
+    getIconForType(type) {
+        const icons = {
+            code: 'code',
+            chart: 'bar_chart',
+            diagram: 'account_tree',
+            ui: 'widgets',
+            document: 'description'
+        };
+        return icons[type] || 'auto_awesome';
+    }
+
+    formatContent(artifact) {
+        if (artifact.type === 'code') {
+            return `
+                <div class="bg-[#0d1117] p-4 font-mono text-sm leading-relaxed">
+                    <pre class="text-gray-300"><code>${this.escapeHtml(artifact.content)}</code></pre>
+                </div>
+            `;
+        }
+        
+        // Se for UI/HTML, renderiza direto (com sandbox sutil)
+        if (artifact.type === 'ui' || artifact.content.includes('<div')) {
+            return `<div class="p-4 bg-white dark:bg-transparent">${artifact.content}</div>`;
+        }
+
+        // Default: Markdown renderizado
+        return `<div class="p-6 prose dark:prose-invert max-w-none text-sm">${artifact.content}</div>`;
+    }
+
+    copyContent(artifactId) {
         const artifact = this.activeArtifacts.get(artifactId);
-        if (!artifact) return;
-
-        const codeMatch = artifact.content.match(/```[\w]*\n([\s\S]*?)```/);
-        const code = codeMatch ? codeMatch[1] : artifact.content;
-
-        navigator.clipboard.writeText(code).then(() => {
-            const btn = document.querySelector(`#${artifactId} .artifact-copy-btn`);
-            if (btn) {
-                const originalText = btn.textContent;
-                btn.textContent = '✅ Copiado!';
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                }, 2000);
-            }
-        }).catch(err => {
-            console.error('❌ Erro ao copiar:', err);
-        });
+        if (artifact) {
+            navigator.clipboard.writeText(artifact.content);
+            // Toast de sucesso (simplificado)
+            console.log('Copiado para o clipboard!');
+        }
     }
 
-    /**
-     * Renderiza um erro ao processar artifact
-     * @private
-     */
-    renderArtifactError(messageId, artifactId, error) {
-        const html = `
-            <div id="${artifactId}" class="artifact artifact-error rounded-lg border border-red-300 dark:border-red-600 overflow-hidden shadow-lg my-4" style="background: #fef2f2; dark:background: #7f1d1d;">
-                <div class="artifact-header flex items-center justify-between px-4 py-3" style="background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); color: white;">
-                    <div class="flex items-center gap-2">
-                        <span class="material-icons-outlined text-lg">error</span>
-                        <span class="font-semibold">Erro ao renderizar elemento</span>
-                    </div>
-                </div>
-                <div class="artifact-content p-4" style="color: #991b1b;">
-                    <p style="font-size: 13px; margin: 0;">${this.escapeHtml(error.message || 'Erro desconhecido')}</p>
-                </div>
-            </div>
-        `;
-
-        this.injectArtifactToMessage(messageId, html);
+    toggleExpand(artifactId) {
+        const el = document.getElementById(artifactId);
+        if (el) {
+            el.classList.toggle('fixed');
+            el.classList.toggle('inset-4');
+            el.classList.toggle('z-[9999]');
+            el.querySelector('.artifact-content-area').classList.toggle('max-h-none');
+            el.querySelector('.artifact-content-area').classList.toggle('h-[calc(100vh-120px)]');
+        }
     }
 
-    /**
-     * Escapa HTML para evitar XSS
-     * @private
-     */
     escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
 
-    /**
-     * Remove tags de artifact da resposta de texto
-     * @param {string} response - Resposta da IA
-     * @returns {string} Resposta sem tags de artifact
-     */
-    stripArtifactTags(response) {
-        return response.replace(/<artifact\s+type=["'][^"']+["'](?:\s+[^>]*)?>[\s\S]*?<\/artifact>/gi, '').trim();
+    stripArtifactTags(text) {
+        return text.replace(/<artifact[\s\S]*?<\/artifact>/gi, '').trim();
     }
 }
 
-// Exportar para uso em módulos
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = ArtifactSystem;
 }
