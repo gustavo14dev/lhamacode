@@ -1107,7 +1107,6 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 : [];
             const deepSeekDecision = await this.processDeepSeekBarrier(userMessage, webData, relevantContext);
             console.log('ðŸ¥ [DEBUG-RAPIDO] DeepSeek decisão:', deepSeekDecision.useVisualStructure ? 'SIM' : 'NAO');
-            const deepSeekDirective = this.buildDeepSeekHint(deepSeekDecision);
             
             // Adicionar imagens ANTES da resposta
             if (images && images.length > 0) {
@@ -1121,8 +1120,9 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 this.ui.appendVisualHtmlToMessage(messageContainer.responseId, deepSeekDecision.visualHtml);
             }
             
+            const rapidSystemInstruction = `\n\nNota ao modelo: não faça meta-raciocínio. Não comece com "Okay, the user...". Responda pequeno em português, diretamente, como um resumo de prova. Se já houver elemento visual exibido acima, diga "Use o visual acima como referência" e tenha 1-2 parágrafos.`;
             const finalMessages = [
-                { role: 'system', content: this.getSystemPrompt('rapido') + this.buildWebContextBlock(webData) + deepSeekDirective },
+                { role: 'system', content: this.getSystemPrompt('rapido') + this.buildWebContextBlock(webData) + rapidSystemInstruction },
                 ...(this.extraMessagesForNextCall || []),
                 ...this.conversationHistory
             ];
@@ -1144,12 +1144,13 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             console.log('ðŸ” [DEBUG-RAPIDO] Tipo da resposta:', typeof response);
             console.log('ðŸ” [DEBUG-RAPIDO] Tamanho da resposta:', response ? response.length : 0);
 
-            const { finalResponse, reasoningText } = this.extractReasoningFromText(response);
+            let { finalResponse, reasoningText } = this.extractReasoningFromText(response);
+            finalResponse = this.cleanMetaRaciocinio(finalResponse);
 
-            // limpar extras para prÃ³xima chamada
+            // limpar extras para próxima chamada
             this.extraMessagesForNextCall = null;
 
-            // Adicionar apenas o texto ao histÃ³rico para manter consistÃªncia
+            // Adicionar apenas o texto ao histórico para manter consistência
             this.addToHistory('assistant', finalResponse);
             this.persistAssistantMessage(finalResponse);
             this.renderReasoningCard(messageContainer, reasoningText);
@@ -1720,7 +1721,19 @@ Regras extras:
             this.setApiProvider('groq');
             const deepSeekModel = 'deepseek/deepseek-v3.1';
             const deepSeekOutput = await this.callGroqAPI(deepSeekModel, barrierMessages, { max_tokens: 260 });
-            return this.parseDeepSeekBarrierOutput(deepSeekOutput);
+            let decision = this.parseDeepSeekBarrierOutput(deepSeekOutput);
+
+            if (!decision.useVisualStructure && this.shouldForceVisualFromMessage(userMessage)) {
+                decision.useVisualStructure = true;
+                decision.visualHtml = this.buildFallbackVisualHtml(userMessage);
+                decision.decisionText = 'FALLBACK';
+            }
+
+            if (decision.useVisualStructure && !decision.visualHtml) {
+                decision.visualHtml = this.buildFallbackVisualHtml(userMessage);
+            }
+
+            return decision;
         } catch (error) {
             console.warn('⚠️ Falha no estágio DeepSeek-V3.1, aplicando fallback de decisão.', error);
             try {
@@ -1814,6 +1827,68 @@ Regras extras:
 
         // Sem tabela mas ainda com HTML; dar wrapper card para aparência mais rica
         return `<div style="border:1px solid #334155;background:#0f172a;border-radius:12px;padding:14px;box-shadow:0 8px 24px rgba(0,0,0,.30);">${cleaned}</div>`;
+    }
+
+    shouldForceVisualFromMessage(userMessage) {
+        if (typeof userMessage !== 'string') return false;
+        return /\b(visual|linha do tempo|timeline|card|quadro|cronograma|diagrama|mapa mental)\b/i.test(userMessage);
+    }
+
+    buildFallbackVisualHtml(userMessage) {
+        const query = String(userMessage || '').trim();
+        const title = query.length > 0 ? `Visual de estudo: ${query}` : 'Visual de estudo';
+        return `
+<div style="font-family: Arial,Helvetica,sans-serif; color:#f8fafc;">
+  <div style="background:#0b1220;border:1px solid #4b5563;border-radius:12px;padding:12px 14px; margin-bottom:10px; font-weight:700;">${this.escapeHtml(title)}</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px; margin-bottom:10px;">
+    <div style="background:#1f2a3a;border:1px solid #334155;border-radius:10px;padding:10px;">
+      <strong>Conceito 1</strong>
+      <p style="margin-top:5px;">Ponto chave para revisão rápida.</p>
+    </div>
+    <div style="background:#1f2a3a;border:1px solid #334155;border-radius:10px;padding:10px;">
+      <strong>Conceito 2</strong>
+      <p style="margin-top:5px;">Ponto chave para revisão rápida.</p>
+    </div>
+    <div style="background:#1f2a3a;border:1px solid #334155;border-radius:10px;padding:10px;">
+      <strong>Conceito 3</strong>
+      <p style="margin-top:5px;">Ponto chave para revisão rápida.</p>
+    </div>
+  </div>
+  <div style="background:#111c2f;border:1px solid #374151;border-radius:10px;padding:10px;">
+    <div style="font-size:13px;color:#94a3b8;margin-bottom:8px;font-weight:600;">Linha do tempo</div>
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;">
+      <span style="background:#0f172a;border:1px solid #334155;border-radius:999px;padding:6px 10px;">Início</span>
+      <span style="background:#0f172a;border:1px solid #334155;border-radius:999px;padding:6px 10px;">Período A</span>
+      <span style="background:#0f172a;border:1px solid #334155;border-radius:999px;padding:6px 10px;">Período B</span>
+      <span style="background:#0f172a;border:1px solid #334155;border-radius:999px;padding:6px 10px;">Final</span>
+    </div>
+  </div>
+</div>`;
+    }
+
+    cleanMetaRaciocinio(finalText) {
+        if (typeof finalText !== 'string') return finalText;
+
+        let text = finalText.trim();
+
+        // Remove bloco inicial de raciocínio em inglês se houver (padrões comuns).
+        if (/^(Okay|Let me|Since the user|First source|The first source|The second source|The third source)/i.test(text)) {
+            const afterPara = text.split(/\n\s*\n/).slice(1).join('\n\n').trim();
+            if (afterPara.length > 0) {
+                text = afterPara;
+            } else {
+                // se não houver parágrafo adicional, remover primeira frase longa
+                const withoutFirstSentence = text.replace(/^.*?(\.|\?|\!)\s+/s, '').trim();
+                if (withoutFirstSentence.length > 0) {
+                    text = withoutFirstSentence;
+                }
+            }
+        }
+
+        // Retirar qualquer declaração de ciclo de raciocínio não solicitada
+        text = text.replace(/\b(need to.*(timeline|visual|structure)|I should.*)/gi, '').trim();
+
+        return text;
     }
 
     buildDeepSeekHint(decision) {
