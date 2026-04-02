@@ -1769,10 +1769,11 @@ Regras extras:
         }
 
         if (decision.useVisualStructure) {
-            return `\n\nDeepSeek-V3.1 decidiu que este pedido precisa de um elemento visual. Inclua exatamente o bloco HTML abaixo no início da resposta sem alterá-lo ou reformatá-lo, depois escreva a resposta normal abaixo dele. HTML:\n${decision.visualHtml}`;
+            return `\n\nDeepSeek-V3.1 já forneceu um elemento visual (HTML) e este elemento foi inserido no chat. \
+- NÃO gere nenhum HTML adicional nem tente replicar o bloco visual.\n- Responda apenas com texto curto em português (1-3 parágrafos) que contextualize/explica o conteúdo do visual, sem introduções em inglês, sem meta-raciocínio e sem etapas de plano.\n- Use uma linguagem clara, didática e voltada para estudo.`;
         }
 
-        return `\n\nDeepSeek-V3.1 decidiu NÃO usar elemento visual. Responda apenas com texto, sem adicionar nenhum card ou estrutura visual adicional.`;
+        return `\n\nNenhum elemento visual é necessário. Responda com texto objetivo em português (1-3 parágrafos).\n- NÃO use tags de raciocínio como <think>, <raciocínio>, <raciocinio>.\n- NÃO adicione HTML, não explique o processo, não coloque 'Okay' ou 'Let me'.`;
     }
 
     extractReasoningFromText(fullResponse) {
