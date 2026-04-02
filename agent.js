@@ -363,7 +363,7 @@ export class Agent {
     
         // Obter contexto relevante da memÃ³ria
         const relevantContext = this.memory.getRelevantContext(userMessage);
-        console.log('ðŸ§  Contexto relevante encontrado:', relevantContext.length, 'memÃ³rias');
+        console.log('💭  Contexto relevante encontrado:', relevantContext.length, 'memÃ³rias');
 
         // Verificar se hÃ¡ anexos
         const hasAttachments = (attachedFilesFromUI && attachedFilesFromUI.length > 0) || 
@@ -581,7 +581,7 @@ export class Agent {
             const imageData = await this.generateImageWithPollinations(prompt);
             
             if (imageData && imageData.imageUrl) {
-                console.log('âœ… [IMAGE-GEN] Imagem gerada com sucesso!');
+                console.log('✅ [IMAGE-GEN] Imagem gerada com sucesso!');
                 
                 // Criar resposta com a imagem
                 const response = `🎨 **Imagem gerada com sucesso!**
@@ -695,7 +695,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 }
             ];
 
-            console.log('ðŸ” Usando modelo de pesquisa: openai/gpt-oss-20b');
+            console.log('🔍 Usando modelo de pesquisa: openai/gpt-oss-20b');
             let response = await this.callGroqAPIWithBrowserSearch('openai/gpt-oss-20b', messages);    
             
             if (!response || typeof response !== 'string') {
@@ -713,12 +713,12 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             
             this.ui.setResponseText(response, messageContainer.responseId, async () => {
               // Adicionar imagens DEPOIS do texto (para nÃ£o serem sobrescritas)
-              console.log('ðŸ”„ [DEBUG] Adicionando imagens DEPOIS do texto...');
+              console.log('🔄 [DEBUG] Adicionando imagens DEPOIS do texto...');
               const images = await imagesPromise;
-              console.log('ðŸ“¦ [DEBUG] Imagens recebidas:', images);
+              console.log('📦 [DEBUG] Imagens recebidas:', images);
               
               if (images && images.length > 0) {
-                  console.log('âœ… [DEBUG] Adicionando imagens DEPOIS da resposta');
+                  console.log('✅ [DEBUG] Adicionando imagens DEPOIS da resposta');
                   this.ui.appendImagesToMessage(messageContainer.responseId, images);
               } else {
                   console.log('âŒ [DEBUG] Nenhuma imagem encontrada ou array vazio');
@@ -756,13 +756,13 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         
         try {
             // BUSCAR IMAGENS PRIMEIRO - antes de chamar a API
-            console.log('ðŸ”„ [DEBUG-IMAGEM] Buscando imagens ANTES da resposta...');
+            console.log('🔄 [DEBUG-IMAGEM] Buscando imagens ANTES da resposta...');
             const images = await this.searchUnsplashImages(userMessage);
-            console.log('ðŸ“¦ [DEBUG-IMAGEM] Imagens recebidas:', images);
+            console.log('📦 [DEBUG-IMAGEM] Imagens recebidas:', images);
             
             // Adicionar imagens ANTES da resposta
             if (images && images.length > 0) {
-                console.log('âœ… [DEBUG-IMAGEM] Adicionando imagens ANTES da resposta');
+                console.log('✅ [DEBUG-IMAGEM] Adicionando imagens ANTES da resposta');
                 this.ui.appendImagesToMessage(`responseText_${messageContainer}`, images);
             }
             
@@ -784,7 +784,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             // Combinar system prompt com as mensagens de imagem
             const messages = [systemPrompt, ...this.extraMessagesForNextCall];
             
-            console.log('ðŸ–¼ï¸ Usando modelo de imagem: meta-llama/llama-4-scout-17b-16e-instruct');
+            console.log('🔧¼ï¸ Usando modelo de imagem: meta-llama/llama-4-scout-17b-16e-instruct');
             let response = await this.callGroqAPI('meta-llama/llama-4-scout-17b-16e-instruct', messages);
             this.extraMessagesForNextCall = null;
             
@@ -802,12 +802,12 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.memory.learnFromInteraction(userMessage, response);
             
             // PRIMEIRO: Adicionar imagens ANTES da resposta
-            console.log('ðŸ”„ [DEBUG] Adicionando imagens ANTES da resposta...');
+            console.log('🔄 [DEBUG] Adicionando imagens ANTES da resposta...');
             const imagesData = await imagesPromise;
-            console.log('ðŸ“¦ [DEBUG] Imagens recebidas:', imagesData);
+            console.log('📦 [DEBUG] Imagens recebidas:', imagesData);
             
             if (imagesData && imagesData.length > 0) {
-                console.log('âœ… [DEBUG] Adicionando imagens ANTES da resposta');
+                console.log('✅ [DEBUG] Adicionando imagens ANTES da resposta');
                 this.ui.appendImagesToMessage(messageContainer.responseId, imagesData);
             } else {
                 console.log('âŒ [DEBUG] Nenhuma imagem encontrada ou array vazio');
@@ -917,7 +917,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.ui.setThinkingHeader('', messageContainer.headerId);
         } catch (error) {
             if (error.message === 'ABORTED') {
-                console.log('âš ï¸ GeraÃ§Ã£o interrompida pelo usuÃ¡rio');
+                console.log('⚠️ GeraÃ§Ã£o interrompida pelo usuÃ¡rio');
                 return;
             }
             this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem na API Mistral. ' + error.message, messageContainer.responseId);
@@ -985,7 +985,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             if (parsed && Array.isArray(parsed.files)) return parsed.files;
             return null;
         } catch (e) {
-            console.warn('âš ï¸ Falha ao parsear blocos de arquivos:', e);
+            console.warn('⚠️ Falha ao parsear blocos de arquivos:', e);
             return null;
         }
     }
@@ -1033,7 +1033,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 { step: 'Estruturando resposta' }
             ];
         } catch (e) {
-            console.warn('âš ï¸ Erro ao gerar checks, usando padrÃ£o:', e);
+            console.warn('⚠️ Erro ao gerar checks, usando padrÃ£o:', e);
             return [
                 { step: 'Analisando a pergunta' },
                 { step: 'Consultando modelo Llama 3' },
@@ -1069,7 +1069,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             });
             this.ui.saveCurrentChat(targetChatId);
         } catch (e) {
-            console.warn('âš ï¸ Falha ao anexar arquivos ao chat:', e);
+            console.warn('⚠️ Falha ao anexar arquivos ao chat:', e);
         }
     }
     // parseFilesFromMessage removed (attachment parsing disabled)
@@ -1094,7 +1094,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         
         try {
             // BUSCAR IMAGENS E INFORMAÃ‡Ã•ES WEB EM PARALELO - antes de chamar a API
-            console.log('ðŸ”„ [DEBUG-RAPIDO] Buscando imagens e informaÃ§Ãµes web ANTES da resposta...');
+            console.log('🔄 [DEBUG-RAPIDO] Buscando imagens e informaÃ§Ãµes web ANTES da resposta...');
             const imagesPromise = (typeof this.searchUnsplashImages === 'function')
                 ? this.searchUnsplashImages(userMessage)
                 : Promise.resolve([]);
@@ -1103,8 +1103,8 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 : Promise.resolve({ query: userMessage, sources: [], results: [] });
             
             const [images, webData] = await Promise.all([imagesPromise, webSearchPromise]);
-            console.log('ðŸ“¦ [DEBUG-RAPIDO] Imagens recebidas:', images);
-            console.log('ðŸŒ [DEBUG-RAPIDO] Dados web recebidos:', webData);
+            console.log('📦 [DEBUG-RAPIDO] Imagens recebidas:', images);
+            console.log('🌐 [DEBUG-RAPIDO] Dados web recebidos:', webData);
 
             const relevantContext = (this.memory && typeof this.memory.getRelevantContext === 'function')
                 ? this.memory.getRelevantContext(userMessage)
@@ -1130,12 +1130,12 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 
             // Forçar SambaNova para modo rápido como solicitado
             this.setApiProvider('samba');
-            console.log('ðŸ“‹ [DEBUG-RAPIDO] API provider definido para SambaNova via SAMBA_API_KEY');
+            console.log('📋 [DEBUG-RAPIDO] API provider definido para SambaNova via SAMBA_API_KEY');
 
             let response = await this.callGroqAPI(model, finalMessages);
-            console.log('ðŸ” [DEBUG-RAPIDO] Resposta da API recebida:', response ? response.substring(0, 100) + '...' : 'NULO');
-            console.log('ðŸ” [DEBUG-RAPIDO] Tipo da resposta:', typeof response);
-            console.log('ðŸ” [DEBUG-RAPIDO] Tamanho da resposta:', response ? response.length : 0);
+            console.log('🔍 [DEBUG-RAPIDO] Resposta da API recebida:', response ? response.substring(0, 100) + '...' : 'NULO');
+            console.log('🔍 [DEBUG-RAPIDO] Tipo da resposta:', typeof response);
+            console.log('🔍 [DEBUG-RAPIDO] Tamanho da resposta:', response ? response.length : 0);
 
             let { finalResponse, reasoningText } = this.extractReasoningFromText(response);
             finalResponse = this.cleanMetaRaciocinio(finalResponse);
@@ -1154,7 +1154,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             
             // Exibir na UI usando o método padrão que suporta HTML
             this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
-                console.log('ðŸ”„ [DEBUG-RAPIDO] Resposta exibida apÃ³s imagens');
+                console.log('🔄 [DEBUG-RAPIDO] Resposta exibida apÃ³s imagens');
 
                 // Renderizar Artifact extraído da resposta (Design Claude)
                 const extractedArtifact = this.ui.artifacts.extractArtifact(finalResponse);
@@ -1195,7 +1195,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         } catch (error) {
             const errorMessage = error && typeof error.message === 'string' ? error.message : String(error);
             if (errorMessage === 'ABORTED') {
-                console.log('âš ï¸ GeraÃ§Ã£o interrompida pelo usuÃ¡rio');
+                console.log('⚠️ GeraÃ§Ã£o interrompida pelo usuÃ¡rio');
                 return;
             }
             this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem. ' + errorMessage, messageContainer.responseId);
@@ -1222,16 +1222,13 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 ? this.searchWebForResponse(userMessage)
                 : Promise.resolve({ query: userMessage, sources: [], results: [] });
             const [images, webData] = await Promise.all([imagesPromise, webSearchPromise]);
-            console.log('ðŸ“¦ [RACIOCINIO] Imagens recebidas:', images);
-            console.log('ðŸŒ [RACIOCINIO] Dados web recebidos:', webData);
+            console.log('📦 [RACIOCINIO] Imagens recebidas:', images);
+            console.log('🌐 [RACIOCINIO] Dados web recebidos:', webData);
 
             this.ui.setThinkingHeader('Validando estratégia DeepSeek...', messageContainer.headerId);
             // Decisão Binária de Artifact (Estilo Lhama)
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
-            const artifactDirective = needsArtifact ? "
-
-[INSTRUÇÃO: Gere um <artifact type='...'>...</artifact> para representar visualmente os dados ou o código solicitado.]" : "";
-            this.ui.setThinkingHeader('Processando Raciocínio...', messageContainer.headerId);
+            const artifactDirective = needsArtifact ? "\n\n[INSTRUÇÃO: Gere um <artifact type='...'>...</artifact> para representar visualmente os dados ou o código solicitado.]" : "";
 
             const finalMessages = [
                 { role: 'system', content: this.getSystemPrompt('raciocinio') + this.buildWebContextBlock(webData) + artifactDirective },
@@ -1252,15 +1249,15 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.setApiProvider('groq');
             let fullResponse;
             try {
-                console.log('ðŸ§ Usando modelo de raciocínio: qwen/qwen3-32b');
+                console.log('💭 Usando modelo de raciocínio: qwen/qwen3-32b');
                 fullResponse = await this.callGroqAPI(primaryModel, finalMessages);
             } catch (e) {
-                console.warn('ðŸ– fallback raciocínio para SambaNova 3.1-8B-Instruct:', e);
+                console.warn('🔧 fallback raciocínio para SambaNova 3.1-8B-Instruct:', e);
                 this.setApiProvider('samba');
                 fullResponse = await this.callGroqAPI(fallbackModel, finalMessages);
             }
 
-            console.log('ðŸ“„ Resposta bruta da API:', fullResponse);
+            console.log('📄 Resposta bruta da API:', fullResponse);
             let { finalResponse, reasoningText } = this.extractReasoningFromText(fullResponse);
             finalResponse = this.cleanMetaRaciocinio(finalResponse);
 
@@ -1403,7 +1400,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 
         } catch (error) {
             if (error.message === 'ABORTED') {
-                console.log('âš ï¸ GeraÃ§Ã£o interrompida pelo usuÃ¡rio');
+                console.log('⚠️ GeraÃ§Ã£o interrompida pelo usuÃ¡rio');
                 return;
             }
             this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem. Verifique sua API Key e tente novamente.', messageContainer.responseId);
@@ -1434,10 +1431,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const webContext = this.buildWebContextBlock(webData);
             // Decisão Binária de Artifact (Estilo Lhama)
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
-            const artifactDirective = needsArtifact ? "
-
-[INSTRUÇÃO: Gere um <artifact type='...'>...</artifact> para representar visualmente os dados ou o código solicitado.]" : "";
-            const primaryModel = 'llama-3.3-70b-versatile';
+            const artifactDirective = needsArtifact ? "\n\n[INSTRUÇÃO: Gere um <artifact type='...'>...</artifact> para representar visualmente os dados ou o código solicitado.]" : "";
             const fallbackModel = 'Meta-Llama-3.1-8B-Instruct';
 
             const baseSystem1 = this.getSystemPrompt('pro') + webContext + artifactDirective + "\n\nNesta análise, responda diretamente ao pedido do usuário, priorize a solução mais útil e evite floreios.";
@@ -1961,7 +1955,7 @@ Responda com clareza, utilidade e bom senso.`;
     }
 
     async test() {
-        console.log('ðŸ§ª Iniciando teste do agente...');
+        console.log('💭ª Iniciando teste do agente...');
         
         console.log('ðŸ“¡ Testando conexÃ£o com Groq via proxy (server-side) ...');
         console.log('â„¹ï¸ Se vocÃª configurou a variÃ¡vel GROQ_API_KEY no Vercel, este teste usarÃ¡ ela. Caso contrÃ¡rio, o teste falharÃ¡ com mensagem adequada.');
@@ -1974,7 +1968,7 @@ Responda com clareza, utilidade e bom senso.`;
             const response = await this.callGroqAPI('llama-3.3-70b-versatile');
             this.addToHistory('assistant', response);
             
-            console.log('âœ… Resposta recebida:');
+            console.log('✅ Resposta recebida:');
             console.log(response);
             console.log('\nðŸŽ‰ Teste concluÃ­do com sucesso!');
             console.log(`ðŸ“Š HistÃ³rico: ${this.conversationHistory.length} mensagens`);
@@ -2063,14 +2057,14 @@ Responda APENAS com um JSON array contendo 3 strings, sem texto adicional:
                     // Extrair ID da mensagem a partir do responseId
                     const messageId = responseId.replace('responseText_', 'msg_');
                     this.ui.displayFollowUpSuggestions(messageId, suggestions);
-                    console.log('âœ… SugestÃµes de acompanhamento geradas:', suggestions);
+                    console.log('✅ SugestÃµes de acompanhamento geradas:', suggestions);
                 }
             } catch (parseError) {
-                console.warn('âš ï¸ Erro ao parsear sugestÃµes:', parseError);
+                console.warn('⚠️ Erro ao parsear sugestÃµes:', parseError);
             }
             
         } catch (error) {
-            console.warn('âš ï¸ Erro ao gerar sugestÃµes de acompanhamento:', error);
+            console.warn('⚠️ Erro ao gerar sugestÃµes de acompanhamento:', error);
             // NÃ£o mostrar erro para usuÃ¡rio, apenas log
         }
     }
