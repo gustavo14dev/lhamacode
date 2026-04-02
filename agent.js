@@ -1673,10 +1673,15 @@ Responda com clareza, utilidade e bom senso.`;
     async processDeepSeekBarrier(userMessage, webData = {}, relevantContext = []) {
         const barrierSystem = `Você é DeepSeek-V3.1, um estágio de decisão visual. Sua tarefa é analisar a pergunta do usuário e as fontes da web disponíveis e decidir se a resposta precisa de um elemento visual estruturado. Se for necessário, gere apenas o HTML desse elemento visual. Se não for necessário, responda apenas NÃO.
 
+Responda estritamente com APENAS UM DOS SEGUINTES:
+- exatamente a palavra NÃO (sem acentos adicionais, sem pontuação extra, sem explicações);
+- ou somente o código HTML completo que deve ser inserido na resposta. Nada mais.
+
 Regras extras:
-- se o pedido envolver resumo, estudo, prova, revisão, comparação, lista ou explicação didática, prefira criar um elemento visual HTML simples como card, tabela, checklist ou quadro;
-- o HTML deve ser completo e renderizável, sem explicações ou tags de raciocínio;
-- NÃO devolva nenhuma tag de raciocínio; responda apenas HTML ou NÃO.`;
+- para resumo, estudo, prova, revisão, comparação, lista ou explicação didática, prefira criar um elemento visual HTML simples como card, tabela, checklist ou quadro;
+- o HTML deve ser completo e renderizável, sem explicações, sem comentários e sem tags de raciocínio;
+- não escreva texto antes ou depois do HTML; não explique o HTML; não coloque títulos fora do HTML;
+- a resposta deve ser unicamente HTML ou unicamente NÃO.`;
         const userContext = [];
 
         userContext.push(`Usuário: ${userMessage}`);
@@ -1732,22 +1737,27 @@ Regras extras:
             visualHtml: ''
         };
 
-        const firstLine = text.split(/\r?\n/)[0].trim().toLowerCase();
-        if (/^(não|nao|no)$/i.test(firstLine)) {
+        const normalizedStart = text.replace(/^\s+/, '');
+        if (/^\s*(não|nao|no)\b/i.test(normalizedStart) && !/<[^>]+>/.test(text)) {
             return result;
         }
 
-        const htmlMatch = text.match(/<\s*([a-z][^\s/>]*)[^>]*>[\s\S]*<\/\s*\1\s*>/i);
+        const htmlMatch = text.match(/<\s*([a-z][^\s/>]*)[^>]*>[\s\S]*?<\/\s*\1\s*>/i);
         if (htmlMatch) {
             result.useVisualStructure = true;
-            result.visualHtml = text;
+            result.visualHtml = htmlMatch[0].trim();
             return result;
         }
 
-        if (/</.test(text) && />/.test(text)) {
-            result.useVisualStructure = true;
-            result.visualHtml = text;
-            return result;
+        // Se o modelo devolveu algo com < >, mas não um bloco HTML fechado, ainda tentamos extrair a primeira tag aberta até o fim.
+        const partialHtmlMatch = text.match(/<[^>]+>[\s\S]*/i);
+        if (partialHtmlMatch) {
+            const cleanHtml = partialHtmlMatch[0].trim();
+            if (cleanHtml.startsWith('<') && cleanHtml.endsWith('>')) {
+                result.useVisualStructure = true;
+                result.visualHtml = cleanHtml;
+                return result;
+            }
         }
 
         return result;
