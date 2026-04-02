@@ -208,6 +208,4 @@ REGRAS:
     }
 }
 
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = ArtifactSystem;
-}
+export default ArtifactSystem;
