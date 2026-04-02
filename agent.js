@@ -1675,7 +1675,7 @@ Responda com clareza, utilidade e bom senso.`;
     }
 
     async processDeepSeekBarrier(userMessage, webData = {}, relevantContext = []) {
-        const barrierSystem = `Você é DeepSeek-V3-0324, um estágio de decisão visual. Sua tarefa é analisar a pergunta do usuário e as fontes da web disponíveis e decidir se a resposta precisa de um elemento visual estruturado. Se for necessário, gere apenas o HTML desse elemento visual. Se não for necessário, responda apenas NÃO.
+        const barrierSystem = `Você é DeepSeek-V3.1, um estágio de decisão visual. Sua tarefa é analisar a pergunta do usuário e as fontes da web disponíveis e decidir se a resposta precisa de um elemento visual estruturado. Se for necessário, gere apenas o HTML desse elemento visual. Se não for necessário, responda apenas NÃO.
 
 Responda estritamente com APENAS UM DOS SEGUINTES:
 - exatamente a palavra NÃO (sem acentos adicionais, sem pontuação extra, sem explicações);
@@ -1721,7 +1721,7 @@ Regras extras:
 
         try {
             this.setApiProvider('samba');
-            const deepSeekModel = 'deepseek/deepseek-v3-0324';
+            const deepSeekModel = 'deepseek/deepseek-v3.1';
             const deepSeekOutput = await this.callGroqAPI(deepSeekModel, barrierMessages, { max_tokens: 260 });
             let decision = this.parseDeepSeekBarrierOutput(deepSeekOutput);
 
@@ -1737,7 +1737,7 @@ Regras extras:
 
             return decision;
         } catch (error) {
-            console.warn('⚠️ Falha no estágio DeepSeek-V3-0324 (SambaNova), aplicando fallback de decisão.', error);
+            console.warn('⚠️ Falha no estágio DeepSeek-V3.1 (SambaNova), aplicando fallback de decisão.', error);
             try {
                 this.setApiProvider('groq');
                 const fallbackOutput = await this.callGroqAPI('qwen/qwen3-32b', barrierMessages, { max_tokens: 260 });
@@ -1927,7 +1927,7 @@ Regras extras:
         }
 
         if (decision.useVisualStructure) {
-            return `\n\nDeepSeek-V3-0324 já forneceu um elemento visual (HTML) e este elemento foi inserido no chat. \
+            return `\n\nDeepSeek-V3.1 já forneceu um elemento visual (HTML) e este elemento foi inserido no chat. \
 - NÃO gere nenhum HTML adicional nem tente replicar o bloco visual.\n- Responda apenas com texto curto em português (1-3 parágrafos) que contextualize/explica o conteúdo do visual, sem introduções em inglês, sem meta-raciocínio e sem etapas de plano.\n- Use uma linguagem clara, didática e voltada para estudo.`;
         }
 
