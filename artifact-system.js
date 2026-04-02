@@ -18,19 +18,40 @@ class ArtifactSystem {
         this.ui = ui;
     }
 
-    async decideArtifact(userMessage, aiResponse, mode) {
+    async decideIfNeedsArtifact(userMessage, webData, relevantContext) {
         try {
-            const explicit = this._extractExplicitArtifact(aiResponse);
-            if (explicit) return explicit;
-
-            const heuristic = this._analyzeForArtifactHeuristic(userMessage, aiResponse);
-            if (heuristic) return heuristic;
-
-            return null;
+            const contextText = Array.isArray(relevantContext)
+                ? relevantContext.map(c => typeof c === 'string' ? c : c.text || '').join(' ')
+                : '';
+            const webText = webData && Array.isArray(webData.results)
+                ? webData.results.map(r => r.title || '').join(' ')
+                : '';
+            const combined = `${userMessage} ${contextText} ${webText}`;
+            return this._shouldCreateArtifact(combined);
         } catch (err) {
             console.error('[ArtifactSystem] Erro ao decidir artifact:', err);
-            return null;
+            return false;
         }
+    }
+
+    _shouldCreateArtifact(text) {
+        const lower = text.toLowerCase();
+        for (const keywords of Object.values(ARTIFACT_KEYWORDS)) {
+            let score = 0;
+            for (const kw of keywords) {
+                if (lower.includes(kw)) score++;
+            }
+            if (score >= 2) return true;
+        }
+        return false;
+    }
+
+    extractArtifact(aiResponse) {
+        const explicit = this._extractExplicitArtifact(aiResponse);
+        if (explicit) return explicit;
+
+        const heuristic = this._analyzeForArtifactHeuristic('', aiResponse);
+        return heuristic;
     }
 
     _extractExplicitArtifact(aiResponse) {
@@ -118,6 +139,10 @@ class ArtifactSystem {
         } catch (e) {
             console.error('[ArtifactSystem] Erro ao renderizar erro de artifact:', e);
         }
+    }
+
+    stripArtifactTags(text) {
+        return text.replace(ARTIFACT_TAG_REGEX, '').trim();
     }
 
     static cleanArtifactTags(text) {
