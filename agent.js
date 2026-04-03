@@ -482,12 +482,7 @@ export class Agent {
             this.addToHistory('assistant', aiResponse);
             this.persistAssistantMessage(aiResponse);
             this.ui.setResponseText(aiResponse, messageContainer.responseId, async () => {
-                await this.attachYouTubeVideosToResponse({
-                    userMessage,
-                    assistantResponse: aiResponse,
-                    responseId: messageContainer.responseId,
-                    chatId: responseChatId
-                });
+                // [FIX] Chamada para função inexistente removida para evitar TypeError
             });
             this.ui.setThinkingHeader('', messageContainer.headerId);
             
@@ -538,12 +533,7 @@ export class Agent {
             this.persistAssistantMessage(finalResponse);
             this.renderReasoningCard(messageContainer, reasoningText);
             this.ui.setResponseText(this.cleanChatResponse(finalResponse), messageContainer.responseId, async () => {
-                await this.attachYouTubeVideosToResponse({
-                    userMessage,
-                    assistantResponse: aiResponse,
-                    responseId: messageContainer.responseId,
-                    chatId: responseChatId
-                });
+                // [FIX] Chamada para função inexistente removida para evitar TypeError
             });
             this.ui.setThinkingHeader('', messageContainer.headerId);
             
@@ -729,12 +719,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                   console.log('âŒ [DEBUG] Nenhuma imagem encontrada ou array vazio');
               }
               // Gerar sugestÃµes de acompanhamento sÃ³ quando resposta estiver completa
-                await this.attachYouTubeVideosToResponse({
-                    userMessage,
-                    assistantResponse: response,
-                    responseId: messageContainer.responseId,
-                    chatId: responseChatId
-                });
+                // [FIX] Chamada para função inexistente removida para evitar TypeError
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);
             });
             this.ui.setThinkingHeader('', messageContainer.headerId);
@@ -1174,12 +1159,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 }
 
                 // Mostrar botÃµes de aÃ§Ã£o quando resposta estiver completa
-                await this.attachYouTubeVideosToResponse({
-                    userMessage,
-                    assistantResponse: finalResponse,
-                    responseId: messageContainer.responseId,
-                    chatId: responseChatId
-                });
+                // [FIX] Chamada para função inexistente removida para evitar TypeError
 
                 const actionsDiv = document.getElementById(messageContainer.actionsId);
                 if (actionsDiv) {
@@ -1404,12 +1384,7 @@ Você é o Designer de Interfaces Sênior do Drekee AI. Sua missão é criar exp
                 }
                 
                 // Gerar sugestÃµes de acompanhamento sÃ³ quando resposta estiver completa
-                await this.attachYouTubeVideosToResponse({
-                    userMessage,
-                    assistantResponse: finalResponse,
-                    responseId: messageContainer.responseId,
-                    chatId: responseChatId
-                });
+                // [FIX] Chamada para função inexistente removida para evitar TypeError
                 this.generateFollowUpSuggestions(userMessage, finalResponse, messageContainer.responseId);
             });
             
@@ -1680,7 +1655,7 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
                 if (webData && webData.sources && webData.sources.length > 0) {
                     this.ui.addSourcesButton(messageContainer.responseId, webData.sources, webData.query);
                 }
-                await this.attachYouTubeVideosToResponse({ userMessage, assistantResponse: finalResponse, responseId: messageContainer.responseId, chatId: responseChatId });
+                // [FIX] Chamada para função inexistente removida para evitar TypeError
             });
 
             this.ui.setThinkingHeader('', messageContainer.headerId);
