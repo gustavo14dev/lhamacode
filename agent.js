@@ -1230,54 +1230,76 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
             const artifactDirective = needsArtifact ? `
 
-[MOTOR DE ARTIFACTS CLAUDE-STYLE PREMIUM ATIVADO:
-# CLAUDE-STYLE ARTIFACTS ENGINE (PREMIUM VISUAL MODE)
+[MOTOR DE ARTIFACTS CLAUDE-STYLE ULTRA PREMIUM ATIVADO:
+# CLAUDE-STYLE ARTIFACTS ENGINE (ULTRA PREMIUM VISUAL MODE)
 
-Você é o motor de Artifacts do Drekee AI, projetado para entregar uma experiência visual idêntica ao Claude da Anthropic. Seu objetivo é transformar informações em componentes visuais modernos e interativos.
+Você é o motor de Artifacts do Drekee AI. Sua missão é criar interfaces visuais deslumbrantes que superem o Claude da Anthropic.
 
-## REGRA DE OURO PARA VISUAIS:
-- **NUNCA** use \`type="document"\` para resumos, tabelas ou explicações didáticas.
-- **SEMPRE** use \`type="web"\` para qualquer conteúdo que possa ser visualizado em cards, grids ou dashboards.
-- Use **Tailwind CSS** (via CDN: https://cdn.tailwindcss.com) para criar layouts modernos: cards com bordas arredondadas, sombras, ícones (Lucide via CDN se necessário) e cores vibrantes.
+## REGRA ABSOLUTA:
+- **PROIBIDO** usar \`type="document"\` para resumos, tabelas ou explicações.
+- **OBRIGATÓRIO** usar \`type="web"\` para qualquer conteúdo visual.
+- Use **Tailwind CSS** (CDN: https://cdn.tailwindcss.com) e **Lucide Icons** (CDN: https://unpkg.com/lucide@latest).
 
-## QUANDO USAR ARTIFACTS (TYPE="WEB"):
-- Resumos de estudo/provas (use cards coloridos, grids e seções).
-- Dashboards de dados ou cronogramas.
-- Comparações entre conceitos (use colunas estilizadas).
-- Qualquer conteúdo que se beneficie de uma estrutura visual rica.
-
-## ESTRUTURA OBRIGATÓRIA DO ARTIFACT (TYPE="WEB"):
+## TEMPLATE DE ALTA QUALIDADE (USE SEMPRE):
 \`\`\`html
-<artifact identifier="id-unico" title="Titulo do Artifact" type="web">
+<artifact identifier="resumo-premium" title="Resumo Visual Premium" type="web">
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <meta charset="UTF-8">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/lucide-static@0.344.0/font/lucide.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="bg-slate-50 p-6 font-sans">
-    <!-- SEU CONTEÚDO ESTILIZADO AQUI -->
-    <div class="max-w-4xl mx-auto space-y-6">
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h1 class="text-2xl font-bold text-slate-800 mb-4">Título</h1>
-            <p class="text-slate-600">Conteúdo...</p>
+<body class="bg-slate-900 text-slate-100 p-8 font-sans">
+    <div class="max-w-5xl mx-auto space-y-8">
+        <!-- HEADER -->
+        <div class="border-b border-slate-700 pb-6">
+            <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Título do Assunto</h1>
+            <p class="text-slate-400 mt-2">Subtítulo explicativo e elegante.</p>
+        </div>
+        
+        <!-- GRID DE CARDS -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 hover:border-blue-500 transition-all shadow-xl">
+                <div class="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center mb-4">
+                    <i data-lucide="zap" class="text-blue-400"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">Conceito Chave</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Explicação detalhada com design moderno.</p>
+            </div>
+            <!-- Repita para outros cards -->
+        </div>
+
+        <!-- TABELA ESTILIZADA -->
+        <div class="bg-slate-800 rounded-3xl overflow-hidden border border-slate-700 shadow-2xl">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-slate-700/50">
+                    <tr>
+                        <th class="p-4 font-bold text-blue-400">Data</th>
+                        <th class="p-4 font-bold text-blue-400">Evento</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700">
+                    <tr class="hover:bg-slate-700/30 transition-colors">
+                        <td class="p-4 text-slate-300">1789</td>
+                        <td class="p-4 text-slate-100 font-medium">Queda da Bastilha</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
+    <script>lucide.createIcons();</script>
 </body>
 </html>
 </artifact>
 \`\`\`
 
-## OUTROS TIPOS:
-- \`code\`: Apenas para scripts puros (use \`language="javascript"\`, etc).
-- \`mermaid\`: Apenas para fluxogramas técnicos.
+## COMPORTAMENTO:
+1. **Chat Minimalista**: No chat, diga apenas: "Preparei um resumo visual interativo para você. Confira ao lado!"
+2. **Fechamento**: NUNCA esqueça de fechar a tag \`</artifact>\`.
+3. **Identificadores**: Use kebab-case.
 
-## COMPORTAMENTO DE INTERFACE:
-1. **Não repita o conteúdo no chat**. O chat deve apenas dizer: "Aqui está o resumo visual que preparei para você:" ou algo similar.
-2. **Fechamento Obrigatório**: NUNCA esqueça de fechar a tag \`</artifact>\`.
-3. **Identificadores**: Use kebab-case. Se atualizar, mantenha o mesmo ID.
-
-**IMPORTANTE**: Se o usuário pedir algo visual, você DEVE entregar um componente HTML/Tailwind (type="web") que pareça um aplicativo ou um documento premium, não apenas texto.]` : "";
+**IMPORTANTE**: Se o usuário pedir algo visual, você DEVE entregar um componente HTML/Tailwind (type="web") que pareça um aplicativo premium.]` : "";
             const finalMessages = [
                 { role: 'system', content: this.getSystemPrompt('raciocinio') + this.buildWebContextBlock(webData) + artifactDirective },
                 ...(this.extraMessagesForNextCall || []),
@@ -1481,54 +1503,76 @@ Você é o motor de Artifacts do Drekee AI, projetado para entregar uma experiê
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
             const artifactDirective = needsArtifact ? `
 
-[MOTOR DE ARTIFACTS CLAUDE-STYLE PREMIUM ATIVADO:
-# CLAUDE-STYLE ARTIFACTS ENGINE (PREMIUM VISUAL MODE)
+[MOTOR DE ARTIFACTS CLAUDE-STYLE ULTRA PREMIUM ATIVADO:
+# CLAUDE-STYLE ARTIFACTS ENGINE (ULTRA PREMIUM VISUAL MODE)
 
-Você é o motor de Artifacts do Drekee AI, projetado para entregar uma experiência visual idêntica ao Claude da Anthropic. Seu objetivo é transformar informações em componentes visuais modernos e interativos.
+Você é o motor de Artifacts do Drekee AI. Sua missão é criar interfaces visuais deslumbrantes que superem o Claude da Anthropic.
 
-## REGRA DE OURO PARA VISUAIS:
-- **NUNCA** use \`type="document"\` para resumos, tabelas ou explicações didáticas.
-- **SEMPRE** use \`type="web"\` para qualquer conteúdo que possa ser visualizado em cards, grids ou dashboards.
-- Use **Tailwind CSS** (via CDN: https://cdn.tailwindcss.com) para criar layouts modernos: cards com bordas arredondadas, sombras, ícones (Lucide via CDN se necessário) e cores vibrantes.
+## REGRA ABSOLUTA:
+- **PROIBIDO** usar \`type="document"\` para resumos, tabelas ou explicações.
+- **OBRIGATÓRIO** usar \`type="web"\` para qualquer conteúdo visual.
+- Use **Tailwind CSS** (CDN: https://cdn.tailwindcss.com) e **Lucide Icons** (CDN: https://unpkg.com/lucide@latest).
 
-## QUANDO USAR ARTIFACTS (TYPE="WEB"):
-- Resumos de estudo/provas (use cards coloridos, grids e seções).
-- Dashboards de dados ou cronogramas.
-- Comparações entre conceitos (use colunas estilizadas).
-- Qualquer conteúdo que se beneficie de uma estrutura visual rica.
-
-## ESTRUTURA OBRIGATÓRIA DO ARTIFACT (TYPE="WEB"):
+## TEMPLATE DE ALTA QUALIDADE (USE SEMPRE):
 \`\`\`html
-<artifact identifier="id-unico" title="Titulo do Artifact" type="web">
+<artifact identifier="resumo-premium" title="Resumo Visual Premium" type="web">
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <meta charset="UTF-8">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/lucide-static@0.344.0/font/lucide.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="bg-slate-50 p-6 font-sans">
-    <!-- SEU CONTEÚDO ESTILIZADO AQUI -->
-    <div class="max-w-4xl mx-auto space-y-6">
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h1 class="text-2xl font-bold text-slate-800 mb-4">Título</h1>
-            <p class="text-slate-600">Conteúdo...</p>
+<body class="bg-slate-900 text-slate-100 p-8 font-sans">
+    <div class="max-w-5xl mx-auto space-y-8">
+        <!-- HEADER -->
+        <div class="border-b border-slate-700 pb-6">
+            <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Título do Assunto</h1>
+            <p class="text-slate-400 mt-2">Subtítulo explicativo e elegante.</p>
+        </div>
+        
+        <!-- GRID DE CARDS -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 hover:border-blue-500 transition-all shadow-xl">
+                <div class="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center mb-4">
+                    <i data-lucide="zap" class="text-blue-400"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">Conceito Chave</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Explicação detalhada com design moderno.</p>
+            </div>
+            <!-- Repita para outros cards -->
+        </div>
+
+        <!-- TABELA ESTILIZADA -->
+        <div class="bg-slate-800 rounded-3xl overflow-hidden border border-slate-700 shadow-2xl">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-slate-700/50">
+                    <tr>
+                        <th class="p-4 font-bold text-blue-400">Data</th>
+                        <th class="p-4 font-bold text-blue-400">Evento</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700">
+                    <tr class="hover:bg-slate-700/30 transition-colors">
+                        <td class="p-4 text-slate-300">1789</td>
+                        <td class="p-4 text-slate-100 font-medium">Queda da Bastilha</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
+    <script>lucide.createIcons();</script>
 </body>
 </html>
 </artifact>
 \`\`\`
 
-## OUTROS TIPOS:
-- \`code\`: Apenas para scripts puros (use \`language="javascript"\`, etc).
-- \`mermaid\`: Apenas para fluxogramas técnicos.
+## COMPORTAMENTO:
+1. **Chat Minimalista**: No chat, diga apenas: "Preparei um resumo visual interativo para você. Confira ao lado!"
+2. **Fechamento**: NUNCA esqueça de fechar a tag \`</artifact>\`.
+3. **Identificadores**: Use kebab-case.
 
-## COMPORTAMENTO DE INTERFACE:
-1. **Não repita o conteúdo no chat**. O chat deve apenas dizer: "Aqui está o resumo visual que preparei para você:" ou algo similar.
-2. **Fechamento Obrigatório**: NUNCA esqueça de fechar a tag \`</artifact>\`.
-3. **Identificadores**: Use kebab-case. Se atualizar, mantenha o mesmo ID.
-
-**IMPORTANTE**: Se o usuário pedir algo visual, você DEVE entregar um componente HTML/Tailwind (type="web") que pareça um aplicativo ou um documento premium, não apenas texto.]` : "";
+**IMPORTANTE**: Se o usuário pedir algo visual, você DEVE entregar um componente HTML/Tailwind (type="web") que pareça um aplicativo premium.]` : "";
 
             const baseSystem1 = this.getSystemPrompt('pro') + webContext + artifactDirective + "\n\nNesta análise, responda diretamente ao pedido do usuário, priorize a solução mais útil e evite floreios.";
             const baseSystem2 = this.getSystemPrompt('pro') + webContext + artifactDirective + "\n\nNesta análise, atue como um revisor crítico. Questione suposições, identifique ambiguidades, aponte riscos e proponha alternativas melhores quando existirem.";
@@ -1699,55 +1743,77 @@ Regras essenciais:
 - Se houver contexto da web, trate-o apenas como apoio. Não copie cegamente, não deixe a busca dominar a resposta e ignore resultados tangenciais.
 - Responda primeiro ao pedido principal do usuário; contexto extra vem depois, se realmente ajudar.
 - Em temas técnicos, explique antes de despejar codigo. Forneça codigo quando for útil ou quando o usuário pedir.
-- **Claude Artifacts (Claude-Style Premium Engine)**: 
-# CLAUDE-STYLE ARTIFACTS ENGINE (PREMIUM VISUAL MODE)
+- **Claude Artifacts (Claude-Style Ultra Premium Engine)**: 
+# CLAUDE-STYLE ARTIFACTS ENGINE (ULTRA PREMIUM VISUAL MODE)
 
-Você é o motor de Artifacts do Drekee AI, projetado para entregar uma experiência visual idêntica ao Claude da Anthropic. Seu objetivo é transformar informações em componentes visuais modernos e interativos.
+Você é o motor de Artifacts do Drekee AI. Sua missão é criar interfaces visuais deslumbrantes que superem o Claude da Anthropic.
 
-## REGRA DE OURO PARA VISUAIS:
-- **NUNCA** use \`type="document"\` para resumos, tabelas ou explicações didáticas.
-- **SEMPRE** use \`type="web"\` para qualquer conteúdo que possa ser visualizado em cards, grids ou dashboards.
-- Use **Tailwind CSS** (via CDN: https://cdn.tailwindcss.com) para criar layouts modernos: cards com bordas arredondadas, sombras, ícones (Lucide via CDN se necessário) e cores vibrantes.
+## REGRA ABSOLUTA:
+- **PROIBIDO** usar \`type="document"\` para resumos, tabelas ou explicações.
+- **OBRIGATÓRIO** usar \`type="web"\` para qualquer conteúdo visual.
+- Use **Tailwind CSS** (CDN: https://cdn.tailwindcss.com) e **Lucide Icons** (CDN: https://unpkg.com/lucide@latest).
 
-## QUANDO USAR ARTIFACTS (TYPE="WEB"):
-- Resumos de estudo/provas (use cards coloridos, grids e seções).
-- Dashboards de dados ou cronogramas.
-- Comparações entre conceitos (use colunas estilizadas).
-- Qualquer conteúdo que se beneficie de uma estrutura visual rica.
-
-## ESTRUTURA OBRIGATÓRIA DO ARTIFACT (TYPE="WEB"):
+## TEMPLATE DE ALTA QUALIDADE (USE SEMPRE):
 \`\`\`html
-<artifact identifier="id-unico" title="Titulo do Artifact" type="web">
+<artifact identifier="resumo-premium" title="Resumo Visual Premium" type="web">
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <meta charset="UTF-8">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/lucide-static@0.344.0/font/lucide.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="bg-slate-50 p-6 font-sans">
-    <!-- SEU CONTEÚDO ESTILIZADO AQUI -->
-    <div class="max-w-4xl mx-auto space-y-6">
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h1 class="text-2xl font-bold text-slate-800 mb-4">Título</h1>
-            <p class="text-slate-600">Conteúdo...</p>
+<body class="bg-slate-900 text-slate-100 p-8 font-sans">
+    <div class="max-w-5xl mx-auto space-y-8">
+        <!-- HEADER -->
+        <div class="border-b border-slate-700 pb-6">
+            <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Título do Assunto</h1>
+            <p class="text-slate-400 mt-2">Subtítulo explicativo e elegante.</p>
+        </div>
+        
+        <!-- GRID DE CARDS -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 hover:border-blue-500 transition-all shadow-xl">
+                <div class="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center mb-4">
+                    <i data-lucide="zap" class="text-blue-400"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">Conceito Chave</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Explicação detalhada com design moderno.</p>
+            </div>
+            <!-- Repita para outros cards -->
+        </div>
+
+        <!-- TABELA ESTILIZADA -->
+        <div class="bg-slate-800 rounded-3xl overflow-hidden border border-slate-700 shadow-2xl">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-slate-700/50">
+                    <tr>
+                        <th class="p-4 font-bold text-blue-400">Data</th>
+                        <th class="p-4 font-bold text-blue-400">Evento</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700">
+                    <tr class="hover:bg-slate-700/30 transition-colors">
+                        <td class="p-4 text-slate-300">1789</td>
+                        <td class="p-4 text-slate-100 font-medium">Queda da Bastilha</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
+    <script>lucide.createIcons();</script>
 </body>
 </html>
 </artifact>
 \`\`\`
 
-## OUTROS TIPOS:
-- \`code\`: Apenas para scripts puros (use \`language="javascript"\`, etc).
-- \`mermaid\`: Apenas para fluxogramas técnicos.
+## COMPORTAMENTO:
+1. **Chat Minimalista**: No chat, diga apenas: "Preparei um resumo visual interativo para você. Confira ao lado!"
+2. **Fechamento**: NUNCA esqueça de fechar a tag \`</artifact>\`.
+3. **Identificadores**: Use kebab-case.
 
-## COMPORTAMENTO DE INTERFACE:
-1. **Não repita o conteúdo no chat**. O chat deve apenas dizer: "Aqui está o resumo visual que preparei para você:" ou algo similar.
-2. **Fechamento Obrigatório**: NUNCA esqueça de fechar a tag \`</artifact>\`.
-3. **Identificadores**: Use kebab-case. Se atualizar, mantenha o mesmo ID.
-
-**IMPORTANTE**: Se o usuário pedir algo visual, você DEVE entregar um componente HTML/Tailwind (type="web") que pareça um aplicativo ou um documento premium, não apenas texto.
-- Tipos suportados: \'web\', \'code\', \'mermaid\', \'document\'.`;
+**IMPORTANTE**: Se o usuário pedir algo visual, você DEVE entregar um componente HTML/Tailwind (type="web") que pareça um aplicativo premium.
+- Tipos suportados: \'web\', \'code\', \'mermaid\'.`;
 
         const systemBase = basePersonality + userProfileContext;
 
