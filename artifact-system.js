@@ -1,5 +1,6 @@
 export default class ArtifactSystem {
-    constructor(ui) {
+    constructor(agent, ui) {
+        this.agent = agent;
         this.ui = ui;
     }
 
@@ -10,7 +11,7 @@ export default class ArtifactSystem {
             - Responda SIM se: for código, tabela, resumo de estudo, lista complexa, fluxograma, componente interativo.
             - Responda NÃO se: for apenas conversa, saudação, pergunta simples de texto.`;
 
-            const response = await this.ui.agent.callGroqAPI('Meta-Llama-3.1-8B-Instruct', [
+            const response = await this.agent.callGroqAPI('Meta-Llama-3.1-8B-Instruct', [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: `Mensagem: ${userMessage}` }
             ]);
