@@ -1,4 +1,4 @@
-﻿import { MemorySystem } from './memory-system.js';
+import { MemorySystem } from './memory-system.js';
 import { buildUserProfilePromptContext } from './user-profile.js';
 
 export class Agent {
@@ -868,7 +868,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             
             let systemPrompt = {
                 role: 'system',
-                content: `Você é o Drekee AI 1, um assistente de código inteligente com memória contextual. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings, e quando apropriado use tabelas (em formato markdown), notação matemática (com $símbolos$ para inline ou $$blocos$$), e diagramas em ASCII. Evite blocos enormes de código, prefira explicações visuais. Seja técnico, claro e acessível.${memoryContext}`
+                content: `Você é o Drekee AI 1, um assistente de codigo inteligente com memória contextual. Forneça respostas COMPLETAS e ESTRUTURADAS com: múltiplos parágrafos bem organizados, **palavras em negrito** para destacar conceitos, listas com • ou números, tópicos claros com headings, e quando apropriado use tabelas (em formato markdown), notação matemática (com $símbolos$ para inline ou $$blocos$$), e diagramas em ASCII. Evite blocos enormes de codigo, prefira explicações visuais. Seja técnico, claro e acessível.${memoryContext}`
             };
             const messages = this.extraMessagesForNextCall ? [systemPrompt, ...this.extraMessagesForNextCall, ...this.conversationHistory] : [systemPrompt, ...this.conversationHistory];
 
@@ -1113,7 +1113,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
             console.log('🎯 [ARTIFACT] Decisão:', needsArtifact ? 'SIM' : 'NÃO');
             
-            const rapidSystemInstruction = (needsArtifact ? '\n\n[INSTRUÇÃO: Gere um <artifact type="...">...</artifact> para representar visualmente os dados ou o código solicitado.]' : '') + `\n\nNota ao modelo: não faça meta-raciocínio. Não comece com "Okay, the user...". Responda pequeno em português, diretamente, como um resumo de prova. Se já houver elemento visual exibido acima, diga "Use o visual acima como referência" e tenha 1-2 parágrafos.`;
+            const rapidSystemInstruction = (needsArtifact ? '\n\n[INSTRUCAO: Gere um <artifact type="...">...</artifact> para representar visualmente os dados ou o codigo solicitado.]' : '') + `\n\nNota ao modelo: não faça meta-raciocínio. Não comece com "Okay, the user...". Responda pequeno em português, diretamente, como um resumo de prova. Se já houver elemento visual exibido acima, diga "Use o visual acima como referência" e tenha 1-2 parágrafos.`;
             const finalMessages = [
                 { role: 'system', content: this.getSystemPrompt('rapido') + this.buildWebContextBlock(webData) + rapidSystemInstruction },
                 ...(this.extraMessagesForNextCall || []),
@@ -1228,7 +1228,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.ui.setThinkingHeader('Validando estratégia DeepSeek...', messageContainer.headerId);
             // Decisão Binária de Artifact (Estilo Lhama)
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
-            const artifactDirective = needsArtifact ? "\n\n[INSTRUÇÃO: Gere um <artifact type='...'>...</artifact> para representar visualmente os dados ou o código solicitado.]" : "";
+            const artifactDirective = needsArtifact ? "\n\n[INSTRUCAO: Gere um <artifact type='...'>...</artifact> para representar visualmente os dados ou o codigo solicitado.]" : "";
 
             const finalMessages = [
                 { role: 'system', content: this.getSystemPrompt('raciocinio') + this.buildWebContextBlock(webData) + artifactDirective },
@@ -1431,7 +1431,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const webContext = this.buildWebContextBlock(webData);
             // Decisão Binária de Artifact (Estilo Lhama)
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
-            const artifactDirective = needsArtifact ? "\n\n[INSTRUÇÃO: Gere um <artifact type='...'>...</artifact> para representar visualmente os dados ou o código solicitado.]" : "";
+            const artifactDirective = needsArtifact ? "\n\n[INSTRUCAO: Gere um <artifact type='...'>...</artifact> para representar visualmente os dados ou o codigo solicitado.]" : "";
             const fallbackModel = 'Meta-Llama-3.1-8B-Instruct';
 
             const baseSystem1 = this.getSystemPrompt('pro') + webContext + artifactDirective + "\n\nNesta análise, responda diretamente ao pedido do usuário, priorize a solução mais útil e evite floreios.";
@@ -1602,7 +1602,7 @@ Regras essenciais:
 - Não invente fatos. Se algo estiver incerto, diga isso com clareza.
 - Se houver contexto da web, trate-o apenas como apoio. Não copie cegamente, não deixe a busca dominar a resposta e ignore resultados tangenciais.
 - Responda primeiro ao pedido principal do usuário; contexto extra vem depois, se realmente ajudar.
-- Em temas técnicos, explique antes de despejar código. Forneça código quando for útil ou quando o usuário pedir.`;
+- Em temas técnicos, explique antes de despejar codigo. Forneça codigo quando for útil ou quando o usuário pedir.`;
 
         const systemBase = basePersonality + userProfileContext;
 
