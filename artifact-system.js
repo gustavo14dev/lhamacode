@@ -1,159 +1,103 @@
-// artifact-system.js
-// Sistema de Artifacts Inteligentes para Drekee AI
-// Gerencia decisao automatica e renderizacao de elementos visuais/interativos.
-
-const ARTIFACT_KEYWORDS = {
-    code: ['python', 'javascript', 'html', 'css', 'react', 'function', 'class', 'import', 'const', 'let', 'var', 'def', 'code', 'codigo', 'snippet', 'script', 'programa'],
-    chart: ['chart', 'grafico', 'graph', 'plot', 'dados', 'data', 'estatistica', 'percentual', 'porcentagem', 'crescimento', 'evolucao'],
-    diagram: ['diagram', 'diagrama', 'flowchart', 'fluxograma', 'arquitetura', 'architecture', 'workflow', 'pipeline', 'mermaid'],
-    ui: ['calculadora', 'calculator', 'simulador', 'simulator', 'formulario', 'form', 'componente', 'component', 'widget', 'interativo'],
-    document: ['table', 'tabela', 'documento', 'document', 'markdown', 'relatorio', 'report', 'lista', 'list']
-};
-
-const ARTIFACT_TAG_REGEX = /<artifact\s+type="([^"]+)"(?:\s+title="([^"]*)")?(?:\s+description="([^"]*)")?>([\s\S]*?)<\/artifact>/gi;
-
-class ArtifactSystem {
-    constructor(agent, ui) {
-        this.agent = agent;
+export default class ArtifactSystem {
+    constructor(ui) {
         this.ui = ui;
     }
 
     async decideIfNeedsArtifact(userMessage, webData, relevantContext) {
         try {
-            const contextText = Array.isArray(relevantContext)
-                ? relevantContext.map(c => typeof c === 'string' ? c : c.text || '').join(' ')
-                : '';
-            const webText = webData && Array.isArray(webData.results)
-                ? webData.results.map(r => r.title || '').join(' ')
-                : '';
-            const combined = `${userMessage} ${contextText} ${webText}`;
-            return this._shouldCreateArtifact(combined);
-        } catch (err) {
-            console.error('[ArtifactSystem] Erro ao decidir artifact:', err);
+            const systemPrompt = `Você é um decisor binário. Responda APENAS "SIM" ou "NÃO".
+            Decida se o usuário solicitou algo que se beneficiaria de um ARTIFACT (elemento visual, código, tabela, documento rico, linha do tempo).
+            - Responda SIM se: for código, tabela, resumo de estudo, lista complexa, fluxograma, componente interativo.
+            - Responda NÃO se: for apenas conversa, saudação, pergunta simples de texto.`;
+            
+            const response = await this.ui.agent.callGroqAPI('Meta-Llama-3.1-8B-Instruct', [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: `Mensagem: ${userMessage}` }
+            ]);
+            
+            const decision = (response || '').trim().toUpperCase();
+            console.log('🤖 [ARTIFACT-DECISION] Decisão:', decision);
+            return decision.includes('SIM');
+        } catch (e) {
+            console.error('❌ [ARTIFACT-DECISION] Erro na decisão:', e);
             return false;
         }
     }
 
-    _shouldCreateArtifact(text) {
-        const lower = text.toLowerCase();
-        for (const keywords of Object.values(ARTIFACT_KEYWORDS)) {
-            let score = 0;
-            for (const kw of keywords) {
-                if (lower.includes(kw)) score++;
-            }
-            if (score >= 2) return true;
+    extractArtifact(text) {
+        if (!text) return null;
+        const artifactRegex = /<artifact\s+type=["\']([^"\']+)["\'](?:\s+title=["\']([^"\']+)["\'])?[^>]*>([\s\S]*?)<\/artifact>/i;
+        const match = text.match(artifactRegex);
+        if (match) {
+            return {
+                type: match[1],
+                title: match[2] || (match[1] === 'code' ? 'Código' : 'Documento'),
+                content: match[3].trim()
+            };
         }
-        return false;
+        return null;
     }
 
-    extractArtifact(aiResponse) {
-        const explicit = this._extractExplicitArtifact(aiResponse);
-        if (explicit) return explicit;
+    async renderArtifact(responseId, artifact) {
+        const responseElement = document.getElementById(responseId);
+        if (!responseElement) return;
 
-        const heuristic = this._analyzeForArtifactHeuristic('', aiResponse);
-        return heuristic;
-    }
-
-    _extractExplicitArtifact(aiResponse) {
-        ARTIFACT_TAG_REGEX.lastIndex = 0;
-        const match = ARTIFACT_TAG_REGEX.exec(aiResponse);
-        if (!match) return null;
-
-        return {
-            type: match[1],
-            title: match[2] || '',
-            description: match[3] || '',
-            content: match[4].trim(),
-            source: 'explicit'
-        };
-    }
-
-    _analyzeForArtifactHeuristic(userMessage, aiResponse) {
-        const combined = `${userMessage} ${aiResponse}`.toLowerCase();
-        let bestType = null;
-        let bestScore = 0;
-
-        for (const [type, keywords] of Object.entries(ARTIFACT_KEYWORDS)) {
-            let score = 0;
-            for (const kw of keywords) {
-                if (combined.includes(kw)) score++;
-            }
-            if (score > bestScore) {
-                bestScore = score;
-                bestType = type;
-            }
-        }
-
-        if (bestScore < 2) return null;
-
-        return {
-            type: bestType,
-            title: '',
-            description: '',
-            content: aiResponse,
-            source: 'heuristic'
-        };
-    }
-
-    async renderArtifact(messageId, artifact) {
-        if (!artifact) return;
-        try {
-            const container = document.getElementById(messageId);
-            if (!container) return;
-
-            const el = document.createElement('div');
-            el.className = 'artifact-card';
-            el.innerHTML = this._buildArtifactHTML(artifact);
-            container.appendChild(el);
-        } catch (err) {
-            console.error('[ArtifactSystem] Erro ao renderizar artifact:', err);
-            this.renderArtifactError(messageId, err);
-        }
-    }
-
-    _buildArtifactHTML(artifact) {
-        const icons = { code: 'code', chart: 'bar_chart', diagram: 'account_tree', ui: 'widgets', document: 'description' };
-        const icon = icons[artifact.type] || 'extension';
-        const title = artifact.title || artifact.type;
-
-        return `
-            <div class="flex items-center gap-2 mb-2">
-                <span class="material-icons-outlined text-blue-400 text-base">${icon}</span>
-                <span class="text-sm font-semibold text-slate-200">${title}</span>
+        const container = document.createElement('div');
+        container.className = 'claude-artifact-container animate-artifact my-4 overflow-hidden rounded-xl border border-white/10 bg-[#1a1b26] shadow-2xl text-left';
+        
+        const header = document.createElement('div');
+        header.className = 'flex items-center justify-between bg-[#13141c] px-4 py-2 border-b border-white/5';
+        
+        const icon = artifact.type === 'code' ? 'code' : 'description';
+        header.innerHTML = `
+            <div class="flex items-center gap-2">
+                <span class="material-icons-outlined text-blue-400 text-[18px]">${icon}</span>
+                <span class="text-[13px] font-medium text-gray-300">${artifact.title}</span>
             </div>
-            <div class="artifact-content-area text-sm text-slate-300 overflow-auto max-h-96">
-                <pre><code>${this._escapeHTML(artifact.content)}</code></pre>
+            <div class="flex items-center gap-2">
+                <button class="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white transition-colors" title="Copiar">
+                    <span class="material-icons-outlined text-[16px]">content_copy</span>
+                </button>
             </div>
         `;
+
+        const contentArea = document.createElement('div');
+        contentArea.className = 'artifact-content-area p-4 max-h-[500px] overflow-auto text-[14px] text-gray-200 leading-relaxed';
+        
+        if (artifact.type === 'code') {
+            contentArea.innerHTML = \`<pre class="font-mono bg-transparent p-0 m-0 whitespace-pre-wrap break-all"><code>\${this.escapeHtml(artifact.content)}</code></pre>\`;
+        } else {
+            contentArea.innerHTML = this.formatDocumentContent(artifact.content);
+        }
+
+        container.appendChild(header);
+        container.appendChild(contentArea);
+
+        const copyBtn = header.querySelector('button');
+        copyBtn.onclick = () => {
+            navigator.clipboard.writeText(artifact.content);
+            const iconSpan = copyBtn.querySelector('span');
+            iconSpan.textContent = 'check';
+            setTimeout(() => iconSpan.textContent = 'content_copy', 2000);
+        };
+
+        responseElement.appendChild(container);
     }
 
-    renderArtifactError(messageId, error) {
-        try {
-            const container = document.getElementById(messageId);
-            if (!container) return;
+    formatDocumentContent(content) {
+        return content
+            .replace(/\n/g, '<br>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/^\s*\+\s*(.*)/gm, '<li class="ml-4 list-none flex items-start gap-2"><span class="text-blue-400">•</span> $1</li>');
+    }
 
-            const el = document.createElement('div');
-            el.className = 'artifact-card artifact-error';
-            el.innerHTML = `<span class="text-red-400 text-sm">Erro ao renderizar artifact: ${this._escapeHTML(String(error.message || error))}</span>`;
-            container.appendChild(el);
-        } catch (e) {
-            console.error('[ArtifactSystem] Erro ao renderizar erro de artifact:', e);
-        }
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     stripArtifactTags(text) {
-        return text.replace(ARTIFACT_TAG_REGEX, '').trim();
-    }
-
-    static cleanArtifactTags(text) {
-        return text.replace(ARTIFACT_TAG_REGEX, '').trim();
-    }
-
-    _escapeHTML(str) {
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
+        return text.replace(/<artifact[\s\S]*?<\/artifact>/gi, '').trim();
     }
 }
-
-export default ArtifactSystem;
