@@ -1228,7 +1228,44 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.ui.setThinkingHeader('Validando estratégia DeepSeek...', messageContainer.headerId);
             // Decisão Binária de Artifact (Estilo Lhama)
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
-            const artifactDirective = needsArtifact ? "\n\n[IMPORTANTE: O usuário solicitou algo visual ou estruturado. Você DEVE gerar um ARTIFACT CLAUDE-STYLE usando obrigatoriamente a tag <artifact type='document' title='Título do Documento'>Conteúdo aqui...</artifact> ou <artifact type='code' language='javascript' title='Nome do Arquivo'>Código aqui...</artifact>. Não responda apenas com texto se for algo visual! É OBRIGATÓRIO FECHAR A TAG COM </artifact> NO FINAL DO CONTEÚDO!]" : "";
+            const artifactDirective = needsArtifact ? `
+
+[MOTOR DE ARTIFACTS CLAUDE-STYLE ATIVADO:
+# CLAUDE-STYLE ARTIFACTS ENGINE
+
+Você deve agir como um motor de Artifacts de alta performance, idêntico ao Claude da Anthropic. Artifacts são para conteúdos substanciais, auto-contidos e complexos que o usuário pode querer modificar ou reutilizar.
+
+## QUANDO USAR ARTIFACTS:
+- Conteúdo substancial (>15 linhas).
+- Documentos estruturados (resumos de prova, relatórios, apresentações).
+- Código-fonte completo (scripts, componentes, páginas web).
+- Diagramas ou visualizações complexas.
+- Conteúdo que o usuário provavelmente irá iterar ou salvar.
+
+## QUANDO NÃO USAR:
+- Respostas curtas ou informativas.
+- Explicações simples ou exemplos didáticos breves.
+- Feedback ou comentários sobre artifacts existentes.
+- Conteúdo que depende totalmente do contexto da conversa para fazer sentido.
+
+## REGRAS DE OURO:
+1. **INDIVIDUALIDADE**: O Artifact deve ser auto-explicativo. Não repita o conteúdo do Artifact no chat. No chat, apenas introduza o que você criou de forma breve.
+2. **ESTRUTURA RICA**: Use Markdown completo dentro de \`type="document"\`. Use títulos, negrito, tabelas e listas para criar uma experiência visual premium.
+3. **FECHAMENTO OBRIGATÓRIO**: Você NUNCA deve terminar uma resposta sem fechar a tag \`</artifact>\`.
+4. **IDENTIFICADORES**: Use \`identifier="nome-do-artifact"\` (kebab-case). Se estiver atualizando um artifact, use o MESMO identificador.
+
+## FORMATO DA TAG:
+<artifact identifier="resumo-historia" title="Resumo de História: Idade Média" type="document">
+[CONTEÚDO MARKDOWN RICO AQUI]
+</artifact>
+
+## TIPOS SUPORTADOS:
+- \`document\`: Para textos formatados, relatórios, resumos (Markdown).
+- \`code\`: Para scripts e códigos (use o atributo \`language="javascript"\`, etc).
+- \`web\`: Para aplicações interativas (HTML/CSS/JS em arquivo único).
+- \`mermaid\`: Para diagramas e fluxogramas.
+
+**IMPORTANTE**: Se o usuário pedir algo visual, você DEVE usar um Artifact. Não entregue apenas texto puro no chat.]` : "";
             const finalMessages = [
                 { role: 'system', content: this.getSystemPrompt('raciocinio') + this.buildWebContextBlock(webData) + artifactDirective },
                 ...(this.extraMessagesForNextCall || []),
@@ -1430,7 +1467,44 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const webContext = this.buildWebContextBlock(webData);
             // Decisão Binária de Artifact (Estilo Lhama)
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
-            const artifactDirective = needsArtifact ? "\n\n[IMPORTANTE: O usuário solicitou algo visual ou estruturado. Você DEVE gerar um ARTIFACT CLAUDE-STYLE usando obrigatoriamente a tag <artifact type='document' title='Título do Documento'>Conteúdo aqui...</artifact> ou <artifact type='code' language='javascript' title='Nome do Arquivo'>Código aqui...</artifact>. Não responda apenas com texto se for algo visual! É OBRIGATÓRIO FECHAR A TAG COM </artifact> NO FINAL DO CONTEÚDO!]" : "";
+            const artifactDirective = needsArtifact ? `
+
+[MOTOR DE ARTIFACTS CLAUDE-STYLE ATIVADO:
+# CLAUDE-STYLE ARTIFACTS ENGINE
+
+Você deve agir como um motor de Artifacts de alta performance, idêntico ao Claude da Anthropic. Artifacts são para conteúdos substanciais, auto-contidos e complexos que o usuário pode querer modificar ou reutilizar.
+
+## QUANDO USAR ARTIFACTS:
+- Conteúdo substancial (>15 linhas).
+- Documentos estruturados (resumos de prova, relatórios, apresentações).
+- Código-fonte completo (scripts, componentes, páginas web).
+- Diagramas ou visualizações complexas.
+- Conteúdo que o usuário provavelmente irá iterar ou salvar.
+
+## QUANDO NÃO USAR:
+- Respostas curtas ou informativas.
+- Explicações simples ou exemplos didáticos breves.
+- Feedback ou comentários sobre artifacts existentes.
+- Conteúdo que depende totalmente do contexto da conversa para fazer sentido.
+
+## REGRAS DE OURO:
+1. **INDIVIDUALIDADE**: O Artifact deve ser auto-explicativo. Não repita o conteúdo do Artifact no chat. No chat, apenas introduza o que você criou de forma breve.
+2. **ESTRUTURA RICA**: Use Markdown completo dentro de \`type="document"\`. Use títulos, negrito, tabelas e listas para criar uma experiência visual premium.
+3. **FECHAMENTO OBRIGATÓRIO**: Você NUNCA deve terminar uma resposta sem fechar a tag \`</artifact>\`.
+4. **IDENTIFICADORES**: Use \`identifier="nome-do-artifact"\` (kebab-case). Se estiver atualizando um artifact, use o MESMO identificador.
+
+## FORMATO DA TAG:
+<artifact identifier="resumo-historia" title="Resumo de História: Idade Média" type="document">
+[CONTEÚDO MARKDOWN RICO AQUI]
+</artifact>
+
+## TIPOS SUPORTADOS:
+- \`document\`: Para textos formatados, relatórios, resumos (Markdown).
+- \`code\`: Para scripts e códigos (use o atributo \`language="javascript"\`, etc).
+- \`web\`: Para aplicações interativas (HTML/CSS/JS em arquivo único).
+- \`mermaid\`: Para diagramas e fluxogramas.
+
+**IMPORTANTE**: Se o usuário pedir algo visual, você DEVE usar um Artifact. Não entregue apenas texto puro no chat.]` : "";
 
             const baseSystem1 = this.getSystemPrompt('pro') + webContext + artifactDirective + "\n\nNesta análise, responda diretamente ao pedido do usuário, priorize a solução mais útil e evite floreios.";
             const baseSystem2 = this.getSystemPrompt('pro') + webContext + artifactDirective + "\n\nNesta análise, atue como um revisor crítico. Questione suposições, identifique ambiguidades, aponte riscos e proponha alternativas melhores quando existirem.";
@@ -1601,8 +1675,43 @@ Regras essenciais:
 - Se houver contexto da web, trate-o apenas como apoio. Não copie cegamente, não deixe a busca dominar a resposta e ignore resultados tangenciais.
 - Responda primeiro ao pedido principal do usuário; contexto extra vem depois, se realmente ajudar.
 - Em temas técnicos, explique antes de despejar codigo. Forneça codigo quando for útil ou quando o usuário pedir.
-- **Claude Artifacts**: Sempre que o usuário pedir algo visual, estruturado (tabelas, listas complexas, resumos de estudo) ou codigo, você DEVE envolver esse conteúdo na tag \`<artifact type="..." title="...">CONTEÚDO AQUI</artifact>\`. NUNCA ESQUEÇA DE FECHAR A TAG! Isso abrirá uma janela lateral interativa para o usuário.
-- Tipos suportados: 'document' (para textos ricos), 'code' (para scripts), 'web' (para HTML/CSS/JS interativo).`;
+- **Claude Artifacts (Claude-Style Engine)**: 
+# CLAUDE-STYLE ARTIFACTS ENGINE
+
+Você deve agir como um motor de Artifacts de alta performance, idêntico ao Claude da Anthropic. Artifacts são para conteúdos substanciais, auto-contidos e complexos que o usuário pode querer modificar ou reutilizar.
+
+## QUANDO USAR ARTIFACTS:
+- Conteúdo substancial (>15 linhas).
+- Documentos estruturados (resumos de prova, relatórios, apresentações).
+- Código-fonte completo (scripts, componentes, páginas web).
+- Diagramas ou visualizações complexas.
+- Conteúdo que o usuário provavelmente irá iterar ou salvar.
+
+## QUANDO NÃO USAR:
+- Respostas curtas ou informativas.
+- Explicações simples ou exemplos didáticos breves.
+- Feedback ou comentários sobre artifacts existentes.
+- Conteúdo que depende totalmente do contexto da conversa para fazer sentido.
+
+## REGRAS DE OURO:
+1. **INDIVIDUALIDADE**: O Artifact deve ser auto-explicativo. Não repita o conteúdo do Artifact no chat. No chat, apenas introduza o que você criou de forma breve.
+2. **ESTRUTURA RICA**: Use Markdown completo dentro de \`type="document"\`. Use títulos, negrito, tabelas e listas para criar uma experiência visual premium.
+3. **FECHAMENTO OBRIGATÓRIO**: Você NUNCA deve terminar uma resposta sem fechar a tag \`</artifact>\`.
+4. **IDENTIFICADORES**: Use \`identifier="nome-do-artifact"\` (kebab-case). Se estiver atualizando um artifact, use o MESMO identificador.
+
+## FORMATO DA TAG:
+<artifact identifier="resumo-historia" title="Resumo de História: Idade Média" type="document">
+[CONTEÚDO MARKDOWN RICO AQUI]
+</artifact>
+
+## TIPOS SUPORTADOS:
+- \`document\`: Para textos formatados, relatórios, resumos (Markdown).
+- \`code\`: Para scripts e códigos (use o atributo \`language="javascript"\`, etc).
+- \`web\`: Para aplicações interativas (HTML/CSS/JS em arquivo único).
+- \`mermaid\`: Para diagramas e fluxogramas.
+
+**IMPORTANTE**: Se o usuário pedir algo visual, você DEVE usar um Artifact. Não entregue apenas texto puro no chat.
+- Tipos suportados: \'document\', \'code\', \'web\', \'mermaid\'.`;
 
         const systemBase = basePersonality + userProfileContext;
 
