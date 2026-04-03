@@ -140,7 +140,6 @@ export default class ArtifactSystem {
         // Rolar para mostrar o artifact
         container.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-    }
 
     formatDocumentContent(content) {
         return content
