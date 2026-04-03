@@ -1228,7 +1228,9 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.ui.setThinkingHeader('Validando estratégia DeepSeek...', messageContainer.headerId);
             // Decisão Binária de Artifact (Estilo Lhama)
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
-            const artifactDirective = needsArtifact ? "\n\n[INSTRUÇÃO: Gere um <artifact type='...'>...</artifact> para representar visualmente os dados ou o código solicitado.]" : "";
+            const artifactDirective = needsArtifact ? "
+
+[IMPORTANTE: O usuário solicitou algo visual ou estruturado. Você DEVE gerar um ARTIFACT CLAUDE-STYLE usando obrigatoriamente a tag <artifact type='document' title='Título do Documento'>Conteúdo aqui...</artifact> ou <artifact type='code' language='javascript' title='Nome do Arquivo'>Código aqui...</artifact>. Não responda apenas com texto se for algo visual!]" : "";
 
             const finalMessages = [
                 { role: 'system', content: this.getSystemPrompt('raciocinio') + this.buildWebContextBlock(webData) + artifactDirective },
@@ -1431,7 +1433,9 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const webContext = this.buildWebContextBlock(webData);
             // Decisão Binária de Artifact (Estilo Lhama)
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
-            const artifactDirective = needsArtifact ? "\n\n[INSTRUÇÃO: Gere um <artifact type='...'>...</artifact> para representar visualmente os dados ou o código solicitado.]" : "";
+            const artifactDirective = needsArtifact ? "
+
+[IMPORTANTE: O usuário solicitou algo visual ou estruturado. Você DEVE gerar um ARTIFACT CLAUDE-STYLE usando obrigatoriamente a tag <artifact type='document' title='Título do Documento'>Conteúdo aqui...</artifact> ou <artifact type='code' language='javascript' title='Nome do Arquivo'>Código aqui...</artifact>. Não responda apenas com texto se for algo visual!]" : "";
             const fallbackModel = 'Meta-Llama-3.1-8B-Instruct';
 
             const baseSystem1 = this.getSystemPrompt('pro') + webContext + artifactDirective + "\n\nNesta análise, responda diretamente ao pedido do usuário, priorize a solução mais útil e evite floreios.";
@@ -1602,7 +1606,9 @@ Regras essenciais:
 - Não invente fatos. Se algo estiver incerto, diga isso com clareza.
 - Se houver contexto da web, trate-o apenas como apoio. Não copie cegamente, não deixe a busca dominar a resposta e ignore resultados tangenciais.
 - Responda primeiro ao pedido principal do usuário; contexto extra vem depois, se realmente ajudar.
-- Em temas técnicos, explique antes de despejar código. Forneça código quando for útil ou quando o usuário pedir.`;
+- Em temas técnicos, explique antes de despejar código. Forneça código quando for útil ou quando o usuário pedir.
+- **Claude Artifacts**: Sempre que o usuário pedir algo visual, estruturado (tabelas, listas complexas, resumos de estudo) ou código, você DEVE envolver esse conteúdo na tag `<artifact type="..." title="...">...</artifact>`. Isso abrirá uma janela lateral interativa para o usuário.
+- Tipos suportados: 'document' (para textos ricos), 'code' (para scripts), 'web' (para HTML/CSS/JS interativo).`;
 
         const systemBase = basePersonality + userProfileContext;
 
