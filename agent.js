@@ -1228,7 +1228,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.ui.setThinkingHeader('Validando estratégia DeepSeek...', messageContainer.headerId);
             // Decisão Binária de Artifact (Estilo Lhama)
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
-            const artifactDirective = needsArtifact ? "\n\n[IMPORTANTE: O usuário solicitou algo visual ou estruturado. Você DEVE gerar um ARTIFACT CLAUDE-STYLE usando obrigatoriamente a tag <artifact type='document' title='Título do Documento'>Conteúdo aqui...</artifact> ou <artifact type='code' language='javascript' title='Nome do Arquivo'>Código aqui...</artifact>. Não responda apenas com texto se for algo visual!]" : "";
+            const artifactDirective = needsArtifact ? "\n\n[IMPORTANTE: O usuário solicitou algo visual ou estruturado. Você DEVE gerar um ARTIFACT CLAUDE-STYLE usando obrigatoriamente a tag <artifact type='document' title='Título do Documento'>Conteúdo aqui...</artifact> ou <artifact type='code' language='javascript' title='Nome do Arquivo'>Código aqui...</artifact>. Não responda apenas com texto se for algo visual! É OBRIGATÓRIO FECHAR A TAG COM </artifact> NO FINAL DO CONTEÚDO!]" : "";
             const finalMessages = [
                 { role: 'system', content: this.getSystemPrompt('raciocinio') + this.buildWebContextBlock(webData) + artifactDirective },
                 ...(this.extraMessagesForNextCall || []),
@@ -1430,7 +1430,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const webContext = this.buildWebContextBlock(webData);
             // Decisão Binária de Artifact (Estilo Lhama)
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
-            const artifactDirective = needsArtifact ? "\n\n[IMPORTANTE: O usuário solicitou algo visual ou estruturado. Você DEVE gerar um ARTIFACT CLAUDE-STYLE usando obrigatoriamente a tag <artifact type='document' title='Título do Documento'>Conteúdo aqui...</artifact> ou <artifact type='code' language='javascript' title='Nome do Arquivo'>Código aqui...</artifact>. Não responda apenas com texto se for algo visual!]" : "";
+            const artifactDirective = needsArtifact ? "\n\n[IMPORTANTE: O usuário solicitou algo visual ou estruturado. Você DEVE gerar um ARTIFACT CLAUDE-STYLE usando obrigatoriamente a tag <artifact type='document' title='Título do Documento'>Conteúdo aqui...</artifact> ou <artifact type='code' language='javascript' title='Nome do Arquivo'>Código aqui...</artifact>. Não responda apenas com texto se for algo visual! É OBRIGATÓRIO FECHAR A TAG COM </artifact> NO FINAL DO CONTEÚDO!]" : "";
 
             const baseSystem1 = this.getSystemPrompt('pro') + webContext + artifactDirective + "\n\nNesta análise, responda diretamente ao pedido do usuário, priorize a solução mais útil e evite floreios.";
             const baseSystem2 = this.getSystemPrompt('pro') + webContext + artifactDirective + "\n\nNesta análise, atue como um revisor crítico. Questione suposições, identifique ambiguidades, aponte riscos e proponha alternativas melhores quando existirem.";
@@ -1601,7 +1601,7 @@ Regras essenciais:
 - Se houver contexto da web, trate-o apenas como apoio. Não copie cegamente, não deixe a busca dominar a resposta e ignore resultados tangenciais.
 - Responda primeiro ao pedido principal do usuário; contexto extra vem depois, se realmente ajudar.
 - Em temas técnicos, explique antes de despejar codigo. Forneça codigo quando for útil ou quando o usuário pedir.
-- **Claude Artifacts**: Sempre que o usuário pedir algo visual, estruturado (tabelas, listas complexas, resumos de estudo) ou codigo, você DEVE envolver esse conteúdo na tag \`<artifact type="..." title="...">...</artifact>\`. Isso abrirá uma janela lateral interativa para o usuário.
+- **Claude Artifacts**: Sempre que o usuário pedir algo visual, estruturado (tabelas, listas complexas, resumos de estudo) ou codigo, você DEVE envolver esse conteúdo na tag \`<artifact type="..." title="...">CONTEÚDO AQUI</artifact>\`. NUNCA ESQUEÇA DE FECHAR A TAG! Isso abrirá uma janela lateral interativa para o usuário.
 - Tipos suportados: 'document' (para textos ricos), 'code' (para scripts), 'web' (para HTML/CSS/JS interativo).`;
 
         const systemBase = basePersonality + userProfileContext;
