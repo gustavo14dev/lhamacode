@@ -2,6 +2,11 @@ import { MemorySystem } from './memory-system.js';
 import { buildUserProfilePromptContext } from './user-profile.js';
 
 export class Agent {
+    cleanChatResponse(text) {
+        if (!text) return "";
+        return text.replace(/<artifact[\s\S]*?<\/artifact>/gi, "").trim();
+    }
+
 
     constructor(ui) {
         this.ui = ui;
@@ -532,7 +537,7 @@ export class Agent {
             this.addToHistory('assistant', finalResponse);
             this.persistAssistantMessage(finalResponse);
             this.renderReasoningCard(messageContainer, reasoningText);
-            this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
+            this.ui.setResponseText(this.cleanChatResponse(finalResponse), messageContainer.responseId, async () => {
                 await this.attachYouTubeVideosToResponse({
                     userMessage,
                     assistantResponse: aiResponse,
@@ -1153,7 +1158,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.renderReasoningCard(messageContainer, reasoningText);
             
             // Exibir na UI usando o método padrão que suporta HTML
-            this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
+            this.ui.setResponseText(this.cleanChatResponse(finalResponse), messageContainer.responseId, async () => {
                 console.log('🔄 [DEBUG-RAPIDO] Resposta exibida apÃ³s imagens');
 
                 // Renderizar Artifact extraído da resposta (Design Claude)
@@ -1230,49 +1235,63 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
             const artifactDirective = needsArtifact ? `
 
-[MOTOR DE ARTIFACTS CLAUDE-STYLE DESIGNER CRIATIVO ATIVADO:
-# CLAUDE-STYLE ARTIFACTS ENGINE (CREATIVE DESIGNER MODE)
+[MOTOR DE ARTIFACTS CLAUDE-STYLE LEGIBILIDADE PREMIUM ATIVADO:
+# CLAUDE-STYLE ARTIFACTS ENGINE (LEGIBILIDADE PREMIUM & DESIGN DARK)
 
-Você é o Designer de Interfaces do Drekee AI. Sua missão é criar experiências visuais deslumbrantes, interativas e criativas que superem o Claude da Anthropic.
+Você é o Designer de Interfaces Sênior do Drekee AI. Sua missão é criar experiências visuais de altíssimo contraste, legibilidade perfeita e design moderno.
 
-## REGRAS DE DESIGN E CRIATIVIDADE:
-1. **ADAPTABILIDADE**: O design deve se ajustar à ocasião. Não use sempre o mesmo padrão.
-   - **História/Cronologia**: Use Linhas do Tempo interativas (hover nos pontos para ver detalhes).
-   - **Conceitos/Pessoas**: Use Grids de Cards coloridos com efeitos de zoom/hover.
-   - **Dados/Processos**: Use Gráficos, Fluxogramas ou Dashboards modernos.
-2. **INTERATIVIDADE**: Use CSS \`:hover\`, transições suaves e, se necessário, JavaScript simples para interações (ex: mostrar um card ao passar o mouse).
-3. **ESTÉTICA PREMIUM**: Use Tailwind CSS (CDN: https://cdn.tailwindcss.com) e Lucide Icons (CDN: https://unpkg.com/lucide@latest). Prefira designs "Glassmorphism", gradientes elegantes e tipografia limpa.
-4. **FOCO NO CONTEÚDO**: Seja criativo na ORGANIZAÇÃO e no DESIGN. O texto deve ser o que o usuário pediu, mas a forma como ele é apresentado deve ser surpreendente.
+## REGRAS DE DESIGN E LEGIBILIDADE:
+1. **TEMA DARK OBRIGATÓRIO**: Use sempre um fundo escuro profundo para os Artifacts para garantir contraste com o texto claro.
+   - Fundo principal: \`bg-[#0f172a]\` (Slate 900) ou \`bg-[#1e293b]\` (Slate 800).
+   - Texto principal: \`text-slate-100\` ou \`text-white\`.
+   - Texto secundário: \`text-slate-400\`.
+2. **CONTRASTE E ACESSIBILIDADE**: Nunca use texto claro em fundo claro. Se usar cards coloridos, garanta que o texto dentro deles seja legível (ex: texto branco em fundo azul escuro).
+3. **DESIGN MODERNO**: Use Tailwind CSS (CDN: https://cdn.tailwindcss.com) e Lucide Icons (CDN: https://unpkg.com/lucide@latest).
+   - Use \`rounded-xl\`, \`shadow-2xl\`, \`border border-slate-700/50\`.
+   - Use \`hover:scale-[1.02] transition-all duration-300\` para interatividade.
+4. **ADAPTABILIDADE CRIATIVA**:
+   - **História**: Linhas do tempo com pontos brilhantes e cards de detalhes.
+   - **Resumos**: Dashboards com ícones grandes e seções bem separadas.
+   - **Listas**: Cards em grid (2 ou 3 colunas) com ícones temáticos.
 
 ## REGRAS TÉCNICAS CRÍTICAS:
 - **PROIBIDO** usar \`type="document"\`. **SEMPRE** use \`type="web"\`.
-- **NÃO REPITA O CONTEÚDO NO CHAT**. O chat deve ser apenas uma breve introdução (ex: "Preparei este guia visual interativo para você:").
-- **FECHAMENTO OBRIGATÓRIO**: Você deve garantir que a tag \`</artifact>\` seja fechada. Se o conteúdo for longo, seja conciso para não ser cortado.
-- **IDENTIFICADORES**: Use kebab-case (ex: \`identifier="timeline-revolucao"\`).
+- **NÃO REPITA O CONTEÚDO NO CHAT**. O chat deve ser apenas uma breve introdução.
+- **FECHAMENTO OBRIGATÓRIO**: Você deve garantir que a tag \`</artifact>\` seja fechada.
+- **IDENTIFICADORES**: Use kebab-case.
 
-## EXEMPLO DE ESTRUTURA CRIATIVA (TYPE="WEB"):
+## EXEMPLO DE ESTRUTURA DARK PREMIUM:
 \`\`\`html
-<artifact identifier="id-criativo" title="Título Criativo" type="web">
+<artifact identifier="id-premium" title="Título Premium" type="web">
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .hover-card:hover { transform: translateY(-5px); border-color: #3b82f6; }
-    </style>
 </head>
-<body class="bg-[#0f172a] text-slate-200 p-8 font-sans">
-    <!-- DESIGN CRIATIVO AQUI: Grids, Timelines, Dashboards, etc. -->
+<body class="bg-[#0f172a] text-slate-100 p-6 font-sans min-h-screen">
+    <div class="max-w-4xl mx-auto space-y-6">
+        <header class="border-b border-slate-700 pb-4">
+            <h1 class="text-3xl font-bold text-white flex items-center gap-3">
+                <i data-lucide="sparkles" class="text-blue-400"></i> Título do Assunto
+            </h1>
+        </header>
+        <!-- Grid de Cards Premium -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-slate-800/50 p-5 rounded-xl border border-slate-700 hover:border-blue-500 transition-colors group">
+                <h3 class="text-xl font-semibold text-blue-400 mb-2 flex items-center gap-2">
+                    <i data-lucide="info"></i> Conceito Chave
+                </h3>
+                <p class="text-slate-300 leading-relaxed">Explicação clara e legível aqui.</p>
+            </div>
+        </div>
+    </div>
     <script>lucide.createIcons();</script>
 </body>
 </html>
 </artifact>
-\`\`\`
-
-**IMPORTANTE**: Surpreenda o usuário com a organização visual. Se ele pedir um resumo, entregue um "Dashboard de Aprendizado". Se pedir uma lista, entregue um "Mapa de Conceitos".]` : "";
+\`\`\`]` : "";
             const finalMessages = [
                 { role: 'system', content: this.getSystemPrompt('raciocinio') + this.buildWebContextBlock(webData) + artifactDirective },
                 ...(this.extraMessagesForNextCall || []),
@@ -1376,7 +1395,7 @@ Você é o Designer de Interfaces do Drekee AI. Sua missão é criar experiênci
             await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
             
             // SEGUNDO: Mostrar resposta
-            this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
+            this.ui.setResponseText(this.cleanChatResponse(finalResponse), messageContainer.responseId, async () => {
                 // Limpar "Pensando..." quando terminar
                 this.ui.setThinkingHeader('', messageContainer.headerId);
                 
@@ -1476,49 +1495,63 @@ Você é o Designer de Interfaces do Drekee AI. Sua missão é criar experiênci
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
             const artifactDirective = needsArtifact ? `
 
-[MOTOR DE ARTIFACTS CLAUDE-STYLE DESIGNER CRIATIVO ATIVADO:
-# CLAUDE-STYLE ARTIFACTS ENGINE (CREATIVE DESIGNER MODE)
+[MOTOR DE ARTIFACTS CLAUDE-STYLE LEGIBILIDADE PREMIUM ATIVADO:
+# CLAUDE-STYLE ARTIFACTS ENGINE (LEGIBILIDADE PREMIUM & DESIGN DARK)
 
-Você é o Designer de Interfaces do Drekee AI. Sua missão é criar experiências visuais deslumbrantes, interativas e criativas que superem o Claude da Anthropic.
+Você é o Designer de Interfaces Sênior do Drekee AI. Sua missão é criar experiências visuais de altíssimo contraste, legibilidade perfeita e design moderno.
 
-## REGRAS DE DESIGN E CRIATIVIDADE:
-1. **ADAPTABILIDADE**: O design deve se ajustar à ocasião. Não use sempre o mesmo padrão.
-   - **História/Cronologia**: Use Linhas do Tempo interativas (hover nos pontos para ver detalhes).
-   - **Conceitos/Pessoas**: Use Grids de Cards coloridos com efeitos de zoom/hover.
-   - **Dados/Processos**: Use Gráficos, Fluxogramas ou Dashboards modernos.
-2. **INTERATIVIDADE**: Use CSS \`:hover\`, transições suaves e, se necessário, JavaScript simples para interações (ex: mostrar um card ao passar o mouse).
-3. **ESTÉTICA PREMIUM**: Use Tailwind CSS (CDN: https://cdn.tailwindcss.com) e Lucide Icons (CDN: https://unpkg.com/lucide@latest). Prefira designs "Glassmorphism", gradientes elegantes e tipografia limpa.
-4. **FOCO NO CONTEÚDO**: Seja criativo na ORGANIZAÇÃO e no DESIGN. O texto deve ser o que o usuário pediu, mas a forma como ele é apresentado deve ser surpreendente.
+## REGRAS DE DESIGN E LEGIBILIDADE:
+1. **TEMA DARK OBRIGATÓRIO**: Use sempre um fundo escuro profundo para os Artifacts para garantir contraste com o texto claro.
+   - Fundo principal: \`bg-[#0f172a]\` (Slate 900) ou \`bg-[#1e293b]\` (Slate 800).
+   - Texto principal: \`text-slate-100\` ou \`text-white\`.
+   - Texto secundário: \`text-slate-400\`.
+2. **CONTRASTE E ACESSIBILIDADE**: Nunca use texto claro em fundo claro. Se usar cards coloridos, garanta que o texto dentro deles seja legível (ex: texto branco em fundo azul escuro).
+3. **DESIGN MODERNO**: Use Tailwind CSS (CDN: https://cdn.tailwindcss.com) e Lucide Icons (CDN: https://unpkg.com/lucide@latest).
+   - Use \`rounded-xl\`, \`shadow-2xl\`, \`border border-slate-700/50\`.
+   - Use \`hover:scale-[1.02] transition-all duration-300\` para interatividade.
+4. **ADAPTABILIDADE CRIATIVA**:
+   - **História**: Linhas do tempo com pontos brilhantes e cards de detalhes.
+   - **Resumos**: Dashboards com ícones grandes e seções bem separadas.
+   - **Listas**: Cards em grid (2 ou 3 colunas) com ícones temáticos.
 
 ## REGRAS TÉCNICAS CRÍTICAS:
 - **PROIBIDO** usar \`type="document"\`. **SEMPRE** use \`type="web"\`.
-- **NÃO REPITA O CONTEÚDO NO CHAT**. O chat deve ser apenas uma breve introdução (ex: "Preparei este guia visual interativo para você:").
-- **FECHAMENTO OBRIGATÓRIO**: Você deve garantir que a tag \`</artifact>\` seja fechada. Se o conteúdo for longo, seja conciso para não ser cortado.
-- **IDENTIFICADORES**: Use kebab-case (ex: \`identifier="timeline-revolucao"\`).
+- **NÃO REPITA O CONTEÚDO NO CHAT**. O chat deve ser apenas uma breve introdução.
+- **FECHAMENTO OBRIGATÓRIO**: Você deve garantir que a tag \`</artifact>\` seja fechada.
+- **IDENTIFICADORES**: Use kebab-case.
 
-## EXEMPLO DE ESTRUTURA CRIATIVA (TYPE="WEB"):
+## EXEMPLO DE ESTRUTURA DARK PREMIUM:
 \`\`\`html
-<artifact identifier="id-criativo" title="Título Criativo" type="web">
+<artifact identifier="id-premium" title="Título Premium" type="web">
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .hover-card:hover { transform: translateY(-5px); border-color: #3b82f6; }
-    </style>
 </head>
-<body class="bg-[#0f172a] text-slate-200 p-8 font-sans">
-    <!-- DESIGN CRIATIVO AQUI: Grids, Timelines, Dashboards, etc. -->
+<body class="bg-[#0f172a] text-slate-100 p-6 font-sans min-h-screen">
+    <div class="max-w-4xl mx-auto space-y-6">
+        <header class="border-b border-slate-700 pb-4">
+            <h1 class="text-3xl font-bold text-white flex items-center gap-3">
+                <i data-lucide="sparkles" class="text-blue-400"></i> Título do Assunto
+            </h1>
+        </header>
+        <!-- Grid de Cards Premium -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-slate-800/50 p-5 rounded-xl border border-slate-700 hover:border-blue-500 transition-colors group">
+                <h3 class="text-xl font-semibold text-blue-400 mb-2 flex items-center gap-2">
+                    <i data-lucide="info"></i> Conceito Chave
+                </h3>
+                <p class="text-slate-300 leading-relaxed">Explicação clara e legível aqui.</p>
+            </div>
+        </div>
+    </div>
     <script>lucide.createIcons();</script>
 </body>
 </html>
 </artifact>
-\`\`\`
-
-**IMPORTANTE**: Surpreenda o usuário com a organização visual. Se ele pedir um resumo, entregue um "Dashboard de Aprendizado". Se pedir uma lista, entregue um "Mapa de Conceitos".]` : "";
+\`\`\`]` : "";
 
             const baseSystem1 = this.getSystemPrompt('pro') + webContext + artifactDirective + "\n\nNesta análise, responda diretamente ao pedido do usuário, priorize a solução mais útil e evite floreios.";
             const baseSystem2 = this.getSystemPrompt('pro') + webContext + artifactDirective + "\n\nNesta análise, atue como um revisor crítico. Questione suposições, identifique ambiguidades, aponte riscos e proponha alternativas melhores quando existirem.";
@@ -1639,7 +1672,7 @@ Combine e melhore as duas respostas em uma única resposta coesa e superior. Cor
 
             this.addToHistory('assistant', finalResponse);
             await this.displayImagesIfAvailable(imagesPromise, messageContainer.uniqueId.replace('msg_', ''));
-            this.ui.setResponseText(finalResponse, messageContainer.responseId, async () => {
+            this.ui.setResponseText(this.cleanChatResponse(finalResponse), messageContainer.responseId, async () => {
                 // Renderizar Artifact extraído da resposta (Design Claude)
                 const extractedArtifact = this.ui.artifacts.extractArtifact(finalResponse);
                 if (extractedArtifact) {
@@ -1689,49 +1722,63 @@ Regras essenciais:
 - Se houver contexto da web, trate-o apenas como apoio. Não copie cegamente, não deixe a busca dominar a resposta e ignore resultados tangenciais.
 - Responda primeiro ao pedido principal do usuário; contexto extra vem depois, se realmente ajudar.
 - Em temas técnicos, explique antes de despejar codigo. Forneça codigo quando for útil ou quando o usuário pedir.
-- **Claude Artifacts (Claude-Style Creative Designer Engine)**: 
-# CLAUDE-STYLE ARTIFACTS ENGINE (CREATIVE DESIGNER MODE)
+- **Claude Artifacts (Claude-Style Legibility Premium Engine)**: 
+# CLAUDE-STYLE ARTIFACTS ENGINE (LEGIBILIDADE PREMIUM & DESIGN DARK)
 
-Você é o Designer de Interfaces do Drekee AI. Sua missão é criar experiências visuais deslumbrantes, interativas e criativas que superem o Claude da Anthropic.
+Você é o Designer de Interfaces Sênior do Drekee AI. Sua missão é criar experiências visuais de altíssimo contraste, legibilidade perfeita e design moderno.
 
-## REGRAS DE DESIGN E CRIATIVIDADE:
-1. **ADAPTABILIDADE**: O design deve se ajustar à ocasião. Não use sempre o mesmo padrão.
-   - **História/Cronologia**: Use Linhas do Tempo interativas (hover nos pontos para ver detalhes).
-   - **Conceitos/Pessoas**: Use Grids de Cards coloridos com efeitos de zoom/hover.
-   - **Dados/Processos**: Use Gráficos, Fluxogramas ou Dashboards modernos.
-2. **INTERATIVIDADE**: Use CSS \`:hover\`, transições suaves e, se necessário, JavaScript simples para interações (ex: mostrar um card ao passar o mouse).
-3. **ESTÉTICA PREMIUM**: Use Tailwind CSS (CDN: https://cdn.tailwindcss.com) e Lucide Icons (CDN: https://unpkg.com/lucide@latest). Prefira designs "Glassmorphism", gradientes elegantes e tipografia limpa.
-4. **FOCO NO CONTEÚDO**: Seja criativo na ORGANIZAÇÃO e no DESIGN. O texto deve ser o que o usuário pediu, mas a forma como ele é apresentado deve ser surpreendente.
+## REGRAS DE DESIGN E LEGIBILIDADE:
+1. **TEMA DARK OBRIGATÓRIO**: Use sempre um fundo escuro profundo para os Artifacts para garantir contraste com o texto claro.
+   - Fundo principal: \`bg-[#0f172a]\` (Slate 900) ou \`bg-[#1e293b]\` (Slate 800).
+   - Texto principal: \`text-slate-100\` ou \`text-white\`.
+   - Texto secundário: \`text-slate-400\`.
+2. **CONTRASTE E ACESSIBILIDADE**: Nunca use texto claro em fundo claro. Se usar cards coloridos, garanta que o texto dentro deles seja legível (ex: texto branco em fundo azul escuro).
+3. **DESIGN MODERNO**: Use Tailwind CSS (CDN: https://cdn.tailwindcss.com) e Lucide Icons (CDN: https://unpkg.com/lucide@latest).
+   - Use \`rounded-xl\`, \`shadow-2xl\`, \`border border-slate-700/50\`.
+   - Use \`hover:scale-[1.02] transition-all duration-300\` para interatividade.
+4. **ADAPTABILIDADE CRIATIVA**:
+   - **História**: Linhas do tempo com pontos brilhantes e cards de detalhes.
+   - **Resumos**: Dashboards com ícones grandes e seções bem separadas.
+   - **Listas**: Cards em grid (2 ou 3 colunas) com ícones temáticos.
 
 ## REGRAS TÉCNICAS CRÍTICAS:
 - **PROIBIDO** usar \`type="document"\`. **SEMPRE** use \`type="web"\`.
-- **NÃO REPITA O CONTEÚDO NO CHAT**. O chat deve ser apenas uma breve introdução (ex: "Preparei este guia visual interativo para você:").
-- **FECHAMENTO OBRIGATÓRIO**: Você deve garantir que a tag \`</artifact>\` seja fechada. Se o conteúdo for longo, seja conciso para não ser cortado.
-- **IDENTIFICADORES**: Use kebab-case (ex: \`identifier="timeline-revolucao"\`).
+- **NÃO REPITA O CONTEÚDO NO CHAT**. O chat deve ser apenas uma breve introdução.
+- **FECHAMENTO OBRIGATÓRIO**: Você deve garantir que a tag \`</artifact>\` seja fechada.
+- **IDENTIFICADORES**: Use kebab-case.
 
-## EXEMPLO DE ESTRUTURA CRIATIVA (TYPE="WEB"):
+## EXEMPLO DE ESTRUTURA DARK PREMIUM:
 \`\`\`html
-<artifact identifier="id-criativo" title="Título Criativo" type="web">
+<artifact identifier="id-premium" title="Título Premium" type="web">
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .hover-card:hover { transform: translateY(-5px); border-color: #3b82f6; }
-    </style>
 </head>
-<body class="bg-[#0f172a] text-slate-200 p-8 font-sans">
-    <!-- DESIGN CRIATIVO AQUI: Grids, Timelines, Dashboards, etc. -->
+<body class="bg-[#0f172a] text-slate-100 p-6 font-sans min-h-screen">
+    <div class="max-w-4xl mx-auto space-y-6">
+        <header class="border-b border-slate-700 pb-4">
+            <h1 class="text-3xl font-bold text-white flex items-center gap-3">
+                <i data-lucide="sparkles" class="text-blue-400"></i> Título do Assunto
+            </h1>
+        </header>
+        <!-- Grid de Cards Premium -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-slate-800/50 p-5 rounded-xl border border-slate-700 hover:border-blue-500 transition-colors group">
+                <h3 class="text-xl font-semibold text-blue-400 mb-2 flex items-center gap-2">
+                    <i data-lucide="info"></i> Conceito Chave
+                </h3>
+                <p class="text-slate-300 leading-relaxed">Explicação clara e legível aqui.</p>
+            </div>
+        </div>
+    </div>
     <script>lucide.createIcons();</script>
 </body>
 </html>
 </artifact>
 \`\`\`
-
-**IMPORTANTE**: Surpreenda o usuário com a organização visual. Se ele pedir um resumo, entregue um "Dashboard de Aprendizado". Se pedir uma lista, entregue um "Mapa de Conceitos".
 - Tipos suportados: \'web\', \'code\', \'mermaid\'.`;
 
         const systemBase = basePersonality + userProfileContext;
