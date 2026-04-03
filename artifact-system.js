@@ -65,7 +65,7 @@ export default class ArtifactSystem {
         contentArea.className = 'artifact-content-area p-4 max-h-[500px] overflow-auto text-[14px] text-gray-200 leading-relaxed';
         
         if (artifact.type === 'code') {
-            contentArea.innerHTML = \`<pre class="font-mono bg-transparent p-0 m-0 whitespace-pre-wrap break-all"><code>\${this.escapeHtml(artifact.content)}</code></pre>\`;
+            contentArea.innerHTML = `<pre class="font-mono bg-transparent p-0 m-0 whitespace-pre-wrap break-all"><code>${this.escapeHtml(artifact.content)}</code></pre>`;
         } else {
             contentArea.innerHTML = this.formatDocumentContent(artifact.content);
         }
