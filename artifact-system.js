@@ -9,12 +9,12 @@ export default class ArtifactSystem {
             Decida se o usuário solicitou algo que se beneficiaria de um ARTIFACT (elemento visual, código, tabela, documento rico, linha do tempo).
             - Responda SIM se: for código, tabela, resumo de estudo, lista complexa, fluxograma, componente interativo.
             - Responda NÃO se: for apenas conversa, saudação, pergunta simples de texto.`;
-            
+
             const response = await this.ui.agent.callGroqAPI('Meta-Llama-3.1-8B-Instruct', [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: `Mensagem: ${userMessage}` }
             ]);
-            
+
             const decision = (response || '').trim().toUpperCase();
             console.log('🤖 [ARTIFACT-DECISION] Decisão:', decision);
             return decision.includes('SIM');
@@ -38,16 +38,16 @@ export default class ArtifactSystem {
         return null;
     }
 
-        async renderArtifact(responseId, artifact) {
+    async renderArtifact(responseId, artifact) {
         const responseElement = document.getElementById(responseId);
         if (!responseElement) return;
-        
+
         const container = document.createElement('div');
         container.className = 'claude-artifact-container animate-artifact my-4 overflow-hidden rounded-xl border border-white/10 bg-[#1a1b26] shadow-2xl text-left';
-        
+
         const header = document.createElement('div');
         header.className = 'flex items-center justify-between bg-[#13141c] px-4 py-2 border-b border-white/5';
-        
+
         let icon = 'description';
         if (artifact.type === 'code') icon = 'code';
         if (artifact.type === 'web') icon = 'language';
@@ -67,15 +67,14 @@ export default class ArtifactSystem {
 
         const contentArea = document.createElement('div');
         contentArea.className = 'artifact-content-area overflow-hidden text-[14px] text-gray-200 leading-relaxed';
-        
+
         if (artifact.type === 'web') {
             contentArea.className += ' h-[600px] bg-white';
             const iframe = document.createElement('iframe');
             iframe.className = 'w-full h-full border-none';
             iframe.sandbox = 'allow-scripts allow-forms allow-popups allow-modals';
             contentArea.appendChild(iframe);
-            
-            // Injetar o conteúdo no iframe
+
             setTimeout(() => {
                 const doc = iframe.contentWindow.document;
                 doc.open();
@@ -87,37 +86,6 @@ export default class ArtifactSystem {
             contentArea.innerHTML = `<pre class="font-mono bg-transparent p-0 m-0 whitespace-pre-wrap break-all"><code>${this.escapeHtml(artifact.content)}</code></pre>`;
         } else {
             contentArea.className += ' p-4 max-h-[500px] overflow-auto';
-            contentArea.innerHTML = this.formatDocumentContent(artifact.content);
-        }
-
-        container.appendChild(header);
-        container.appendChild(contentArea);
-        
-        const copyBtn = header.querySelector('button');
-        copyBtn.onclick = () => {
-            navigator.clipboard.writeText(artifact.content);
-            const iconSpan = copyBtn.querySelector('span');
-            iconSpan.textContent = 'check';
-            setTimeout(() => iconSpan.textContent = 'content_copy', 2000);
-        };
-        
-        responseElement.appendChild(container);
-    }</span>
-                <span class="text-[13px] font-medium text-gray-300">${artifact.title}</span>
-            </div>
-            <div class="flex items-center gap-2">
-                <button class="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white transition-colors" title="Copiar">
-                    <span class="material-icons-outlined text-[16px]">content_copy</span>
-                </button>
-            </div>
-        `;
-
-        const contentArea = document.createElement('div');
-        contentArea.className = 'artifact-content-area p-4 max-h-[500px] overflow-auto text-[14px] text-gray-200 leading-relaxed';
-        
-        if (artifact.type === 'code') {
-            contentArea.innerHTML = `<pre class="font-mono bg-transparent p-0 m-0 whitespace-pre-wrap break-all"><code>${this.escapeHtml(artifact.content)}</code></pre>`;
-        } else {
             contentArea.innerHTML = this.formatDocumentContent(artifact.content);
         }
 
