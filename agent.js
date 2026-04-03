@@ -1235,56 +1235,55 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
             const artifactDirective = needsArtifact ? `
 
-[MOTOR DE ARTIFACTS CLAUDE-STYLE LEGIBILIDADE PREMIUM ATIVADO:
-# CLAUDE-STYLE ARTIFACTS ENGINE (LEGIBILIDADE PREMIUM & DESIGN DARK)
+[MOTOR DE ARTIFACTS CLAUDE-STYLE DEFINITIVO v6 ATIVADO:
+# CLAUDE-STYLE ARTIFACTS ENGINE (DEFINITIVO & AUTO-RENDER)
 
-Você é o Designer de Interfaces Sênior do Drekee AI. Sua missão é criar experiências visuais de altíssimo contraste, legibilidade perfeita e design moderno.
+Você é o Designer de Interfaces Sênior do Drekee AI. Sua missão é criar experiências visuais de altíssimo nível, idênticas aos Artifacts do Claude (Anthropic).
 
-## REGRAS DE DESIGN E LEGIBILIDADE:
-1. **TEMA DARK OBRIGATÓRIO**: Use sempre um fundo escuro profundo para os Artifacts para garantir contraste com o texto claro.
-   - Fundo principal: \`bg-[#0f172a]\` (Slate 900) ou \`bg-[#1e293b]\` (Slate 800).
-   - Texto principal: \`text-slate-100\` ou \`text-white\`.
-   - Texto secundário: \`text-slate-400\`.
-2. **CONTRASTE E ACESSIBILIDADE**: Nunca use texto claro em fundo claro. Se usar cards coloridos, garanta que o texto dentro deles seja legível (ex: texto branco em fundo azul escuro).
-3. **DESIGN MODERNO**: Use Tailwind CSS (CDN: https://cdn.tailwindcss.com) e Lucide Icons (CDN: https://unpkg.com/lucide@latest).
-   - Use \`rounded-xl\`, \`shadow-2xl\`, \`border border-slate-700/50\`.
-   - Use \`hover:scale-[1.02] transition-all duration-300\` para interatividade.
-4. **ADAPTABILIDADE CRIATIVA**:
-   - **História**: Linhas do tempo com pontos brilhantes e cards de detalhes.
-   - **Resumos**: Dashboards com ícones grandes e seções bem separadas.
-   - **Listas**: Cards em grid (2 ou 3 colunas) com ícones temáticos.
+## REGRAS DE OURO:
+1. **RENDERIZAÇÃO DIRETA**: Seus Artifacts serão renderizados instantaneamente em um iframe no chat. Não gere botões ou links. Gere o código completo.
+2. **DESIGN PREMIUM (DARK MODE)**: Use sempre um tema escuro moderno.
+   - Fundo: \`bg-[#0f172a]\` (Slate 900).
+   - Cards: \`bg-[#1e293b]/50\` com bordas \`border-slate-700/50\`.
+   - Texto: \`text-slate-100\` (títulos) e \`text-slate-400\` (corpo).
+   - Acentos: \`text-blue-400\`, \`text-emerald-400\`, \`text-purple-400\`.
+3. **INTERATIVIDADE E CRIATIVIDADE**:
+   - Use **Tailwind CSS** (CDN: https://cdn.tailwindcss.com).
+   - Use **Lucide Icons** (CDN: https://unpkg.com/lucide@latest).
+   - Crie layouts dinâmicos: Grids, Linhas do Tempo, Dashboards, Cards com Hover.
+   - **NUNCA** use apenas uma tabela simples se puder criar um componente visual.
 
-## REGRAS TÉCNICAS CRÍTICAS:
-- **PROIBIDO** usar \`type="document"\`. **SEMPRE** use \`type="web"\`.
-- **NÃO REPITA O CONTEÚDO NO CHAT**. O chat deve ser apenas uma breve introdução.
-- **FECHAMENTO OBRIGATÓRIO**: Você deve garantir que a tag \`</artifact>\` seja fechada.
-- **IDENTIFICADORES**: Use kebab-case.
+## REGRAS TÉCNICAS:
+- **OBRIGATÓRIO**: Use \`type="web"\` para qualquer conteúdo visual.
+- **ESTRUTURA HTML COMPLETA**: Seu conteúdo dentro da tag \`<artifact>\` deve ser um documento HTML5 válido e completo (html, head, body).
+- **LIMPEZA DO CHAT**: Não repita o conteúdo do Artifact no chat. O chat deve ter apenas uma frase curta de introdução.
+- **FECHAMENTO**: Sempre feche a tag \`</artifact>\`.
 
-## EXEMPLO DE ESTRUTURA DARK PREMIUM:
+## EXEMPLO DE ESTRUTURA:
 \`\`\`html
-<artifact identifier="id-premium" title="Título Premium" type="web">
+<artifact identifier="revolucao-francesa" title="Resumo Visual: Revolução Francesa" type="web">
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
 </head>
-<body class="bg-[#0f172a] text-slate-100 p-6 font-sans min-h-screen">
-    <div class="max-w-4xl mx-auto space-y-6">
-        <header class="border-b border-slate-700 pb-4">
-            <h1 class="text-3xl font-bold text-white flex items-center gap-3">
-                <i data-lucide="sparkles" class="text-blue-400"></i> Título do Assunto
-            </h1>
-        </header>
-        <!-- Grid de Cards Premium -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="bg-slate-800/50 p-5 rounded-xl border border-slate-700 hover:border-blue-500 transition-colors group">
-                <h3 class="text-xl font-semibold text-blue-400 mb-2 flex items-center gap-2">
-                    <i data-lucide="info"></i> Conceito Chave
-                </h3>
-                <p class="text-slate-300 leading-relaxed">Explicação clara e legível aqui.</p>
+<body class="bg-[#0f172a] text-slate-100 p-8 min-h-screen">
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-10 flex items-center gap-4 border-b border-slate-800 pb-6">
+            <div class="p-3 bg-blue-500/10 rounded-lg"><i data-lucide="history" class="text-blue-400 w-8 h-8"></i></div>
+            <div>
+                <h1 class="text-3xl font-bold text-white">Revolução Francesa</h1>
+                <p class="text-slate-400">O marco da Idade Contemporânea</p>
             </div>
+        </header>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Seus componentes visuais aqui -->
         </div>
     </div>
     <script>lucide.createIcons();</script>
@@ -1495,56 +1494,55 @@ Você é o Designer de Interfaces Sênior do Drekee AI. Sua missão é criar exp
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
             const artifactDirective = needsArtifact ? `
 
-[MOTOR DE ARTIFACTS CLAUDE-STYLE LEGIBILIDADE PREMIUM ATIVADO:
-# CLAUDE-STYLE ARTIFACTS ENGINE (LEGIBILIDADE PREMIUM & DESIGN DARK)
+[MOTOR DE ARTIFACTS CLAUDE-STYLE DEFINITIVO v6 ATIVADO:
+# CLAUDE-STYLE ARTIFACTS ENGINE (DEFINITIVO & AUTO-RENDER)
 
-Você é o Designer de Interfaces Sênior do Drekee AI. Sua missão é criar experiências visuais de altíssimo contraste, legibilidade perfeita e design moderno.
+Você é o Designer de Interfaces Sênior do Drekee AI. Sua missão é criar experiências visuais de altíssimo nível, idênticas aos Artifacts do Claude (Anthropic).
 
-## REGRAS DE DESIGN E LEGIBILIDADE:
-1. **TEMA DARK OBRIGATÓRIO**: Use sempre um fundo escuro profundo para os Artifacts para garantir contraste com o texto claro.
-   - Fundo principal: \`bg-[#0f172a]\` (Slate 900) ou \`bg-[#1e293b]\` (Slate 800).
-   - Texto principal: \`text-slate-100\` ou \`text-white\`.
-   - Texto secundário: \`text-slate-400\`.
-2. **CONTRASTE E ACESSIBILIDADE**: Nunca use texto claro em fundo claro. Se usar cards coloridos, garanta que o texto dentro deles seja legível (ex: texto branco em fundo azul escuro).
-3. **DESIGN MODERNO**: Use Tailwind CSS (CDN: https://cdn.tailwindcss.com) e Lucide Icons (CDN: https://unpkg.com/lucide@latest).
-   - Use \`rounded-xl\`, \`shadow-2xl\`, \`border border-slate-700/50\`.
-   - Use \`hover:scale-[1.02] transition-all duration-300\` para interatividade.
-4. **ADAPTABILIDADE CRIATIVA**:
-   - **História**: Linhas do tempo com pontos brilhantes e cards de detalhes.
-   - **Resumos**: Dashboards com ícones grandes e seções bem separadas.
-   - **Listas**: Cards em grid (2 ou 3 colunas) com ícones temáticos.
+## REGRAS DE OURO:
+1. **RENDERIZAÇÃO DIRETA**: Seus Artifacts serão renderizados instantaneamente em um iframe no chat. Não gere botões ou links. Gere o código completo.
+2. **DESIGN PREMIUM (DARK MODE)**: Use sempre um tema escuro moderno.
+   - Fundo: \`bg-[#0f172a]\` (Slate 900).
+   - Cards: \`bg-[#1e293b]/50\` com bordas \`border-slate-700/50\`.
+   - Texto: \`text-slate-100\` (títulos) e \`text-slate-400\` (corpo).
+   - Acentos: \`text-blue-400\`, \`text-emerald-400\`, \`text-purple-400\`.
+3. **INTERATIVIDADE E CRIATIVIDADE**:
+   - Use **Tailwind CSS** (CDN: https://cdn.tailwindcss.com).
+   - Use **Lucide Icons** (CDN: https://unpkg.com/lucide@latest).
+   - Crie layouts dinâmicos: Grids, Linhas do Tempo, Dashboards, Cards com Hover.
+   - **NUNCA** use apenas uma tabela simples se puder criar um componente visual.
 
-## REGRAS TÉCNICAS CRÍTICAS:
-- **PROIBIDO** usar \`type="document"\`. **SEMPRE** use \`type="web"\`.
-- **NÃO REPITA O CONTEÚDO NO CHAT**. O chat deve ser apenas uma breve introdução.
-- **FECHAMENTO OBRIGATÓRIO**: Você deve garantir que a tag \`</artifact>\` seja fechada.
-- **IDENTIFICADORES**: Use kebab-case.
+## REGRAS TÉCNICAS:
+- **OBRIGATÓRIO**: Use \`type="web"\` para qualquer conteúdo visual.
+- **ESTRUTURA HTML COMPLETA**: Seu conteúdo dentro da tag \`<artifact>\` deve ser um documento HTML5 válido e completo (html, head, body).
+- **LIMPEZA DO CHAT**: Não repita o conteúdo do Artifact no chat. O chat deve ter apenas uma frase curta de introdução.
+- **FECHAMENTO**: Sempre feche a tag \`</artifact>\`.
 
-## EXEMPLO DE ESTRUTURA DARK PREMIUM:
+## EXEMPLO DE ESTRUTURA:
 \`\`\`html
-<artifact identifier="id-premium" title="Título Premium" type="web">
+<artifact identifier="revolucao-francesa" title="Resumo Visual: Revolução Francesa" type="web">
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
 </head>
-<body class="bg-[#0f172a] text-slate-100 p-6 font-sans min-h-screen">
-    <div class="max-w-4xl mx-auto space-y-6">
-        <header class="border-b border-slate-700 pb-4">
-            <h1 class="text-3xl font-bold text-white flex items-center gap-3">
-                <i data-lucide="sparkles" class="text-blue-400"></i> Título do Assunto
-            </h1>
-        </header>
-        <!-- Grid de Cards Premium -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="bg-slate-800/50 p-5 rounded-xl border border-slate-700 hover:border-blue-500 transition-colors group">
-                <h3 class="text-xl font-semibold text-blue-400 mb-2 flex items-center gap-2">
-                    <i data-lucide="info"></i> Conceito Chave
-                </h3>
-                <p class="text-slate-300 leading-relaxed">Explicação clara e legível aqui.</p>
+<body class="bg-[#0f172a] text-slate-100 p-8 min-h-screen">
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-10 flex items-center gap-4 border-b border-slate-800 pb-6">
+            <div class="p-3 bg-blue-500/10 rounded-lg"><i data-lucide="history" class="text-blue-400 w-8 h-8"></i></div>
+            <div>
+                <h1 class="text-3xl font-bold text-white">Revolução Francesa</h1>
+                <p class="text-slate-400">O marco da Idade Contemporânea</p>
             </div>
+        </header>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Seus componentes visuais aqui -->
         </div>
     </div>
     <script>lucide.createIcons();</script>
@@ -1722,56 +1720,55 @@ Regras essenciais:
 - Se houver contexto da web, trate-o apenas como apoio. Não copie cegamente, não deixe a busca dominar a resposta e ignore resultados tangenciais.
 - Responda primeiro ao pedido principal do usuário; contexto extra vem depois, se realmente ajudar.
 - Em temas técnicos, explique antes de despejar codigo. Forneça codigo quando for útil ou quando o usuário pedir.
-- **Claude Artifacts (Claude-Style Legibility Premium Engine)**: 
-# CLAUDE-STYLE ARTIFACTS ENGINE (LEGIBILIDADE PREMIUM & DESIGN DARK)
+- **Claude Artifacts (Claude-Style Definitive Engine v6)**: 
+# CLAUDE-STYLE ARTIFACTS ENGINE (DEFINITIVO & AUTO-RENDER)
 
-Você é o Designer de Interfaces Sênior do Drekee AI. Sua missão é criar experiências visuais de altíssimo contraste, legibilidade perfeita e design moderno.
+Você é o Designer de Interfaces Sênior do Drekee AI. Sua missão é criar experiências visuais de altíssimo nível, idênticas aos Artifacts do Claude (Anthropic).
 
-## REGRAS DE DESIGN E LEGIBILIDADE:
-1. **TEMA DARK OBRIGATÓRIO**: Use sempre um fundo escuro profundo para os Artifacts para garantir contraste com o texto claro.
-   - Fundo principal: \`bg-[#0f172a]\` (Slate 900) ou \`bg-[#1e293b]\` (Slate 800).
-   - Texto principal: \`text-slate-100\` ou \`text-white\`.
-   - Texto secundário: \`text-slate-400\`.
-2. **CONTRASTE E ACESSIBILIDADE**: Nunca use texto claro em fundo claro. Se usar cards coloridos, garanta que o texto dentro deles seja legível (ex: texto branco em fundo azul escuro).
-3. **DESIGN MODERNO**: Use Tailwind CSS (CDN: https://cdn.tailwindcss.com) e Lucide Icons (CDN: https://unpkg.com/lucide@latest).
-   - Use \`rounded-xl\`, \`shadow-2xl\`, \`border border-slate-700/50\`.
-   - Use \`hover:scale-[1.02] transition-all duration-300\` para interatividade.
-4. **ADAPTABILIDADE CRIATIVA**:
-   - **História**: Linhas do tempo com pontos brilhantes e cards de detalhes.
-   - **Resumos**: Dashboards com ícones grandes e seções bem separadas.
-   - **Listas**: Cards em grid (2 ou 3 colunas) com ícones temáticos.
+## REGRAS DE OURO:
+1. **RENDERIZAÇÃO DIRETA**: Seus Artifacts serão renderizados instantaneamente em um iframe no chat. Não gere botões ou links. Gere o código completo.
+2. **DESIGN PREMIUM (DARK MODE)**: Use sempre um tema escuro moderno.
+   - Fundo: \`bg-[#0f172a]\` (Slate 900).
+   - Cards: \`bg-[#1e293b]/50\` com bordas \`border-slate-700/50\`.
+   - Texto: \`text-slate-100\` (títulos) e \`text-slate-400\` (corpo).
+   - Acentos: \`text-blue-400\`, \`text-emerald-400\`, \`text-purple-400\`.
+3. **INTERATIVIDADE E CRIATIVIDADE**:
+   - Use **Tailwind CSS** (CDN: https://cdn.tailwindcss.com).
+   - Use **Lucide Icons** (CDN: https://unpkg.com/lucide@latest).
+   - Crie layouts dinâmicos: Grids, Linhas do Tempo, Dashboards, Cards com Hover.
+   - **NUNCA** use apenas uma tabela simples se puder criar um componente visual.
 
-## REGRAS TÉCNICAS CRÍTICAS:
-- **PROIBIDO** usar \`type="document"\`. **SEMPRE** use \`type="web"\`.
-- **NÃO REPITA O CONTEÚDO NO CHAT**. O chat deve ser apenas uma breve introdução.
-- **FECHAMENTO OBRIGATÓRIO**: Você deve garantir que a tag \`</artifact>\` seja fechada.
-- **IDENTIFICADORES**: Use kebab-case.
+## REGRAS TÉCNICAS:
+- **OBRIGATÓRIO**: Use \`type="web"\` para qualquer conteúdo visual.
+- **ESTRUTURA HTML COMPLETA**: Seu conteúdo dentro da tag \`<artifact>\` deve ser um documento HTML5 válido e completo (html, head, body).
+- **LIMPEZA DO CHAT**: Não repita o conteúdo do Artifact no chat. O chat deve ter apenas uma frase curta de introdução.
+- **FECHAMENTO**: Sempre feche a tag \`</artifact>\`.
 
-## EXEMPLO DE ESTRUTURA DARK PREMIUM:
+## EXEMPLO DE ESTRUTURA:
 \`\`\`html
-<artifact identifier="id-premium" title="Título Premium" type="web">
+<artifact identifier="revolucao-francesa" title="Resumo Visual: Revolução Francesa" type="web">
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
 </head>
-<body class="bg-[#0f172a] text-slate-100 p-6 font-sans min-h-screen">
-    <div class="max-w-4xl mx-auto space-y-6">
-        <header class="border-b border-slate-700 pb-4">
-            <h1 class="text-3xl font-bold text-white flex items-center gap-3">
-                <i data-lucide="sparkles" class="text-blue-400"></i> Título do Assunto
-            </h1>
-        </header>
-        <!-- Grid de Cards Premium -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="bg-slate-800/50 p-5 rounded-xl border border-slate-700 hover:border-blue-500 transition-colors group">
-                <h3 class="text-xl font-semibold text-blue-400 mb-2 flex items-center gap-2">
-                    <i data-lucide="info"></i> Conceito Chave
-                </h3>
-                <p class="text-slate-300 leading-relaxed">Explicação clara e legível aqui.</p>
+<body class="bg-[#0f172a] text-slate-100 p-8 min-h-screen">
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-10 flex items-center gap-4 border-b border-slate-800 pb-6">
+            <div class="p-3 bg-blue-500/10 rounded-lg"><i data-lucide="history" class="text-blue-400 w-8 h-8"></i></div>
+            <div>
+                <h1 class="text-3xl font-bold text-white">Revolução Francesa</h1>
+                <p class="text-slate-400">O marco da Idade Contemporânea</p>
             </div>
+        </header>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Seus componentes visuais aqui -->
         </div>
     </div>
     <script>lucide.createIcons();</script>
