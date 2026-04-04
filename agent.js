@@ -231,9 +231,9 @@ export class Agent {
     }
 
     async callOpenRouterAPI(model, customMessages = [], options = {}) {
-        const openRouterApiKey = localStorage.getItem(\'openrouter_api_key\') || process.env.OPENROUTER_API_KEY;
+        const openRouterApiKey = localStorage.getItem('openrouter_api_key') || process.env.OPENROUTER_API_KEY;
         if (!openRouterApiKey) {
-            throw new Error(\'OPENROUTER_API_KEY não configurada.\');
+            throw new Error('OPENROUTER_API_KEY não configurada.');
         }
 
         const requestBody = {
@@ -247,11 +247,11 @@ export class Agent {
         };
 
         try {
-            const response = await fetch(\'https://openrouter.ai/api/v1/chat/completions\', {
-                method: \'POST\',
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
                 headers: {
-                    \'Authorization\': `Bearer ${openRouterApiKey}`,
-                    \'Content-Type\': \'application/json\'
+                    'Authorization': `Bearer ${openRouterApiKey}`,
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(requestBody)
             });
@@ -270,10 +270,10 @@ export class Agent {
             if (data && data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
                 return data.choices[0].message.content;
             } else {
-                throw new Error(\'Resposta inválida da OpenRouter API: \' + JSON.stringify(data));
+                throw new Error('Resposta inválida da OpenRouter API: ' + JSON.stringify(data));
             }
         } catch (error) {
-            console.error(\'❌ Erro ao chamar OpenRouter API:\', error);
+            console.error('❌ Erro ao chamar OpenRouter API:', error);
             throw error;
         }
     }
@@ -324,8 +324,7 @@ export class Agent {
 
         try {
             const response = await fetch('/api/groq-proxy', {
-                method: 'POST',
-                headers: {
+               method: 'POST',                headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(requestBody)
