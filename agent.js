@@ -91,7 +91,7 @@ export class Agent {
 
         let provider = (localStorage.getItem('api_provider') || '').toString().toLowerCase();
         if (!provider) {
-            provider = process.env?.DEFAULT_API_PROVIDER?.toString().toLowerCase() || 'groq';
+            provider = 'groq'; // Default to 'groq' if not set in localStorage
         }
 
         if (!['groq', 'samba'].includes(provider)) {
