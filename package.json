@@ -18,8 +18,7 @@
     "@myriaddreamin/typst.ts": "^0.6.0",
     "multiparty": "^4.2.3",
     "pdfjs-dist": "^3.11.174",
-    "puppeteer-core": "^24.36.1",
-    "openai": "^4.0.0"
+    "puppeteer-core": "^24.36.1"
   },
   "devDependencies": {
     "@tailwindcss/container-queries": "^0.1.1",
