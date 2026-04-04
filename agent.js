@@ -276,7 +276,7 @@ export class Agent {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    provider,
+                    provider: provider,
                     model: this.normalizeModelForProvider('llama-3.1-8b-instant', provider),
                     messages: [{ role: 'user', content: 'test' }],
                     max_tokens: 1
