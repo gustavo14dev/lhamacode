@@ -266,21 +266,21 @@ export class Agent {
     }
 
     async quickApiCheck() {
-        const provider = this.getApiProvider();
-
-        // Fazer uma requisição rápida para testar a API via proxy
         try {
-            const response = await fetch('/api/groq-proxy', {
-                method: 'POST',
+            const provider = this.getApiProvider();
+            const testModel = this.normalizeModelForProvider("llama-3.1-8b-instant", provider);
+
+            const response = await fetch("/api/groq-proxy", {
+                method: "POST",
                 headers: {
-                    'Content-Type': 'application/json'
+                    "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
                     provider: provider,
-                    model: this.normalizeModelForProvider('llama-3.1-8b-instant', provider),
-                    messages: [{ role: 'user', content: 'test' }],
-                    max_tokens: 1
-                })
+                    model: testModel,
+                    messages: [{ role: "user", content: "test" }],
+                    max_tokens: 1,
+                }),
             });
 
             if (!response.ok) {
@@ -290,7 +290,7 @@ export class Agent {
 
             return true;
         } catch (error) {
-            console.error('❌ Verificação rápida da API falhou:', this.formatErrorMessage(error));
+            console.error("❌ Verificação rápida da API falhou:", this.formatErrorMessage(error));
             throw error;
         }
     }
