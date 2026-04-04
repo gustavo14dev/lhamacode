@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qwen Chat - Teste OpenRouter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .chat-container { max-height: 70vh; overflow-y: auto; }
+        .message { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .typing { display: inline-block; }
+        .typing span { animation: blink 1.4s infinite; }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-[#0f172a] to-[#1a1f3a] text-slate-100 min-h-screen p-4">
+    <div class="max-w-2xl mx-auto h-screen flex flex-col">
+        <!-- Header -->
+        <div class="mb-6 text-center">
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                Qwen Chat - OpenRouter
+            </h1>
+            <p class="text-slate-400 mt-2">Modelo: qwen/qwen3.6-plus:free</p>
+        </div>
+
+        <!-- Chat Container -->
+        <div class="chat-container bg-[#1e293b]/30 rounded-lg border border-slate-700/50 p-6 mb-6 flex-1">
+            <div id="messages" class="space-y-4">
+                <div class="message bg-[#1e293b] p-4 rounded-lg border-l-4 border-blue-500">
+                    <p class="text-slate-300">👋 Olá! Sou o Qwen 3.6 Plus. Estou pronto para responder suas perguntas. Digite algo e vamos começar!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="flex gap-3">
+            <input 
+                type="text" 
+                id="userInput" 
+                placeholder="Digite sua mensagem..." 
+                class="flex-1 bg-[#1e293b] border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onkeypress="if(event.key==='Enter') sendMessage()"
+            >
+            <button 
+                onclick="sendMessage()" 
+                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+            >
+                Enviar
+            </button>
+        </div>
+
+        <!-- Status -->
+        <div id="status" class="mt-4 text-center text-slate-500 text-sm"></div>
+    </div>
+
+    <script>
+        const API_KEY = localStorage.getItem('openrouter_key') || '';
+        const MODEL = 'qwen/qwen3.6-plus:free';
+        const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+        let conversationHistory = [];
+
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            // Validar API Key
+            if (!API_KEY) {
+                alert('⚠️ API Key não configurada!\n\nConfigure a variável de ambiente OPENROUTER_API_KEY ou use localStorage.setItem("openrouter_key", "sua-chave")');
+                return;
+            }
+
+            // Adicionar mensagem do usuário
+            addMessage(message, 'user');
+            input.value = '';
+
+            // Mostrar indicador de digitação
+            const typingId = showTyping();
+
+            try {
+                // Preparar histórico de conversa
+                conversationHistory.push({
+                    role: 'user',
+                    content: message
+                });
+
+                // Fazer requisição à OpenRouter
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'HTTP-Referer': window.location.href,
+                        'X-Title': 'Qwen Chat Test'
+                    },
+                    body: JSON.stringify({
+                        model: MODEL,
+                        messages: conversationHistory,
+                        temperature: 0.7,
+                        max_tokens: 2048
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(`API Error: ${error.error?.message || response.statusText}`);
+                }
+
+                const data = await response.json();
+                const assistantMessage = data.choices[0].message.content;
+
+                // Adicionar resposta do assistente
+                conversationHistory.push({
+                    role: 'assistant',
+                    content: assistantMessage
+                });
+
+                removeTyping(typingId);
+                addMessage(assistantMessage, 'assistant');
+
+                // Atualizar status
+                updateStatus(`✅ Resposta recebida | Tokens: ${data.usage?.total_tokens || 'N/A'}`);
+
+            } catch (error) {
+                removeTyping(typingId);
+                addMessage(`❌ Erro: ${error.message}`, 'error');
+                updateStatus(`❌ Erro na requisição`);
+                console.error('Erro:', error);
+            }
+        }
+
+        function addMessage(text, role) {
+            const messagesDiv = document.getElementById('messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = `message p-4 rounded-lg border-l-4 ${
+                role === 'user' ? 'bg-blue-600/20 border-blue-500 ml-8' :
+                role === 'assistant' ? 'bg-slate-700/30 border-slate-500 mr-8' :
+                'bg-red-600/20 border-red-500'
+            }`;
+            messageEl.innerHTML = `<p class="text-slate-100 whitespace-pre-wrap">${escapeHtml(text)}</p>`;
+            messagesDiv.appendChild(messageEl);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function showTyping() {
+            const messagesDiv = document.getElementById('messages');
+            const typingEl = document.createElement('div');
+            typingEl.className = 'message p-4 rounded-lg bg-slate-700/30 border-l-4 border-slate-500 mr-8';
+            typingEl.innerHTML = '<div class="typing"><span>.</span><span>.</span><span>.</span></div>';
+            typingEl.id = 'typing-indicator';
+            messagesDiv.appendChild(typingEl);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            return 'typing-indicator';
+        }
+
+        function removeTyping(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function updateStatus(text) {
+            document.getElementById('status').textContent = text;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Inicializar
+        window.addEventListener('load', () => {
+            const apiKey = prompt('Cole sua chave OpenRouter API (ou deixe em branco para usar localStorage):');
+            if (apiKey) {
+                localStorage.setItem('openrouter_key', apiKey);
+                location.reload();
+            } else if (!API_KEY) {
+                updateStatus('⚠️ Nenhuma API Key configurada. Use localStorage.setItem("openrouter_key", "sua-chave")');
+            } else {
+                updateStatus('✅ Pronto para usar');
+            }
+        });
+    </script>
+</body>
+</html>
