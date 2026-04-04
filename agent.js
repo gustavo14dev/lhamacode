@@ -1133,12 +1133,12 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 ? this.memory.getRelevantContext(userMessage)
                 : [];
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
-            console.log(\'🎯 [ARTIFACT] Decisão:\', needsArtifact ? \'SIM\' : \'NÃO\');
+            console.log('🎯 [ARTIFACT] Decisão:', needsArtifact ? 'SIM' : 'NÃO');
 
-            let finalResponseContent = \'\';
+            let finalResponseContent = '';
 
             if (needsArtifact) {
-                this.ui.setThinkingHeader(\'✨ Gerando Artifact com Qwen...\', messageContainer.headerId);
+                this.ui.setThinkingHeader('✨ Gerando Artifact com Qwen...', messageContainer.headerId);
                 const artifactGenerationPrompt = `Você é um designer de interfaces e especialista em conteúdo de elite. Sua missão é criar um ARTIFACT visual deslumbrante, interativo e informativo, idêntico aos Artifacts do Claude (Anthropic). Use todo o contexto fornecido para criar um HTML/CSS/JS completo e funcional. Não inclua nenhuma explicação ou texto além do próprio <artifact>...</artifact>.
 
                 ## CONTEXTO COMPLETO PARA GERAÇÃO DO ARTIFACT:
@@ -1162,7 +1162,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                     { role: 'system', content: artifactGenerationPrompt },
                     { role: 'user', content: userMessage }
                 ];
-                finalResponseContent = await this.callOpenRouterProxy(\'qwen/qwen-3.6-plus:free\', qwenMessages);
+                finalResponseContent = await this.callOpenRouterProxy('qwen/qwen-3.6-plus:free', qwenMessages);
                 console.log('✅ [ARTIFACT-QWEN] Artifact gerado pelo Qwen:', finalResponseContent ? finalResponseContent.substring(0, 200) + '...' : 'NULO');
             }
             const rapidSystemInstruction = `\n\nNota ao modelo: não faça meta-raciocínio. Não comece com \"Okay, the user...\". Responda pequeno em português, diretamente, como um resumo de prova. Se já houver elemento visual exibido acima, diga \"Use o visual acima como referência\" e tenha 1-2 parágrafos.`;
@@ -1198,11 +1198,11 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 response = await this.callGroqAPI('llama-3.3-70b-versatile', messagesForLlama); // Usar o modelo principal para a resposta final
             } else {
                 // Se não precisa de artifact, o fluxo é o mesmo de antes.
-                response = await this.callGroqAPI(\'llama-3.1-8b-instant\', finalMessages); // Usar o modelo Llama 8B para a resposta rápida sem artifact
+                response = await this.callGroqAPI('llama-3.1-8b-instant', finalMessages); // Usar o modelo Llama 8B para a resposta rápida sem artifact
             }
-            console.log(\'🔍 [DEBUG-RAPIDO] Resposta da API recebida:\', response ? response.substring(0, 100) + \'...\' : \'NULO\');
-            console.log(\'🔍 [DEBUG-RAPIDO] Tipo da resposta:\', typeof response);
-            console.log(\'🔍 [DEBUG-RAPIDO] Tamanho da resposta:\', response ? response.length : 0);
+            console.log('🔍 [DEBUG-RAPIDO] Resposta da API recebida:', response ? response.substring(0, 100) + '...' : 'NULO');
+            console.log('🔍 [DEBUG-RAPIDO] Tipo da resposta:', typeof response);
+            console.log('🔍 [DEBUG-RAPIDO] Tamanho da resposta:', response ? response.length : 0);
 
             let { finalResponse, reasoningText } = this.extractReasoningFromText(response);
             finalResponse = this.cleanMetaRaciocinio(finalResponse);
