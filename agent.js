@@ -228,6 +228,53 @@ export class Agent {
         } catch (e) {
             return String(error);
         }
+
+    async callOpenRouterAPI(model, customMessages = [], options = {}) {
+        const openRouterApiKey = localStorage.getItem('openrouter_api_key') || process.env.OPENROUTER_API_KEY;
+        if (!openRouterApiKey) {
+            throw new Error('OPENROUTER_API_KEY não configurada.');
+        }
+
+        const requestBody = {
+            model: model,
+            messages: Array.isArray(customMessages) ? customMessages : [],
+            max_tokens: options.max_tokens || 65000, // Qwen tem 65K de saída
+            temperature: options.temperature || 0.7,
+            top_p: options.top_p || 1,
+            stream: false,
+            ...options.extra
+        };
+
+        try {
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${openRouterApiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            let data = null;
+            try {
+                data = await response.json();
+            } catch (err) {
+                throw new Error(`Erro ao decodificar resposta JSON da OpenRouter: ${err.message}`);
+            }
+
+            if (!response.ok) {
+                throw new Error(`OpenRouter API retornou status ${response.status}: ${this.formatErrorMessage(data)}`);
+            }
+
+            if (data && data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
+                return data.choices[0].message.content;
+            } else {
+                throw new Error('Resposta inválida da OpenRouter API: ' + JSON.stringify(data));
+            }
+        } catch (error) {
+            console.error('❌ Erro ao chamar OpenRouter API:', error);
+            throw error;
+        }
     }
 
     // Verificação rápida de API antes de processar
@@ -1099,11 +1146,41 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const relevantContext = (this.memory && typeof this.memory.getRelevantContext === 'function')
                 ? this.memory.getRelevantContext(userMessage)
                 : [];
-            // Decisão Binária de Artifact (Estilo Lhama)
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
-            console.log('🎯 [ARTIFACT] Decisão:', needsArtifact ? 'SIM' : 'NÃO');
-            
-            const rapidSystemInstruction = (needsArtifact ? '\n\n[INSTRUCAO: Gere um <artifact type="...">...</artifact> para representar visualmente os dados ou o codigo solicitado.]' : '') + `\n\nNota ao modelo: não faça meta-raciocínio. Não comece com "Okay, the user...". Responda pequeno em português, diretamente, como um resumo de prova. Se já houver elemento visual exibido acima, diga "Use o visual acima como referência" e tenha 1-2 parágrafos.`;
+            console.log(\'🎯 [ARTIFACT] Decisão:\', needsArtifact ? \'SIM\' : \'NÃO\');
+
+            let finalResponseContent = \'\';
+
+            if (needsArtifact) {
+                this.ui.setThinkingHeader(\'✨ Gerando Artifact com Qwen...\', messageContainer.headerId);
+                const artifactGenerationPrompt = `Você é um designer de interfaces e especialista em conteúdo de elite. Sua missão é criar um ARTIFACT visual deslumbrante, interativo e informativo, idêntico aos Artifacts do Claude (Anthropic). Use todo o contexto fornecido para criar um HTML/CSS/JS completo e funcional. Não inclua nenhuma explicação ou texto além do próprio <artifact>...</artifact>.
+
+                ## CONTEXTO COMPLETO PARA GERAÇÃO DO ARTIFACT:
+                - Pergunta do Usuário: ${userMessage}
+                - Dados da Web: ${JSON.stringify(webData, null, 2)}
+                - Contexto Relevante da Memória: ${JSON.stringify(relevantContext, null, 2)}
+                - Histórico da Conversa: ${JSON.stringify(this.conversationHistory, null, 2)}
+
+                ## DIRETRIZES DE DESIGN E INTERATIVIDADE (OBRIGATÓRIAS):
+                - **TIPO OBRIGATÓRIO**: Use sempre \`type=\"web\"\` para conteúdos visuais.
+                - **ESTILO PREMIUM**: Use Tailwind CSS para criar layouts modernos (Dark Mode: \`bg-[#0f172a]\`, cards: \`bg-[#1e293b]\`, sombras, bordas arredondadas).
+                - **IMAGENS REAIS (WIKIMEDIA)**: Sempre que possível, inclua imagens reais usando a tag \`<img>\` com URLs da Wikimedia Commons (ex: \`https://upload.wikimedia.org/wikipedia/commons/...\`). Escolha imagens que façam sentido com o contexto (mapas, fotos históricas, diagramas científicos).
+                - **INTERATIVIDADE REAL (JS)**: Inclua scripts \`<script>\` funcionais para que botões, abas, carrosséis e linhas do tempo funcionem de verdade ao clicar. Evite designs estáticos e genéricos.
+                - **VERACIDADE DAS INFORMAÇÕES**: Use seu conhecimento e pesquisa para organizar e apresentar informações precisas e relevantes.
+                - **ESTRUTURA HTML COMPLETA**: Seu conteúdo dentro da tag \`<artifact>\` deve ser um documento HTML5 válido e completo (html, head, body).
+                - **NUNCA** use apenas uma tabela simples se puder criar um componente visual.
+                - **NUNCA** mencione termos técnicos como \`HTML\`, \`CSS\`, \`Tailwind\`, \`JavaScript\` ou \`Código\` em sua resposta no chat.\`
+
+                `
+                const qwenMessages = [
+                    { role: 'system', content: artifactGenerationPrompt },
+                    { role: 'user', content: userMessage }
+                ];
+                finalResponseContent = await this.callOpenRouterAPI('qwen/qwen-3.6-plus:free', qwenMessages);
+                console.log('✅ [ARTIFACT-QWEN] Artifact gerado pelo Qwen:', finalResponseContent ? finalResponseContent.substring(0, 200) + '...' : 'NULO');
+            }
+            const rapidSystemInstruction = `\n\nNota ao modelo: não faça meta-raciocínio. Não comece com \"Okay, the user...\". Responda pequeno em português, diretamente, como um resumo de prova. Se já houver elemento visual exibido acima, diga \"Use o visual acima como referência\" e tenha 1-2 parágrafos.`;
+
             const finalMessages = [
                 { role: 'system', content: this.getSystemPrompt('rapido') + this.buildWebContextBlock(webData) + rapidSystemInstruction },
                 ...(this.extraMessagesForNextCall || []),
@@ -1122,10 +1199,24 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.setApiProvider('samba');
             console.log('📋 [DEBUG-RAPIDO] API provider definido para SambaNova via SAMBA_API_KEY');
 
-            let response = await this.callGroqAPI(model, finalMessages);
-            console.log('🔍 [DEBUG-RAPIDO] Resposta da API recebida:', response ? response.substring(0, 100) + '...' : 'NULO');
-            console.log('🔍 [DEBUG-RAPIDO] Tipo da resposta:', typeof response);
-            console.log('🔍 [DEBUG-RAPIDO] Tamanho da resposta:', response ? response.length : 0);
+            let response;
+            if (needsArtifact) {
+                // O modelo principal (Llama 70B) agora recebe o artifact gerado pelo Qwen
+                // e a instrução para incorporá-lo na resposta final humanizada.
+                const finalSystemPromptForLlama = this.getSystemPrompt('rapido') + this.buildWebContextBlock(webData) + rapidSystemInstruction + `\n\n[INSTRUCAO: O seguinte ARTIFACT foi gerado e deve ser incorporado em sua resposta final. Crie uma introdução natural e cordial para o usuário, apresentando o ARTIFACT. Não repita o conteúdo do ARTIFACT em texto, apenas o apresente. O ARTIFACT é:\n${finalResponseContent}]`;
+                const messagesForLlama = [
+                    { role: 'system', content: finalSystemPromptForLlama },
+                    ...(this.extraMessagesForNextCall || []),
+                    ...this.conversationHistory
+                ];
+                response = await this.callGroqAPI('llama-3.3-70b-versatile', messagesForLlama); // Usar o modelo principal para a resposta final
+            } else {
+                // Se não precisa de artifact, o fluxo é o mesmo de antes.
+                response = await this.callGroqAPI(\'llama-3.1-8b-instant\', finalMessages); // Usar o modelo Llama 8B para a resposta rápida sem artifact
+            }
+            console.log(\'🔍 [DEBUG-RAPIDO] Resposta da API recebida:\', response ? response.substring(0, 100) + \'...\' : \'NULO\');
+            console.log(\'🔍 [DEBUG-RAPIDO] Tipo da resposta:\', typeof response);
+            console.log(\'🔍 [DEBUG-RAPIDO] Tamanho da resposta:\', response ? response.length : 0);
 
             let { finalResponse, reasoningText } = this.extractReasoningFromText(response);
             finalResponse = this.cleanMetaRaciocinio(finalResponse);

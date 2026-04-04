@@ -11,8 +11,7 @@ export default class ArtifactSystem {
             - Responda SIM se: for código, tabela, resumo de estudo, lista complexa, fluxograma, componente interativo.
             - Responda NÃO se: for apenas conversa, saudação, pergunta simples de texto.`;
 
-            const response = await this.agent.callGroqAPI('Meta-Llama-3.1-8B-Instruct', [
-                { role: 'system', content: systemPrompt },
+            const response = await this.agent.callGroqAPI(\'llama-3.1-8b-instant\', [               { role: 'system', content: systemPrompt },
                 { role: 'user', content: `Mensagem: ${userMessage}` }
             ]);
 
