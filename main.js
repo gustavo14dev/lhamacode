@@ -13361,7 +13361,19 @@ ${chunk}${bibliographyBlock}
             this.setThinkingHeader('', messageContainer.headerId);
             
             // Adicionar resposta da IA primeiro
-            this.setResponseText(data.response, messageContainer.responseId, async () => {
+            
+            // Extrair e renderizar Artifact se existir na resposta original
+            if (this.artifacts && data.response.includes('<artifact')) {
+                const artifact = this.artifacts.extractArtifact(data.response);
+                if (artifact) {
+                    const responseDiv = document.getElementById(messageContainer.responseId);
+                    this.artifacts.renderArtifact(artifact, responseDiv);
+                }
+            }
+            
+            // Limpar a resposta para exibição no chat
+            const cleanResponse = data.response.replace(/<artifact[\s\S]*?<\/artifact>/gi, '').trim();
+            this.setResponseText(cleanResponse, messageContainer.responseId, async () => {
                 // Adicionar fontes DEPOIS do texto
                 if (data.sources && data.sources.length > 0) {
                     const responseDiv = document.getElementById(messageContainer.responseId);

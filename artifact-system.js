@@ -68,6 +68,9 @@ export default class ArtifactSystem {
                 <button class="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all group" title="Copiar Conteúdo">
                     <span class="material-icons-outlined text-[18px]">content_copy</span>
                 </button>
+                <button class="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all group download-png-btn" title="Baixar como PNG">
+                    <span class="material-icons-outlined text-[18px]">download</span>
+                </button>
                 <button class="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all" title="Expandir" onclick="this.closest('.claude-artifact-container').classList.toggle('max-w-full')">
                     <span class="material-icons-outlined text-[18px]">fullscreen</span>
                 </button>
@@ -94,7 +97,7 @@ export default class ArtifactSystem {
                 try {
                     const doc = iframe.contentWindow.document;
                     doc.open();
-                    doc.write(artifact.content);
+                    iframe.srcdoc = artifact.content;
                     doc.close();
                     iframe.onload = () => {
                         iframe.classList.remove('opacity-0');
@@ -125,6 +128,26 @@ export default class ArtifactSystem {
             iconSpan.classList.add('text-emerald-400');
             setTimeout(() => {
                 iconSpan.textContent = 'content_copy';
+                iconSpan.classList.remove('text-emerald-400');
+            }, 2000);
+        };
+        const downloadBtn = header.querySelector('.download-png-btn');
+        downloadBtn.onclick = () => {
+            const blob = new Blob([artifact.content], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${artifact.identifier || 'artifact'}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            const iconSpan = downloadBtn.querySelector('span');
+            iconSpan.textContent = 'check';
+            iconSpan.classList.add('text-emerald-400');
+            setTimeout(() => {
+                iconSpan.textContent = 'download';
                 iconSpan.classList.remove('text-emerald-400');
             }, 2000);
         };
