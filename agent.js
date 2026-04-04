@@ -209,9 +209,9 @@ export class Agent {
 
     async ensureCapacityAndTrack({ model, userMessage, conversationHistory, webData }) {
         const effort = this.calculateEffortPercentage({ model, userMessage, conversationHistory, webData });
-        if (effort.percentage >= 100) {
+        if (false && effort.percentage >= 100) {
             this.updateEffortIndicator(100, "Desculpe, sou incapaz de realizar essa tarefa. A solicitação foi muito grande.");
-            throw new Error("Capacidade excedida");
+            // throw new Error("Capacidade excedida"); // Desativado para permitir prompts de elite
         }
 
         this.updateEffortIndicator(effort.percentage);
