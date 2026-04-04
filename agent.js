@@ -230,55 +230,42 @@ export class Agent {
         }
     }
 
-    async callOpenRouterAPI(model, customMessages = [], options = {}) {
-        const openRouterApiKey = localStorage.getItem('openrouter_api_key') || process.env.OPENROUTER_API_KEY;
-        if (!openRouterApiKey) {
-            throw new Error('OPENROUTER_API_KEY não configurada.');
-        }
 
-        const requestBody = {
-            model: model,
-            messages: Array.isArray(customMessages) ? customMessages : [],
-            max_tokens: options.max_tokens || 65000, // Qwen tem 65K de saída
-            temperature: options.temperature || 0.7,
-            top_p: options.top_p || 1,
-            stream: false,
-            ...options.extra
-        };
 
+    async callOpenRouterProxy(model, customMessages = [], options = {}) {
         try {
-            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
+            const requestBody = {
+                model: model,
+                messages: Array.isArray(customMessages) ? customMessages : [],
+                max_tokens: options.max_tokens || 65000,
+                temperature: options.temperature || 0.7,
+                top_p: options.top_p || 1,
+                stream: false,
+                ...options.extra,
+            };
+
+            const response = await fetch("/api/openrouter-proxy", {
+                method: "POST",
                 headers: {
-                    'Authorization': `Bearer ${openRouterApiKey}`,
-                    'Content-Type': 'application/json'
+                    "Content-Type": "application/json",
                 },
-                body: JSON.stringify(requestBody)
+                body: JSON.stringify(requestBody),
             });
 
-            let data = null;
-            try {
-                data = await response.json();
-            } catch (err) {
-                throw new Error(`Erro ao decodificar resposta JSON da OpenRouter: ${err.message}`);
-            }
+            const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(`OpenRouter API retornou status ${response.status}: ${this.formatErrorMessage(data)}`);
+                throw new Error(`OpenRouter Proxy retornou status ${response.status}: ${data.error || JSON.stringify(data)}`);
             }
 
-            if (data && data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
-                return data.choices[0].message.content;
-            } else {
-                throw new Error('Resposta inválida da OpenRouter API: ' + JSON.stringify(data));
-            }
+            return data.content;
         } catch (error) {
-            console.error('❌ Erro ao chamar OpenRouter API:', error);
+            console.error("❌ Erro ao chamar OpenRouter Proxy:", error);
             throw error;
         }
     }
 
-    // Verificação rápida de API antes de processarsync quickApiCheck() {
+    async quickApiCheck() {
         const provider = this.getApiProvider();
 
         // Fazer uma requisição rápida para testar a API via proxy
@@ -1175,7 +1162,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                     { role: 'system', content: artifactGenerationPrompt },
                     { role: 'user', content: userMessage }
                 ];
-                finalResponseContent = await this.callOpenRouterAPI('qwen/qwen-3.6-plus:free', qwenMessages);
+                finalResponseContent = await this.callOpenRouterProxy(\'qwen/qwen-3.6-plus:free\', qwenMessages);
                 console.log('✅ [ARTIFACT-QWEN] Artifact gerado pelo Qwen:', finalResponseContent ? finalResponseContent.substring(0, 200) + '...' : 'NULO');
             }
             const rapidSystemInstruction = `\n\nNota ao modelo: não faça meta-raciocínio. Não comece com \"Okay, the user...\". Responda pequeno em português, diretamente, como um resumo de prova. Se já houver elemento visual exibido acima, diga \"Use o visual acima como referência\" e tenha 1-2 parágrafos.`;
