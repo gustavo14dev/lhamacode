@@ -1192,16 +1192,14 @@ ESTRUTURA TÉCNICA:
 - Dark Mode por padrão: Background: #0d1117, Cards: #161b22, Texto: #e6edf3.
 - Animações: Use animações de entrada (fade-in, slide-up) com delays diferentes para cada elemento.
 
-EXEMPLO DE ESTRUTURA:
-<artifact type="web" title="Análise Profunda: [Tema]">
-  <style>
+EXEMPLO DE  <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Outfit:wght@300;400;600&display=swap');
     /* Suas animações e estilos customizados aqui */
   </style>
   <div class="bg-[#0d1117] text-[#e6edf3] font-['Outfit'] p-8">
     <!-- Conteúdo rico com grids, timelines, cards conectados, etc -->
   </div>
-</artifact>`;
+</artifact>
 
 ## CONTEXTO COMPLETO PARA GERAÇÃO DO ARTIFACT:
 - Pergunta do Usuário: ${userMessage}
@@ -1212,8 +1210,7 @@ EXEMPLO DE ESTRUTURA:
                     { role: 'system', content: artifactGenerationPrompt },
                     { role: 'user', content: userMessage }
                 ];
-                
-                // Dispara a geração do Qwen em paralelo com fallback para Llama 3.1 8B Free
+                            // Dispara a geração do Qwen em paralelo com fallback para Llama 3.1 8B Free
                 console.log('🚀 [ARTIFACT-QWEN] Iniciando geração assíncrona...');
                 artifactPromise = this.callOpenRouterProxy('qwen/qwen3.6-plus:free', qwenMessages)
                     .catch(async (err) => {
