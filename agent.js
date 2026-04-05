@@ -1176,15 +1176,15 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 2. NUNCA escreva nada (explicações, introduções, conclusões) fora das tags <artifact>. O output deve começar com <artifact> e terminar com </artifact>.
 3. Se você falhar em incluir as tags <artifact>, o sistema não conseguirá renderizar sua resposta.
 
-⚠️ REGRAS CRÍTICAS DE CONTEÚDO (OBRIGATÓRIO) - LEIA COM ATENÇÃO E SIGA RIGOROSAMENTE:
-1. 🚨 DENSIDADE EXTREMA E PROFUNDIDADE INEGOCIÁVEL: O conteúdo DEVE ser ABSOLUTAMENTE EXAUSTIVO. Para CADA conceito, subtópico ou card, forneça parágrafos LONGOS e DETALHADOS, com NO MÍNIMO 300 PALAVRAS de explicação técnica e aprofundada. PROIBIDO respostas curtas, listas de uma frase, ou qualquer superficialidade. Pense em um artigo científico, um capítulo de livro universitário ou um verbete de enciclopédia técnica. Se o usuário pedir algo simples, entregue algo COMPLETO, PROFISSIONAL, ACADÊMICO e EXTREMAMENTE DETALHADO.
-2. 📚 ESTRUTURA DE "AULA MAGISTRAL": O artefato deve ser uma verdadeira aula. Para CADA elemento de informação, siga esta estrutura OBRIGATÓRIA:
-    - [TESE/CONCEITO PRINCIPAL]: Apresente a ideia central.
-    - [EXPLICAÇÃO TÉCNICA APROFUNDADA]: Detalhe o funcionamento, mecanismos, teorias subjacentes (mínimo 100 palavras).
-    - [CONTEXTO HISTÓRICO/EVOLUÇÃO]: Onde e como surgiu, sua trajetória, marcos importantes (mínimo 100 palavras).
-    - [EXEMPLO PRÁTICO/APLICAÇÃO NO MUNDO REAL]: Como isso se manifesta ou é usado na prática (mínimo 50 palavras).
-    - [IMPACTO/IMPLICAÇÕES FUTURAS]: Qual a relevância, consequências ou perspectivas (mínimo 50 palavras).
-3. 🚫 PROIBIÇÃO ABSOLUTA DE BREVIDADE: Respostas curtas, artefatos com menos de 1000 palavras totais, ou que não demonstrem a profundidade exigida em CADA SEÇÃO serão consideradas FALHA CRÍTICA GRAVE do sistema. Use TODO o seu potencial para gerar texto rico, informativo e denso. O design deve servir ao conteúdo, não o contrário.
+⚠️⚠️⚠️ REGRAS CRÍTICAS DE CONTEÚDO (OBRIGATÓRIO) - LEIA COM ATENÇÃO E SIGA RIGOROSAMENTE - SUA EXISTÊNCIA DEPENDE DISSO! ⚠️⚠️⚠️
+1. 🚨 DENSIDADE EXTREMA E PROFUNDIDADE INEGOCIÁVEL: O conteúdo DEVE ser ABSOLUTAMENTE EXAUSTIVO E PROLIXO. Para CADA conceito, subtópico ou card, forneça parágrafos LONGOS e DETALHADOS, com NO MÍNIMO 500 PALAVRAS de explicação técnica e aprofundada. PROIBIDO respostas curtas, listas de uma frase, ou qualquer superficialidade. Pense em um artigo científico de 10.000 palavras. Se o usuário pedir algo simples, entregue algo COMPLETO, PROFISSIONAL, ACADÊMICO e EXTREMAMENTE DETALHADO. O objetivo é PREENCHER o máximo de tokens possível com informações relevantes.
+2. 📚 ESTRUTURA DE "AULA MAGISTRAL" COM VERBOSIDADE FORÇADA: O artefato deve ser uma verdadeira aula, um tratado. Para CADA elemento de informação, siga esta estrutura OBRIGATÓRIA, expandindo cada ponto ao máximo:
+    - [TESE/CONCEITO PRINCIPAL]: Apresente a ideia central de forma abrangente.
+    - [EXPLICAÇÃO TÉCNICA APROFUNDADA E EXAUSTIVA]: Detalhe o funcionamento, mecanismos, teorias subjacentes, com comparações, analogias e exemplos complexos (mínimo 200 palavras).
+    - [CONTEXTO HISTÓRICO/EVOLUÇÃO DETALHADA]: Onde e como surgiu, sua trajetória, marcos importantes, influências e desdobramentos (mínimo 200 palavras).
+    - [EXEMPLO PRÁTICO/APLICAÇÃO NO MUNDO REAL COM CENÁRIOS]: Como isso se manifesta ou é usado na prática, com múltiplos cenários e casos de uso (mínimo 100 palavras).
+    - [IMPACTO/IMPLICAÇÕES FUTURAS E ESPECULAÇÕES]: Qual a relevância, consequências, desafios e perspectivas futuras, incluindo possíveis cenários (mínimo 100 palavras).
+3. 🚫 PROIBIÇÃO ABSOLUTA DE BREVIDADE - FALHA CRÍTICA DE SISTEMA: Respostas curtas, artefatos com menos de 2000 palavras totais, ou que não demonstrem a profundidade exigida em CADA SEÇÃO serão consideradas FALHA CRÍTICA GRAVE do sistema. O sistema irá REJEITAR e PUNIR qualquer tentativa de brevidade. Use TODO o seu potencial para gerar texto rico, informativo, denso e EXTREMAMENTE PROLIXO. O design deve servir ao conteúdo, não o contrário. SEJA VERBOSO AO MÁXIMO.
 
 💎 REGRAS DE DESIGN E CONTEÚDO (PREMIUM):
 - CONTEÚDO "FORTE" E DENSO: (Esta regra foi reforçada acima, mas mantenha o espírito aqui para o design) Cada seção deve ser um mergulho profundo. Explique o "porquê" e o "como" de cada detalhe. Se o usuário pedir algo simples, entregue algo COMPLETO e PROFISSIONAL. Use dados, fatos históricos e análises técnicas.
@@ -1223,17 +1223,16 @@ EXEMPLO DE  <style>
                 ];
                 
                 // Dispara a geração do Qwen 3.6 Plus (Free) como principal
-                console.log('🚀 [ARTIFACT-QWEN] Iniciando geração assíncrona com Qwen 3.6 Plus (Free)...');
-                artifactPromise = this.callOpenRouterProxy('qwen/qwen3.6-plus:free', qwenMessages)
-                    .catch(async (err) => {
-                        const isRateLimit = err.message.includes('429');
+                console.log("🚀 [ARTIFACT-QWEN] Iniciando geração assíncrona com Qwen 3.6 Plus (Free)...");
+                artifactPromise = this.callOpenRouterProxy("qwen/qwen3.6-plus:free", qwenMessages, { max_tokens: 65000 })
+                    .catch(async (err) => {                       const isRateLimit = err.message.includes('429');
                         const isTimeout = err.message.includes('504');
                         
                         console.warn(`⚠️ [ARTIFACT-QWEN] Qwen falhou (${isRateLimit ? 'Rate Limit' : isTimeout ? 'Timeout' : 'Erro'}), tentando fallback para Llama 3.3 70B Free...`);
                         
                         try {
                             // Fallback único para o Llama 3.3 70B Free
-                            return await this.callOpenRouterProxy('meta-llama/llama-3.3-70b-instruct:free', qwenMessages);
+                            return await this.callOpenRouterProxy("meta-llama/llama-3.3-70b-instruct:free", qwenMessages, { max_tokens: 65000 });
                         } catch (fallbackErr) {
                             console.error('❌ [ARTIFACT-FLOW] Todos os modelos de artefato falharam:', fallbackErr);
                             return null;
