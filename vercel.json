@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/agent-browser.js": {
+    "api/*.js": {
       "maxDuration": 60
     }
   },

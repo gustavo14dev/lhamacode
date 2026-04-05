@@ -235,7 +235,7 @@ export class Agent {
 
     async callOpenRouterProxy(model, customMessages = [], options = {}) {
         let lastError = null;
-        const maxRetries = 2;
+        const maxRetries = 3;
         
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try {
