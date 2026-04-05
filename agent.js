@@ -1226,6 +1226,26 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.persistAssistantMessage(finalResponse);
             this.renderReasoningCard(messageContainer, reasoningText);
             
+            // Função auxiliar para finalizar a resposta (liberar botão e mostrar ações)
+            const finalizeResponse = () => {
+                if (this.hasPendingArtifact) return; // Não finaliza se ainda houver artefato pendente
+
+                this.isGenerating = false;
+                this.ui.updateSendButtonToSend();
+
+                // Adicionar botões de fontes se houver dados web - SEMPRE NO FINAL
+                if (webData && webData.sources && webData.sources.length > 0) {
+                    // Injetar no final do container de resposta ou após o artefato
+                    this.ui.addSourcesButton(messageContainer.responseId, webData.sources, webData.query);
+                }
+
+                const actionsDiv = document.getElementById(messageContainer.actionsId);
+                if (actionsDiv) {
+                    actionsDiv.classList.remove('opacity-0');
+                    actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
+                }
+            };
+
             // Se houver um artefato sendo gerado, injeta o indicador de carregamento IMEDIATAMENTE no container dedicado
             if (artifactPromise) {
                 const artifactContainer = document.getElementById(messageContainer.artifactContainerId);
@@ -1255,20 +1275,17 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                     
                     // FINALIZAÇÃO: Só libera o botão após o Qwen terminar
                     this.hasPendingArtifact = false;
-                    this.isGenerating = false;
-                    this.ui.updateSendButtonToSend();
+                    finalizeResponse();
+                }).catch(err => {
+                    console.error('❌ [ARTIFACT-ERROR]', err);
+                    this.hasPendingArtifact = false;
+                    finalizeResponse();
                 });
             }
 
             // Exibir a resposta principal na UI - Passando true para preserveExtra se houver artefato pendente
             this.ui.setResponseText(this.cleanChatResponse(finalResponse), messageContainer.responseId, async () => {
                 console.log('🔄 [DEBUG-RAPIDO] Resposta principal exibida.');
-
-                // Se NÃO houver artefato pendente, libera o botão aqui
-                if (!this.hasPendingArtifact) {
-                    this.isGenerating = false;
-                    this.ui.updateSendButtonToSend();
-                }
                 
                 // Renderizar Artifact extraído da resposta (Design Claude) - Fallback
                 const extractedArtifact = this.ui.artifacts.extractArtifact(finalResponse);
@@ -1276,16 +1293,8 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                     await this.ui.artifacts.renderArtifact(messageContainer.responseId, extractedArtifact);
                 }
 
-                // Adicionar botões de fontes se houver dados web
-                if (webData && webData.sources && webData.sources.length > 0) {
-                    this.ui.addSourcesButton(messageContainer.responseId, webData.sources, webData.query);
-                }
-
-                const actionsDiv = document.getElementById(messageContainer.actionsId);
-                if (actionsDiv) {
-                    actionsDiv.classList.remove('opacity-0');
-                    actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
-                }
+                // Tenta finalizar (só vai liberar se o artefato já tiver terminado)
+                finalizeResponse();
             }, !!artifactPromise);
             
             // Limpar texto de carregamento apÃ³s um pequeno delay
