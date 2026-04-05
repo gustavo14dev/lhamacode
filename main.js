@@ -10954,7 +10954,7 @@ ${chunk}${bibliographyBlock}
 
 
 
-    setResponseText(text, responseId, callback) {
+    setResponseText(text, responseId, callback, preserveExtra = false) {
         console.log('🔍 [SET-TEXT] Iniciando setResponseText');
         console.log('🔍 [SET-TEXT] Text:', text ? text.substring(0, 100) + '...' : 'NULO');
         console.log('🔍 [SET-TEXT] ResponseId:', responseId);
@@ -10987,11 +10987,11 @@ ${chunk}${bibliographyBlock}
                 responseDiv.appendChild(responseTextDiv);
 
                 console.log('🔍 [SET] Adicionando texto após conteúdo existente');
-                this.typewriterEffect(safeText, responseTextDiv, callback, '');
+                this.typewriterEffect(safeText, responseTextDiv, callback, '', preserveExtra);
             } else {
                 // Sem conteúdo anterior, usar o método normal
                 console.log('🔍 [SET] Sem conteúdo anterior, usando método normal');
-                this.typewriterEffect(safeText, responseDiv, callback, '');
+                this.typewriterEffect(safeText, responseDiv, callback, '', preserveExtra);
             }
         }
 
@@ -11064,7 +11064,7 @@ ${chunk}${bibliographyBlock}
         return segments;
     }
 
-    async typewriterEffect(text, element, callback, imagesHtml = '') {
+    async typewriterEffect(text, element, callback, imagesHtml = '', preserveExtra = false) {
 
         console.log('🔍 [TYPE] Iniciando typewriterEffect');
         console.log('🔍 [TYPE] Text length:', text ? text.length : 0);
@@ -11088,6 +11088,9 @@ ${chunk}${bibliographyBlock}
         const segments = this.parseResponseSegments(text);
         const activeCodeBlocks = [];
         let assembledText = '';
+        
+        // Capturar conteúdo extra existente se preserveExtra for true
+        const extraContent = preserveExtra ? (element.querySelector('#artifact-loading-status')?.outerHTML || '') : '';
 
         for (const segment of segments) {
             if (segment.type === 'code') {
@@ -11100,7 +11103,7 @@ ${chunk}${bibliographyBlock}
                 assembledText += `\n\n%%CODEBLOCK${codeIndex}%%\n\n`;
                 element.innerHTML = imagesHtml + this.formatResponse(assembledText, responseKey, {
                     providedCodeBlocks: activeCodeBlocks
-                });
+                }) + extraContent;
                 this.scrollToBottom();
                 continue;
             }
@@ -11113,7 +11116,7 @@ ${chunk}${bibliographyBlock}
                 const formattedPartial = this.formatResponse(assembledText, responseKey, {
                     providedCodeBlocks: activeCodeBlocks
                 });
-                element.innerHTML = imagesHtml + formattedPartial;
+                element.innerHTML = imagesHtml + formattedPartial + extraContent;
 
                 if (index % 2 === 0 || index === chunks.length - 1) {
                     this.scrollToBottom();
@@ -11126,7 +11129,7 @@ ${chunk}${bibliographyBlock}
         const finalFormatted = this.formatResponse(assembledText, responseKey, {
             providedCodeBlocks: activeCodeBlocks
         });
-        element.innerHTML = imagesHtml + finalFormatted;
+        element.innerHTML = imagesHtml + finalFormatted + extraContent;
         this.queueMathTypeset(element);
 
         setTimeout(() => this.scrollToBottom(), 60);

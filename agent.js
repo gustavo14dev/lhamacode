@@ -1260,7 +1260,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 });
             }
 
-            // Exibir a resposta principal na UI
+            // Exibir a resposta principal na UI - Passando true para preserveExtra se houver artefato pendente
             this.ui.setResponseText(this.cleanChatResponse(finalResponse), messageContainer.responseId, async () => {
                 console.log('🔄 [DEBUG-RAPIDO] Resposta principal exibida.');
 
@@ -1286,7 +1286,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                     actionsDiv.classList.remove('opacity-0');
                     actionsDiv.classList.add('opacity-60', 'hover:opacity-100');
                 }
-            });
+            }, !!artifactPromise);
             
             // Limpar texto de carregamento apÃ³s um pequeno delay
             setTimeout(() => {
