@@ -150,7 +150,10 @@ export default class ArtifactSystem {
             
             const loader = document.createElement('div');
             loader.className = 'absolute inset-0 flex items-center justify-center bg-[#0f172a] z-10 transition-opacity duration-500';
-            loader.innerHTML = '<div class="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-            setTimeout(() => {
+            loader.innerHTML = '<div class="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>';
+            contentArea.appendChild(loader);
+            
+            setTimeout(() => {
                 try {
                     // Garantir que o conteúdo tenha as bibliotecas necessárias se o Qwen esquecer
                     let fullContent = artifact.content;
