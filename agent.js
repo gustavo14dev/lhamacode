@@ -1246,32 +1246,41 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                     }
 
                     artifactPromise.then(async (artifactContent) => {
-                        const loadingEl = document.getElementById("artifact-loading-status");
-                        if (loadingEl) {
-                            if (artifactContent) {
-                                // Remove o indicador e renderiza o artefato
-                                loadingEl.remove();
-                                await this.ui.artifacts.renderArtifact(messageContainer.responseId, artifactContent);
-                                console.log('✅ [ARTIFACT-QWEN] Artifact injetado com sucesso.');
+                        // Tentar encontrar o indicador de carregamento (pode levar um tempo se a digitação for lenta)
+                        const injectArtifact = async () => {
+                            const loadingEl = document.getElementById("artifact-loading-status");
+                            if (loadingEl) {
+                                if (artifactContent) {
+                                    loadingEl.remove();
+                                    await this.ui.artifacts.renderArtifact(messageContainer.responseId, artifactContent);
+                                    console.log('✅ [ARTIFACT-QWEN] Artifact injetado com sucesso.');
 
-                                // PERSISTÊNCIA: Atualiza a mensagem no histórico com o novo conteúdo (texto + artifact)
-                                const currentChatId = this.getActiveChatId();
-                                if (currentChatId) {
-                                    const fullContent = finalResponse + "\n\n" + artifactContent;
-                                    this.ui.updateAssistantMessageByContent(currentChatId, finalResponse, { content: fullContent });
-                                    console.log('💾 [ARTIFACT-QWEN] Histórico atualizado com o artifact.');
+                                    const currentChatId = this.getActiveChatId();
+                                    if (currentChatId) {
+                                        const fullContent = finalResponse + "\n\n" + artifactContent;
+                                        this.ui.updateAssistantMessageByContent(currentChatId, finalResponse, { content: fullContent });
+                                    }
+                                } else {
+                                    loadingEl.remove();
                                 }
-                            } else {
-                                // Remove o indicador se falhar
-                                loadingEl.remove();
-                                console.warn('⚠️ [ARTIFACT-QWEN] Falha na geração, indicador removido.');
+                                
+                                // FINALIZAÇÃO: Só libera o botão após o Qwen terminar
+                                this.hasPendingArtifact = false;
+                                this.isGenerating = false;
+                                this.ui.updateSendButtonToSend();
+                                return true;
                             }
+                            return false;
+                        };
+
+                        // Tenta injetar imediatamente, se não conseguir (digitação em curso), tenta a cada 500ms
+                        if (!(await injectArtifact())) {
+                            const interval = setInterval(async () => {
+                                if (await injectArtifact()) clearInterval(interval);
+                            }, 500);
+                            // Timeout de segurança para o intervalo (2 minutos)
+                            setTimeout(() => clearInterval(interval), 120000);
                         }
-                        
-                        // Garantir que o estado de geração da UI seja finalizado apenas após o Qwen (ou falha)
-                        this.hasPendingArtifact = false;
-                        this.isGenerating = false;
-                        this.ui.updateSendButtonToSend();
                     });
                 } else {
                     // Se não tem artefato, finaliza o estado de geração normalmente
