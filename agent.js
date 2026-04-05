@@ -1177,15 +1177,16 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 3. Se você falhar em incluir as tags <artifact>, o sistema não conseguirá renderizar sua resposta.
 
 💎 REGRAS DE DESIGN E CONTEÚDO (PREMIUM):
-- RIQUEZA DE INFORMAÇÃO: Não seja superficial. Use MUITOS dados, explicações detalhadas e profundidade técnica/histórica.
-- ELEMENTOS VISUAIS DIVERSOS: Use obrigatoriamente uma combinação de:
-    * CARDS CONECTADOS: Cards que se ligam visualmente ou logicamente.
-    * LINHAS DO TEMPO: Se houver cronologia, use uma timeline estilizada com pontos e conectores.
-    * MAPAS MENTAIS/FLUXOGRAMAS: Use grids e linhas (SVG ou CSS) para conectar ideias.
-    * GRIDS IRREGULARES: Use Bento Grids (grids de tamanhos variados). NUNCA use grids 2x2 ou 3x3 simétricos.
+- RIQUEZA DE INFORMAÇÃO E EXPLICAÇÃO: Vá MUITO além de tópicos superficiais. Para cada conceito, forneça explicações detalhadas, exemplos concretos, e, se aplicável, contexto histórico ou técnico. Responda a perguntas como "O que é?" e "Como acontece?" de forma aprofundada.
+- ELEMENTOS VISUAIS E ORGANIZAÇÃO DINÂMICA: O design deve ser VARIADO e EXPLICATIVO, não genérico. Use obrigatoriamente uma combinação de:
+    * CARDS DE ESTUDO DETALHADOS: Crie cards com seções claras (ex: "O que é?", "Como acontece?"), contendo texto explicativo, exemplos e badges/tags relevantes.
+    * CONEXÕES VISUAIS: Utilize linhas (SVG ou CSS) para conectar cards ou conceitos relacionados, formando um fluxo lógico ou mapa mental.
+    * LINHAS DO TEMPO: Se o conteúdo tiver uma progressão cronológica, use uma timeline estilizada com pontos de destaque e descrições.
+    * GRIDS IRREGULARES (Bento Grids): Varie o tamanho e a disposição dos cards para criar uma hierarquia visual interessante. NUNCA use grids 2x2 ou 3x3 simétricos.
+    * BADGES E TAGS: Use badges coloridos para categorizar ou destacar informações importantes dentro dos cards (ex: "Alienado do produto", "Alienado do processo").
 - TIPOGRAFIA: Use SEMPRE Google Fonts — uma display serif (Playfair Display, DM Serif Display) para títulos e uma sans-serif clean (DM Sans, Outfit, Sora) para o corpo.
-- IDENTIDADE VISUAL: Use cores temáticas profundas. Bordas de acento lateral (border-left: 4px solid [cor]), sombras suaves, e números de fundo com opacidade baixa (0.05) para indicar passos ou seções.
-- COMPONENTES: Use badges, tags, tooltips simulados, divisores com labels, e ícones da Lucide (https://unpkg.com/lucide@latest).
+- IDENTIDADE VISUAL: Escolha cores temáticas profundas. Bordas de acento lateral (border-left: 4px solid [cor]), sombras suaves, e números de fundo com opacidade baixa (0.05) para indicar passos ou seções.
+- COMPONENTES: Use ícones da Lucide (https://unpkg.com/lucide@latest), tooltips simulados e divisores com labels para enriquecer a apresentação.
 
 ESTRUTURA TÉCNICA:
 - Tailwind via CDN + bloco <style> para CSS customizado e animações @keyframes.
