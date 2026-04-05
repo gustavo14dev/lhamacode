@@ -1224,25 +1224,23 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.persistAssistantMessage(finalResponse);
             this.renderReasoningCard(messageContainer, reasoningText);
             
-            // Se houver um artefato sendo gerado, adiciona o indicador de carregamento
-            let displayResponse = this.cleanChatResponse(finalResponse);
-            if (artifactPromise) {
-                // Usamos um marcador que o formatador de texto não vai quebrar ou escapar
-                displayResponse += "\n\n[ARTIFACT_LOADING_STATE]";
-            }
-
             // Exibir na UI usando o método padrão que suporta HTML
-            this.ui.setResponseText(displayResponse, messageContainer.responseId, async () => {
+            this.ui.setResponseText(this.cleanChatResponse(finalResponse), messageContainer.responseId, async () => {
                 console.log('🔄 [DEBUG-RAPIDO] Resposta exibida apÃ³s imagens');
 
                 // Se houver um artefato sendo gerado, aguarda e injeta
                 if (artifactPromise) {
-                    // Injetar o HTML do loading diretamente no DOM para evitar escape
+                    // Injetar o HTML do loading diretamente no DOM após o texto ser renderizado
                     const responseDiv = document.getElementById(messageContainer.responseId);
                     if (responseDiv) {
-                        const loadingHtml = `<div id="artifact-loading-status" class="p-3 mt-4 bg-gray-100 dark:bg-gray-800 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 animate-pulse flex items-center gap-2"><span>⏳ Carregando Elemento...</span></div>`;
-                        // Substituir o marcador pelo HTML real
-                        responseDiv.innerHTML = responseDiv.innerHTML.replace("[ARTIFACT_LOADING_STATE]", loadingHtml);
+                        // Verifica se já existe o indicador para não duplicar
+                        if (!document.getElementById("artifact-loading-status")) {
+                            const loadingDiv = document.createElement('div');
+                            loadingDiv.id = "artifact-loading-status";
+                            loadingDiv.className = "p-3 mt-4 bg-gray-100 dark:bg-gray-800 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 animate-pulse flex items-center gap-2";
+                            loadingDiv.innerHTML = `<span>⏳ Carregando Elemento...</span>`;
+                            responseDiv.appendChild(loadingDiv);
+                        }
                     }
 
                     artifactPromise.then(async (artifactContent) => {
