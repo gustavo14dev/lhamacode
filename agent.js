@@ -1186,10 +1186,10 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 - INTEGRAÇÃO VISUAL WIKIMEDIA: Sempre que citar um conceito, personalidade ou evento histórico, tente incluir uma imagem real utilizando a API pública da Wikimedia. 
     * Formato da URL: https://commons.wikimedia.org/w/index.php?title=Special:Redirect/file/NOME_DO_ARQUIVO.jpg
     * Estilize as imagens com bordas arredondadas, sombras e legendas elegantes.
-- DESIGN DINÂMICO E EXPLICATIVO: O design deve se adaptar ao conteúdo. Use:
-    * CARDS DE ALTA DENSIDADE: Cards com títulos grandes, badges de status, perguntas diretas e blocos de texto explicativo denso.
-    * MAPAS MENTAIS E CONEXÕES: Use linhas e setas (SVG/CSS) para ligar um card ao outro, mostrando a relação entre as ideias.
-    * BENTO GRIDS E TIMELINES: Organize a informação em grids assimétricos modernos ou linhas do tempo fluidas.
+- DESIGN GENERATIVO E CONTEXTUAL (ESTILO CLAUDE): PROIBIDO designs repetitivos! O layout DEVE ser único para cada tema, adaptando-se ao conteúdo. Pense como um arquiteto de design que cria uma experiência visual do zero a cada vez. Use:
+    * VARIEDADE DE LAYOUTS: Alterne entre Bento Grids complexos, fluxos laterais com conexões orgânicas, "Hero Sections" impactantes com tipografia gigante, e layouts que simulem interatividade (tabs, expansores, hover effects).
+    * ESTILO TEMÁTICO: Se o tema for música, use elementos que remetam a partituras; se for história, pergaminhos; se for tecnologia, interfaces futuristas. A criatividade é a chave.
+    * CONEXÕES VISUAIS AVANÇADAS: Utilize linhas, setas, e elementos gráficos (SVG/CSS) para criar mapas mentais, fluxogramas e conexões visuais que guiem o olhar do usuário.
 - TIPOGRAFIA E ESTILO: Use 'Playfair Display' para títulos e 'Outfit' para o corpo. Cores escuras e profundas (#0d1117, #161b22) com acentos vibrantes.
 - COMPONENTES: Badges coloridos, ícones da Lucide, tooltips e divisores com labels. Cada elemento deve parecer parte de um infográfico de revista premium.
 
