@@ -52,6 +52,8 @@ export default class ArtifactSystem {
 
     extractArtifact(text) {
         if (!text) return null;
+        
+        // 1. Tentar extração via Regex padrão (mais rigoroso)
         const artifactRegex = /<artifact\s+type=["\']([^"\']+)["\'](?:\s+title=["\']([^"\']+)["\'])?[^>]*>([\s\S]*?)<\/artifact>/i;
         const match = text.match(artifactRegex);
         if (match) {
@@ -61,6 +63,33 @@ export default class ArtifactSystem {
                 content: match[3].trim()
             };
         }
+
+        // 2. Tentar extração flexível (se o Qwen esquecer atributos ou usar aspas diferentes)
+        const flexibleRegex = /<artifact[^>]*>([\s\S]*?)<\/artifact>/i;
+        const flexMatch = text.match(flexibleRegex);
+        if (flexMatch) {
+            // Tentar descobrir o tipo pelo conteúdo
+            const content = flexMatch[1].trim();
+            let type = 'web'; // Default para Qwen que gera HTML
+            if (content.includes('import ') || content.includes('function ') || content.includes('const ')) type = 'code';
+            if (content.includes('graph TD') || content.includes('sequenceDiagram')) type = 'mermaid';
+            
+            return {
+                type: type,
+                title: 'Elemento Visual',
+                content: content
+            };
+        }
+
+        // 3. Fallback radical: se o texto contém muito HTML/CSS mas não tem as tags, tenta tratar como 'web'
+        if (text.includes('<!DOCTYPE html>') || (text.includes('<style>') && text.includes('<div'))) {
+            return {
+                type: 'web',
+                title: 'Resumo Visual',
+                content: text.trim()
+            };
+        }
+
         return null;
     }
 
@@ -103,13 +132,12 @@ export default class ArtifactSystem {
         `;
 
         const contentArea = document.createElement('div');
-        contentArea.className = 'artifact-content-area overflow-hidden text-[14px] text-slate-200 leading-relaxed relative';
-
-        if (artifact.type === 'web') {
+        contentArea.className = 'artifact-content-area overflow-hidden text-[14px] text-slate-200 leading-relaxed relativ        if (artifact.type === 'web') {
             contentArea.className += ' h-[700px] bg-[#0f172a]';
             const iframe = document.createElement('iframe');
             iframe.className = 'w-full h-full border-none opacity-0 transition-opacity duration-700';
-            iframe.sandbox = 'allow-scripts allow-forms allow-popups allow-modals allow-same-origin';
+            // Removendo sandbox restritivo temporariamente para garantir que o conteúdo do Qwen carregue
+            iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-modals allow-same-origin');
             contentArea.appendChild(iframe);
             
             // Loading state
@@ -117,24 +145,32 @@ export default class ArtifactSystem {
             loader.className = 'absolute inset-0 flex items-center justify-center bg-[#0f172a] z-10 transition-opacity duration-500';
             loader.innerHTML = '<div class="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>';
             contentArea.appendChild(loader);
-
+            
             setTimeout(() => {
                 try {
-                    const doc = iframe.contentWindow.document;
-                    doc.open();
-                    iframe.srcdoc = artifact.content;
-                    doc.close();
+                    // Garantir que o conteúdo tenha as bibliotecas necessárias se o Qwen esquecer
+                    let fullContent = artifact.content;
+                    if (!fullContent.includes('tailwindcss')) {
+                        fullContent = `<script src="https://cdn.tailwindcss.com"></script>${fullContent}`;
+                    }
+                    if (!fullContent.includes('google-fonts')) {
+                        fullContent = `<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">${fullContent}`;
+                    }
+
+                    iframe.srcdoc = fullContent;
+                    
                     iframe.onload = () => {
+                        console.log('✅ [ARTIFACT-RENDER] Iframe carregado com sucesso.');
                         iframe.classList.remove('opacity-0');
                         loader.classList.add('opacity-0');
                         setTimeout(() => loader.remove(), 500);
                     };
                 } catch (e) {
-                    console.error('Erro ao renderizar iframe:', e);
+                    console.error('❌ [ARTIFACT-RENDER] Erro ao renderizar iframe:', e);
                     contentArea.innerHTML = `<div class="p-8 text-red-400 bg-red-900/20 border border-red-900/50 rounded-lg m-4">Erro na renderização visual: ${e.message}</div>`;
                 }
-            }, 50);
-        } else if (artifact.type === 'code') {
+            }, 100);
+        }f (artifact.type === 'code') {
             contentArea.className += ' p-6 max-h-[600px] overflow-auto bg-[#011627]';
             contentArea.innerHTML = `<pre class="font-mono p-0 m-0 whitespace-pre-wrap break-all text-blue-100"><code>${this.escapeHtml(artifact.content)}</code></pre>`;
         } else {

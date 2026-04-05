@@ -1150,7 +1150,9 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 
             if (needsArtifact) {
                 this.hasPendingArtifact = true;
-                const artifactGenerationPrompt = `Você é um designer de interfaces e especialista em conteúdo de elite. Sua missão é criar um ARTIFACT visual deslumbrante, interativo e informativo, idêntico aos Artifacts do Claude (Anthropic). Use todo o contexto fornecido para criar um HTML/CSS/JS completo e funcional. Não inclua nenhuma explicação ou texto além do próprio <artifact>...</artifact>.
+                const artifactGenerationPrompt = `Você é um designer de interfaces e especialista em conteúdo de elite. Sua missão é criar um ARTIFACT visual deslumbrante, interativo e informativo, idêntico aos Artifacts do Claude (Anthropic). 
+                
+                **IMPORTANTE**: Você DEVE envolver todo o seu código HTML/CSS/JS dentro das tags <artifact type="web" title="Resumo Visual">...</artifact>. Não inclua nenhuma explicação, saudação ou texto fora dessas tags.
 
                 ## CONTEXTO COMPLETO PARA GERAÇÃO DO ARTIFACT:
                 - Pergunta do Usuário: ${userMessage}
