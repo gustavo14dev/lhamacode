@@ -122,7 +122,10 @@ export default class ArtifactSystem {
                 </div>
                 <div class="flex flex-col">
                     <span class="text-[13px] font-bold text-white tracking-tight">${artifact.title}</span>
-                    <span class="text-[10px] text-slate-400 uppercase tracking-widest font-medium">${artifact.type} artifact</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-slate-400 uppercase tracking-widest font-medium">${artifact.type} artifact</span>
+                        <span class="px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-[9px] font-bold text-blue-400 tracking-tighter">BETA</span>
+                    </div>
                 </div>
             </div>
             <div class="flex items-center gap-3">

@@ -1177,16 +1177,16 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 3. Se você falhar em incluir as tags <artifact>, o sistema não conseguirá renderizar sua resposta.
 
 💎 REGRAS DE DESIGN E CONTEÚDO (PREMIUM):
-- RIQUEZA DE INFORMAÇÃO E EXPLICAÇÃO: Vá MUITO além de tópicos superficiais. Para cada conceito, forneça explicações detalhadas, exemplos concretos, e, se aplicável, contexto histórico ou técnico. Responda a perguntas como "O que é?" e "Como acontece?" de forma aprofundada.
-- ELEMENTOS VISUAIS E ORGANIZAÇÃO DINÂMICA: O design deve ser VARIADO e EXPLICATIVO, não genérico. Use obrigatoriamente uma combinação de:
-    * CARDS DE ESTUDO DETALHADOS: Crie cards com seções claras (ex: "O que é?", "Como acontece?"), contendo texto explicativo, exemplos e badges/tags relevantes.
-    * CONEXÕES VISUAIS: Utilize linhas (SVG ou CSS) para conectar cards ou conceitos relacionados, formando um fluxo lógico ou mapa mental.
-    * LINHAS DO TEMPO: Se o conteúdo tiver uma progressão cronológica, use uma timeline estilizada com pontos de destaque e descrições.
-    * GRIDS IRREGULARES (Bento Grids): Varie o tamanho e a disposição dos cards para criar uma hierarquia visual interessante. NUNCA use grids 2x2 ou 3x3 simétricos.
-    * BADGES E TAGS: Use badges coloridos para categorizar ou destacar informações importantes dentro dos cards (ex: "Alienado do produto", "Alienado do processo").
-- TIPOGRAFIA: Use SEMPRE Google Fonts — uma display serif (Playfair Display, DM Serif Display) para títulos e uma sans-serif clean (DM Sans, Outfit, Sora) para o corpo.
-- IDENTIDADE VISUAL: Escolha cores temáticas profundas. Bordas de acento lateral (border-left: 4px solid [cor]), sombras suaves, e números de fundo com opacidade baixa (0.05) para indicar passos ou seções.
-- COMPONENTES: Use ícones da Lucide (https://unpkg.com/lucide@latest), tooltips simulados e divisores com labels para enriquecer a apresentação.
+- CONTEÚDO "FORTE" E DENSO: Proibido ser superficial. Cada seção deve ser um mergulho profundo. Explique o "porquê" e o "como" de cada detalhe. Se o usuário pedir algo simples, entregue algo COMPLETO e PROFISSIONAL. Use dados, fatos históricos e análises técnicas.
+- INTEGRAÇÃO VISUAL WIKIMEDIA: Sempre que citar um conceito, personalidade ou evento histórico, tente incluir uma imagem real utilizando a API pública da Wikimedia. 
+    * Formato da URL: https://commons.wikimedia.org/w/index.php?title=Special:Redirect/file/NOME_DO_ARQUIVO.jpg
+    * Estilize as imagens com bordas arredondadas, sombras e legendas elegantes.
+- DESIGN DINÂMICO E EXPLICATIVO: O design deve se adaptar ao conteúdo. Use:
+    * CARDS DE ALTA DENSIDADE: Cards com títulos grandes, badges de status, perguntas diretas e blocos de texto explicativo denso.
+    * MAPAS MENTAIS E CONEXÕES: Use linhas e setas (SVG/CSS) para ligar um card ao outro, mostrando a relação entre as ideias.
+    * BENTO GRIDS E TIMELINES: Organize a informação em grids assimétricos modernos ou linhas do tempo fluidas.
+- TIPOGRAFIA E ESTILO: Use 'Playfair Display' para títulos e 'Outfit' para o corpo. Cores escuras e profundas (#0d1117, #161b22) com acentos vibrantes.
+- COMPONENTES: Badges coloridos, ícones da Lucide, tooltips e divisores com labels. Cada elemento deve parecer parte de um infográfico de revista premium.
 
 ESTRUTURA TÉCNICA:
 - Tailwind via CDN + bloco <style> para CSS customizado e animações @keyframes.
