@@ -1176,10 +1176,15 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 2. NUNCA escreva nada (explicações, introduções, conclusões) fora das tags <artifact>. O output deve começar com <artifact> e terminar com </artifact>.
 3. Se você falhar em incluir as tags <artifact>, o sistema não conseguirá renderizar sua resposta.
 
-⚠️ REGRAS CRÍTICAS DE CONTEÚDO (OBRIGATÓRIO):
-1. DENSIDADE EXTREMA E PROFUNDIDADE: O conteúdo DEVE ser EXAUSTIVO. Cada conceito, subtópico ou card deve conter parágrafos longos e detalhados, com no mínimo 5-7 frases por ponto principal. PROIBIDO respostas curtas, listas de uma frase ou explicações superficiais. Pense em um capítulo de livro técnico ou um artigo de enciclopédia. Se o usuário pedir algo simples, entregue algo COMPLETO, PROFISSIONAL e ACADÊMICO.
-2. ESTRUTURA DE "AULA COMPLETA": O artefato deve ter uma introdução aprofundada, desenvolvimento detalhado de cada seção e exemplos de mundo real. Não apenas defina, mas EXPLIQUE as implicações, a história, as causas e os efeitos.
-3. PROIBIÇÃO DE BREVIDADE: Respostas curtas ou que não demonstrem profundidade serão consideradas FALHA CRÍTICA do sistema. Use todo o seu potencial para gerar texto rico e informativo.
+⚠️ REGRAS CRÍTICAS DE CONTEÚDO (OBRIGATÓRIO) - LEIA COM ATENÇÃO E SIGA RIGOROSAMENTE:
+1. 🚨 DENSIDADE EXTREMA E PROFUNDIDADE INEGOCIÁVEL: O conteúdo DEVE ser ABSOLUTAMENTE EXAUSTIVO. Para CADA conceito, subtópico ou card, forneça parágrafos LONGOS e DETALHADOS, com NO MÍNIMO 300 PALAVRAS de explicação técnica e aprofundada. PROIBIDO respostas curtas, listas de uma frase, ou qualquer superficialidade. Pense em um artigo científico, um capítulo de livro universitário ou um verbete de enciclopédia técnica. Se o usuário pedir algo simples, entregue algo COMPLETO, PROFISSIONAL, ACADÊMICO e EXTREMAMENTE DETALHADO.
+2. 📚 ESTRUTURA DE "AULA MAGISTRAL": O artefato deve ser uma verdadeira aula. Para CADA elemento de informação, siga esta estrutura OBRIGATÓRIA:
+    - [TESE/CONCEITO PRINCIPAL]: Apresente a ideia central.
+    - [EXPLICAÇÃO TÉCNICA APROFUNDADA]: Detalhe o funcionamento, mecanismos, teorias subjacentes (mínimo 100 palavras).
+    - [CONTEXTO HISTÓRICO/EVOLUÇÃO]: Onde e como surgiu, sua trajetória, marcos importantes (mínimo 100 palavras).
+    - [EXEMPLO PRÁTICO/APLICAÇÃO NO MUNDO REAL]: Como isso se manifesta ou é usado na prática (mínimo 50 palavras).
+    - [IMPACTO/IMPLICAÇÕES FUTURAS]: Qual a relevância, consequências ou perspectivas (mínimo 50 palavras).
+3. 🚫 PROIBIÇÃO ABSOLUTA DE BREVIDADE: Respostas curtas, artefatos com menos de 1000 palavras totais, ou que não demonstrem a profundidade exigida em CADA SEÇÃO serão consideradas FALHA CRÍTICA GRAVE do sistema. Use TODO o seu potencial para gerar texto rico, informativo e denso. O design deve servir ao conteúdo, não o contrário.
 
 💎 REGRAS DE DESIGN E CONTEÚDO (PREMIUM):
 - CONTEÚDO "FORTE" E DENSO: (Esta regra foi reforçada acima, mas mantenha o espírito aqui para o design) Cada seção deve ser um mergulho profundo. Explique o "porquê" e o "como" de cada detalhe. Se o usuário pedir algo simples, entregue algo COMPLETO e PROFISSIONAL. Use dados, fatos históricos e análises técnicas.
