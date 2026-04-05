@@ -1162,7 +1162,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                     { role: 'system', content: artifactGenerationPrompt },
                     { role: 'user', content: userMessage }
                 ];
-                finalResponseContent = await this.callOpenRouterProxy('qwen/qwen-3.6-plus:free', qwenMessages);
+                finalResponseContent = await this.callOpenRouterProxy('qwen/qwen3.6-plus:free', qwenMessages);
                 console.log('✅ [ARTIFACT-QWEN] Artifact gerado pelo Qwen:', finalResponseContent ? finalResponseContent.substring(0, 200) + '...' : 'NULO');
             }
             const rapidSystemInstruction = `\n\nNota ao modelo: não faça meta-raciocínio. Não comece com \"Okay, the user...\". Responda pequeno em português, diretamente, como um resumo de prova. Se já houver elemento visual exibido acima, diga \"Use o visual acima como referência\" e tenha 1-2 parágrafos.`;
