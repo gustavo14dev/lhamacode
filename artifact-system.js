@@ -132,15 +132,15 @@ export default class ArtifactSystem {
         `;
 
         const contentArea = document.createElement('div');
-        contentArea.className = 'artifact-content-area overflow-hidden text-[14px] text-slate-200 leading-relaxed relativ        if (artifact.type === 'web') {
+        contentArea.className = 'artifact-content-area overflow-hidden text-[14px] text-slate-200 leading-relaxed relative';
+
+        if (artifact.type === 'web') {
             contentArea.className += ' h-[700px] bg-[#0f172a]';
             const iframe = document.createElement('iframe');
             iframe.className = 'w-full h-full border-none opacity-0 transition-opacity duration-700';
-            // Removendo sandbox restritivo temporariamente para garantir que o conteúdo do Qwen carregue
             iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-modals allow-same-origin');
             contentArea.appendChild(iframe);
             
-            // Loading state
             const loader = document.createElement('div');
             loader.className = 'absolute inset-0 flex items-center justify-center bg-[#0f172a] z-10 transition-opacity duration-500';
             loader.innerHTML = '<div class="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>';
@@ -148,7 +148,6 @@ export default class ArtifactSystem {
             
             setTimeout(() => {
                 try {
-                    // Garantir que o conteúdo tenha as bibliotecas necessárias se o Qwen esquecer
                     let fullContent = artifact.content;
                     if (!fullContent.includes('tailwindcss')) {
                         fullContent = `<script src="https://cdn.tailwindcss.com"></script>${fullContent}`;
@@ -170,7 +169,7 @@ export default class ArtifactSystem {
                     contentArea.innerHTML = `<div class="p-8 text-red-400 bg-red-900/20 border border-red-900/50 rounded-lg m-4">Erro na renderização visual: ${e.message}</div>`;
                 }
             }, 100);
-        }f (artifact.type === 'code') {
+        } else if (artifact.type === 'code') {
             contentArea.className += ' p-6 max-h-[600px] overflow-auto bg-[#011627]';
             contentArea.innerHTML = `<pre class="font-mono p-0 m-0 whitespace-pre-wrap break-all text-blue-100"><code>${this.escapeHtml(artifact.content)}</code></pre>`;
         } else {
@@ -213,7 +212,6 @@ export default class ArtifactSystem {
             }, 2000);
         };
 
-        // Injetar o artifact no final da mensagem, mas antes de qualquer botão de fontes
         const sourcesBtn = responseElement.querySelector('.sources-btn-container');
         if (sourcesBtn) {
             responseElement.insertBefore(container, sourcesBtn);
@@ -221,7 +219,6 @@ export default class ArtifactSystem {
             responseElement.appendChild(container);
         }
         
-        // Rolar para mostrar o artifact
         container.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
