@@ -1211,9 +1211,9 @@ EXEMPLO DE  <style>
                     { role: 'user', content: userMessage }
                 ];
                 
-                // Dispara a geração do Qwen em paralelo com fallback robusto
-                console.log('🚀 [ARTIFACT-QWEN] Iniciando geração assíncrona...');
-                artifactPromise = this.callOpenRouterProxy('qwen/qwen3.6-plus:free', qwenMessages)
+                // Dispara a geração do Qwen 2.5 72B Instruct (Free) como principal
+                console.log('🚀 [ARTIFACT-QWEN] Iniciando geração assíncrona com Qwen 2.5 72B Instruct (Free)...');
+                artifactPromise = this.callOpenRouterProxy('qwen/qwen-2.5-72b-instruct:free', qwenMessages)
                     .catch(async (err) => {
                         const isRateLimit = err.message.includes('429');
                         const isTimeout = err.message.includes('504');
@@ -1221,16 +1221,11 @@ EXEMPLO DE  <style>
                         console.warn(`⚠️ [ARTIFACT-QWEN] Qwen falhou (${isRateLimit ? 'Rate Limit' : isTimeout ? 'Timeout' : 'Erro'}), tentando fallback para Llama 3.3 70B Free...`);
                         
                         try {
-                            // Fallback para o Llama 3.3 70B Free (mais estável e potente para artefatos)
+                            // Fallback único para o Llama 3.3 70B Free
                             return await this.callOpenRouterProxy('meta-llama/llama-3.3-70b-instruct:free', qwenMessages);
                         } catch (fallbackErr) {
-                            console.warn('⚠️ [ARTIFACT-FALLBACK] Llama 3.3 70B falhou, tentando última alternativa (Llama 8B)...');
-                            try {
-                                return await this.callOpenRouterProxy('meta-llama/llama-3.1-8b-instruct:free', qwenMessages);
-                            } catch (lastErr) {
-                                console.error('❌ [ARTIFACT-FLOW] Todos os modelos de artefato falharam:', lastErr);
-                                return null;
-                            }
+                            console.error('❌ [ARTIFACT-FLOW] Todos os modelos de artefato falharam:', fallbackErr);
+                            return null;
                         }
                     });
             }
