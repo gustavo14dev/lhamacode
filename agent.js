@@ -1212,9 +1212,9 @@ EXEMPLO DE  <style>
                     { role: 'user', content: userMessage }
                 ];
                 
-                // Dispara a geração do Qwen 2.5 72B Instruct (Free) como principal
-                console.log('🚀 [ARTIFACT-QWEN] Iniciando geração assíncrona com Qwen 2.5 72B Instruct (Free)...');
-                artifactPromise = this.callOpenRouterProxy('qwen/qwen-2.5-72b-instruct:free', qwenMessages)
+                // Dispara a geração do Qwen 3.6 Plus (Free) como principal
+                console.log('🚀 [ARTIFACT-QWEN] Iniciando geração assíncrona com Qwen 3.6 Plus (Free)...');
+                artifactPromise = this.callOpenRouterProxy('qwen/qwen3.6-plus:free', qwenMessages)
                     .catch(async (err) => {
                         const isRateLimit = err.message.includes('429');
                         const isTimeout = err.message.includes('504');
