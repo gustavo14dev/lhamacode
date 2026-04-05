@@ -18,6 +18,7 @@ export class Agent {
         this.abortController = null;
         this.isGenerating = false;
         this.activeChatIdForGeneration = null;
+        this.hasPendingArtifact = false;
 
         // Sistema de memÃ³ria
         this.memory = new MemorySystem();
@@ -481,8 +482,11 @@ export class Agent {
 
         this.activeChatIdForGeneration = null;
 
-        this.isGenerating = false;
-        this.ui.updateSendButtonToSend();
+        // Só reseta isGenerating se não houver um artefato pendente (que será resetado no callback do Qwen)
+        if (!this.hasPendingArtifact) {
+            this.isGenerating = false;
+            this.ui.updateSendButtonToSend();
+        }
     }
 
     async processInvestigateModel(userMessage, attachments = null, relevantContext = []) {
@@ -1145,6 +1149,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             let artifactPromise = null;
 
             if (needsArtifact) {
+                this.hasPendingArtifact = true;
                 const artifactGenerationPrompt = `Você é um designer de interfaces e especialista em conteúdo de elite. Sua missão é criar um ARTIFACT visual deslumbrante, interativo e informativo, idêntico aos Artifacts do Claude (Anthropic). Use todo o contexto fornecido para criar um HTML/CSS/JS completo e funcional. Não inclua nenhuma explicação ou texto além do próprio <artifact>...</artifact>.
 
                 ## CONTEXTO COMPLETO PARA GERAÇÃO DO ARTIFACT:
@@ -1222,7 +1227,8 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             // Se houver um artefato sendo gerado, adiciona o indicador de carregamento
             let displayResponse = this.cleanChatResponse(finalResponse);
             if (artifactPromise) {
-                displayResponse += "\n\n<div id=\"artifact-loading-status\" class=\"p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 animate-pulse flex items-center gap-2\"><span>⏳ Carregando Elemento...</span></div>";
+                // Usamos um marcador que o formatador de texto não vai quebrar ou escapar
+                displayResponse += "\n\n[ARTIFACT_LOADING_STATE]";
             }
 
             // Exibir na UI usando o método padrão que suporta HTML
@@ -1231,6 +1237,14 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 
                 // Se houver um artefato sendo gerado, aguarda e injeta
                 if (artifactPromise) {
+                    // Injetar o HTML do loading diretamente no DOM para evitar escape
+                    const responseDiv = document.getElementById(messageContainer.responseId);
+                    if (responseDiv) {
+                        const loadingHtml = `<div id="artifact-loading-status" class="p-3 mt-4 bg-gray-100 dark:bg-gray-800 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 animate-pulse flex items-center gap-2"><span>⏳ Carregando Elemento...</span></div>`;
+                        // Substituir o marcador pelo HTML real
+                        responseDiv.innerHTML = responseDiv.innerHTML.replace("[ARTIFACT_LOADING_STATE]", loadingHtml);
+                    }
+
                     artifactPromise.then(async (artifactContent) => {
                         const loadingEl = document.getElementById("artifact-loading-status");
                         if (loadingEl) {
@@ -1245,7 +1259,16 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                                 console.warn('⚠️ [ARTIFACT-QWEN] Falha na geração, indicador removido.');
                             }
                         }
+                        
+                        // Garantir que o estado de geração da UI seja finalizado apenas após o Qwen (ou falha)
+                        this.hasPendingArtifact = false;
+                        this.isGenerating = false;
+                        this.ui.updateSendButtonToSend();
                     });
+                } else {
+                    // Se não tem artefato, finaliza o estado de geração normalmente
+                    this.isGenerating = false;
+                    this.ui.updateSendButtonToSend();
                 }
 
                 // Renderizar Artifact extraído da resposta (Design Claude) - Fallback se já vier na resposta
@@ -1287,6 +1310,11 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             }
             this.ui.setResponseText('Desculpe, ocorreu um erro ao processar sua mensagem. ' + errorMessage, messageContainer.responseId);
             console.error('Erro no Modelo Rápido:', error);
+            
+            // Garantir que o estado de geração seja resetado em caso de erro
+            this.hasPendingArtifact = false;
+            this.isGenerating = false;
+            this.ui.updateSendButtonToSend();
         }
     }
 
