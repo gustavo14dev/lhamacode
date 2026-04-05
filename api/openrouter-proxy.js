@@ -22,8 +22,7 @@ export default async function handler(req) {
         const requestBody = await req.json();
         const { model, messages, max_tokens, temperature, top_p, stream, ...extra } = requestBody;
 
-        // Aumentando o timeout para o máximo razoável em Edge Functions (Vercel Pro permite até 300s, mas o padrão é 30s)
-        // Vamos tentar 55 segundos, esperando que a infraestrutura suporte.
+        // Timeout de 55 segundos para evitar o limite de 60s da Vercel
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 55000); 
 
@@ -33,8 +32,8 @@ export default async function handler(req) {
                 headers: {
                     'Authorization': `Bearer ${openRouterApiKey}`,
                     'Content-Type': 'application/json',
-                    'HTTP-Referer': 'https://lhamacode.com',
-                    'X-Title': 'LhamaCode',
+                    'HTTP-Referer': 'https://drekee.vercel.app',
+                    'X-Title': 'Drekee AI',
                 },
                 body: JSON.stringify({
                     model: model,
@@ -60,7 +59,12 @@ export default async function handler(req) {
                     const textError = await response.text();
                     errorMessage = textError.substring(0, 200) || errorMessage;
                 }
-                throw new Error(errorMessage);
+                
+                // Retornamos o erro original para que o cliente possa decidir o fallback
+                return new Response(JSON.stringify({ error: errorMessage, status: response.status }), { 
+                    status: response.status, 
+                    headers: { 'Content-Type': 'application/json' } 
+                });
             }
 
             if (contentType && contentType.includes('application/json')) {
@@ -78,8 +82,12 @@ export default async function handler(req) {
             }
 
         } catch (fetchError) {
+            clearTimeout(timeoutId);
             if (fetchError.name === 'AbortError') {
-                throw new Error('OpenRouter API request timed out (55s). O modelo gratuito pode estar lento.');
+                return new Response(JSON.stringify({ error: 'OpenRouter API request timed out (55s). O modelo gratuito pode estar lento.' }), { 
+                    status: 504, 
+                    headers: { 'Content-Type': 'application/json' } 
+                });
             }
             throw fetchError;
         }

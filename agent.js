@@ -1207,12 +1207,18 @@ Não escreva nada fora das tags artifact.
                     { role: 'user', content: userMessage }
                 ];
                 
-                // Dispara a geração do Qwen em paralelo (sem await aqui)
+                // Dispara a geração do Qwen em paralelo com fallback para Llama 3.1 8B Free
                 console.log('🚀 [ARTIFACT-QWEN] Iniciando geração assíncrona...');
                 artifactPromise = this.callOpenRouterProxy('qwen/qwen3.6-plus:free', qwenMessages)
-                    .catch(err => {
-                        console.error('❌ [ARTIFACT-QWEN] Erro na geração assíncrona:', err);
-                        return null;
+                    .catch(async (err) => {
+                        console.warn('⚠️ [ARTIFACT-QWEN] Qwen falhou, tentando fallback para Llama 3.1 8B Free...', err.message);
+                        try {
+                            // Fallback para um modelo gratuito mais estável
+                            return await this.callOpenRouterProxy('meta-llama/llama-3.1-8b-instruct:free', qwenMessages);
+                        } catch (fallbackErr) {
+                            console.error('❌ [ARTIFACT-FALLBACK] Fallback também falhou:', fallbackErr);
+                            return null;
+                        }
                     });
             }
 
