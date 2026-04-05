@@ -1210,17 +1210,27 @@ EXEMPLO DE  <style>
                     { role: 'system', content: artifactGenerationPrompt },
                     { role: 'user', content: userMessage }
                 ];
-                            // Dispara a geração do Qwen em paralelo com fallback para Llama 3.1 8B Free
+                
+                // Dispara a geração do Qwen em paralelo com fallback robusto
                 console.log('🚀 [ARTIFACT-QWEN] Iniciando geração assíncrona...');
                 artifactPromise = this.callOpenRouterProxy('qwen/qwen3.6-plus:free', qwenMessages)
                     .catch(async (err) => {
-                        console.warn('⚠️ [ARTIFACT-QWEN] Qwen falhou, tentando fallback para Llama 3.1 8B Free...', err.message);
+                        const isRateLimit = err.message.includes('429');
+                        const isTimeout = err.message.includes('504');
+                        
+                        console.warn(`⚠️ [ARTIFACT-QWEN] Qwen falhou (${isRateLimit ? 'Rate Limit' : isTimeout ? 'Timeout' : 'Erro'}), tentando fallback para Llama 3.1 70B...`);
+                        
                         try {
-                            // Fallback para um modelo gratuito mais estável
-                            return await this.callOpenRouterProxy('meta-llama/llama-3.1-8b-instruct:free', qwenMessages);
+                            // Fallback para um modelo mais potente e estável (70B) para garantir a qualidade do artefato
+                            return await this.callOpenRouterProxy('meta-llama/llama-3.1-70b-instruct', qwenMessages);
                         } catch (fallbackErr) {
-                            console.error('❌ [ARTIFACT-FALLBACK] Fallback também falhou:', fallbackErr);
-                            return null;
+                            console.warn('⚠️ [ARTIFACT-FALLBACK] Llama 70B falhou, tentando última alternativa (Llama 8B)...');
+                            try {
+                                return await this.callOpenRouterProxy('meta-llama/llama-3.1-8b-instruct:free', qwenMessages);
+                            } catch (lastErr) {
+                                console.error('❌ [ARTIFACT-FLOW] Todos os modelos de artefato falharam:', lastErr);
+                                return null;
+                            }
                         }
                     });
             }
