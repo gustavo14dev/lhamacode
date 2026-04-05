@@ -1158,15 +1158,17 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 - Contexto Relevante da Memória: ${JSON.stringify(relevantContext, null, 2)}
                 - Histórico da Conversa: ${JSON.stringify(this.conversationHistory, null, 2)}
 
-                ## DIRETRIZES DE DESIGN E INTERATIVIDADE (OBRIGATÓRIAS):
-                - **TIPO OBRIGATÓRIO**: Use sempre \`type=\"web\"\` para conteúdos visuais.
-                - **ESTILO PREMIUM**: Use Tailwind CSS para criar layouts modernos (Dark Mode: \`bg-[#0f172a]\`, cards: \`bg-[#1e293b]\`, sombras, bordas arredondadas).
-                - **IMAGENS REAIS (WIKIMEDIA)**: Sempre que possível, inclua imagens reais usando a tag \`<img>\` com URLs da Wikimedia Commons (ex: \`https://upload.wikimedia.org/wikipedia/commons/...\`). Escolha imagens que façam sentido com o contexto (mapas, fotos históricas, diagramas científicos).
-                - **INTERATIVIDADE REAL (JS)**: Inclua scripts \`<script>\` funcionais para que botões, abas, carrosséis e linhas do tempo funcionem de verdade ao clicar. Evite designs estáticos e genéricos.
-                - **VERACIDADE DAS INFORMAÇÕES**: Use seu conhecimento e pesquisa para organizar e apresentar informações precisas e relevantes.
-                - **ESTRUTURA HTML COMPLETA**: Seu conteúdo dentro da tag \`<artifact>\` deve ser um documento HTML5 válido e completo (html, head, body).
-                - **NUNCA** use apenas uma tabela simples se puder criar um componente visual.
-                - **NUNCA** mencione termos técnicos como \`HTML\`, \`CSS\`, \`Tailwind\`, \`JavaScript\` ou \`Código\` em sua resposta no chat.\`
+                ## DIRETRIZES DE DESIGN PREMIUM (OBRIGATÓRIAS):
+                - **TIPOGRAFIA**: Use fontes com personalidade. Combine 'Playfair Display' ou 'Bebas Neue' para títulos com 'DM Sans' ou 'Inter' para o corpo.
+                - **HIERARQUIA VISUAL**: Não faça cards iguais. Use tamanhos diferentes (grid irregular). O tópico mais importante deve ser maior.
+                - **IDENTIDADE VISUAL**: Use cores temáticas (ex: tons de pergaminho e ouro para História). Adicione um acento lateral colorido (borda de 3px) em cada card.
+                - **DETALHES DE PROFUNDIDADE**: Use números grandes e sutis (opacidade baixa) no fundo dos cards (ex: "01", "02").
+                - **INTERATIVIDADE E MOVIMENTO**: Use animações de entrada 'staggered' (um card aparece após o outro). Inclua micro-interações em botões e hover states.
+                - **CONTEÚDO DENSO**: Vá além de listas simples. Use badges, mini linhas do tempo e divisores informativos dentro dos cards.
+                - **ESTRUTURA**: Use Tailwind CSS (Dark Mode: \`bg-[#0f172a]\`, cards: \`bg-[#1e293b]\`).
+                - **IMAGENS**: Use <img> com URLs da Wikimedia Commons.
+                - **NUNCA** mencione termos técnicos como HTML/CSS na resposta.
+                - **NUNCA** use apenas uma tabela simples.
 
                 `;
                 const qwenMessages = [
@@ -1251,6 +1253,14 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                                 loadingEl.remove();
                                 await this.ui.artifacts.renderArtifact(messageContainer.responseId, artifactContent);
                                 console.log('✅ [ARTIFACT-QWEN] Artifact injetado com sucesso.');
+
+                                // PERSISTÊNCIA: Atualiza a mensagem no histórico com o novo conteúdo (texto + artifact)
+                                const currentChatId = this.getActiveChatId();
+                                if (currentChatId) {
+                                    const fullContent = finalResponse + "\n\n" + artifactContent;
+                                    this.ui.updateAssistantMessageByContent(currentChatId, finalResponse, { content: fullContent });
+                                    console.log('💾 [ARTIFACT-QWEN] Histórico atualizado com o artifact.');
+                                }
                             } else {
                                 // Remove o indicador se falhar
                                 loadingEl.remove();
