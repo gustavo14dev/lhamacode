@@ -252,7 +252,14 @@ export class Agent {
                 body: JSON.stringify(requestBody),
             });
 
-            const data = await response.json();
+            let data;
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+                data = await response.json();
+            } else {
+                const text = await response.text();
+                throw new Error(`Resposta não-JSON do Proxy (${response.status}): ${text.substring(0, 100)}`);
+            }
 
             if (!response.ok) {
                 throw new Error(`OpenRouter Proxy retornou status ${response.status}: ${data.error || JSON.stringify(data)}`);

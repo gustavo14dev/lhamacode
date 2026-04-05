@@ -22,43 +22,67 @@ export default async function handler(req) {
         const requestBody = await req.json();
         const { model, messages, max_tokens, temperature, top_p, stream, ...extra } = requestBody;
 
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${openRouterApiKey}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': 'https://lhamacode.com', // Opcional para OpenRouter
-                'X-Title': 'LhamaCode', // Opcional para OpenRouter
-            },
-            body: JSON.stringify({
-                model: model,
-                messages: messages,
-                max_tokens: max_tokens || 65000,
-                temperature: temperature || 0.7,
-                top_p: top_p || 1,
-                stream: stream || false,
-                ...extra,
-            }),
-        });
+        // Adicionando um timeout manual para a chamada do OpenRouter
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 segundos (limite da Vercel é ~30s)
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error?.message || `OpenRouter API error: ${response.statusText}`);
+        try {
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${openRouterApiKey}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': 'https://lhamacode.com',
+                    'X-Title': 'LhamaCode',
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: messages,
+                    max_tokens: max_tokens || 65000,
+                    temperature: temperature || 0.7,
+                    top_p: top_p || 1,
+                    stream: stream || false,
+                    ...extra,
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            const contentType = response.headers.get('content-type');
+            if (!response.ok) {
+                let errorMessage = `OpenRouter API error: ${response.statusText}`;
+                if (contentType && contentType.includes('application/json')) {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error?.message || errorMessage;
+                } else {
+                    const textError = await response.text();
+                    errorMessage = textError.substring(0, 100) || errorMessage;
+                }
+                throw new Error(errorMessage);
+            }
+
+            if (contentType && contentType.includes('application/json')) {
+                const completion = await response.json();
+                if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
+                    return new Response(JSON.stringify({ content: completion.choices[0].message.content }), { 
+                        status: 200, 
+                        headers: { 'Content-Type': 'application/json' } 
+                    });
+                } else {
+                    throw new Error('Invalid response structure from OpenRouter');
+                }
+            } else {
+                throw new Error('OpenRouter returned non-JSON response');
+            }
+
+        } catch (fetchError) {
+            if (fetchError.name === 'AbortError') {
+                throw new Error('OpenRouter API request timed out (25s)');
+            }
+            throw fetchError;
         }
 
-        const completion = await response.json();
-
-        if (completion.choices && completion.choices.length > 0 && completion.choices[0].message && completion.choices[0].message.content) {
-            return new Response(JSON.stringify({ content: completion.choices[0].message.content }), { 
-                status: 200, 
-                headers: { 'Content-Type': 'application/json' } 
-            });
-        } else {
-            return new Response(JSON.stringify({ error: 'Invalid response from OpenRouter API' }), { 
-                status: 500, 
-                headers: { 'Content-Type': 'application/json' } 
-            });
-        }
     } catch (error) {
         console.error('❌ Error calling OpenRouter API:', error);
         return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), { 
