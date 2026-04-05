@@ -1248,36 +1248,74 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 
             // Se houver um artefato sendo gerado, injeta o indicador de carregamento IMEDIATAMENTE no container dedicado
             if (artifactPromise) {
-                const artifactContainer = document.getElementById(messageContainer.artifactContainerId);
-                if (artifactContainer) {
-                    artifactContainer.innerHTML = `<div id="artifact-loading-status" class="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 animate-pulse flex items-center gap-2"><span>⏳ Carregando Elemento...</span></div>`;
+                console.log('🎯 [ARTIFACT-FLOW] Artifact detectado. Injetando loading no container:', messageContainer.artifactContainerId);
+                
+                // Polling para garantir que o container existe antes de injetar o loading
+                const injectLoading = () => {
+                    const artifactContainer = document.getElementById(messageContainer.artifactContainerId);
+                    if (artifactContainer) {
+                        artifactContainer.innerHTML = `<div id="artifact-loading-status" class="p-4 my-4 bg-gray-100/50 dark:bg-gray-800/50 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 animate-pulse flex items-center justify-center gap-3 shadow-inner">
+                            <div class="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            <span class="font-medium tracking-wide">⏳ Preparando Elemento Visual Premium...</span>
+                        </div>`;
+                        console.log('✅ [ARTIFACT-FLOW] Loading injetado com sucesso.');
+                        return true;
+                    }
+                    return false;
+                };
+
+                if (!injectLoading()) {
+                    const loadingInterval = setInterval(() => {
+                        if (injectLoading()) clearInterval(loadingInterval);
+                    }, 100);
+                    setTimeout(() => clearInterval(loadingInterval), 5000); // Timeout de segurança
                 }
 
                 artifactPromise.then(async (artifactContent) => {
-                    const artifactContainer = document.getElementById(messageContainer.artifactContainerId);
-                    if (artifactContainer) {
-                        if (artifactContent) {
-                            // Limpa o loading e renderiza o artefato no container dedicado
-                            artifactContainer.innerHTML = '';
-                            await this.ui.artifacts.renderArtifact(messageContainer.artifactContainerId, artifactContent);
-                            console.log('✅ [ARTIFACT-QWEN] Artifact injetado no container dedicado.');
-
-                            // PERSISTÊNCIA: Atualiza a mensagem no histórico
-                            const currentChatId = this.getActiveChatId();
-                            if (currentChatId) {
-                                const fullContent = finalResponse + "\n\n" + artifactContent;
-                                this.ui.updateAssistantMessageByContent(currentChatId, finalResponse, { content: fullContent });
+                    console.log('📦 [ARTIFACT-FLOW] Resposta do Qwen recebida. Tamanho:', artifactContent ? artifactContent.length : 0);
+                    
+                    const tryInjectArtifact = async () => {
+                        const artifactContainer = document.getElementById(messageContainer.artifactContainerId);
+                        if (artifactContainer) {
+                            if (artifactContent && artifactContent.includes('<artifact')) {
+                                artifactContainer.innerHTML = '';
+                                const artifactData = this.ui.artifacts.extractArtifact(artifactContent);
+                                if (artifactData) {
+                                    await this.ui.artifacts.renderArtifact(messageContainer.artifactContainerId, artifactData);
+                                    console.log('💎 [ARTIFACT-FLOW] Artifact Premium renderizado com sucesso.');
+                                    
+                                    // PERSISTÊNCIA: Atualiza a mensagem no histórico
+                                    const currentChatId = this.getActiveChatId();
+                                    if (currentChatId) {
+                                        const fullContent = finalResponse + "\n\n" + artifactContent;
+                                        this.ui.updateAssistantMessageByContent(currentChatId, finalResponse, { content: fullContent });
+                                    }
+                                } else {
+                                    console.warn('⚠️ [ARTIFACT-FLOW] Falha ao extrair dados do artifact.');
+                                    artifactContainer.innerHTML = '';
+                                }
+                            } else {
+                                console.warn('⚠️ [ARTIFACT-FLOW] Conteúdo do Qwen não contém tags <artifact>.');
+                                artifactContainer.innerHTML = '';
                             }
-                        } else {
-                            artifactContainer.innerHTML = '';
+                            return true;
                         }
+                        return false;
+                    };
+
+                    if (!(await tryInjectArtifact())) {
+                        const artifactInterval = setInterval(async () => {
+                            if (await tryInjectArtifact()) clearInterval(artifactInterval);
+                        }, 200);
+                        setTimeout(() => clearInterval(artifactInterval), 10000); // Timeout de segurança
                     }
                     
-                    // FINALIZAÇÃO: Só libera o botão após o Qwen terminar
                     this.hasPendingArtifact = false;
                     finalizeResponse();
                 }).catch(err => {
-                    console.error('❌ [ARTIFACT-ERROR]', err);
+                    console.error('❌ [ARTIFACT-FLOW] Erro na promessa do Qwen:', err);
+                    const artifactContainer = document.getElementById(messageContainer.artifactContainerId);
+                    if (artifactContainer) artifactContainer.innerHTML = '';
                     this.hasPendingArtifact = false;
                     finalizeResponse();
                 });

@@ -6,21 +6,47 @@ export default class ArtifactSystem {
 
     async decideIfNeedsArtifact(userMessage, webData, relevantContext) {
         try {
-            const systemPrompt = `Você é um decisor binário. Responda APENAS "SIM" ou "NÃO".
-            Decida se o usuário solicitou algo que se beneficiaria de um ARTIFACT (elemento visual, código, tabela, documento rico, linha do tempo).
-            - Responda SIM se: for código, tabela, resumo de estudo, lista complexa, fluxograma, componente interativo.
-            - Responda NÃO se: for apenas conversa, saudação, pergunta simples de texto.`;
+            // Heurística rápida para palavras-chave que SEMPRE devem gerar artefatos
+            const lowerMsg = userMessage.toLowerCase();
+            const forceKeywords = ['resumo visual', 'quadro', 'tabela', 'gráfico', 'linha do tempo', 'cronologia', 'infográfico', 'mapa mental', 'artifact', 'artefato'];
+            if (forceKeywords.some(kw => lowerMsg.includes(kw))) {
+                console.log('🎯 [ARTIFACT-DECISION] Decisão: SIM (Heurística de palavra-chave)');
+                return true;
+            }
 
-            const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [               { role: 'system', content: systemPrompt },
-                { role: 'user', content: `Mensagem: ${userMessage}` }
+            const systemPrompt = `Você é um decisor binário de elite. Responda APENAS "SIM" ou "NÃO".
+            Sua tarefa é decidir se a solicitação do usuário deve gerar um ARTIFACT (um componente visual rico, interativo e profissional).
+            
+            Responda SIM se o usuário pedir:
+            - Resumos de estudo, quadros comparativos, tabelas, cronologias, linhas do tempo.
+            - Código de programação, scripts, componentes web.
+            - Fluxogramas, diagramas, mapas mentais.
+            - Qualquer coisa que peça "visual", "quadro", "tabela" ou "resumo estruturado".
+            
+            Responda NÃO se for:
+            - Apenas texto corrido, saudações, perguntas simples de "sim ou não", conversas informais sem necessidade de estrutura visual.
+            
+            Mensagem do Usuário: "${userMessage}"`;
+
+            const response = await this.agent.callGroqAPI('llama-3.1-8b-instant', [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: `Devo gerar um artifact para: "${userMessage}"?` }
             ]);
 
             const decision = (response || '').trim().toUpperCase();
-            console.log('🤖 [ARTIFACT-DECISION] Decisão:', decision);
-            return decision.includes('SIM');
+            console.log('🤖 [ARTIFACT-DECISION] Decisão do Modelo:', decision);
+            
+            // Se o modelo falhar ou der uma resposta ambígua, mas a mensagem parecer pedir algo estruturado, retornamos SIM
+            if (decision.includes('SIM') || decision.includes('YES')) return true;
+            
+            // Fallback: se a mensagem for longa e tiver tópicos, provavelmente precisa de um artifact
+            if (userMessage.length > 100 && (userMessage.includes('resumo') || userMessage.includes('estudo'))) return true;
+
+            return false;
         } catch (e) {
             console.error('❌ [ARTIFACT-DECISION] Erro na decisão:', e);
-            return false;
+            // Em caso de erro na API de decisão, se a mensagem contiver "resumo" ou "visual", assumimos SIM para não frustrar o usuário
+            return userMessage.toLowerCase().includes('resumo') || userMessage.toLowerCase().includes('visual');
         }
     }
 
