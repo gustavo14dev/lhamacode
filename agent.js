@@ -1142,10 +1142,9 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             const needsArtifact = await this.ui.artifacts.decideIfNeedsArtifact(userMessage, webData, relevantContext);
             console.log('🎯 [ARTIFACT] Decisão:', needsArtifact ? 'SIM' : 'NÃO');
 
-            let finalResponseContent = '';
+            let artifactPromise = null;
 
             if (needsArtifact) {
-                this.ui.setThinkingHeader('✨ Gerando Artifact com Qwen...', messageContainer.headerId);
                 const artifactGenerationPrompt = `Você é um designer de interfaces e especialista em conteúdo de elite. Sua missão é criar um ARTIFACT visual deslumbrante, interativo e informativo, idêntico aos Artifacts do Claude (Anthropic). Use todo o contexto fornecido para criar um HTML/CSS/JS completo e funcional. Não inclua nenhuma explicação ou texto além do próprio <artifact>...</artifact>.
 
                 ## CONTEXTO COMPLETO PARA GERAÇÃO DO ARTIFACT:
@@ -1164,15 +1163,22 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 - **NUNCA** use apenas uma tabela simples se puder criar um componente visual.
                 - **NUNCA** mencione termos técnicos como \`HTML\`, \`CSS\`, \`Tailwind\`, \`JavaScript\` ou \`Código\` em sua resposta no chat.\`
 
-                `
+                `;
                 const qwenMessages = [
                     { role: 'system', content: artifactGenerationPrompt },
                     { role: 'user', content: userMessage }
                 ];
-                finalResponseContent = await this.callOpenRouterProxy('qwen/qwen3.6-plus:free', qwenMessages);
-                console.log('✅ [ARTIFACT-QWEN] Artifact gerado pelo Qwen:', finalResponseContent ? finalResponseContent.substring(0, 200) + '...' : 'NULO');
+                
+                // Dispara a geração do Qwen em paralelo (sem await aqui)
+                console.log('🚀 [ARTIFACT-QWEN] Iniciando geração assíncrona...');
+                artifactPromise = this.callOpenRouterProxy('qwen/qwen3.6-plus:free', qwenMessages)
+                    .catch(err => {
+                        console.error('❌ [ARTIFACT-QWEN] Erro na geração assíncrona:', err);
+                        return null;
+                    });
             }
-            const rapidSystemInstruction = `\n\nNota ao modelo: não faça meta-raciocínio. Não comece com \"Okay, the user...\". Responda pequeno em português, diretamente, como um resumo de prova. Se já houver elemento visual exibido acima, diga \"Use o visual acima como referência\" e tenha 1-2 parágrafos.`;
+
+            const rapidSystemInstruction = `\n\nNota ao modelo: não faça meta-raciocínio. Não comece com \"Okay, the user...\". Responda pequeno em português, diretamente, como um resumo de prova. Se houver um elemento visual sendo gerado, mencione que ele aparecerá abaixo em instantes.`;
 
             const finalMessages = [
                 { role: 'system', content: this.getSystemPrompt('rapido') + this.buildWebContextBlock(webData) + rapidSystemInstruction },
@@ -1192,21 +1198,8 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.setApiProvider('samba');
             console.log('📋 [DEBUG-RAPIDO] API provider definido para SambaNova via SAMBA_API_KEY');
 
-            let response;
-            if (needsArtifact) {
-                // O modelo principal (Llama 70B) agora recebe o artifact gerado pelo Qwen
-                // e a instrução para incorporá-lo na resposta final humanizada.
-                const finalSystemPromptForLlama = this.getSystemPrompt('rapido') + this.buildWebContextBlock(webData) + rapidSystemInstruction + `\n\n[INSTRUCAO: O seguinte ARTIFACT foi gerado e deve ser incorporado em sua resposta final. Crie uma introdução natural e cordial para o usuário, apresentando o ARTIFACT. Não repita o conteúdo do ARTIFACT em texto, apenas o apresente. O ARTIFACT é:\n${finalResponseContent}]`;
-                const messagesForLlama = [
-                    { role: 'system', content: finalSystemPromptForLlama },
-                    ...(this.extraMessagesForNextCall || []),
-                    ...this.conversationHistory
-                ];
-                response = await this.callGroqAPI('llama-3.3-70b-versatile', messagesForLlama); // Usar o modelo principal para a resposta final
-            } else {
-                // Se não precisa de artifact, o fluxo é o mesmo de antes.
-                response = await this.callGroqAPI('llama-3.1-8b-instant', finalMessages); // Usar o modelo Llama 8B para a resposta rápida sem artifact
-            }
+            // Chama a API principal (Llama) imediatamente
+            let response = await this.callGroqAPI('llama-3.3-70b-versatile', finalMessages);
             console.log('🔍 [DEBUG-RAPIDO] Resposta da API recebida:', response ? response.substring(0, 100) + '...' : 'NULO');
             console.log('🔍 [DEBUG-RAPIDO] Tipo da resposta:', typeof response);
             console.log('🔍 [DEBUG-RAPIDO] Tamanho da resposta:', response ? response.length : 0);
@@ -1226,11 +1219,36 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.persistAssistantMessage(finalResponse);
             this.renderReasoningCard(messageContainer, reasoningText);
             
+            // Se houver um artefato sendo gerado, adiciona o indicador de carregamento
+            let displayResponse = this.cleanChatResponse(finalResponse);
+            if (artifactPromise) {
+                displayResponse += "\n\n<div id=\"artifact-loading-status\" class=\"p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 animate-pulse flex items-center gap-2\"><span>⏳ Carregando Elemento...</span></div>";
+            }
+
             // Exibir na UI usando o método padrão que suporta HTML
-            this.ui.setResponseText(this.cleanChatResponse(finalResponse), messageContainer.responseId, async () => {
+            this.ui.setResponseText(displayResponse, messageContainer.responseId, async () => {
                 console.log('🔄 [DEBUG-RAPIDO] Resposta exibida apÃ³s imagens');
 
-                // Renderizar Artifact extraído da resposta (Design Claude)
+                // Se houver um artefato sendo gerado, aguarda e injeta
+                if (artifactPromise) {
+                    artifactPromise.then(async (artifactContent) => {
+                        const loadingEl = document.getElementById("artifact-loading-status");
+                        if (loadingEl) {
+                            if (artifactContent) {
+                                // Remove o indicador e renderiza o artefato
+                                loadingEl.remove();
+                                await this.ui.artifacts.renderArtifact(messageContainer.responseId, artifactContent);
+                                console.log('✅ [ARTIFACT-QWEN] Artifact injetado com sucesso.');
+                            } else {
+                                // Remove o indicador se falhar
+                                loadingEl.remove();
+                                console.warn('⚠️ [ARTIFACT-QWEN] Falha na geração, indicador removido.');
+                            }
+                        }
+                    });
+                }
+
+                // Renderizar Artifact extraído da resposta (Design Claude) - Fallback se já vier na resposta
                 const extractedArtifact = this.ui.artifacts.extractArtifact(finalResponse);
                 if (extractedArtifact) {
                     await this.ui.artifacts.renderArtifact(messageContainer.responseId, extractedArtifact);

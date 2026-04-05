@@ -22,9 +22,10 @@ export default async function handler(req) {
         const requestBody = await req.json();
         const { model, messages, max_tokens, temperature, top_p, stream, ...extra } = requestBody;
 
-        // Adicionando um timeout manual para a chamada do OpenRouter
+        // Aumentando o timeout para o máximo razoável em Edge Functions (Vercel Pro permite até 300s, mas o padrão é 30s)
+        // Vamos tentar 55 segundos, esperando que a infraestrutura suporte.
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 segundos (limite da Vercel é ~30s)
+        const timeoutId = setTimeout(() => controller.abort(), 55000); 
 
         try {
             const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -57,7 +58,7 @@ export default async function handler(req) {
                     errorMessage = errorData.error?.message || errorMessage;
                 } else {
                     const textError = await response.text();
-                    errorMessage = textError.substring(0, 100) || errorMessage;
+                    errorMessage = textError.substring(0, 200) || errorMessage;
                 }
                 throw new Error(errorMessage);
             }
@@ -78,7 +79,7 @@ export default async function handler(req) {
 
         } catch (fetchError) {
             if (fetchError.name === 'AbortError') {
-                throw new Error('OpenRouter API request timed out (25s)');
+                throw new Error('OpenRouter API request timed out (55s). O modelo gratuito pode estar lento.');
             }
             throw fetchError;
         }
