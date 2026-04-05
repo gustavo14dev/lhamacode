@@ -10604,6 +10604,7 @@ ${chunk}${bibliographyBlock}
             uniqueId: uniqueId,
             headerId: `thinkingHeader_${uniqueId}`,
             responseId: `responseText_${uniqueId}`,
+            artifactContainerId: `artifactContainer_${uniqueId}`,
             actionsId: `actions_${uniqueId}`,
             stepsId: null, // Para compatibilidade com modelos que usam steps
             thinkCardId: `thinkCard_${uniqueId}`
@@ -10643,6 +10644,9 @@ ${chunk}${bibliographyBlock}
                     <div id="thinkCard_${uniqueId}" class="hidden mb-4"></div>
 
                     <div class="text-base leading-relaxed text-gray-700 dark:text-gray-200 min-h-4" id="responseText_${uniqueId}"></div>
+                    
+                    <!-- Container dedicado para artefatos assíncronos -->
+                    <div id="artifactContainer_${uniqueId}" class="mt-4"></div>
 
                 </div>
 
@@ -10743,6 +10747,7 @@ ${chunk}${bibliographyBlock}
             uniqueId: uniqueId,
             headerId: `thinkingHeader_${uniqueId}`,
             responseId: `responseText_${uniqueId}`,
+            artifactContainerId: `artifactContainer_${uniqueId}`,
             actionsId: `actions_${uniqueId}`,
             stepsId: null, // Para compatibilidade com modelos que usam steps
             thinkCardId: `thinkCard_${uniqueId}`
