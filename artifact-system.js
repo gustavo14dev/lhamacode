@@ -71,7 +71,14 @@ export default class ArtifactSystem {
             // Tentar descobrir o tipo pelo conteúdo
             const content = flexMatch[1].trim();
             let type = 'web'; // Default para Qwen que gera HTML
-            if (content.includes('import ') || content.includes('function ') || content.includes('const ')) type = 'code';
+            
+            // Se contém tags HTML estruturais, deve ser 'web' independente de outras palavras-chave
+            if (content.includes('<!DOCTYPE') || content.includes('<html') || content.includes('<body') || (content.includes('<div') && content.includes('<style>'))) {
+                type = 'web';
+            } else if (content.includes('import ') || content.includes('function ') || content.includes('const ')) {
+                type = 'code';
+            }
+            
             if (content.includes('graph TD') || content.includes('sequenceDiagram')) type = 'mermaid';
             
             return {

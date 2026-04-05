@@ -1248,30 +1248,27 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
                 }
             };
 
-            // Se houver um artefato sendo gerado, injeta o indicador de carregamento IMEDIATAMENTE no container dedicado
+            // Se houver um artefato sendo gerado, preparamos a lógica de injeção
+            let injectLoading = () => {};
             if (artifactPromise) {
-                console.log('🎯 [ARTIFACT-FLOW] Artifact detectado. Injetando loading no container:', messageContainer.artifactContainerId);
+                console.log('🎯 [ARTIFACT-FLOW] Artifact detectado. Aguardando fim da digitação para injetar loading...');
                 
-                // Polling para garantir que o container existe antes de injetar o loading
-                const injectLoading = () => {
+                // Função para injetar o loading (será chamada após a digitação)
+                injectLoading = () => {
                     const artifactContainer = document.getElementById(messageContainer.artifactContainerId);
                     if (artifactContainer) {
-                        artifactContainer.innerHTML = `<div id="artifact-loading-status" class="p-4 my-4 bg-gray-100/50 dark:bg-gray-800/50 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 animate-pulse flex items-center justify-center gap-3 shadow-inner">
-                            <div class="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                            <span class="font-medium tracking-wide">⏳ Preparando Elemento Visual Premium...</span>
-                        </div>`;
-                        console.log('✅ [ARTIFACT-FLOW] Loading injetado com sucesso.');
+                        // Só injeta se o artefato ainda não tiver sido renderizado (caso o Qwen seja muito rápido)
+                        if (!artifactContainer.querySelector('.claude-artifact-container')) {
+                            artifactContainer.innerHTML = `<div id="artifact-loading-status" class="p-4 my-4 bg-gray-100/50 dark:bg-gray-800/50 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 animate-pulse flex items-center justify-center gap-3 shadow-inner">
+                                <div class="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                <span class="font-medium tracking-wide">⏳ Preparando Elemento Visual Premium...</span>
+                            </div>`;
+                            console.log('✅ [ARTIFACT-FLOW] Loading injetado após digitação.');
+                        }
                         return true;
                     }
                     return false;
                 };
-
-                if (!injectLoading()) {
-                    const loadingInterval = setInterval(() => {
-                        if (injectLoading()) clearInterval(loadingInterval);
-                    }, 100);
-                    setTimeout(() => clearInterval(loadingInterval), 5000); // Timeout de segurança
-                }
 
                 artifactPromise.then(async (artifactContent) => {
                     console.log('📦 [ARTIFACT-FLOW] Resposta do Qwen recebida. Tamanho:', artifactContent ? artifactContent.length : 0);
@@ -1325,8 +1322,13 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 
             // Exibir a resposta principal na UI - Passando true para preserveExtra se houver artefato pendente
             this.ui.setResponseText(this.cleanChatResponse(finalResponse), messageContainer.responseId, async () => {
-                console.log('🔄 [DEBUG-RAPIDO] Resposta principal exibida.');
+                console.log('🔄 [DEBUG-RAPIDO] Resposta principal exibida 100%.');
                 
+                // AGORA SIM: Injetamos o loading após a digitação estar completa
+                if (this.hasPendingArtifact) {
+                    injectLoading();
+                }
+
                 // Renderizar Artifact extraído da resposta (Design Claude) - Fallback
                 const extractedArtifact = this.ui.artifacts.extractArtifact(finalResponse);
                 if (extractedArtifact) {
