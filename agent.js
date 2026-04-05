@@ -1218,13 +1218,13 @@ EXEMPLO DE  <style>
                         const isRateLimit = err.message.includes('429');
                         const isTimeout = err.message.includes('504');
                         
-                        console.warn(`⚠️ [ARTIFACT-QWEN] Qwen falhou (${isRateLimit ? 'Rate Limit' : isTimeout ? 'Timeout' : 'Erro'}), tentando fallback para Llama 3.1 70B...`);
+                        console.warn(`⚠️ [ARTIFACT-QWEN] Qwen falhou (${isRateLimit ? 'Rate Limit' : isTimeout ? 'Timeout' : 'Erro'}), tentando fallback para Llama 3.3 70B Free...`);
                         
                         try {
-                            // Fallback para um modelo mais potente e estável (70B) para garantir a qualidade do artefato
-                            return await this.callOpenRouterProxy('meta-llama/llama-3.1-70b-instruct', qwenMessages);
+                            // Fallback para o Llama 3.3 70B Free (mais estável e potente para artefatos)
+                            return await this.callOpenRouterProxy('meta-llama/llama-3.3-70b-instruct:free', qwenMessages);
                         } catch (fallbackErr) {
-                            console.warn('⚠️ [ARTIFACT-FALLBACK] Llama 70B falhou, tentando última alternativa (Llama 8B)...');
+                            console.warn('⚠️ [ARTIFACT-FALLBACK] Llama 3.3 70B falhou, tentando última alternativa (Llama 8B)...');
                             try {
                                 return await this.callOpenRouterProxy('meta-llama/llama-3.1-8b-instruct:free', qwenMessages);
                             } catch (lastErr) {
