@@ -150,21 +150,35 @@ export default class ArtifactSystem {
             
             const loader = document.createElement('div');
             loader.className = 'absolute inset-0 flex items-center justify-center bg-[#0f172a] z-10 transition-opacity duration-500';
-            loader.innerHTML = '<div class="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>';
-            contentArea.appendChild(loader);
-            
-            setTimeout(() => {
+            loader.innerHTML = '<div class="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-            setTimeout(() => {
                 try {
+                    // Garantir que o conteúdo tenha as bibliotecas necessárias se o Qwen esquecer
                     let fullContent = artifact.content;
                     if (!fullContent.includes('tailwindcss')) {
                         fullContent = `<script src="https://cdn.tailwindcss.com"></script>${fullContent}`;
                     }
-                    if (!fullContent.includes('google-fonts')) {
-                        fullContent = `<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">${fullContent}`;
+                    
+                    if (!fullContent.includes('fonts.googleapis.com')) {
+                        const designBase = `
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
+    --border: rgba(255,255,255,0.08); --accent: #7F77DD;
+    --text: #e6edf3; --muted: #8b949e;
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); margin: 0; padding: 0; }
+  h1, h2, h3 { font-family: var(--font-display); }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .animate-in { animation: fadeUp 0.4s ease forwards; opacity: 0; }
+</style>`;
+                        fullContent = designBase + fullContent;
                     }
 
-                    iframe.srcdoc = fullContent;
-                    
+                    iframe.srcdoc = fullContent;        
                     iframe.onload = () => {
                         console.log('✅ [ARTIFACT-RENDER] Iframe carregado com sucesso.');
                         iframe.classList.remove('opacity-0');

@@ -234,43 +234,62 @@ export class Agent {
 
 
     async callOpenRouterProxy(model, customMessages = [], options = {}) {
-        try {
-            const requestBody = {
-                model: model,
-                messages: Array.isArray(customMessages) ? customMessages : [],
-                max_tokens: options.max_tokens || 65000,
-                temperature: options.temperature || 0.7,
-                top_p: options.top_p || 1,
-                stream: false,
-                ...options.extra,
-            };
+        let lastError = null;
+        const maxRetries = 2;
+        
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                if (attempt > 0) {
+                    console.log(`🔄 [OPENROUTER] Tentativa de re-chamada ${attempt}/${maxRetries} após erro:`, lastError?.message);
+                    await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Backoff exponencial simples
+                }
 
-            const response = await fetch("/api/openrouter-proxy", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(requestBody),
-            });
+                const requestBody = {
+                    model: model,
+                    messages: Array.isArray(customMessages) ? customMessages : [],
+                    max_tokens: options.max_tokens || 65000,
+                    temperature: options.temperature || 0.7,
+                    top_p: options.top_p || 1,
+                    stream: false,
+                    ...options.extra,
+                };
 
-            let data;
-            const contentType = response.headers.get("content-type");
-            if (contentType && contentType.includes("application/json")) {
-                data = await response.json();
-            } else {
-                const text = await response.text();
-                throw new Error(`Resposta não-JSON do Proxy (${response.status}): ${text.substring(0, 100)}`);
+                const response = await fetch("/api/openrouter-proxy", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(requestBody),
+                });
+
+                let data;
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    data = await response.json();
+                } else {
+                    const text = await response.text();
+                    throw new Error(`Resposta não-JSON do Proxy (${response.status}): ${text.substring(0, 100)}`);
+                }
+
+                if (!response.ok) {
+                    // Se for erro 504 ou 500, tentamos novamente
+                    if (response.status === 504 || response.status === 500) {
+                        throw new Error(`OpenRouter Proxy retornou status ${response.status}: ${data.error || JSON.stringify(data)}`);
+                    }
+                    // Outros erros (4xx) não repetimos
+                    return null;
+                }
+
+                return data.content;
+            } catch (error) {
+                lastError = error;
+                console.warn(`⚠️ [OPENROUTER] Falha na tentativa ${attempt}:`, error.message);
+                if (attempt === maxRetries) break;
             }
-
-            if (!response.ok) {
-                throw new Error(`OpenRouter Proxy retornou status ${response.status}: ${data.error || JSON.stringify(data)}`);
-            }
-
-            return data.content;
-        } catch (error) {
-            console.error("❌ Erro ao chamar OpenRouter Proxy:", error);
-            throw error;
         }
+        
+        console.error("❌ [OPENROUTER] Todas as tentativas falharam:", lastError);
+        throw lastError;
     }
 
     async quickApiCheck() {
@@ -1150,29 +1169,39 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
 
             if (needsArtifact) {
                 this.hasPendingArtifact = true;
-                const artifactGenerationPrompt = `Você é um designer de interfaces e especialista em conteúdo de elite. Sua missão é criar um ARTIFACT visual deslumbrante, interativo e informativo, idêntico aos Artifacts do Claude (Anthropic). 
-                
-                **IMPORTANTE**: Você DEVE envolver todo o seu código HTML/CSS/JS dentro das tags <artifact type="web" title="Resumo Visual">...</artifact>. Não inclua nenhuma explicação, saudação ou texto fora dessas tags.
+                const artifactGenerationPrompt = `Você é um designer de interfaces de elite. Crie um ARTIFACT HTML visual premium sobre o pedido do usuário.
+REGRAS DE DESIGN OBRIGATÓRIAS:
+- TIPOGRAFIA: Use SEMPRE duas fontes do Google Fonts — uma display serif (Playfair Display, DM Serif Display, ou Bebas Neue) para títulos, e uma sans-serif clean (DM Sans, Outfit, ou Sora) para corpo. NUNCA use Inter, Roboto ou Arial.
+- HIERARQUIA: Cards de tamanhos DIFERENTES. O tópico mais importante ocupa mais espaço (grid irregular). NUNCA grid 2x2 simétrico e igual.
+- IDENTIDADE VISUAL: Escolha cores temáticas para o conteúdo (história = tons sépia/ouro, tecnologia = azul frio, ciência = verde, etc.). Use uma borda de acento lateral de 3px em cada card (ex: border-left: 3px solid #7F77DD).
+- CONTEÚDO REAL: Vá além de tópicos. Use badges, tags, mini linhas do tempo, números de fundo (opacidade baixa), divisores com rótulo.
+- ANIMAÇÕES: Adicione animações de entrada staggered com @keyframes + animation-delay para cada card aparecer em sequência.
+- PROIBIDO: NÃO use apenas <ul><li> simples. NÃO use grid igual. NÃO use apenas Inter. NÃO deixe conteúdo raso.
+ESTRUTURA TÉCNICA:
+- Tailwind via CDN + <style> block para o que Tailwind não cobre
+- Lucide via https://unpkg.com/lucide@latest
+- Google Fonts via @import no <style>
+- Dark background: #0d1117, cards: #161b22, surface2: #21262d
+- Texto primário: #e6edf3, secundário: #8b949e
+EXEMPLO DE CARD BEM FEITO (use como referência de qualidade, não copie):
+<div style="border-left: 3px solid #7F77DD; padding: 18px 20px; background: #161b22; border-radius: 12px; position: relative; overflow: hidden;">
+  <p style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #8b949e; margin: 0 0 8px;">Tópico 01</p>
+  <h2 style="font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; color: #e6edf3; margin: 0 0 10px;">Título do Card</h2>
+  <p style="font-size: 13px; color: #8b949e; line-height: 1.6; margin: 0;">Texto explicativo real com detalhes concretos.</p>
+  <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px;">
+    <span style="font-size: 11px; padding: 3px 9px; border-radius: 20px; background: #E6F1FB; color: #185FA5;">tag 1</span>
+    <span style="font-size: 11px; padding: 3px 9px; border-radius: 20px; background: #21262d; color: #8b949e; border: 0.5px solid #30363d;">tag 2</span>
+  </div>
+  <span style="font-family: 'Playfair Display', serif; font-size: 42px; font-weight: 900; color: rgba(255,255,255,0.04); position: absolute; bottom: 8px; right: 12px; line-height: 1;">01</span>
+</div>
+Envolva TODO o HTML dentro de <artifact type="web" title="Título do conteúdo">...</artifact>.
+Não escreva nada fora das tags artifact.
 
-                ## CONTEXTO COMPLETO PARA GERAÇÃO DO ARTIFACT:
-                - Pergunta do Usuário: ${userMessage}
-                - Dados da Web: ${JSON.stringify(webData, null, 2)}
-                - Contexto Relevante da Memória: ${JSON.stringify(relevantContext, null, 2)}
-                - Histórico da Conversa: ${JSON.stringify(this.conversationHistory, null, 2)}
-
-                ## DIRETRIZES DE DESIGN PREMIUM (OBRIGATÓRIAS):
-                - **TIPOGRAFIA**: Use fontes com personalidade. Combine 'Playfair Display' ou 'Bebas Neue' para títulos com 'DM Sans' ou 'Inter' para o corpo.
-                - **HIERARQUIA VISUAL**: Não faça cards iguais. Use tamanhos diferentes (grid irregular). O tópico mais importante deve ser maior.
-                - **IDENTIDADE VISUAL**: Use cores temáticas (ex: tons de pergaminho e ouro para História). Adicione um acento lateral colorido (borda de 3px) em cada card.
-                - **DETALHES DE PROFUNDIDADE**: Use números grandes e sutis (opacidade baixa) no fundo dos cards (ex: "01", "02").
-                - **INTERATIVIDADE E MOVIMENTO**: Use animações de entrada 'staggered' (um card aparece após o outro). Inclua micro-interações em botões e hover states.
-                - **CONTEÚDO DENSO**: Vá além de listas simples. Use badges, mini linhas do tempo e divisores informativos dentro dos cards.
-                - **ESTRUTURA**: Use Tailwind CSS (Dark Mode: \`bg-[#0f172a]\`, cards: \`bg-[#1e293b]\`).
-                - **IMAGENS**: Use <img> com URLs da Wikimedia Commons.
-                - **NUNCA** mencione termos técnicos como HTML/CSS na resposta.
-                - **NUNCA** use apenas uma tabela simples.
-
-                `;
+## CONTEXTO COMPLETO PARA GERAÇÃO DO ARTIFACT:
+- Pergunta do Usuário: ${userMessage}
+- Dados da Web: ${JSON.stringify(webData, null, 2)}
+- Contexto Relevante da Memória: ${JSON.stringify(relevantContext, null, 2)}
+- Histórico da Conversa: ${JSON.stringify(this.conversationHistory, null, 2)}`;
                 const qwenMessages = [
                     { role: 'system', content: artifactGenerationPrompt },
                     { role: 'user', content: userMessage }
@@ -1399,12 +1428,14 @@ Você é um Designer de Interfaces e Especialista em Conteúdo de Elite. Sua mis
 - Trate o Artifact como um objeto real e integrado, não como um arquivo gerado.
 - Se o usuário pedir especificamente por código, aí sim você pode falar sobre termos técnicos.
 
-## DIRETRIZES DE DESIGN E INTERATIVIDADE
-- **TIPO OBRIGATÓRIO**: Use sempre \`type="web"\` para conteúdos visuais.
-- **ESTILO PREMIUM**: Use Tailwind CSS para criar layouts modernos (Dark Mode: \`bg-[#0f172a]\`, cards: \`bg-[#1e293b]\`, sombras, bordas arredondadas).
-- **IMAGENS REAIS (WIKIMEDIA)**: Sempre que possível, inclua imagens reais usando a tag \`<img>\` com URLs da Wikimedia Commons (ex: \`https://upload.wikimedia.org/wikipedia/commons/...\`). Escolha imagens que façam sentido com o contexto (mapas, fotos históricas, diagramas científicos).
-- **INTERATIVIDADE REAL (JS)**: Inclua scripts \`<script>\` funcionais para que botões, abas, carrosséis e linhas do tempo funcionem de verdade ao clicar. Evite designs estáticos e genéricos.
-- **VERACIDADE DAS INFORMAÇÕES**: Use seu conhecimento e pesquisa para organizar informações reais, estruturadas e úteis. Evite preenchimentos aleatórios ou datas fictícias.
+	## DESIGN OBRIGATÓRIO:
+- Use SEMPRE duas fontes do Google Fonts: uma serif display para títulos + uma sans-serif moderna para corpo.
+- Cards com tamanhos diferentes (grid irregular). Card principal maior.
+- Borda de acento lateral 3px colorida em cada card.
+- Números grandes sutis (opacidade baixa) no fundo dos cards.
+- Animações de entrada staggered (animation-delay crescente por card).
+- Conteúdo denso: badges, tags, mini timelines, divisores com rótulo.
+- NUNCA grid 2x2 igual. NUNCA apenas Inter. NUNCA apenas <ul><li>.
 
 ## ESTRUTURA DO ARTIFACT
 <artifact identifier="id-kebab-case" title="Título Elegante" type="web">
