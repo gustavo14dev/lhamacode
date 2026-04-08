@@ -342,14 +342,14 @@ export class Agent {
             return;
         }
 
-        // Verificar se o usuÃ¡rio quer gerar uma imagem
+        // Verificar se o usuário quer gerar uma imagem
         const imagePrompt = this.extractImageGenerationPrompt(userMessage);
         if (imagePrompt) {
             console.log('--------------------------------------------------');
-            console.log('ðŸ¤– [MODELO UTILIZADO]: POLLINATIONS IMAGE');
-            console.log('ðŸŽ¨ MOTIVO: SolicitaÃ§Ã£o de geraÃ§Ã£o de imagem detectada.');
+            console.log('🤖 [MODELO UTILIZADO]: GEMINI 2.5 FLASH IMAGE');
+            console.log('🎨 MOTIVO: Solicitação de geração de imagem detectada.');
             console.log('--------------------------------------------------');
-            console.log('ðŸŽ¨ [DETECÃ‡ÃƒO] UsuÃ¡rio quer gerar imagem:', imagePrompt);
+            console.log('🎨 [DETECÇÃO] Usuário quer gerar imagem:', imagePrompt);
             try {
                 await this.processImageGeneration(imagePrompt);
             } finally {
@@ -569,8 +569,41 @@ export class Agent {
         return '';
     }
 
+    async generateImageWithGemini(prompt) {
+        console.log('🎨 [GEMINI-IMAGE] Gerando imagem com Gemini:', prompt);
+        
+        try {
+            const response = await fetch('/api/gemini-image', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ prompt: prompt })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Erro ao gerar imagem');
+            }
+            
+            const data = await response.json();
+            console.log('✅ [GEMINI-IMAGE] Imagem gerada com sucesso!');
+            
+            return {
+                imageUrl: data.imageUrl,
+                prompt: data.prompt,
+                provider: 'gemini',
+                model: data.model
+            };
+            
+        } catch (error) {
+            console.error('❌ [GEMINI-IMAGE] Erro na geração:', error);
+            throw error;
+        }
+    }
+
     async processImageGeneration(prompt) {
-        console.log(`ðŸŽ¨ [IMAGE-GEN] Processando geraÃ§Ã£o de imagem: "${prompt}"`);
+        console.log(`🎨 [IMAGE-GEN] Processando geração de imagem: "${prompt}"`);
         
         const messageContainer = this.ui.createAssistantMessageContainer();
 
@@ -578,7 +611,7 @@ export class Agent {
         await this.ui.sleep(500);
 
         try {
-            const imageData = await this.generateImageWithPollinations(prompt);
+            const imageData = await this.generateImageWithGemini(prompt);
             
             if (imageData && imageData.imageUrl) {
                 console.log('✅ [IMAGE-GEN] Imagem gerada com sucesso!');
@@ -595,23 +628,16 @@ Aqui está sua imagem sobre: "${prompt}"`;
                 // Exibir resposta
                 this.ui.setResponseText(response, messageContainer.responseId, async () => {
                     // Adicionar imagem gerada
-                    const fallbackCandidates = Array.isArray(imageData.fallbackCandidates) ? imageData.fallbackCandidates : [];
-                    const encodedFallbacks = encodeURIComponent(JSON.stringify(fallbackCandidates));
-                    const openUrl = imageData.openUrl || imageData.imageUrl;
                     const imageHtml = `
                         <div style="margin-top: 15px; text-align: center;">
                             <img src="${imageData.imageUrl}" alt="Imagem gerada: ${prompt}" 
-                                 data-fallbacks="${encodedFallbacks}"
-                                 data-fallback-index="0"
-                                 data-open-url="${openUrl}"
                                  referrerpolicy="no-referrer"
                                  crossorigin="anonymous"
-                                 onerror="window.handleGeneratedImageFallback && window.handleGeneratedImageFallback(this)"
                                  style="max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); cursor: pointer;"
-                                 onclick="window.open(this.dataset.openUrl || this.src, '_blank')"
+                                 onclick="window.open(this.src, '_blank')"
                                  title="Clique para ampliar">
                             <div style="margin-top: 8px; font-size: 12px; color: #6b7280; font-style: italic;">
-                                🎨 Gerado por Pollinations • ${prompt}
+                                🎨 Gerado por Gemini AI • ${prompt}
                             </div>
                         </div>
                     `;
