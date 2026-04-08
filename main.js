@@ -7877,6 +7877,15 @@ ${latexCode}
             return;
         }
 
+        // Verificar se é um pedido para gerar imagem
+        const imageMatch = message.match(/(?:gere|crie|faça|faz|gerar|criar)\s+(uma\s+)?imagem\s+(de|do|da|com|para)?\s*(.*)/i);
+        if (imageMatch || message.toLowerCase().includes('gere uma imagem') || message.toLowerCase().includes('crie uma imagem')) {
+            const prompt = imageMatch ? (imageMatch[3] || message) : message;
+            await this.generateImageWithGemini(prompt);
+            this.elements.userInput.value = '';
+            return;
+        }
+
 
 
         if (!this.isTransitioned) {
@@ -10368,6 +10377,17 @@ ${chunk}${bibliographyBlock}
         if (messagesContainer) {
             messagesContainer.appendChild(messageDiv);
             this.scrollToBottom();
+        }
+    }
+
+    removeMessage(messageId) {
+        // Tenta encontrar o elemento da mensagem pelo ID
+        const messageElement = document.getElementById(`responseText_${messageId}`);
+        if (messageElement) {
+            const parentMessage = messageElement.closest('.mb-6.flex.justify-start');
+            if (parentMessage) {
+                parentMessage.remove();
+            }
         }
     }
 
@@ -13417,6 +13437,105 @@ ${chunk}${bibliographyBlock}
             console.error('❌ [TAVILY DEBUG] Erro geral na pesquisa Tavily:', error);
             console.error('❌ [TAVILY DEBUG] Stack trace:', error.stack);
             this.addErrorMessage(`Erro na pesquisa: ${error.message}`);
+        }
+    }
+
+    async generateImageWithGemini(prompt) {
+        try {
+            console.log('🖼️ [IMAGE-DEBUG] Iniciando geração de imagem com Gemini...');
+            console.log('🖼️ [IMAGE-DEBUG] Prompt:', prompt);
+
+            // Adicionar mensagem do usuário
+            this.addUserMessage(prompt);
+
+            // Mostrar mensagem de "Gerando imagem..."
+            const processingId = this.addAssistantMessage('🎨 Gerando imagem...');
+
+            console.log('🖼️ [IMAGE-DEBUG] Chamando API /api/gemini-image...');
+
+            const response = await fetch('/api/gemini-image', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    prompt: prompt 
+                }),
+            });
+
+            if (!response.ok) {
+                console.error('❌ [IMAGE-DEBUG] Erro na resposta:', response.status, response.statusText);
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch (e) {
+                    errorData = { error: await response.text() };
+                }
+                console.error('❌ [IMAGE-DEBUG] Dados do erro:', errorData);
+                
+                // Atualizar mensagem de processamento com erro
+                this.updateProcessingMessage(processingId, `❌ Erro ao gerar imagem: ${errorData.error || 'Erro desconhecido'}`);
+                throw new Error(`Erro HTTP ${response.status}: ${errorData.error || 'Erro desconhecido'}`);
+            }
+
+            console.log('✅ [IMAGE-DEBUG] Resposta recebida com sucesso');
+            const data = await response.json();
+            console.log('✅ [IMAGE-DEBUG] Dados da resposta:', data);
+
+            if (!data.success || !data.imageUrl) {
+                throw new Error(data.error || 'Nenhuma imagem foi gerada');
+            }
+
+            // Remover mensagem de processamento e adicionar imagem
+            this.removeMessage(processingId);
+            
+            // Criar mensagem com a imagem gerada
+            const imageMessageId = this.addAssistantMessage('');
+            const responseDiv = document.getElementById(imageMessageId);
+            
+            if (responseDiv) {
+                const imageHtml = `
+                    <div class="mt-3">
+                        <div class="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
+                            🎨 Imagem gerada: "${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}"
+                        </div>
+                        <img src="${data.imageUrl}" alt="Imagem gerada por IA" 
+                             class="max-w-full rounded-lg shadow-lg border border-gray-200 dark:border-gray-700"
+                             style="max-height: 512px; object-fit: contain;"
+                             onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22%3E%3Crect fill=%22%23ddd%22 width=%22400%22 height=%22300%22/%3E%3Ctext fill=%22%23999%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22%3EErro ao carregar imagem%3C/text%3E%3C/svg%3E';"
+                        />
+                        <div class="mt-2 flex gap-2">
+                            <a href="${data.imageUrl}" download="imagem-gerada.png" 
+                               class="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md transition-colors">
+                                <span class="material-icons-outlined text-sm">download</span>
+                                Baixar
+                            </a>
+                            <button onclick="navigator.clipboard.writeText('${data.imageUrl}'); alert('URL copiada!')"
+                                    class="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm rounded-md transition-colors">
+                                <span class="material-icons-outlined text-sm">content_copy</span>
+                                Copiar URL
+                            </button>
+                        </div>
+                    </div>
+                `;
+                responseDiv.insertAdjacentHTML('beforeend', imageHtml);
+            }
+
+            // Persistir no chat
+            const targetChatId = this.currentChatId;
+            this.persistMessageToChat(targetChatId, {
+                role: 'assistant',
+                content: `🎨 Imagem gerada: "${prompt}"`,
+                imageUrl: data.imageUrl,
+                model: data.model || 'gemini-2.5-flash-image'
+            });
+
+            console.log('✅ [IMAGE-DEBUG] Imagem gerada e exibida com sucesso!');
+
+        } catch (error) {
+            console.error('❌ [IMAGE-DEBUG] Erro geral na geração de imagem:', error);
+            console.error('❌ [IMAGE-DEBUG] Stack trace:', error.stack);
+            this.addErrorMessage(`Erro ao gerar imagem: ${error.message}`);
         }
     }
 
