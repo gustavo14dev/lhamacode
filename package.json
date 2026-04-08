@@ -14,8 +14,9 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@sparticuz/chromium": "^123.0.1",
+    "@google/generative-ai": "^0.24.1",
     "@myriaddreamin/typst.ts": "^0.6.0",
+    "@sparticuz/chromium": "^123.0.1",
     "multiparty": "^4.2.3",
     "pdfjs-dist": "^3.11.174",
     "puppeteer-core": "^24.36.1"
