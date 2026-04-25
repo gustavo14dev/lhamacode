@@ -10994,6 +10994,18 @@ ${chunk}${bibliographyBlock}
 
 
 
+    appendResponseTag(responseId, label) {
+        const responseDiv = document.getElementById(responseId);
+        if (!responseDiv || !label) return;
+
+        const tagDiv = document.createElement('div');
+        tagDiv.className = 'inline-flex items-center rounded-full border border-orange-400/20 bg-orange-100/15 px-2 py-0.5 text-[11px] font-semibold text-orange-700 mt-2 w-fit';
+        tagDiv.textContent = label;
+
+        responseDiv.appendChild(tagDiv);
+        this.scrollToBottom();
+    }
+
     setResponseText(text, responseId, callback, preserveExtra = false) {
         console.log('🔍 [SET-TEXT] Iniciando setResponseText');
         console.log('🔍 [SET-TEXT] Text:', text ? text.substring(0, 100) + '...' : 'NULO');

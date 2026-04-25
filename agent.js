@@ -600,7 +600,16 @@ ${analysisHint}
             ];
 
             await this.ensureCapacityAndTrack({ model: 'nvidia/nemotron-3-super-120b-a12b:free', userMessage, conversationHistory: this.conversationHistory, webData });
-            const aiResponse = await this.callOpenRouterAPI('nvidia/nemotron-3-super-120b-a12b:free', finalMessages, { temperature: 0.16, max_tokens: 1200, top_p: 0.9 });
+            let usedFallbackModel = false;
+            let aiResponse;
+
+            try {
+                aiResponse = await this.callOpenRouterAPI('nvidia/nemotron-3-super-120b-a12b:free', finalMessages, { temperature: 0.16, max_tokens: 1200, top_p: 0.9 });
+            } catch (primaryError) {
+                console.warn('⚠️ OpenRouter primary failed, using fallback openrouter/free:', primaryError);
+                aiResponse = await this.callOpenRouterAPI('openrouter/free', finalMessages, { temperature: 0.16, max_tokens: 1200, top_p: 0.9 });
+                usedFallbackModel = true;
+            }
 
             this.addToHistory('assistant', aiResponse);
             this.persistAssistantMessage(aiResponse, { sources: webData.sources });
@@ -608,6 +617,9 @@ ${analysisHint}
             this.ui.setResponseText(aiResponse, messageContainer.responseId, async () => {
                 if (webData && Array.isArray(webData.sources) && webData.sources.length > 0) {
                     this.ui.addSourcesButton(messageContainer.responseId, webData.sources, webData.query);
+                }
+                if (usedFallbackModel && typeof this.ui.appendResponseTag === 'function') {
+                    this.ui.appendResponseTag(messageContainer.responseId, 'BETA');
                 }
             });
             this.ui.setThinkingHeader('', messageContainer.headerId);
