@@ -390,6 +390,215 @@ export class Agent {
         return this.callGroqAPI(model, messages, { max_tokens: 4096 });
     }
 
+    async callOpenRouterAPI(model, messages, options = {}) {
+        const requestBody = {
+            model,
+            messages: Array.isArray(messages) ? messages : [],
+            temperature: options.temperature ?? 0.15,
+            top_p: options.top_p ?? 0.9,
+            max_tokens: options.max_tokens ?? 1200,
+            stream: false,
+            ...options.extra
+        };
+
+        try {
+            const response = await fetch('/api/openrouter-proxy', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            const data = await response.json().catch(() => null);
+            if (!response.ok) {
+                const detail = data?.error?.message || data?.error || data?.message || JSON.stringify(data);
+                throw new Error(`API retornou status ${response.status}: ${detail}`);
+            }
+
+            let text = '';
+            if (Array.isArray(data.choices) && data.choices.length > 0) {
+                text = (data.choices[0].message?.content || data.choices[0].text || '').trim();
+            }
+
+            if (!text && data?.output && Array.isArray(data.output) && data.output.length > 0) {
+                text = String(data.output[0].content || data.output[0] || '').trim();
+            }
+
+            if (!text && typeof data?.result === 'string') {
+                text = data.result.trim();
+            }
+
+            if (!text) {
+                const fallbackError = data?.error || data?.choices?.[0]?.message?.content || JSON.stringify(data);
+                throw new Error(`Resposta vazia ou inválida da API: ${this.formatErrorMessage(fallbackError)}`);
+            }
+
+            return text;
+        } catch (error) {
+            const message = this.formatErrorMessage(error);
+            console.error(`❌ Erro em callOpenRouterAPI (model=${model}):`, message);
+            throw new Error(message);
+        }
+    }
+
+    parseWebArtifactClassifierOutput(rawOutput) {
+        const text = String(rawOutput || '').trim().toUpperCase();
+        const tokens = Array.from(new Set((text.match(/WEB|ARTIFACT|NENHUM/g) || []).map(t => t.trim())));
+
+        if (tokens.includes('WEB') && tokens.includes('ARTIFACT')) {
+            return 'WEB, ARTIFACT';
+        }
+        if (tokens.includes('WEB')) {
+            return 'WEB';
+        }
+        if (tokens.includes('ARTIFACT')) {
+            return 'ARTIFACT';
+        }
+        return 'NENHUM';
+    }
+
+    async classifyRequestForWebAndArtifact(userMessage, relevantContext = []) {
+        const classifierSystem = `Você é um classificador especializado. Analise a pergunta do usuário e responda estritamente com apenas UMA das opções abaixo, usando APENAS essa palavra ou expressão exata, sem explicações e sem texto extra:
+- WEB
+- ARTIFACT
+- WEB, ARTIFACT
+- NENHUM
+
+Use WEB quando a pergunta precisa de consulta à web externa para obter informações atualizadas ou fontes relevantes.
+Use ARTIFACT quando a resposta deve incluir um artifact inline (tabela, comparação, lista estruturada, esquema textual ou similar) independentemente de precisar de web.
+Use WEB, ARTIFACT quando precisa de ambos.
+Use NENHUM quando não houver necessidade de web nem de artifact.
+`; 
+
+        const contextLines = [];
+        if (Array.isArray(relevantContext) && relevantContext.length > 0) {
+            contextLines.push('Contexto relevante:');
+            relevantContext.slice(0, 5).forEach((item, index) => {
+                const role = item.role || 'usuário';
+                const content = item.content || '';
+                contextLines.push(`${index + 1}. [${role}] ${content}`);
+            });
+        }
+
+        const messages = [
+            { role: 'system', content: classifierSystem },
+            { role: 'user', content: `Pergunta do usuário: ${userMessage}
+${contextLines.join('\n')}` }
+        ];
+
+        const rawOutput = await this.callGroqAPI('Meta-Llama-3.1-8B-Instruct', messages, { temperature: 0.0, max_tokens: 16 });
+        const decision = this.parseWebArtifactClassifierOutput(rawOutput);
+        console.log('🧠 [CLASSIFICADOR] Saída bruta:', rawOutput);
+        console.log('🧠 [CLASSIFICADOR] Decisão normalizada:', decision);
+        return decision;
+    }
+
+    buildOpenRouterSystemPrompt(classifierDecision) {
+        const analysisHint = classifierDecision === 'WEB'
+            ? 'Use os resultados da web como apoio à resposta.'
+            : classifierDecision === 'ARTIFACT'
+                ? 'Inclua um artifact inline diretamente na resposta.'
+                : classifierDecision === 'WEB, ARTIFACT'
+                    ? 'Use a web como apoio e inclua um artifact inline na resposta.'
+                    : 'Responda com texto direto, sem artifact ou web extra.';
+
+        return `Você é a Drekee AI usando NVIDIA nemotron-3-super-120b-a12b:free via OpenRouter. Responda em português de forma clara, direta e prática.
+
+${analysisHint}
+- NÃO crie elementos visuais separados ou cards independentes.
+- Se for gerar um artifact, faça isso INLINE na resposta usando texto estruturado, tabelas markdown, listas ou esquemas.
+- Se usar fontes web, cite apenas as fontes apresentadas e não invente novos links.
+- Não use tags de raciocínio como <think>, <raciocínio> ou similares.
+- Não comece a resposta com explicações sobre o processo; responda diretamente ao pedido do usuário.`;
+    }
+
+    buildOpenRouterUserPrompt(userMessage, classifierDecision, webData, relevantContext = []) {
+        let prompt = `Pedido do usuário: ${userMessage}\n\nClassificação da necessidade: ${classifierDecision}.\n`;
+        if (classifierDecision === 'NENHUM') {
+            prompt += 'Não use web nem artifact estruturado. Responda apenas com o que for necessário.';
+        } else if (classifierDecision === 'WEB') {
+            prompt += 'Use apenas a web como apoio para responder. Não adicione artifact adicional.';
+        } else if (classifierDecision === 'ARTIFACT') {
+            prompt += 'Inclua um artifact inline útil na resposta. Não utilize web se não for necessário.';
+        } else if (classifierDecision === 'WEB, ARTIFACT') {
+            prompt += 'Use a web como apoio e inclua um artifact inline na resposta.';
+        }
+
+        if (webData && Array.isArray(webData.sources) && webData.sources.length > 0) {
+            prompt += '\n\nFontes disponíveis:\n';
+            webData.sources.slice(0, 4).forEach((source, index) => {
+                const title = source.title || source.name || 'Fonte sem título';
+                const url = source.url || source.link || source.domain || '';
+                const snippet = source.snippet || source.content || '';
+                prompt += `${index + 1}. ${title} - ${url}${snippet ? `\n   ${snippet}` : ''}\n`;
+            });
+            prompt += '\nUse essas informações apenas como apoio. Cite-as brevemente quando relevantes.';
+        }
+
+        if (Array.isArray(relevantContext) && relevantContext.length > 0) {
+            prompt += '\n\nContexto relevante da conversa:\n';
+            relevantContext.slice(0, 5).forEach((item, index) => {
+                prompt += `${index + 1}. [${item.role || 'usuário'}] ${item.content || ''}\n`;
+            });
+        }
+
+        return prompt;
+    }
+
+    async processOpenRouterModel(userMessage, relevantContext = []) {
+        const messageContainer = this.ui.createAssistantMessageContainer();
+        this.ui.setThinkingHeader('Classificando e gerando resposta...', messageContainer.headerId);
+
+        const imagesPromise = this.searchUnsplashImages(userMessage);
+        let classifierDecision = 'NENHUM';
+        let webData = { query: userMessage, sources: [], results: [] };
+
+        try {
+            classifierDecision = await this.classifyRequestForWebAndArtifact(userMessage, relevantContext);
+        } catch (error) {
+            console.warn('⚠️ Classificador falhou, assumindo NENHUM:', error);
+            classifierDecision = 'NENHUM';
+        }
+
+        try {
+            if (classifierDecision === 'WEB' || classifierDecision === 'WEB, ARTIFACT') {
+                webData = await this.searchWebForResponse(userMessage);
+            }
+
+            const images = await imagesPromise;
+            if (images && images.length > 0) {
+                this.ui.appendImagesToMessage(messageContainer.responseId, images);
+            }
+
+            const systemContent = this.buildOpenRouterSystemPrompt(classifierDecision);
+            const userContent = this.buildOpenRouterUserPrompt(userMessage, classifierDecision, webData, relevantContext);
+            const finalMessages = [
+                { role: 'system', content: systemContent },
+                ...(this.extraMessagesForNextCall || []),
+                ...this.conversationHistory,
+                { role: 'user', content: userContent }
+            ];
+
+            await this.ensureCapacityAndTrack({ model: 'nvidia/nemotron-3-super-120b-a12b:free', userMessage, conversationHistory: this.conversationHistory, webData });
+            const aiResponse = await this.callOpenRouterAPI('nvidia/nemotron-3-super-120b-a12b:free', finalMessages, { temperature: 0.16, max_tokens: 1200, top_p: 0.9 });
+
+            this.addToHistory('assistant', aiResponse);
+            this.persistAssistantMessage(aiResponse, { sources: webData.sources });
+
+            this.ui.setResponseText(aiResponse, messageContainer.responseId, async () => {
+                if (webData && Array.isArray(webData.sources) && webData.sources.length > 0) {
+                    this.ui.addSourcesButton(messageContainer.responseId, webData.sources, webData.query);
+                }
+            });
+            this.ui.setThinkingHeader('', messageContainer.headerId);
+        } catch (error) {
+            console.error('Erro no fluxo OpenRouter:', error);
+            this.ui.setResponseText('Desculpe, ocorreu um erro ao gerar a resposta com OpenRouter. Tente novamente mais tarde.', messageContainer.responseId);
+            this.ui.setThinkingHeader('', messageContainer.headerId);
+        }
+    }
+
     async processMessage(userMessage, attachedFilesFromUI = null) {
         this.activeChatIdForGeneration = this.ui.currentChatId;
         console.log('ðŸ“¨ Mensagem para processar:', userMessage.substring(0, 100) + '...');
@@ -473,19 +682,8 @@ export class Agent {
                 console.log('ðŸ“Ž COM ANEXO detectado, usando Gemini API');
                 await this.processGeminiModel(userMessage, this.lastParsedFiles, relevantContext);
             } else {
-                console.log('ðŸ’¬ SEM ANEXO, usando modelo atual (Groq):', this.currentModel);
-                
-                // Usa o modelo selecionado (Groq)
-                if (this.currentModel === 'rapido') {
-                    await this.processRapidoModel(userMessage, relevantContext);
-                } else if (this.currentModel === 'raciocinio') {
-                    await this.processRaciocioModel(userMessage, relevantContext);
-                } else if (this.currentModel === 'pro') {
-                    await this.processProModel(userMessage, relevantContext);
-                } else {
-                    // Fallback para rapido se modelo nÃ£o reconhecido
-                    await this.processRapidoModel(userMessage, relevantContext);
-                }
+                console.log('ðŸ’¬ SEM ANEXO, usando modelo atual (OpenRouter NVIDIA)');
+                await this.processOpenRouterModel(userMessage, relevantContext);
             }
         } catch (error) {
             console.error('âŒ Erro no processamento da mensagem:', error);
@@ -512,6 +710,8 @@ export class Agent {
         const messageContainer = this.ui.createAssistantMessageContainer();
         const responseChatId = this.getActiveChatId();
         this.ui.setThinkingHeader('Deep Research em andamento...', messageContainer.headerId);
+        
+        const imagesPromise = this.searchUnsplashImages(userMessage);
         
         // Texto de feedback inicial conforme solicitado
         this.ui.setResponseText('Trabalhando na sua solicitação ao Drekee Investigate 1.0, aguarde alguns minutos...', messageContainer.responseId);
@@ -544,6 +744,12 @@ export class Agent {
 
             this.addToHistory('assistant', aiResponse);
             this.persistAssistantMessage(aiResponse);
+
+            const images = await imagesPromise;
+            if (images && images.length > 0) {
+                this.ui.appendImagesToMessage(messageContainer.responseId, images);
+            }
+
             this.ui.setResponseText(aiResponse, messageContainer.responseId, async () => {
                 // [FIX] Chamada para função inexistente removida para evitar TypeError
             });
@@ -563,6 +769,7 @@ export class Agent {
         const messageContainer = this.ui.createAssistantMessageContainer();
         const responseChatId = this.getActiveChatId();
         this.ui.setThinkingHeader('Raciocinando...', messageContainer.headerId);
+        const imagesPromise = this.searchUnsplashImages(userMessage);
         
         try {
             const deepSeekDecision = await this.processDeepSeekBarrier(userMessage, {}, relevantContext);
@@ -595,11 +802,21 @@ export class Agent {
             this.addToHistory('assistant', finalResponse);
             this.persistAssistantMessage(finalResponse);
             this.renderReasoningCard(messageContainer, reasoningText);
+            
+            const images = await imagesPromise;
+            if (images && images.length > 0) {
+                this.ui.appendImagesToMessage(messageContainer.responseId, images);
+            }
+
             this.ui.setResponseText(this.cleanChatResponse(finalResponse), messageContainer.responseId, async () => {
-                // [FIX] Chamada para função inexistente removida para evitar TypeError
+                await this.attachYouTubeVideosToResponse({
+                    userMessage,
+                    assistantResponse: aiResponse,
+                    responseId: messageContainer.responseId,
+                    chatId: responseChatId
+                });
             });
             this.ui.setThinkingHeader('', messageContainer.headerId);
-            
         } catch (error) {
             console.error('Erro Gemini:', error);
             throw error;
@@ -628,9 +845,10 @@ export class Agent {
     }
 
     async processImageGeneration(prompt) {
-        console.log(`ðŸŽ¨ [IMAGE-GEN] Processando geraÃ§Ã£o de imagem: "${prompt}"`);
+        console.log(`ðŸŽ¨ [IMAGE-GEN] Processando geração de imagem: "${prompt}"`);
         
         const messageContainer = this.ui.createAssistantMessageContainer();
+        const imagesPromise = this.searchUnsplashImages(prompt);
 
         this.ui.setThinkingHeader('🎨 Gerando imagem...', messageContainer.headerId);
         await this.ui.sleep(500);
@@ -642,16 +860,19 @@ export class Agent {
                 console.log('✅ [IMAGE-GEN] Imagem gerada com sucesso!');
                 
                 // Criar resposta com a imagem
-                const response = `🎨 **Imagem gerada com sucesso!**
-
-Aqui está sua imagem sobre: "${prompt}"`;
+                const response = `🎨 **Imagem gerada com sucesso!**\n\nAqui está sua imagem sobre: "${prompt}"`;
                 
-                // Adicionar ao histÃ³rico
+                // Adicionar ao histórico
                 this.addToHistory('assistant', response);
                 this.persistAssistantMessage(response);
                 
                 // Exibir resposta
                 this.ui.setResponseText(response, messageContainer.responseId, async () => {
+                    const images = await imagesPromise;
+                    if (images && images.length > 0) {
+                        this.ui.appendImagesToMessage(messageContainer.responseId, images);
+                    }
+                    
                     // Adicionar imagem gerada
                     const fallbackCandidates = Array.isArray(imageData.fallbackCandidates) ? imageData.fallbackCandidates : [];
                     const encodedFallbacks = encodeURIComponent(JSON.stringify(fallbackCandidates));
@@ -807,19 +1028,21 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
         
         this.addToHistory('user', userMessage);
         
+        const imagesPromise = this.searchUnsplashImages(userMessage);
+        
         try {
             // BUSCAR IMAGENS PRIMEIRO - antes de chamar a API
             console.log('🔄 [DEBUG-IMAGEM] Buscando imagens ANTES da resposta...');
-            const images = await this.searchUnsplashImages(userMessage);
+            const images = await imagesPromise;
             console.log('📦 [DEBUG-IMAGEM] Imagens recebidas:', images);
-            
+
             // Adicionar imagens ANTES da resposta
             if (images && images.length > 0) {
                 console.log('✅ [DEBUG-IMAGEM] Adicionando imagens ANTES da resposta');
-                this.ui.appendImagesToMessage(`responseText_${messageContainer}`, images);
+                this.ui.appendImagesToMessage(messageContainer.responseId, images);
             }
-            
-            // Construir prompt com contexto da memÃ³ria
+
+            // Construir prompt com contexto da memória
             let memoryContext = '';
             if (relevantContext.length > 0) {
                 memoryContext = '\n\nCONTEXTO RELEVANTE DA CONVERSA:\n';
@@ -854,19 +1077,7 @@ Pesquise informações atuais e forneça respostas baseadas em fontes confiávei
             this.memory.addConversationMemory('assistant', response);
             this.memory.learnFromInteraction(userMessage, response);
             
-            // PRIMEIRO: Adicionar imagens ANTES da resposta
-            console.log('🔄 [DEBUG] Adicionando imagens ANTES da resposta...');
-            const imagesData = await imagesPromise;
-            console.log('📦 [DEBUG] Imagens recebidas:', imagesData);
-            
-            if (imagesData && imagesData.length > 0) {
-                console.log('✅ [DEBUG] Adicionando imagens ANTES da resposta');
-                this.ui.appendImagesToMessage(messageContainer.responseId, imagesData);
-            } else {
-                console.log('âŒ [DEBUG] Nenhuma imagem encontrada ou array vazio');
-            }
-            
-            // SEGUNDO: Adicionar resposta
+            // Adicionar resposta
             this.ui.setResponseText(response, messageContainer.responseId, async () => {
                 // Gerar sugestÃµes de acompanhamento sÃ³ quando resposta estiver completa
                 this.generateFollowUpSuggestions(userMessage, response, messageContainer.responseId);

@@ -10758,34 +10758,74 @@ ${chunk}${bibliographyBlock}
 
 
     async searchUnsplashImages(query) {
-        if (!query || typeof query !== 'string') {
-            return [];
-        }
+        const fallbackUnsplashImages = [
+            {
+                id: 'fallback-1',
+                src: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
+                alt: 'Foto de tecnologia no Unsplash'
+            },
+            {
+                id: 'fallback-2',
+                src: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80',
+                alt: 'Foto de estudo no Unsplash'
+            },
+            {
+                id: 'fallback-3',
+                src: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80',
+                alt: 'Foto de ambiente de trabalho no Unsplash'
+            }
+        ];
 
-        try {
-            const response = await fetch('/api/unsplash-search', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: query.trim(), page: 1, maxResults: 3 })
-            });
+        const normalizePhoto = (photo) => {
+            if (!photo || typeof photo !== 'object') return null;
+            const src = photo.url || photo.src?.large || photo.src?.regular || photo.src?.small || '';
+            if (!src) return null;
+            return {
+                id: photo.id || src || `${Date.now()}-${Math.random()}`,
+                src,
+                alt: photo.alt || photo.description || photo.unsplash_url || 'Imagem Unsplash'
+            };
+        };
 
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                console.warn('⚠️ [UNSPLASH] Falha na busca:', response.status, error);
+        const fetchPhotos = async (searchQuery) => {
+            try {
+                const response = await fetch('/api/unsplash-search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: searchQuery.trim(), page: 1, maxResults: 3 })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    console.warn('⚠️ [UNSPLASH] Falha na busca:', response.status, error);
+                    return [];
+                }
+
+                const data = await response.json();
+                const photos = Array.isArray(data.photos) ? data.photos : [];
+                return photos.map(normalizePhoto).filter(Boolean);
+            } catch (err) {
+                console.warn('⚠️ [UNSPLASH] Erro ao buscar imagens:', err);
                 return [];
             }
+        };
 
-            const data = await response.json();
-            const photos = Array.isArray(data.photos) ? data.photos : [];
-            return photos.slice(0, 3).map(photo => ({
-                id: photo.id || photo.url || `${Date.now()}-${Math.random()}`,
-                src: photo.url || photo.src?.large || photo.src?.regular || '',
-                alt: photo.alt || photo.description || photo.unsplash_url || ''
-            })).filter(item => item.src);
-        } catch (err) {
-            console.warn('⚠️ [UNSPLASH] Erro ao buscar imagens:', err);
-            return [];
+        const sanitizedQuery = typeof query === 'string' ? query.trim() : '';
+        const primaryQuery = sanitizedQuery.length > 0 ? sanitizedQuery : 'inteligência artificial';
+        let photos = await fetchPhotos(primaryQuery);
+
+        if (photos.length < 3) {
+            const fallbackQuery = sanitizedQuery.length > 0 ? `${sanitizedQuery} tecnologia` : 'tecnologia';
+            const secondaryPhotos = await fetchPhotos(fallbackQuery);
+            photos = [...photos, ...secondaryPhotos].filter((photo, index, self) => self.findIndex(item => item.src === photo.src) === index);
         }
+
+        if (photos.length < 3) {
+            const extraPhotos = fallbackUnsplashImages.filter(fallback => !photos.some(photo => photo.src === fallback.src));
+            photos = [...photos, ...extraPhotos].slice(0, 3);
+        }
+
+        return photos.slice(0, 3);
     }
 
     async searchWebForResponse(query) {
