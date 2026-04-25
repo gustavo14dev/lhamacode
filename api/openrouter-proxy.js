@@ -33,12 +33,31 @@ export default async function handler(req, res) {
       body: JSON.stringify(requestBody)
     });
 
-    const data = await response.json().catch(() => null);
-    if (response.ok) {
-      return res.status(200).json(data);
+    const rawText = await response.text().catch(() => '');
+    let data = null;
+
+    if (rawText) {
+      try {
+        data = JSON.parse(rawText);
+      } catch (parseError) {
+        data = null;
+      }
     }
 
-    return res.status(response.status).json(data || { error: 'OpenRouter request failed' });
+    if (!response.ok) {
+      const errorPayload = data || { error: rawText || 'OpenRouter returned empty response' };
+      return res.status(response.status).json(errorPayload);
+    }
+
+    if (!rawText) {
+      return res.status(502).json({ error: 'OpenRouter returned empty response body' });
+    }
+
+    if (data === null) {
+      return res.status(502).json({ error: 'OpenRouter returned invalid JSON', rawText });
+    }
+
+    return res.status(200).json(data);
   } catch (error) {
     console.error('❌ [OPENROUTER PROXY] Error:', error);
     return res.status(500).json({ error: 'OpenRouter proxy error', details: error.message || String(error) });

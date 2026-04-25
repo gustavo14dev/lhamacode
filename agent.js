@@ -410,22 +410,33 @@ export class Agent {
                 body: JSON.stringify(requestBody)
             });
 
-            const data = await response.json().catch(async () => {
-                const fallbackText = await response.text().catch(() => null);
-                return fallbackText ? { error: `Invalid JSON response: ${fallbackText}` } : null;
-            });
+            const rawText = await response.text().catch(() => '');
+            let data = null;
+            if (rawText) {
+                try {
+                    data = JSON.parse(rawText);
+                } catch (parseError) {
+                    data = null;
+                }
+            }
 
             if (!response.ok) {
-                const detail = data?.error?.message || data?.error || data?.message || JSON.stringify(data);
+                const detail = data?.error?.message || data?.error || data?.message || rawText || 'sem corpo';
                 throw new Error(`API retornou status ${response.status}: ${detail}`);
             }
 
-            if (!data || typeof data !== 'object') {
-                throw new Error(`Resposta vazia ou inválida da API: ${this.formatErrorMessage(data?.error || 'Nenhum corpo JSON retornado')}`);
+            if (!rawText) {
+                throw new Error('Resposta vazia ou inválida da API: Nenhum corpo JSON retornado');
+            }
+
+            if (data === null) {
+                throw new Error(`Resposta inválida da API: ${rawText}`);
             }
 
             let text = '';
-            if (Array.isArray(data.choices) && data.choices.length > 0) {
+            if (typeof data.content === 'string' && data.content.trim()) {
+                text = data.content.trim();
+            } else if (Array.isArray(data.choices) && data.choices.length > 0) {
                 text = (data.choices[0].message?.content || data.choices[0].text || '').trim();
             }
 
@@ -438,7 +449,7 @@ export class Agent {
             }
 
             if (!text) {
-                const fallbackError = data?.error || data?.choices?.[0]?.message?.content || JSON.stringify(data);
+                const fallbackError = data?.error || data?.message || rawText || JSON.stringify(data);
                 throw new Error(`Resposta vazia ou inválida da API: ${this.formatErrorMessage(fallbackError)}`);
             }
 
