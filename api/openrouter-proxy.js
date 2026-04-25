@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   const body = req.body || {};
   const model = body.model || '';
   const messages = Array.isArray(body.messages) ? body.messages : [];
-  const openrouterEndpoint = process.env.OPENROUTER_API_URL || 'https://openrouter.ai/v1/chat/completions';
+  const openrouterEndpoint = process.env.OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions';
 
   const requestBody = {
     model,
@@ -28,7 +28,9 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openrouterKey}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://drekee.vercel.app',
+        'X-Title': 'Drekee AI'
       },
       body: JSON.stringify(requestBody)
     });
