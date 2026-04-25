@@ -410,10 +410,18 @@ export class Agent {
                 body: JSON.stringify(requestBody)
             });
 
-            const data = await response.json().catch(() => null);
+            const data = await response.json().catch(async () => {
+                const fallbackText = await response.text().catch(() => null);
+                return fallbackText ? { error: `Invalid JSON response: ${fallbackText}` } : null;
+            });
+
             if (!response.ok) {
                 const detail = data?.error?.message || data?.error || data?.message || JSON.stringify(data);
                 throw new Error(`API retornou status ${response.status}: ${detail}`);
+            }
+
+            if (!data || typeof data !== 'object') {
+                throw new Error(`Resposta vazia ou inválida da API: ${this.formatErrorMessage(data?.error || 'Nenhum corpo JSON retornado')}`);
             }
 
             let text = '';
