@@ -396,7 +396,7 @@ export class Agent {
             messages: Array.isArray(messages) ? messages : [],
             temperature: options.temperature ?? 0.15,
             top_p: options.top_p ?? 0.9,
-            max_tokens: options.max_tokens ?? 1200,
+            max_tokens: options.max_tokens ?? 2600,
             stream: false,
             ...options.extra
         };
@@ -604,10 +604,10 @@ ${analysisHint}
             let aiResponse;
 
             try {
-                aiResponse = await this.callOpenRouterAPI('nvidia/nemotron-3-super-120b-a12b:free', finalMessages, { temperature: 0.16, max_tokens: 1200, top_p: 0.9 });
+                aiResponse = await this.callOpenRouterAPI('nvidia/nemotron-3-super-120b-a12b:free', finalMessages, { temperature: 0.16, max_tokens: 2600, top_p: 0.9 });
             } catch (primaryError) {
                 console.warn('⚠️ OpenRouter primary failed, using fallback openrouter/free:', primaryError);
-                aiResponse = await this.callOpenRouterAPI('openrouter/free', finalMessages, { temperature: 0.16, max_tokens: 1200, top_p: 0.9 });
+                aiResponse = await this.callOpenRouterAPI('openrouter/free', finalMessages, { temperature: 0.16, max_tokens: 2600, top_p: 0.9 });
                 usedFallbackModel = true;
             }
 
